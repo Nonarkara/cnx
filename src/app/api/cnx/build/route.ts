@@ -25,6 +25,7 @@ interface BuildInfo {
   features: {
     flightOverlay: boolean;
     openskyLive: boolean;
+    buildings3D: boolean;
   };
 }
 
@@ -46,6 +47,7 @@ export function GET(): Response {
     features: {
       flightOverlay: true,
       openskyLive: true,
+      buildings3D: true,
     },
   };
 
