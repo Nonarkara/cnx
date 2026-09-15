@@ -18,11 +18,15 @@ import type {
   SocialListeningResponse,
 } from "../../types/cnx";
 import type { FetchResult } from "../../lib/cnx/opensky";
+import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
+import type { AerosolResponse } from "../../lib/cnx/aerosol";
 
 interface TopBarProps {
   flood: CnxFloodResponse | null;
   air: AirQualityResponse | null;
   fires: CnxFiresResponse | null;
+  firesRfd: RfdFiresResponse | null;
+  aerosol: AerosolResponse | null;
   social: SocialListeningResponse | null;
   cctv: CctvFeedResponse | null;
   story: CnxStoryResponse | null;
@@ -58,7 +62,7 @@ function Pill({
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, social, cctv, flights, onOpenStory, onOpenManual } = props;
+  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, onOpenStory, onOpenManual } = props;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
   useEffect(() => {

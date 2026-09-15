@@ -79,7 +79,7 @@ export interface CnxFloodResponse {
 export interface SocialItem {
   id: string;
   source: "google-news" | "gdelt" | "twitter" | "reddit";
-  lang: "th" | "en";
+  lang: "th" | "en" | "zh" | "ja" | "ko" | "ru" | "de" | "fr";
   title: string;
   url: string;
   publishedAt: string;
@@ -96,7 +96,7 @@ export interface SocialListeningResponse {
 
 // ─── CCTV ────────────────────────────────────────────────────────
 
-export type CctvSource = "longdo" | "itic" | "doh" | "private" | "lanta";
+export type CctvSource = "longdo" | "itic" | "doh" | "private" | "lanta" | "youtube";
 
 export interface CctvSlot {
   id: string;
@@ -245,6 +245,26 @@ export type {
 } from "../lib/cnx/opensky";
 export type { PlaneSize, AircraftSpec } from "../lib/cnx/aircraft";
 
+// ─── Bus routes ──────────────────────────────────────────────────
+
+export interface BusStop {
+  id: string;
+  name: string;
+  longitude: number;
+  latitude: number;
+  operator: string;
+  routeRef: string;
+}
+
+export interface BusRoute {
+  id: string;
+  ref: string;
+  name: string;
+  operator: string;
+  colour: string;
+  geometry: [number, number][]; // [lon, lat]
+}
+
 // ─── Convenience unions ──────────────────────────────────────────
 
 export interface CnxApiResponses {
@@ -253,6 +273,8 @@ export interface CnxApiResponses {
   cctv: CctvFeedResponse;
   airQuality: AirQualityResponse;
   fires: CnxFiresResponse;
+  firesRfd: import("../lib/cnx/fire-rfd").RfdFiresResponse;
+  aerosol: import("../lib/cnx/aerosol").AerosolResponse;
   openData: OpenDataIndex;
   heritage: { generatedAt: string; sites: CnxHeritageSite[] };
   story: CnxStoryResponse;

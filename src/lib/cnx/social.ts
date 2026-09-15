@@ -79,6 +79,86 @@ function isoFromGdelt(s: string | undefined): string {
 let cache: { at: number; data: SocialListeningResponse } | null = null;
 const TTL_MS = 3 * 60_000;
 
+/** Per-language Google News feeds, keyed by tourist-origin country. The
+ *  flight desk drives which of these are subscribed at any moment —
+ *  see fetchCnxSocialMultilingual(). */
+const MULTILINGUAL_FEEDS: { lang: SocialItem["lang"]; country: string; url: string }[] = [
+  { lang: "zh", country: "China", url: "https://news.google.com/rss/search?q=%E6%B8%85%E8%BF%AA&hl=zh-CN&gl=CN" },
+  { lang: "ja", country: "Japan", url: "https://news.google.com/rss/search?q=%E3%83%81%E3%82%A2%E3%83%B3%E3%83%9E%E3%82%A4&hl=ja&gl=JP" },
+  { lang: "ko", country: "Korea", url: "https://news.google.com/rss/search?q=%EC%B2%9C%EC%9D%B4%EB%A7%88%EC%9D%B4&hl=ko&gl=KR" },
+  { lang: "ru", country: "Russia", url: "https://news.google.com/rss/search?q=%D0%A7%D0%B8%D0%B0%D0%BD%D0%B3-%D0%9C%D0%B0%D0%B8&hl=ru&gl=RU" },
+  { lang: "de", country: "Germany", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=de&gl=DE" },
+  { lang: "fr", country: "France", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=fr&gl=FR" },
+  { lang: "en", country: "India", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=en-IN&gl=IN" },
+  { lang: "en", country: "Australia", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=en-AU&gl=AU" },
+];
+
+/** Multilingual social: subscribes to per-language Google News feeds
+ *  for the given top-N countries. Used when the flight desk's top
+ *  origin countries include CN / JP / KR / RU / DE / FR / IN / AU. */
+export async function fetchCnxSocialMultilingual(countries: string[] = []): Promise<SocialListeningResponse> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
+  const now = new Date().toISOString();
+  try {
+    const wanted = new Set(countries.map((c) => c.toLowerCase()));
+    const feeds: { url: string; lang: SocialItem["lang"] }[] = [
+      { url: GOOGLE_NEWS_TH, lang: "th" },
+      { url: GOOGLE_NEWS_EN, lang: "en" },
+    ];
+    for (const f of MULTILINGUAL_FEEDS) {
+      if (wanted.size === 0 || wanted.has(f.country.toLowerCase())) {
+        feeds.push({ url: f.url, lang: f.lang });
+      }
+    }
+    const rss = await Promise.all(feeds.map((f) => fetch(f.url, { headers: { Accept: "application/rss+xml" } })));
+    const gdelt = await fetchGdelt();
+    const items: SocialItem[] = [];
+    for (let i = 0; i < feeds.length; i++) {
+      const res = rss[i];
+      const meta = feeds[i];
+      if (!res.ok) continue;
+      const parsed = parseRss(await res.text()).slice(0, 8);
+      for (const r of parsed) {
+        items.push({
+          id: `gn-${meta.lang}-${i}-${r.link.slice(-12)}`,
+          source: "google-news",
+          lang: meta.lang,
+          title: r.title,
+          url: r.link,
+          publishedAt: r.pubDate ? new Date(r.pubDate).toISOString() : now,
+          tone: "info",
+        });
+      }
+    }
+    for (const a of gdelt.filter((x) => x.title && x.url)) {
+      items.push({
+        id: `gdelt-${a.url?.slice(-12)}`,
+        source: "gdelt",
+        lang: "en",
+        title: a.title!,
+        url: a.url!,
+        publishedAt: isoFromGdelt(a.seendate),
+        sentiment: gdeltSentiment(a.tone),
+        tone: Math.abs(a.tone ?? 0) > 3 ? "alert" : "info",
+      });
+    }
+    items.sort((a, b) => (b.publishedAt > a.publishedAt ? 1 : -1));
+    const response: SocialListeningResponse = {
+      generatedAt: now,
+      items: items.slice(0, 80),
+      counts: { th: items.filter((i) => i.lang === "th").length, en: items.filter((i) => i.lang === "en").length },
+    };
+    cache = { at: Date.now(), data: response };
+    return response;
+  } catch {
+    return {
+      generatedAt: now,
+      items: [],
+      counts: { th: 0, en: 0 },
+    };
+  }
+}
+
 export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
   const now = new Date().toISOString();
@@ -88,7 +168,6 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
       fetch(GOOGLE_NEWS_EN, { headers: { Accept: "application/rss+xml" } }),
       fetchGdelt(),
     ]);
-
     const th = thRes.ok ? parseRss(await thRes.text()).slice(0, 12) : [];
     const en = enRes.ok ? parseRss(await enRes.text()).slice(0, 12) : [];
     const gdeltItems: SocialItem[] = gdelt

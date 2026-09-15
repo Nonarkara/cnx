@@ -45,14 +45,14 @@ const SCENARIO_SLOTS: CctvSlot[] = [
   { id: "cnx-c01", label: "Nawarat Bridge", source: "longdo", longitude: 99.0008, latitude: 18.7887, hlsUrl: undefined, posterUrl: undefined, reachable: true, category: "traffic" },
   { id: "cnx-c02", label: "Tha Phae Gate", source: "longdo", longitude: 98.9933, latitude: 18.7909, reachable: true, category: "heritage" },
   { id: "cnx-c03", label: "Mae Ping Bridge", source: "longdo", longitude: 99.0291, latitude: 18.7821, reachable: true, category: "highway" },
-  { id: "cnx-c04", label: "Doi Suthep Lower", source: "private", longitude: 98.9215, latitude: 18.8048, reachable: false, category: "tourism" },
+  { id: "cnx-c04", label: "Doi Suthep Lower", source: "youtube", longitude: 98.9215, latitude: 18.8048, hlsUrl: undefined, posterUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg", reachable: true, category: "tourism" },
   { id: "cnx-c05", label: "CNX Airport Apron", source: "private", longitude: 98.9622, latitude: 18.7715, reachable: true, category: "highway" },
   { id: "cnx-c06", label: "Night Bazaar", source: "longdo", longitude: 99.0003, latitude: 18.7843, reachable: true, category: "heritage" },
-  { id: "cnx-c07", label: "Nimman One", source: "longdo", longitude: 98.9671, latitude: 18.8014, reachable: false, category: "tourism" },
+  { id: "cnx-c07", label: "Nimman One", source: "youtube", longitude: 98.9671, latitude: 18.8014, reachable: true, category: "tourism" },
   { id: "cnx-c08", label: "Hang Dong Junction", source: "itic", longitude: 98.9213, latitude: 18.6871, reachable: true, category: "traffic" },
   { id: "cnx-c09", label: "Mae Rim Highway", source: "itic", longitude: 98.9611, latitude: 18.9101, reachable: true, category: "highway" },
   { id: "cnx-c10", label: "Ping River Park", source: "longdo", longitude: 99.029, latitude: 18.797, reachable: true, category: "flood" },
-  { id: "cnx-c11", label: "Wat Phra Singh", source: "private", longitude: 98.9867, latitude: 18.7895, reachable: false, category: "heritage" },
+  { id: "cnx-c11", label: "Wat Phra Singh", source: "youtube", longitude: 98.9867, latitude: 18.7895, reachable: true, category: "heritage" },
   { id: "cnx-c12", label: "Doi Inthanon Summit", source: "private", longitude: 98.4867, latitude: 18.5883, reachable: false, category: "tourism" },
 ];
 

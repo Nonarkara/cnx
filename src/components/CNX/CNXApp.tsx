@@ -22,9 +22,17 @@ import type {
   SocialListeningResponse,
 } from "../../types/cnx";
 import type { FetchResult } from "../../lib/cnx/opensky";
+import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
+import type { AerosolResponse } from "../../lib/cnx/aerosol";
+import type { OutboundAnalysis } from "../../lib/cnx/outbound";
+import type { BusRoute } from "../../types/cnx";
 
 import CnxSocialSidebar from "./CNXSocialSidebar";
 import CnxFloodPanel from "./CNXFloodPanel";
+import CnxFirePanel from "./CNXFirePanel";
+import CnxOutboundPanel from "./CNXOutboundPanel";
+import CnxAskChat from "./CNXAskChat";
+import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
 import CnxCctvStrip from "./CNXCctvStrip";
 import CnxTopBar from "./CNXTopBar";
 import CnxTicker from "./CNXTicker";
@@ -63,6 +71,10 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [cctv, setCctv] = useState<CctvFeedResponse | null>(null);
   const [air, setAir] = useState<AirQualityResponse | null>(null);
   const [fires, setFires] = useState<CnxFiresResponse | null>(null);
+  const [firesRfd, setFiresRfd] = useState<RfdFiresResponse | null>(null);
+  const [aerosol, setAerosol] = useState<AerosolResponse | null>(null);
+  const [outbound, setOutbound] = useState<OutboundAnalysis | null>(null);
+  const [busRoutes, setBusRoutes] = useState<BusRoute[]>([]);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
@@ -78,18 +90,30 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       const controller = new AbortController();
       controllerRef.current = controller;
       try {
-        const [nextFlood, nextCctv, nextAir, nextFires] = await Promise.all([
+        const [nextFlood, nextCctv, nextAir, nextFires, nextFiresRfd, nextAerosol] = await Promise.all([
           fetchJsonOrNull<CnxFloodResponse>(buildScenarioUrl("/api/cnx/flood", scenarioId), { signal: controller.signal }),
           fetchJsonOrNull<CctvFeedResponse>("/api/cnx/cctv", { signal: controller.signal }),
           fetchJsonOrNull<AirQualityResponse>("/api/cnx/air-quality", { signal: controller.signal }),
           fetchJsonOrNull<CnxFiresResponse>("/api/cnx/fires", { signal: controller.signal }),
+          fetchJsonOrNull<RfdFiresResponse>("/api/cnx/fires-rfd", { signal: controller.signal }),
+          fetchJsonOrNull<AerosolResponse>("/api/cnx/aerosol", { signal: controller.signal }),
         ]);
         if (controller.signal.aborted || id !== requestIdRef.current) return;
         if (nextFlood) setFlood(nextFlood);
         if (nextCctv) setCctv(nextCctv);
         if (nextAir) setAir(nextAir);
         if (nextFires) setFires(nextFires);
+        if (nextFiresRfd) setFiresRfd(nextFiresRfd);
+        if (nextAerosol) setAerosol(nextAerosol);
       } catch { /* abort-safe */ }
+      // Outbound is computed from flights; pull it after a short delay so
+      // the snapshot store gets the write.
+      void fetchJsonOrNull<OutboundAnalysis>("/api/cnx/outbound").then((o) => {
+        if (o && id === requestIdRef.current) setOutbound(o);
+      });
+      void fetchJsonOrNull<{ routes: BusRoute[] }>("/api/cnx/bus-routes").then((b) => {
+        if (b?.routes) setBusRoutes(b.routes);
+      });
     };
     void load();
     const interval = window.setInterval(() => void load(), 60_000);
@@ -156,6 +180,23 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
   const flightStates = flights ? [...flights.airborne, ...flights.ground] : [];
 
+  // Merge FIRMS + RFD hotspots so RFD's official Thai forest-tenure
+  // detection sits alongside NASA's global FIRMS on the map.
+  const allFireHotspots = [
+    ...(fires?.hotspots ?? []),
+    ...(firesRfd?.hotspots ?? []).map(rfdToFireHotspot),
+  ];
+
+  // Top origin countries from the outbound analysis feed the social
+  // listening subscription list — the panel then pulls news in those
+  // languages. This is the "follow the flight" pattern.
+  const topOriginCountries = outbound
+    ? outbound.byQuadrant
+        .flatMap((q) => q.topOrigins.map((o) => o.country))
+        .reduce<string[]>((acc, c) => (acc.includes(c) ? acc : [...acc, c]), [])
+        .slice(0, 5)
+    : [];
+
   return (
     <main
       id="main-content"
@@ -167,6 +208,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         flood={flood}
         air={air}
         fires={fires}
+        firesRfd={firesRfd}
+        aerosol={aerosol}
         social={social}
         cctv={cctv}
         story={story}
@@ -184,7 +227,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           aria-label="Social listening stream"
           className="hidden w-[260px] shrink-0 xl:block 2xl:w-[300px]"
         >
-          <CnxSocialSidebar scenarioId={scenarioId} />
+          <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={topOriginCountries} />
         </aside>
 
         {/* Center: Map */}
@@ -196,21 +239,25 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             flights={flightStates}
             heritage={[]} // heritage list is large — pass via /api/cnx/heritage if you want it on map
             airStations={air?.stations ?? []}
-            fireHotspots={fires?.hotspots ?? []}
+            fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
           />
           {flights && <FlightPanel snapshot={flights} />}
+          {outbound && <CnxOutboundPanel snapshot={outbound} />}
         </section>
 
-        {/* Right: Flood/Air/Fires + Open Data */}
+        {/* Right: Fire / Flood / Air / Open Data — Fire on top per governor's priority */}
         <aside
           aria-label="Operations desk"
           className="hidden w-[360px] shrink-0 xl:flex xl:flex-col xl:overflow-hidden 2xl:w-[420px]"
         >
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="h-[34%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodPanel flood={flood} air={air} fires={fires} />
           </div>
-          <div className="h-[42%] min-h-[260px] shrink-0 border-t border-[var(--line)]">
+          <div className="h-[34%] min-h-[230px] shrink-0 overflow-hidden">
             <CnxOpenData />
           </div>
         </aside>
@@ -221,7 +268,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         aria-label="Mobile stack"
         className="flex h-[68dvh] min-h-[560px] max-h-[760px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] xl:hidden"
       >
-        <MobileTabContent social={social} flood={flood} air={air} fires={fires} />
+        <MobileTabContent social={social} flood={flood} air={air} fires={fires} firesRfd={firesRfd} aerosol={aerosol} topOriginCountries={topOriginCountries} />
       </section>
 
       <div className="sticky bottom-0 z-50 shrink-0 border-t border-[var(--line)] xl:static">
@@ -243,21 +290,25 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 }
 
 import type { JSX } from "react";
-function MobileTabContent({ social, flood, air, fires }: {
+function MobileTabContent({ social, flood, air, fires, firesRfd, aerosol, topOriginCountries }: {
   social: SocialListeningResponse | null;
   flood: CnxFloodResponse | null;
   air: AirQualityResponse | null;
   fires: CnxFiresResponse | null;
+  firesRfd: RfdFiresResponse | null;
+  aerosol: AerosolResponse | null;
+  topOriginCountries: string[];
 }): JSX.Element {
-  const [tab, setTab] = useState<"social" | "flood" | "opendata">("flood");
+  const [tab, setTab] = useState<"fire" | "flood" | "social" | "opendata">("fire");
   return (
     <>
       <div role="tablist" className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
         {(
           [
-            { id: "flood", label: "Flood / Air / Fire" },
+            { id: "fire", label: "Fire" },
+            { id: "flood", label: "Flood/Air" },
             { id: "social", label: "Social" },
-            { id: "opendata", label: "Open Data" },
+            { id: "opendata", label: "Open" },
           ] as const
         ).map((t, i) => (
           <button
@@ -272,8 +323,9 @@ function MobileTabContent({ social, flood, air, fires }: {
         ))}
       </div>
       <div className="min-h-0 flex-1 overflow-hidden bg-[var(--bg-raised)]">
+        {tab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
         {tab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
-        {tab === "social" && <CnxSocialSidebar scenarioId={null} />}
+        {tab === "social" && <CnxSocialSidebar scenarioId={null} multilingualCountries={topOriginCountries} />}
         {tab === "opendata" && <CnxOpenData />}
       </div>
     </>

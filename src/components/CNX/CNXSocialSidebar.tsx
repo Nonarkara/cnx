@@ -42,16 +42,20 @@ function sentimentBorder(item: SocialItem): string {
   return "border-l-[var(--line)]";
 }
 
-export default function CnxSocialSidebar({ scenarioId }: { scenarioId: string | null }) {
+export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [] }: {
+  scenarioId: string | null;
+  multilingualCountries?: string[];
+}) {
   const [data, setData] = useState<SocialListeningResponse | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const next = await fetchJsonOrNull<SocialListeningResponse>(
-        buildScenarioUrl("/api/cnx/social", scenarioId),
-      );
+      const url = multilingualCountries.length
+        ? `/api/cnx/social?multilingual=1&countries=${encodeURIComponent(multilingualCountries.join(","))}`
+        : buildScenarioUrl("/api/cnx/social", scenarioId);
+      const next = await fetchJsonOrNull<SocialListeningResponse>(url);
       if (cancelled) return;
       if (next) setData(next);
     };
@@ -61,7 +65,7 @@ export default function CnxSocialSidebar({ scenarioId }: { scenarioId: string | 
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [scenarioId]);
+  }, [scenarioId, multilingualCountries.join(",")]);
 
   const items = useMemo(() => {
     const all = data?.items ?? [];
