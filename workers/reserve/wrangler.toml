@@ -1,0 +1,22 @@
+name = "cnx-dashboard-reserve"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+observability = { enabled = true }
+
+[vars]
+PROVINCE = "cnx"
+SITE_URL = "https://cnx.nonarkara.org"
+
+# Reserve the hostname. Cloudflare creates the CNAME DNS record
+# automatically on first deploy because custom_domain = true.
+# The production CNX dashboard worker (cnx-dashboard) will replace
+# this placeholder once it builds in a Node 20 environment.
+[[routes]]
+pattern = "cnx.nonarkara.org"
+zone_name = "nonarkara.org"
+custom_domain = true
+
+[[routes]]
+pattern = "www.cnx.nonarkara.org"
+zone_name = "nonarkara.org"
+custom_domain = true
