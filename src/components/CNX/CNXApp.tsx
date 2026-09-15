@@ -241,6 +241,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
+            busRoutes={busRoutes}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
@@ -257,8 +258,11 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           <div className="min-h-0 flex-1 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodPanel flood={flood} air={air} fires={fires} />
           </div>
-          <div className="h-[34%] min-h-[230px] shrink-0 overflow-hidden">
+          <div className="min-h-[180px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxOpenData />
+          </div>
+          <div className="min-h-[220px] flex-1 overflow-hidden border-t border-[var(--line)]">
+            <CnxAskChat />
           </div>
         </aside>
       </section>

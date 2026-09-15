@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { MapViewState } from "@deck.gl/core";
 import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import type { BusRoute } from "../../types/cnx";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type maplibregl from "maplibre-gl";
 
@@ -102,6 +103,7 @@ interface MapProps {
   airStations?: AirStation[];
   fireHotspots?: FireHotspot[];
   floodGauges?: CnxFloodGauge[];
+  busRoutes?: BusRoute[];
 }
 
 export default function CNXMap({
@@ -110,6 +112,7 @@ export default function CNXMap({
   airStations = [],
   fireHotspots = [],
   floodGauges = [],
+  busRoutes = [],
 }: MapProps) {
   const [basemap, setBasemap] = useState<BasemapId>("street");
   const [buildingsOn, setBuildingsOn] = useState(false);
@@ -219,6 +222,32 @@ export default function CNXMap({
     return [flightLayers[0], flightLayers[1], heritageLayer, airLayer, fireLayer, floodLayer];
   }, [flights, heritage, airStations, fireHotspots, floodGauges]);
 
+  // Bus routes — drawn as deck.gl PathLayer above the basemap.
+  const busLayers = useMemo(() => {
+    if (!busRoutes.length) return [];
+    return busRoutes.map((r) =>
+      new PathLayer<BusRoute>({
+        id: `bus-${r.id}`,
+        data: [r],
+        getPath: (d) => d.geometry as [number, number][],
+        getColor: () => {
+          // Convert #1d2951 (Lanna blue) to RGB
+          if (r.colour.startsWith("#")) {
+            const hex = r.colour.slice(1);
+            const r2 = parseInt(hex.slice(0, 2), 16);
+            const g2 = parseInt(hex.slice(2, 4), 16);
+            const b2 = parseInt(hex.slice(4, 6), 16);
+            return [r2, g2, b2, 200];
+          }
+          return [29, 41, 81, 200];
+        },
+        getWidth: 3,
+        widthUnits: "pixels",
+        pickable: true,
+      }),
+    );
+  }, [busRoutes]);
+
   // Install (or remove) the buildings fill-extrusion layer. We add
   // it imperatively so the toggle survives basemap changes — every
   // basemap reload re-runs this effect and we re-attach the layer
@@ -293,7 +322,7 @@ export default function CNXMap({
         viewState={viewState}
         controller={true}
         onViewStateChange={(e) => setViewState((prev) => ({ ...prev, ...(e.viewState as Partial<MapViewState>) }))}
-        layers={layers}
+        layers={[...layers, ...busLayers]}
       >
         <Map
           reuseMaps
