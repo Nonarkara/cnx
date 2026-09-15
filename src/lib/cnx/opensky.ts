@@ -1,0 +1,241 @@
+// OpenSky Network client — anonymous access, bbox query for the CNX area.
+//
+// The anonymous tier gives 400 credits/day. Each /states/all call costs
+// 4 credits and each /aircraft lookup costs 1 credit. We poll states
+// every 60s, so a single in-memory cache per process keeps us well
+// under the daily budget. Aircraft metadata (the typecode that drives
+// the size bucket) is cached forever — it never changes for a given
+// icao24 — so the aircraft lookup happens at most once per plane.
+//
+// The bbox below is wider than Chiang Mai's city limits: it covers the
+// approach corridors from Bangkok (south), Chiang Rai (north), the
+// Myanmar and Laos borders (west/east). Most of the action is 20-50
+// km around CNX airport, but a plane on final from the south starts
+// showing up 150 km out.
+
+const OPENSKY_BASE = "https://opensky-network.org/api";
+
+/** Chiang Mai area bbox (lamin, lomin, lamax, lomax). */
+export const CNX_BBOX = {
+  lamin: 17.5,
+  lomin: 97.5,
+  lamax: 20.5,
+  lomax: 100.5,
+} as const;
+
+/** OpenSky state array indices — same for all anonymous-tier responses. */
+const IDX = {
+  icao24: 0,
+  callsign: 1,
+  originCountry: 2,
+  timePosition: 3,
+  lastContact: 4,
+  longitude: 5,
+  latitude: 6,
+  baroAltitude: 7,
+  onGround: 8,
+  velocity: 9,
+  trueTrack: 10,
+  verticalRate: 11,
+  geoAltitude: 12,
+  squawk: 13,
+  spi: 14,
+  positionSource: 15,
+} as const;
+
+export interface FlightState {
+  icao24: string;
+  callsign: string;
+  originCountry: string;
+  /** ms since epoch */
+  timePosition: number | null;
+  /** ms since epoch */
+  lastContact: number;
+  longitude: number | null;
+  latitude: number | null;
+  /** metres above sea level, or null if unknown */
+  baroAltitude: number | null;
+  /** metres above ground, or null if unknown */
+  geoAltitude: number | null;
+  onGround: boolean;
+  /** m/s */
+  velocity: number | null;
+  /** degrees from north, clockwise */
+  trueTrack: number | null;
+  /** m/s, +ve climbing, -ve descending */
+  verticalRate: number | null;
+  /** 0–4 (low confidence to high), -1 if unknown. 1+ is ADS-B. */
+  positionSource: number;
+}
+
+export interface FetchResult {
+  /** ms since epoch — when OpenSky generated this snapshot. */
+  fetchedAt: number;
+  /** ms since epoch — when our server fetched it (may be later if cached). */
+  observedAt: number;
+  /** All airborne flights inside the bbox. */
+  airborne: FlightState[];
+  /** All flights on the ground inside the bbox. */
+  ground: FlightState[];
+  /** True when the fetch failed and we returned cached or empty data. */
+  degraded: boolean;
+  /** Error message if degraded. */
+  error?: string;
+}
+
+type RawState = readonly unknown[];
+
+function num(raw: RawState, i: number): number | null {
+  const v = raw[i];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function parseState(raw: RawState): FlightState {
+  const icao24 = raw[IDX.icao24];
+  const callsign = raw[IDX.callsign];
+  const country = raw[IDX.originCountry];
+  const onGround = raw[IDX.onGround];
+  const posSource = raw[IDX.positionSource];
+  return {
+    icao24: typeof icao24 === "string" ? icao24 : "",
+    callsign: typeof callsign === "string" ? callsign.trim() : "",
+    originCountry: typeof country === "string" ? country : "",
+    timePosition: num(raw, IDX.timePosition) !== null ? num(raw, IDX.timePosition)! * 1000 : null,
+    lastContact: num(raw, IDX.lastContact) !== null ? num(raw, IDX.lastContact)! * 1000 : Date.now(),
+    longitude: num(raw, IDX.longitude),
+    latitude: num(raw, IDX.latitude),
+    baroAltitude: num(raw, IDX.baroAltitude),
+    geoAltitude: num(raw, IDX.geoAltitude),
+    onGround: Boolean(onGround),
+    velocity: num(raw, IDX.velocity),
+    trueTrack: num(raw, IDX.trueTrack),
+    verticalRate: num(raw, IDX.verticalRate),
+    positionSource: typeof posSource === "number" ? posSource : -1,
+  };
+}
+
+interface RawResponse {
+  time: number;
+  states: RawState[] | null;
+}
+
+/** Module-level cache so back-to-back requests within the same process
+    don't double-burn credits. Backs up the upstream for one minute. */
+let cache: { at: number; data: RawResponse | null } | null = null;
+const CACHE_MS = 30_000; // upstream cache: 30 s, well below the upstream refresh
+
+async function fetchRaw(): Promise<RawResponse | null> {
+  const now = Date.now();
+  if (cache && now - cache.at < CACHE_MS) {
+    return cache.data;
+  }
+  const url = new URL(`${OPENSKY_BASE}/states/all`);
+  url.searchParams.set("lamin", String(CNX_BBOX.lamin));
+  url.searchParams.set("lomin", String(CNX_BBOX.lomin));
+  url.searchParams.set("lamax", String(CNX_BBOX.lamax));
+  url.searchParams.set("lomax", String(CNX_BBOX.lomax));
+  try {
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": "cnx-dashboard/0.1 (https://cnx.nonarkara.org)" },
+      // 10 s ceiling — OpenSky occasionally hangs on cold paths.
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      // Don't blow up the page on a transient OpenSky 429. The map
+      // continues to render; the flight overlay just stays empty
+      // until the next poll succeeds.
+      console.warn(`[opensky] ${res.status} ${res.statusText}`);
+      cache = { at: now, data: null };
+      return null;
+    }
+    const json = (await res.json()) as RawResponse;
+    cache = { at: now, data: json };
+    return json;
+  } catch (e) {
+    console.warn(`[opensky] fetch failed: ${(e as Error).message}`);
+    cache = { at: now, data: null };
+    return null;
+  }
+}
+
+/** Fetch the current snapshot, with parsing and airborne/ground split. */
+export async function fetchCnxSnapshot(): Promise<FetchResult> {
+  const fetchedAt = Date.now();
+  const raw = await fetchRaw();
+  if (!raw) {
+    return {
+      fetchedAt,
+      observedAt: fetchedAt,
+      airborne: [],
+      ground: [],
+      degraded: true,
+      error: "OpenSky unavailable",
+    };
+  }
+  const states = (raw.states ?? []).map(parseState);
+  return {
+    fetchedAt,
+    observedAt: raw.time * 1000,
+    airborne: states.filter((s) => !s.onGround && s.latitude !== null && s.longitude !== null),
+    ground: states.filter((s) => s.onGround && s.latitude !== null && s.longitude !== null),
+    degraded: false,
+  };
+}
+
+/** Group airborne flights by origin country and bucket by size.
+    Used for the side panel. */
+export interface CountrySummary {
+  country: string;
+  flights: number;
+  bySize: Record<"heavy" | "wide" | "narrow" | "regional", number>;
+}
+
+import { lookupAircraft, type PlaneSize } from "./aircraft";
+
+export function summariseByCountry(
+  flights: FlightState[],
+  typecodeByIcao: Map<string, string | undefined>,
+): CountrySummary[] {
+  const out = new Map<string, CountrySummary>();
+  for (const f of flights) {
+    const tc = typecodeByIcao.get(f.icao24);
+    const size = lookupAircraft(tc).size;
+    let entry = out.get(f.originCountry);
+    if (!entry) {
+      entry = {
+        country: f.originCountry || "Unknown",
+        flights: 0,
+        bySize: { heavy: 0, wide: 0, narrow: 0, regional: 0 },
+      };
+      out.set(f.originCountry || "Unknown", entry);
+    }
+    entry.flights += 1;
+    entry.bySize[size] += 1;
+  }
+  return [...out.values()].sort((a, b) => b.flights - a.flights);
+}
+
+export interface SizeBucket {
+  size: PlaneSize;
+  count: number;
+  seats: number;
+}
+
+export function summariseBySize(
+  flights: FlightState[],
+  typecodeByIcao: Map<string, string | undefined>,
+): SizeBucket[] {
+  const buckets = new Map<PlaneSize, SizeBucket>();
+  for (const f of flights) {
+    const tc = typecodeByIcao.get(f.icao24);
+    const spec = lookupAircraft(tc);
+    let b = buckets.get(spec.size);
+    if (!b) {
+      b = { size: spec.size, count: 0, seats: 0 };
+      buckets.set(spec.size, b);
+    }
+    b.count += 1;
+    b.seats += spec.seats;
+  }
+  return [...buckets.values()];
+}

@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* ─── The CNX palette ─────────────────────────────────────────────
+ *
+ * Chiang Mai's own colours:
+ *   Lanna blue       — deep blue-violet, like Doi Suthep's roofs at
+ *                      dusk and the indigo of northern textiles. The
+ *                      province's flag chrome.
+ *   Doi Suthep gold  — the gilding on the chedi and the temple roofs.
+ *                      Reserved for accents, never a status role.
+ *
+ * The status ramp (green/amber/orange/red) is load-bearing and
+ * untouched, so brand colours own chrome only and never a status role.
+ * Gold sits near the watch amber on the colour wheel, so the separation
+ * is positional rather than chromatic — gold only ever appears where
+ * no status is being expressed.
+ *
+ * Typography stays Noto Sans Thai for body / IBM Plex Mono for code
+ * and tracked labels, same as Lopburi. One family across the two
+ * provinces' dashboards makes them feel like a product line, not
+ * strangers.
+ */
+
+:root {
+  /* Light theme */
+  --bg: #f4f1ea;            /* warm beige — Chiang Mai temple walls */
+  --bg-raised: #ffffff;
+  --bg-surface: #faf8f3;
+  --line: #d8d2c4;
+  --ink: #1a1a1a;
+  --dim: #6b6b6b;
+  --accent: #111111;
+  --accent-soft: #767676;
+
+  /* Lanna blue — flag chrome */
+  --cool: #1d2951;
+  --cool-dim: rgba(29, 41, 81, 0.1);
+
+  /* Doi Suthep gold — accent only */
+  --sun: #b8860b;
+  --sun-dim: rgba(184, 134, 11, 0.1);
+
+  /* Status ramp — load-bearing, untouched */
+  --danger: #ef4444;
+  --success: #22c55e;
+  --shadow: none;
+  --glow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-raised: #161b22;
+    --bg-surface: #0d1117;
+    --line: #30363d;
+    --ink: #e6edf3;
+    --dim: #8b949e;
+    --accent: #e6edf3;
+    --accent-soft: #8b949e;
+    /* Flag blue lifted to carry on the instrument ground: same royal hue
+       as the light token, raised until it clears AA against #0d1117. */
+    --cool: #6688c2;
+    --cool-dim: rgba(102, 136, 194, 0.15);
+    --sun: #e6b85c;
+    --sun-dim: rgba(230, 184, 92, 0.15);
+    --danger: #f85149;
+    --success: #3fb950;
+  }
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Noto Sans Thai", "Sarabun", "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "kern", "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mono for code, tracked labels, and the wordmark subtitle */
+.font-mono,
+code,
+pre,
+kbd,
+samp {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+}
+
+/* Sharper rendering on small Thai text — the dashboard has 9px Thai. */
+* {
+  -webkit-text-stroke: 0.2px;
+  text-rendering: optimizeLegibility;
+}
+
+/* Reusable surface tokens */
+.cnx-surface {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+}
+.cnx-flag {
+  background: var(--cool);
+  color: white;
+}
+.cnx-flag-text {
+  color: var(--cool);
+}
+.cnx-gold {
+  color: var(--sun);
+}
+.cnx-gold-bg {
+  background: var(--sun);
+  color: white;
+}
+
+/* Status classes — same palette, untouched */
+.text-status-good { color: var(--success); }
+.text-status-watch { color: #f59e0b; }
+.text-status-alert { color: #fb923c; }
+.text-status-critical { color: var(--danger); }

@@ -1,0 +1,43 @@
+{
+  "name": "cnx-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "WATCHPACK_POLLING=true next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "build:cf": "rm -rf .open-next && npx @opennextjs/cloudflare build",
+    "build:cnx": "rm -rf .open-next && NEXT_PUBLIC_PROVINCE=cnx NEXT_PUBLIC_SITE_URL=https://cnx.nonarkara.org NEXT_PUBLIC_GIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo unknown) NEXT_PUBLIC_GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown) NEXT_PUBLIC_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) npx @opennextjs/cloudflare build && node scripts/patch-og-wasm.mjs",
+    "deploy:cnx": "npm run build:cnx && npx wrangler deploy -c wrangler.cnx.jsonc",
+    "test:flights": "tsx scripts/test-flights.mjs"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.3.0",
+    "@deck.gl/layers": "^9.3.0",
+    "@deck.gl/react": "^9.3.0",
+    "@opennextjs/cloudflare": "^1.10.0",
+    "lucide-react": "^0.475.0",
+    "maplibre-gl": "^5.0.0",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-map-gl": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.18.0",
+    "eslint-config-next": "^15.1.6",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 40" width="156" height="40" role="img" aria-label="เชียงใหม่ · Chiang Mai">
+  <!-- Wordmark, not the provincial seal. Replaced automatically by
+       cnx-seal.png once the operator drops the official artwork in.
+
+       No white background and no frame: the mark sits on the white
+       plate that carries the partner logos too, and a box around it
+       made the row read as three separate cards. The accent bar uses
+       Lanna blue (#1d2951), the same hue that paints the dashboard's
+       chrome, so the row is one colour even before it is one plate. -->
+  <rect x="0" y="0" width="4" height="40" fill="#1d2951"/>
+  <text x="14" y="20" font-family="'Noto Sans Thai','Sarabun','Segoe UI',sans-serif" font-size="16" font-weight="700" fill="#111111">เชียงใหม่</text>
+  <text x="14" y="33" font-family="'IBM Plex Mono','SFMono-Regular',Menlo,monospace" font-size="8" letter-spacing="2.4" fill="#555555">CHIANG MAI</text>
+</svg>
