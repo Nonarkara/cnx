@@ -10,9 +10,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "type-check": "tsc --noEmit",
     "build:cf": "rm -rf .open-next && npx @opennextjs/cloudflare build",
     "build:cnx": "rm -rf .open-next && NEXT_PUBLIC_PROVINCE=cnx NEXT_PUBLIC_SITE_URL=https://cnx.nonarkara.org NEXT_PUBLIC_GIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo unknown) NEXT_PUBLIC_GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown) NEXT_PUBLIC_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) npx @opennextjs/cloudflare build && node scripts/patch-og-wasm.mjs",
     "deploy:cnx": "npm run build:cnx && npx wrangler deploy -c wrangler.cnx.jsonc",
+    "fetch:opendata": "node scripts/fetch-datagoth-cnx.mjs",
+    "ingest:all": "npm run fetch:opendata",
     "test:flights": "tsx scripts/test-flights.mjs"
   },
   "dependencies": {

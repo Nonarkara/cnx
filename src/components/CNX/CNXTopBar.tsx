@@ -1,31 +1,138 @@
 "use client";
 
-// CNX top bar — the chrome strip at the top of every page.
+// CNX top bar — province identity + manual + story opener.
 //
-// Same design language as the wordmark and the page heading: Lanna blue
-// accent bar on the left of the heading, flag-blue chrome, Doi Suthep
-// gold for the live indicator.
+// Replaces the existing minimal CNXTopBar with a richer version that
+// shows live flood/air/fires/social counters in the masthead.
 
-import CNXLogoRow from "./CNXLogoRow";
+import { useEffect, useState } from "react";
+import { Bell, BookOpen, Moon, Sun } from "lucide-react";
+import { useDarkMode } from "../../hooks/useDarkMode";
+import type {
+  AirQualityResponse,
+  CctvFeedResponse,
+  CnxFiresResponse,
+  CnxFloodResponse,
+  CnxStoryResponse,
+  OfficeNotice,
+  SocialListeningResponse,
+} from "../../types/cnx";
+import type { FetchResult } from "../../lib/cnx/opensky";
 
-export default function CNXTopBar() {
+interface TopBarProps {
+  flood: CnxFloodResponse | null;
+  air: AirQualityResponse | null;
+  fires: CnxFiresResponse | null;
+  social: SocialListeningResponse | null;
+  cctv: CctvFeedResponse | null;
+  story: CnxStoryResponse | null;
+  flights: FetchResult | null;
+  scenarioId: string | null;
+  onOpenStory: () => void;
+  onOpenManual: () => void;
+}
+
+function Pill({
+  label,
+  value,
+  level,
+}: {
+  label: string;
+  value: string;
+  level?: "good" | "watch" | "alert" | "critical";
+}) {
+  const colour =
+    level === "critical"
+      ? "bg-[var(--danger)] text-white"
+      : level === "alert"
+      ? "bg-[#fb923c] text-black"
+      : level === "watch"
+      ? "bg-[#f59e0b] text-black"
+      : "bg-[var(--bg-raised)] text-[var(--ink)] border border-[var(--line)]";
   return (
-    <header className="flex items-stretch border-b border-[var(--line)] bg-[var(--bg-surface)]">
-      <div className="flex shrink-0 items-center border-r border-[var(--line)] px-2.5">
-        <CNXLogoRow />
+    <div className={`flex items-center gap-1.5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] ${colour}`}>
+      <span className="text-[8px] text-[var(--dim)]">{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+export default function CnxTopBar(props: TopBarProps) {
+  const { flood, air, fires, social, cctv, story, flights, onOpenStory, onOpenManual } = props;
+  const [isDark, toggleDark] = useDarkMode();
+  const [now, setNow] = useState<string>("");
+  useEffect(() => {
+    const tick = () => setNow(new Date().toLocaleString("en-GB", { dateStyle: "short", timeStyle: "medium", timeZone: "Asia/Bangkok" }));
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const officeNotice: OfficeNotice | undefined = air?.office ?? flood?.office;
+  const widebodyCount = flights ? (flights.airborne.length + flights.ground.length) : 0;
+
+  return (
+    <header className="relative z-30 flex h-[64px] shrink-0 items-center border-b border-[var(--line)] bg-[var(--bg-raised)] px-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center bg-[var(--cool)] text-[14px] font-black text-white">
+          CNX
+        </div>
+        <div>
+          <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--cool)]">
+            Chiang Mai Province War Room
+          </div>
+          <div className="font-mono text-[12px] font-bold text-[var(--ink)]">
+            เชียงใหม่ · v1
+          </div>
+        </div>
       </div>
 
-      {/* Page heading — Lanna blue accent bar + title + tracked subtitle */}
-      <div className="relative flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-3 pr-2 sm:pl-3.5 sm:pr-3 md:min-w-[180px] lg:flex-none min-[1024px]:max-w-[260px]">
-        <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-1 bg-[#1d2951]" />
-        <div className="flex min-w-0 flex-col justify-center leading-none">
-          <h1 className="truncate font-bold text-[var(--ink)] text-[14px] lg:text-[16px]" lang="th">
-            ห้องปฏิบัติการเชียงใหม่
-          </h1>
-          <span className="mt-1 truncate font-bold uppercase tracking-[0.18em] text-[var(--dim)] text-[8px]">
-            Chiang Mai Operations War Room
-          </span>
-        </div>
+      <div className="ml-6 flex flex-1 flex-wrap items-center gap-1.5">
+        <Pill label="PM2.5" value={air?.provinceAvgPm25 ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
+        <Pill
+          label="Ping"
+          value={typeof flood?.pingCapacityFraction === "number" ? `${((flood?.pingCapacityFraction ?? 0) * 100).toFixed(0)}%` : "—"}
+          level={(flood?.pingCapacityFraction ?? 0) > 0.85 ? "critical" : (flood?.pingCapacityFraction ?? 0) > 0.7 ? "alert" : undefined}
+        />
+        <Pill label="FIRMS" value={fires ? `${fires.totalCount}` : "—"} level={fires && fires.totalCount > 30 ? "alert" : undefined} />
+        <Pill label="Aircraft" value={flights ? `${flights.airborne.length + flights.ground.length}` : "—"} />
+        <Pill label="Widebody" value={flights ? `${widebodyCount}` : "—"} />
+        <Pill label="CCTV" value={cctv ? `${cctv.reachableCount}/${cctv.totalCount}` : "—"} />
+        <Pill label="News" value={social ? `${social.items.length}` : "—"} />
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {officeNotice && (
+          <button
+            className="flex items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--danger)]"
+            title={officeNotice.title}
+          >
+            <Bell className="h-3 w-3" />
+            {officeNotice.level.toUpperCase()}
+          </button>
+        )}
+        <span className="hidden font-mono text-[9px] text-[var(--dim)] lg:inline">{now}</span>
+        <button
+          onClick={onOpenStory}
+          className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)]"
+        >
+          <BookOpen className="h-3 w-3" />
+          Story
+        </button>
+        <button
+          onClick={onOpenManual}
+          className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)]"
+        >
+          <BookOpen className="h-3 w-3" />
+          Manual
+        </button>
+        <button
+          onClick={toggleDark}
+          aria-label="Toggle theme"
+          className="flex h-7 w-7 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)]"
+        >
+          {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+        </button>
       </div>
     </header>
   );

@@ -1,72 +1,25 @@
 "use client";
 
-// The CNX war-room page.
-//
-// Three things live on one page:
-//   1. The map, full bleed, with the flight overlay (planes flying
-//      across Chiang Mai's airspace in real time).
-//   2. The flight analysis panel — top countries, plane sizes, live
-//      counts — anchored to the right edge of the screen, sized so
-//      the map keeps its real estate.
-//   3. The top bar, identity + manual, anchored to the top.
-//
-// Polling /api/cnx/flights every 30 s is enough for a wall display
-// and a sixth of the upstream-credit cost of 10 s polling.
+// The CNX war-room page. The whole layout lives in CNXApp.tsx — this
+// file exists so the route resolves cleanly and so the dynamic import
+// of CNXMap (which depends on maplibre-gl) can SSR-skip.
 
-import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 
-import CNXTopBar from "../../components/CNX/CNXTopBar";
-import FlightPanel from "../../components/CNX/FlightPanel";
-import type { FetchResult } from "../../lib/cnx/opensky";
-
-const CNXMap = dynamic(() => import("../../components/CNX/CNXMap"), { ssr: false });
-
-const POLL_MS = 30_000;
+const CnxApp = dynamic(() => import("../../components/CNX/CNXApp"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[100dvh] w-screen items-center justify-center bg-[var(--bg)] text-[var(--ink)]">
+      <div className="text-center">
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
+          CNX War Room
+        </div>
+        <div className="mt-2 font-mono text-[10px] text-[var(--dim)]">loading map engine…</div>
+      </div>
+    </div>
+  ),
+});
 
 export default function CNXPage() {
-  const [snapshot, setSnapshot] = useState<FetchResult>({
-    fetchedAt: 0,
-    observedAt: 0,
-    airborne: [],
-    ground: [],
-    degraded: true,
-    error: "loading",
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const res = await fetch("/api/cnx/flights", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as FetchResult;
-        if (!cancelled) setSnapshot(data);
-      } catch (e) {
-        if (!cancelled) {
-          setSnapshot((s) => ({ ...s, degraded: true, error: (e as Error).message }));
-        }
-      }
-    };
-    void tick();
-    const id = setInterval(tick, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
-
-  return (
-    <main className="flex h-screen w-screen flex-col bg-[var(--bg)]">
-      <CNXTopBar />
-      <div className="flex flex-1 overflow-hidden">
-        <section className="relative flex-1">
-          <CNXMap flights={snapshot.airborne} />
-        </section>
-        <section className="hidden w-[280px] shrink-0 border-l border-[var(--line)] md:block">
-          <FlightPanel snapshot={snapshot} />
-        </section>
-      </div>
-    </main>
-  );
+  return <CnxApp />;
 }
