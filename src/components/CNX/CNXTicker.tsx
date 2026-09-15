@@ -6,7 +6,7 @@
 // re-renders it whenever any feed updates.
 
 import { useMemo } from "react";
-import { Activity, AlertTriangle, Bell, Flame, Droplets, Wind, Plane } from "lucide-react";
+import { Activity } from "lucide-react";
 import type {
   CnxFloodResponse,
   AirQualityResponse,

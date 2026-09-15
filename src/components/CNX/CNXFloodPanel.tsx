@@ -11,9 +11,8 @@
 // story demands Air + Fires on the same desk, so we keep them
 // one panel with three sub-views.
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Droplets, Wind, Flame } from "lucide-react";
-import { fetchJsonOrNull } from "../../lib/client-requests";
 import type {
   CnxFloodResponse,
   AirQualityResponse,

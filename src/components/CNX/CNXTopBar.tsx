@@ -58,7 +58,7 @@ function Pill({
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, social, cctv, story, flights, onOpenStory, onOpenManual } = props;
+  const { flood, air, fires, social, cctv, flights, onOpenStory, onOpenManual } = props;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
   useEffect(() => {

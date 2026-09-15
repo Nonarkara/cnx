@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Ambient module declarations for libraries without bundled .d.ts
 // files. We deliberately leave these permissive — the deck.gl and
 // maplibre types are complex and the production build doesn't rely

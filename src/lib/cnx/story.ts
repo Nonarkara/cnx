@@ -10,11 +10,10 @@
 // the modal that holds it becomes the human-readable "what is going
 // on in Chiang Mai right now" view.
 
-import type { CnxStoryResponse, SeverityLevel, OfficeNotice } from "../../types/cnx";
+import type { CnxStoryResponse, OfficeNotice } from "../../types/cnx";
 import { fetchCnxFlood } from "./flood";
 import { fetchCnxAirQuality } from "./air-quality";
 import { fetchCnxFires } from "./fires";
-import { fetchCnxSocial } from "./social";
 
 const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryResponse> = {
   "burning-season-peak": (now, s) => ({
@@ -113,11 +112,10 @@ export async function buildCnxStory(
   scenarioId?: string | null,
 ): Promise<CnxStoryResponse> {
   const now = new Date().toISOString();
-  const [flood, air, fires, social] = await Promise.all([
+  const [flood, air, fires] = await Promise.all([
     fetchCnxFlood(),
     fetchCnxAirQuality(),
     fetchCnxFires(),
-    fetchCnxSocial(),
   ]);
 
   const bhm = flood.reservoirs.find((r) => r.damId === "BHM");
@@ -146,10 +144,6 @@ function pickScenario(i: StoryInputs): keyof typeof SCENARIOS {
   if (i.pm25 >= 50) return "burning-season-peak";
   if (i.pingCap >= 0.85 || i.rain24 >= 80) return "monsoon-flood-watch";
   return "stable-winter-day";
-}
-
-function _unused_levels(s: SeverityLevel[]): SeverityLevel {
-  return s[0] ?? "good";
 }
 
 // Keep `scenarioDefaults` reachable so future callers can build a
