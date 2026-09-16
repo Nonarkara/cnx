@@ -37,6 +37,18 @@ const Map = dynamic(() => import("react-map-gl/maplibre").then((m) => m.default)
   ssr: false,
 });
 
+// Inline triangle icon (points north) for the plane IconLayer — avoids
+// depending on an external sprite sheet just for one glyph. `mask: true`
+// lets deck.gl tint the white triangle with each plane's getColor.
+const PLANE_ICON_ATLAS =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><polygon points="32,4 56,60 32,46 8,60" fill="white"/></svg>'
+  );
+const PLANE_ICON_MAPPING = {
+  plane: { x: 0, y: 0, width: 64, height: 64, anchorY: 32, mask: true },
+};
+
 const CNX_CENTER: [number, number] = [98.9853, 18.7883]; // Chiang Mai
 const CITY_ZOOM = 13; // closer than Lopburi's 11 — buildings are the story
 const BUILDINGS_SOURCE_ID = "cnx-buildings";
@@ -66,6 +78,9 @@ function buildFlightLayers(flights: FlightState[]) {
     id: "cnx-planes",
     data: flights,
     getPosition: (d) => [d.longitude ?? 0, d.latitude ?? 0],
+    getIcon: () => "plane",
+    iconAtlas: PLANE_ICON_ATLAS,
+    iconMapping: PLANE_ICON_MAPPING,
     getColor: (d) => {
       const alt = d.baroAltitude;
       if (alt === null) return [120, 130, 165, 200];
@@ -75,12 +90,14 @@ function buildFlightLayers(flights: FlightState[]) {
     },
     getSize: (d) => {
       const alt = d.baroAltitude;
-      if (alt === null) return 7;
-      if (alt >= 10_000) return 11;
-      if (alt >= 6_000) return 9;
-      return 7;
+      if (alt === null) return 14;
+      if (alt >= 10_000) return 22;
+      if (alt >= 6_000) return 18;
+      return 14;
     },
-    getAngle: (d) => d.trueTrack ?? 0,
+    // deck.gl IconLayer angles are counter-clockwise from north; heading
+    // (trueTrack) is clockwise from north, so it must be negated.
+    getAngle: (d) => -(d.trueTrack ?? 0),
     sizeUnits: "pixels",
     pickable: true,
   });
@@ -135,42 +152,42 @@ export default function CNXMap({
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
 
-    // Heritage sites — Doi Suthep gold halos
+    // Heritage sites — small fixed-pixel gold markers, not km-wide halos.
     const heritageLayer = new ScatterplotLayer<CnxHeritageSite>({
       id: "cnx-heritage",
       data: heritage,
       getPosition: (d) => [d.longitude, d.latitude],
-      getRadius: (d) => (d.category === "natural" ? 1500 : 700),
-      radiusUnits: "meters",
+      getRadius: (d) => (d.category === "natural" ? 8 : 6),
+      radiusUnits: "pixels",
       getFillColor: (d) =>
         d.category === "natural"
-        ? [21, 128, 61, 60]
+        ? [21, 128, 61, 200]
         : d.category === "city-wall"
-        ? [184, 134, 11, 70]
-        : [184, 134, 11, 90],
-      getLineColor: () => [184, 134, 11, 220],
-      lineWidthMinPixels: 1.5,
+        ? [184, 134, 11, 200]
+        : [184, 134, 11, 220],
+      getLineColor: () => [255, 255, 255, 220],
+      lineWidthMinPixels: 1,
       stroked: true,
       pickable: true,
     });
 
-    // Air quality stations — colour ramp by AQI level
+    // Air quality stations — colour ramp by AQI level, fixed-pixel dots.
     const airLayer = new ScatterplotLayer<AirStation>({
       id: "cnx-air",
       data: airStations,
       getPosition: (d) => [d.longitude, d.latitude],
-      getRadius: 900,
-      radiusUnits: "meters",
+      getRadius: 7,
+      radiusUnits: "pixels",
       getFillColor: (d) => {
         switch (d.aqiLevel) {
           case "critical":
-            return [239, 68, 68, 110];
+            return [239, 68, 68, 230];
           case "alert":
-            return [251, 146, 60, 110];
+            return [251, 146, 60, 230];
           case "watch":
-            return [245, 158, 11, 110];
+            return [245, 158, 11, 230];
           default:
-            return [34, 197, 94, 90];
+            return [34, 197, 94, 220];
         }
       },
       getLineColor: () => [255, 255, 255, 220],
@@ -179,42 +196,42 @@ export default function CNXMap({
       pickable: true,
     });
 
-    // Fire hotspots — FIRMS bright dots
+    // Fire hotspots — FIRMS bright dots, fixed-pixel size.
     const fireLayer = new ScatterplotLayer<FireHotspot>({
       id: "cnx-fires",
       data: fireHotspots,
       getPosition: (d) => [d.longitude, d.latitude],
-      getRadius: 600,
-      radiusUnits: "meters",
+      getRadius: 5,
+      radiusUnits: "pixels",
       getFillColor: (d) =>
         d.severity === "critical"
-        ? [255, 60, 30, 200]
+        ? [255, 60, 30, 235]
         : d.severity === "alert"
-        ? [255, 140, 0, 180]
-        : [255, 200, 0, 150],
-      getLineColor: () => [255, 220, 0, 220],
+        ? [255, 140, 0, 220]
+        : [255, 200, 0, 200],
+      getLineColor: () => [255, 220, 0, 230],
       lineWidthMinPixels: 1,
       stroked: true,
       pickable: true,
     });
 
-    // Flood gauges — Ping basin
+    // Flood gauges — Ping basin, fixed-pixel size.
     const floodLayer = new ScatterplotLayer<CnxFloodGauge>({
       id: "cnx-flood",
       data: floodGauges,
       getPosition: (d) => [d.longitude, d.latitude],
-      getRadius: 600,
-      radiusUnits: "meters",
+      getRadius: 6,
+      radiusUnits: "pixels",
       getFillColor: (d) =>
         d.severity === "critical"
-        ? [239, 68, 68, 160]
+        ? [239, 68, 68, 235]
         : d.severity === "alert"
-        ? [251, 146, 60, 160]
+        ? [251, 146, 60, 230]
         : d.severity === "watch"
-        ? [245, 158, 11, 140]
-        : [29, 78, 216, 130],
+        ? [245, 158, 11, 220]
+        : [29, 78, 216, 210],
       getLineColor: () => [255, 255, 255, 230],
-      lineWidthMinPixels: 1.5,
+      lineWidthMinPixels: 1,
       stroked: true,
       pickable: true,
     });

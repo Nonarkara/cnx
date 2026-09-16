@@ -11,7 +11,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { useDarkMode } from "../../hooks/useDarkMode";
 import { buildScenarioUrl, fetchJsonOrNull } from "../../lib/client-requests";
 import type {
   AirQualityResponse,
@@ -65,7 +64,6 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
-  const [isDark, toggleDark] = useDarkMode();
   const [flood, setFlood] = useState<CnxFloodResponse | null>(null);
   const [social, setSocial] = useState<SocialListeningResponse | null>(null);
   const [cctv, setCctv] = useState<CctvFeedResponse | null>(null);
@@ -272,7 +270,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         aria-label="Mobile stack"
         className="flex h-[68dvh] min-h-[560px] max-h-[760px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] xl:hidden"
       >
-        <MobileTabContent social={social} flood={flood} air={air} fires={fires} firesRfd={firesRfd} aerosol={aerosol} topOriginCountries={topOriginCountries} />
+        <MobileTabContent flood={flood} air={air} fires={fires} firesRfd={firesRfd} aerosol={aerosol} topOriginCountries={topOriginCountries} />
       </section>
 
       <div className="sticky bottom-0 z-50 shrink-0 border-t border-[var(--line)] xl:static">
@@ -294,8 +292,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 }
 
 import type { JSX } from "react";
-function MobileTabContent({ social, flood, air, fires, firesRfd, aerosol, topOriginCountries }: {
-  social: SocialListeningResponse | null;
+function MobileTabContent({ flood, air, fires, firesRfd, aerosol, topOriginCountries }: {
   flood: CnxFloodResponse | null;
   air: AirQualityResponse | null;
   fires: CnxFiresResponse | null;
@@ -314,7 +311,7 @@ function MobileTabContent({ social, flood, air, fires, firesRfd, aerosol, topOri
             { id: "social", label: "Social" },
             { id: "opendata", label: "Open" },
           ] as const
-        ).map((t, i) => (
+        ).map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}

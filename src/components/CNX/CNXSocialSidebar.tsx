@@ -48,12 +48,13 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
 }) {
   const [data, setData] = useState<SocialListeningResponse | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
+  const multilingualCountriesKey = multilingualCountries.join(",");
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const url = multilingualCountries.length
-        ? `/api/cnx/social?multilingual=1&countries=${encodeURIComponent(multilingualCountries.join(","))}`
+      const url = multilingualCountriesKey
+        ? `/api/cnx/social?multilingual=1&countries=${encodeURIComponent(multilingualCountriesKey)}`
         : buildScenarioUrl("/api/cnx/social", scenarioId);
       const next = await fetchJsonOrNull<SocialListeningResponse>(url);
       if (cancelled) return;
@@ -65,7 +66,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [scenarioId, multilingualCountries.join(",")]);
+  }, [scenarioId, multilingualCountriesKey]);
 
   const items = useMemo(() => {
     const all = data?.items ?? [];

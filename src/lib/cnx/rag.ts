@@ -76,41 +76,6 @@ interface Document {
   ts?: string;
 }
 
-function buildCorpus(): Document[] {
-  const docs: Document[] = [];
-  // Open data
-  for (const d of (cached?.corpus ?? []).filter((x) => x.source === "open-data")) {
-    docs.push({
-      id: d.id,
-      title: d.title,
-      body: d.body,
-      tags: d.tags,
-      terms: tokenize(`${d.title} ${d.body} ${d.tags.join(" ")}`),
-      source: "open-data",
-      url: d.url,
-      ts: d.ts,
-    });
-  }
-  // Heritage (static)
-  for (const h of CNX_HERITAGE) {
-    docs.push({
-      id: h.id,
-      title: `${h.name}${h.nameTh ? ` (${h.nameTh})` : ""}`,
-      body: h.brief,
-      tags: [h.category],
-      terms: tokenize(`${h.name} ${h.nameTh ?? ""} ${h.brief} ${h.category}`),
-      source: "heritage",
-      longitude: h.longitude,
-      latitude: h.latitude,
-    });
-  }
-  // Live operational feeds — best-effort, fail-soft.
-  // (Pulled synchronously here for simplicity; the cached corpus is
-  // refreshed every TTL_MS.)
-  // Note: in async mode these would be lazy.
-  return docs;
-}
-
 async function buildAsyncCorpus(): Promise<Document[]> {
   const docs: Document[] = [];
   try {
@@ -184,6 +149,21 @@ async function buildAsyncCorpus(): Promise<Document[]> {
         longitude: s.longitude,
         latitude: s.latitude,
         ts: s.observedAt,
+      });
+    }
+  } catch { /* fail-soft */ }
+  try {
+    const social = await fetchCnxSocial();
+    for (const item of social.items) {
+      docs.push({
+        id: item.id,
+        title: item.title,
+        body: item.title,
+        tags: ["social", item.source, item.lang, ...(item.topics ?? [])],
+        terms: tokenize(`${item.title} ${item.source} ${item.topics?.join(" ") ?? ""}`),
+        source: "social",
+        url: item.url,
+        ts: item.publishedAt,
       });
     }
   } catch { /* fail-soft */ }

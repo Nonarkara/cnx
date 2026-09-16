@@ -17,6 +17,18 @@
 const WORDMARK = "/logos/cnx-wordmark.svg";
 const PROVINCE_HEIGHT = 28;
 
+interface PartnerLogo {
+  src: string;
+  alt: string;
+}
+
+const PARTNER_LOGOS: PartnerLogo[] = [
+  { src: "/logos/rcad.svg", alt: "RCAD" },
+  { src: "/logos/depa.jpg", alt: "depa — Digital Economy Promotion Agency" },
+  { src: "/logos/smart-city-thailand.jpg", alt: "Smart City Thailand Office" },
+  { src: "/logos/axiom-retl.svg", alt: "Axiom · ReTL" },
+];
+
 export default function CNXLogoRow({ size = PROVINCE_HEIGHT }: { size?: number }) {
   return (
     <div className="flex shrink-0 items-center gap-2.5 bg-white px-2.5 py-1.5 min-[3000px]:gap-3 min-[3000px]:px-3 min-[3000px]:py-2">
@@ -32,14 +44,27 @@ export default function CNXLogoRow({ size = PROVINCE_HEIGHT }: { size?: number }
           (e.target as HTMLImageElement).style.display = "none";
         }}
       />
-      {/* Partner logos land here when the operator adds them. */}
       <span
         aria-hidden="true"
         className="hidden h-6 w-px shrink-0 bg-[#1d2951]/35 lg:inline-block"
       />
-      <span className="hidden text-[8px] uppercase tracking-[0.18em] text-[#6b6b6b] lg:inline-block">
-        CNX · ops
-      </span>
+      {/* Partner logos — RCAD, depa, Smart City Thailand Office, Axiom + ReTL. */}
+      <div className="hidden items-center gap-2.5 lg:flex">
+        {PARTNER_LOGOS.map((logo) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={logo.src}
+            src={logo.src}
+            alt={logo.alt}
+            title={logo.alt}
+            style={{ height: size * 0.6, width: "auto" }}
+            className="block object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }

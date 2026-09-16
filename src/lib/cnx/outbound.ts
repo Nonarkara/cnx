@@ -20,7 +20,6 @@
 // process runs behind launchd, the snapshot store writes NDJSON to
 // disk for the trend aggregator.
 
-import { CNX_BBOX } from "./opensky";
 import type { FlightState } from "./opensky";
 
 export interface OutboundBucket {

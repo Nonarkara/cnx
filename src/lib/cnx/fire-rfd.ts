@@ -20,7 +20,7 @@
 //                CMF (ป่าชุมชน), FIO (อ.อ.ป.), DNP (ป่าอนุรักษ์), ...
 
 import { CNX_PROVINCE } from "./config";
-import type { CnxFiresResponse, FireHotspot, SeverityLevel } from "../../types/cnx";
+import type { FireHotspot, SeverityLevel } from "../../types/cnx";
 
 const RFD_BASE = "https://wildfire.forest.go.th/firemap/getdb.php";
 

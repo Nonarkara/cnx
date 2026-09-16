@@ -18,7 +18,7 @@
 // `localAppend` function below is the writer; `edgeAppend` is the
 // fallback.
 
-import { writeFile, mkdir, appendFile, readdir, readFile } from "node:fs/promises";
+import { mkdir, appendFile, readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 

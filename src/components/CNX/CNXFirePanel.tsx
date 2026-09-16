@@ -14,12 +14,10 @@
 //   (DNP / NRF) > 5 in last 24 h, escalate to "critical". This is the
 //   metric the governor needs at a glance.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Flame, Wind, ExternalLink, MapPin, Satellite } from "lucide-react";
-import { fetchJsonOrNull } from "../../lib/client-requests";
-import type { CnxFiresResponse, FireHotspot } from "../../types/cnx";
+import type { CnxFiresResponse } from "../../types/cnx";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
-import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 
 type Tab = "rfd" | "firms" | "aerosol";
