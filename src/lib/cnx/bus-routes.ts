@@ -86,18 +86,22 @@ export async function fetchCnxBus(): Promise<{ routes: BusRoute[]; stops: BusSto
 }
 
 async function loadBaked(): Promise<BusDataFile> {
-  if (typeof process !== "undefined" && process.cwd) {
-    try {
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-      const filePath = path.join(process.cwd(), "public/data/cnx/bus-routes.geojson");
-      const raw = await fs.readFile(filePath, "utf8");
-      const data = JSON.parse(raw) as BusDataFile;
-      if (Array.isArray(data.routes) && Array.isArray(data.stops)) {
-        return data;
+  // Skip the disk-read in tests so mocked network fetches are the only
+  // path under test. Production never sets this var.
+  if (process.env.CNX_SKIP_DISK_LOAD !== "1") {
+    if (typeof process !== "undefined" && process.cwd) {
+      try {
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+        const filePath = path.join(process.cwd(), "public/data/cnx/bus-routes.geojson");
+        const raw = await fs.readFile(filePath, "utf8");
+        const data = JSON.parse(raw) as BusDataFile;
+        if (Array.isArray(data.routes) && Array.isArray(data.stops)) {
+          return data;
+        }
+      } catch {
+        // fall through to network fetch
       }
-    } catch {
-      // fall through
     }
   }
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";

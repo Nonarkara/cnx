@@ -2,9 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["maplibre-gl"],
-  // Build-time speedup on Node 26 (ESLint hangs the opennextjs bundler).
-  // Run `npx eslint src` separately to lint before push.
-  eslint: { ignoreDuringBuilds: true },
+  // ESLint runs at build time. CI fails the build on lint errors —
+  // prettier to fail early than ship a warning.
   async redirects() {
     if (process.env.NEXT_PUBLIC_PROVINCE === "cnx") {
       return [{ source: "/", destination: "/cnx", permanent: false }];

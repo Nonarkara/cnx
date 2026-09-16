@@ -48,6 +48,11 @@ function normalizeDatasets(list: RawDataset[]): OpenDataDataset[] {
 }
 
 async function loadFromDisk(): Promise<OpenDataIndex | null> {
+  // Tests can opt out via CNX_SKIP_DISK_LOAD=1 so mocked `fetch`
+  // becomes the only path under test. Without this flag, a unit test
+  // in a clone of the repo would always hit the real baked JSON on
+  // disk and never exercise the network-fetch / empty-fallback paths.
+  if (process.env.CNX_SKIP_DISK_LOAD === "1") return null;
   if (typeof process === "undefined" || !process.cwd) return null;
   try {
     const fs = await import("node:fs/promises");

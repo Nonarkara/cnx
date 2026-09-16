@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client";
 
 // CNX map — MapLibre basemap + deck.gl flight overlay + 3D city.
@@ -31,6 +30,8 @@ import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { BusRoute } from "../../types/cnx";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import type { DataDrivenPropertyValueSpecification } from "@maplibre/maplibre-gl-style-spec";
+import type { ExpressionSpecification } from "maplibre-gl";
 
 import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/basemap-styles";
 import type { FlightState } from "../../lib/cnx/opensky";
@@ -75,7 +76,7 @@ const TEMPLES_LAYER = "cnx-temples-fill";
 //   Healthcare / Hospital      → #e11d48
 //   Heritage / Walls           → #9a3412
 //   Warm beige (residential)   → #b4afa5 (≈ "terracotta/sandstone" in Arnis)
-function buildingColorExpr(): unknown[] {
+function buildingColorExpr(): DataDrivenPropertyValueSpecification<string> {
   return [
     "case",
     ["==", ["get", "kind"], "temple"],
@@ -104,7 +105,7 @@ function buildingColorExpr(): unknown[] {
   ];
 }
 
-function templeColorExpr(): unknown[] {
+function templeColorExpr(): DataDrivenPropertyValueSpecification<string> {
   return [
     "case",
     ["==", ["get", "kind_value"], "buddhist"],
@@ -195,7 +196,7 @@ export interface WallFeature {
 }
 
 function extractWallPath(w: WallFeature): [number, number][] {
-  const g = w.geometry as unknown;
+  const g: unknown = w.geometry;
   if (Array.isArray(g)) return g as [number, number][];
   if (g && typeof g === "object") {
     const geom = g as { type?: string; coordinates?: unknown };
@@ -324,7 +325,7 @@ export default function CNXMap({
   // Expose the live MapLibre handle to the dev console for debugging.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    (window as unknown as { __cnxMap?: MaplibreMap }).__cnxMap = mlMapRef.current ?? undefined;
+    (window as Window as typeof window & { __cnxMap?: MaplibreMap }).__cnxMap = mlMapRef.current ?? undefined;
   });
 
   const style = useMemo(() => basemapStyle(basemap), [basemap]);
@@ -525,9 +526,9 @@ export default function CNXMap({
             source: BUILDINGS_CORE_SOURCE,
             minzoom: 13,
             paint: {
-              "fill-extrusion-color": buildingColorExpr() as never,
-              "fill-extrusion-height": ["get", "height"] as never,
-              "fill-extrusion-base": ["get", "base_height"] as never,
+              "fill-extrusion-color": buildingColorExpr(),
+              "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+              "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
               "fill-extrusion-opacity": 0.85,
               "fill-extrusion-vertical-gradient": false,
             },
@@ -550,9 +551,9 @@ export default function CNXMap({
             source: BUILDINGS_WIDE_SOURCE,
             maxzoom: 13,
             paint: {
-              "fill-extrusion-color": buildingColorExpr() as never,
-              "fill-extrusion-height": ["get", "height"] as never,
-              "fill-extrusion-base": ["get", "base_height"] as never,
+              "fill-extrusion-color": buildingColorExpr(),
+              "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+              "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
               "fill-extrusion-opacity": 0.7,
               "fill-extrusion-vertical-gradient": false,
             },
@@ -575,9 +576,9 @@ export default function CNXMap({
             source: TEMPLES_SOURCE,
             minzoom: 11,
             paint: {
-              "fill-extrusion-color": templeColorExpr() as never,
-              "fill-extrusion-height": ["get", "height"] as never,
-              "fill-extrusion-base": ["get", "base_height"] as never,
+              "fill-extrusion-color": templeColorExpr(),
+              "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+              "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
               "fill-extrusion-opacity": 0.95,
               "fill-extrusion-vertical-gradient": false,
             },
@@ -639,7 +640,9 @@ export default function CNXMap({
         viewState={viewState}
         controller={true}
         onViewStateChange={(e) => {
-          const vs = (e as unknown as { viewState?: Partial<MapViewState> }).viewState;
+          // deck.gl types `viewState` directly on the params; pull and merge
+          // into local state so React re-renders the deck.gl view-port.
+          const vs = e.viewState as Partial<MapViewState> | undefined;
           if (vs) setViewState((prev) => ({ ...prev, ...vs }));
         }}
         layers={[...layers, ...busLayers]}
@@ -649,7 +652,10 @@ export default function CNXMap({
           mapStyle={style}
           attributionControl={false}
           onLoad={(e) => {
-            mlMapRef.current = e.target as unknown as MaplibreMap;
+            // react-map-gl's onLoad types `e.target` as Map; it's the
+            // MapLibre instance when using the maplibre adapter. Direct
+            // assignment — no cast needed.
+            mlMapRef.current = e.target;
           }}
         />
       </DeckGL>

@@ -90,16 +90,20 @@ export async function fetchCnxWaterways(): Promise<{ waterways: Waterway[]; gene
 }
 
 async function loadBaked(): Promise<WaterwaysFile> {
+  // Skip the disk-read in tests so mocked network fetches are the only
+  // path under test. Production never sets this var.
   let rawObj: unknown = null;
-  if (typeof process !== "undefined" && process.cwd) {
-    try {
-      const fs = await import("node:fs/promises");
-      const path = await import("node:path");
-      const filePath = path.join(process.cwd(), "public/data/cnx/waterways.geojson");
-      const raw = await fs.readFile(filePath, "utf8");
-      rawObj = JSON.parse(raw);
-    } catch {
-      // fall through
+  if (process.env.CNX_SKIP_DISK_LOAD !== "1") {
+    if (typeof process !== "undefined" && process.cwd) {
+      try {
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
+        const filePath = path.join(process.cwd(), "public/data/cnx/waterways.geojson");
+        const raw = await fs.readFile(filePath, "utf8");
+        rawObj = JSON.parse(raw);
+      } catch {
+        // fall through to network fetch
+      }
     }
   }
   if (!rawObj) {
