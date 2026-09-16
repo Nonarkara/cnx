@@ -11,11 +11,17 @@ import type { OpenDataIndex, OpenDataDataset } from "../../types/cnx";
 
 // Server-side `fetch` has no implicit origin to resolve a relative
 // path against (unlike the browser) — Cloudflare Workers included.
-// Build an absolute URL from the same env var the /api/cnx/build
-// route already falls back to.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cnx.nonarkara.org";
-const INDEX_PATH = `${SITE_URL}/data/cnx/open-data/index.json`;
-const ALL_PATH = `${SITE_URL}/data/cnx/open-data/all.json`;
+// We try BOTH paths: relative (works in dev via Next.js dev server
+// and in prod via the same-edge-worker ASSETS hop) and absolute
+// (works when the worker can resolve its own hostname).
+//
+// The relative path is the one that's known to work in production —
+// see the same pattern in `bus-routes.ts` / `waterways.ts`. The
+// absolute URL was failing intermittently from the edge worker
+// (curl from outside returns 200, fetch from inside returned
+// `fetched:0`, the catch fallback). Stick with the relative form.
+const INDEX_PATH = "/data/cnx/open-data/index.json";
+const ALL_PATH = "/data/cnx/open-data/all.json";
 
 let cache: { at: number; index: OpenDataIndex } | null = null;
 const TTL_MS = 6 * 60 * 60_000;
@@ -80,7 +86,10 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
     return diskIndex;
   }
 
-  // 2. Try network fetch from site URL
+  // 2. Try network fetch — relative URL works in both dev (Next.js
+  // dev server) and prod (same-worker ASSETS hop). The previous
+  // absolute-URL form was hanging on the edge worker even though
+  // the same URL worked via curl from outside the worker.
   try {
     const [idxRes, allRes] = await Promise.all([
       fetch(INDEX_PATH, { cache: "no-store" }),
