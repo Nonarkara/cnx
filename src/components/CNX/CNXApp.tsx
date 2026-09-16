@@ -1,16 +1,26 @@
 "use client";
 
 // CNX war room shell — TopBar, CctvStrip, SocialSidebar, CNXMap,
-// FloodPanel, OpenData, Ticker, StoryModal, ManualModal.
+// FloodPanel, AirQualityPanel, OpenData, AskChat, Ticker, StoryModal,
+// ManualModal, MobileDrawers.
 //
-// Mirror of LopburiApp but tuned for Chiang Mai: PM2.5 + FIRMS on
-// the same desk as flood, heritage overlay on the map, manual that
-// leads with the architecture diagram (per user preference for
-// diagrams over text in About/Research panels).
+// Layout breakpoints:
+//
+//   <  md (smartphone)         Stack: bar / cctv / map / panels / ticker.
+//                                 Side rails collapse into a bottom "Panels" drawer.
+//   md–lg (tablet portrait,    Same as mobile BUT side rails also visible
+//           iPad)               (narrow). Map sizes up to fill the centre.
+//   xl+    (desktop,           Full war-room: social sidebar left, map centre,
+//           ≥1280px)            ops desk right (fire / flood / air / open / ask).
+//
+// All rail widths are clamped so iPad portrait (≈ 768 px) gets a clean
+// 3-column layout. Mobile uses the same `MobileDrawers` component,
+// which renders one tab at a time for the panels.
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { useDarkMode } from "../../hooks/useDarkMode";
 import { buildScenarioUrl, fetchJsonOrNull } from "../../lib/client-requests";
 import type {
   AirQualityResponse,
@@ -29,17 +39,18 @@ import type { BusRoute } from "../../types/cnx";
 import CnxSocialSidebar from "./CNXSocialSidebar";
 import CnxFloodPanel from "./CNXFloodPanel";
 import CnxFirePanel from "./CNXFirePanel";
+import CnxAirQualityPanel from "./CNXAirQualityPanel";
 import CnxOutboundPanel from "./CNXOutboundPanel";
 import CnxAskChat from "./CNXAskChat";
-import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
+import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
 import CnxTopBar from "./CNXTopBar";
 import CnxTicker from "./CNXTicker";
 import CNXMap from "./CNXMap";
-import CnxOpenData from "./CNXOpenData";
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import FlightPanel from "./FlightPanel";
+import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
 
 export default function CnxApp() {
   const [scenarioId, setScenarioId] = useState<string | null>(null);
@@ -64,6 +75,7 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
+  const [isDark, toggleDark] = useDarkMode();
   const [flood, setFlood] = useState<CnxFloodResponse | null>(null);
   const [social, setSocial] = useState<SocialListeningResponse | null>(null);
   const [cctv, setCctv] = useState<CctvFeedResponse | null>(null);
@@ -104,8 +116,6 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         if (nextFiresRfd) setFiresRfd(nextFiresRfd);
         if (nextAerosol) setAerosol(nextAerosol);
       } catch { /* abort-safe */ }
-      // Outbound is computed from flights; pull it after a short delay so
-      // the snapshot store gets the write.
       void fetchJsonOrNull<OutboundAnalysis>("/api/cnx/outbound").then((o) => {
         if (o && id === requestIdRef.current) setOutbound(o);
       });
@@ -143,7 +153,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
   }, [scenarioId]);
 
-  // 30-s flight polling — keep the existing API path
+  // 30-s flight polling
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -178,22 +188,20 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
   const flightStates = flights ? [...flights.airborne, ...flights.ground] : [];
 
-  // Merge FIRMS + RFD hotspots so RFD's official Thai forest-tenure
-  // detection sits alongside NASA's global FIRMS on the map.
   const allFireHotspots = [
     ...(fires?.hotspots ?? []),
     ...(firesRfd?.hotspots ?? []).map(rfdToFireHotspot),
   ];
 
-  // Top origin countries from the outbound analysis feed the social
-  // listening subscription list — the panel then pulls news in those
-  // languages. This is the "follow the flight" pattern.
   const topOriginCountries = outbound
     ? outbound.byQuadrant
         .flatMap((q) => q.topOrigins.map((o) => o.country))
         .reduce<string[]>((acc, c) => (acc.includes(c) ? acc : [...acc, c]), [])
         .slice(0, 5)
     : [];
+
+  // Mobile + tablet panel tab state
+  const [mobileTab, setMobileTab] = useState<"fire" | "air" | "flood" | "social" | "data" | "ask">("fire");
 
   return (
     <main
@@ -220,22 +228,24 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxCctvStrip feed={cctv} />
 
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] xl:flex-1">
-        {/* Left: Social listening */}
+        {/* Left rail — social sidebar. Visible from lg onwards on tablets,
+            from xl onwards on desktop with full width. */}
         <aside
           aria-label="Social listening stream"
-          className="hidden w-[260px] shrink-0 xl:block 2xl:w-[300px]"
+          className="hidden w-[260px] shrink-0 border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[280px] 2xl:w-[300px]"
         >
           <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={topOriginCountries} />
         </aside>
 
-        {/* Center: Map */}
+        {/* Centre — map. Always visible; height is dynamic on mobile,
+            fills the section on desktop. */}
         <section
           aria-label="Operational map"
-          className="relative h-[44dvh] min-h-[330px] min-w-0 flex-none overflow-hidden sm:h-[48dvh] sm:min-h-[380px] xl:h-auto xl:min-h-0 xl:flex-1"
+          className="relative h-[55dvh] min-h-[340px] min-w-0 flex-none overflow-hidden border-r-0 sm:h-[60dvh] lg:h-auto lg:min-h-0 lg:flex-1"
         >
           <CNXMap
             flights={flightStates}
-            heritage={[]} // heritage list is large — pass via /api/cnx/heritage if you want it on map
+            heritage={[]}
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
@@ -245,32 +255,71 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
         </section>
 
-        {/* Right: Fire / Flood / Air / Open Data — Fire on top per governor's priority */}
+        {/* Right rail — operations desk. Visible from xl onwards. */}
         <aside
           aria-label="Operations desk"
-          className="hidden w-[360px] shrink-0 xl:flex xl:flex-col xl:overflow-hidden 2xl:w-[420px]"
+          className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-hidden 2xl:w-[380px]"
         >
-          <div className="h-[34%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+          <div className="h-[28%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
           </div>
           <div className="min-h-0 flex-1 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodPanel flood={flood} air={air} fires={fires} />
           </div>
-          <div className="min-h-[180px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+          <div className="h-[36%] min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxAirQualityPanel />
+          </div>
+          <div className="min-h-[160px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxOpenData />
           </div>
-          <div className="min-h-[220px] flex-1 overflow-hidden border-t border-[var(--line)]">
+          <div className="min-h-[180px] flex-1 overflow-hidden border-t border-[var(--line)]">
             <CnxAskChat />
           </div>
         </aside>
       </section>
 
-      {/* Mobile stack */}
+      {/* Mobile / tablet collapsed panels — visible below lg. */}
       <section
-        aria-label="Mobile stack"
-        className="flex h-[68dvh] min-h-[560px] max-h-[760px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] xl:hidden"
+        aria-label="Mobile panels"
+        className="flex h-[64dvh] min-h-[440px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] lg:hidden xl:hidden"
       >
-        <MobileTabContent flood={flood} air={air} fires={fires} firesRfd={firesRfd} aerosol={aerosol} topOriginCountries={topOriginCountries} />
+        <div
+          role="tablist"
+          aria-label="Switch panel"
+          className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)] overflow-x-auto"
+        >
+          {(
+            [
+              { id: "fire", label: "Fire", icon: "🔥" },
+              { id: "air", label: "Air", icon: "🌫" },
+              { id: "flood", label: "Flood", icon: "🌊" },
+              { id: "social", label: "Social", icon: "📰" },
+              { id: "data", label: "Open Data", icon: "🗂" },
+              { id: "ask", label: "Ask", icon: "🔍" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setMobileTab(t.id)}
+              className={`flex min-h-[44px] min-w-[64px] flex-1 items-center justify-center gap-1 border-r border-[var(--line)] px-2 text-[11px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
+                mobileTab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)]"
+              }`}
+            >
+              <span aria-hidden="true">{t.icon}</span>
+              <span className="hidden xs:inline sm:inline">{t.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--bg-raised)]">
+          {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
+          {mobileTab === "air" && <CnxAirQualityPanel />}
+          {mobileTab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
+          {mobileTab === "social" && (
+            <CnxSocialSidebar scenarioId={null} multilingualCountries={topOriginCountries} />
+          )}
+          {mobileTab === "data" && <CnxOpenData />}
+          {mobileTab === "ask" && <CnxAskChat />}
+        </div>
       </section>
 
       <div className="sticky bottom-0 z-50 shrink-0 border-t border-[var(--line)] xl:static">
@@ -288,47 +337,5 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxStoryModal story={story} isOpen={isStoryOpen} onClose={() => setIsStoryOpen(false)} />
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
     </main>
-  );
-}
-
-import type { JSX } from "react";
-function MobileTabContent({ flood, air, fires, firesRfd, aerosol, topOriginCountries }: {
-  flood: CnxFloodResponse | null;
-  air: AirQualityResponse | null;
-  fires: CnxFiresResponse | null;
-  firesRfd: RfdFiresResponse | null;
-  aerosol: AerosolResponse | null;
-  topOriginCountries: string[];
-}): JSX.Element {
-  const [tab, setTab] = useState<"fire" | "flood" | "social" | "opendata">("fire");
-  return (
-    <>
-      <div role="tablist" className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
-        {(
-          [
-            { id: "fire", label: "Fire" },
-            { id: "flood", label: "Flood/Air" },
-            { id: "social", label: "Social" },
-            { id: "opendata", label: "Open" },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex min-h-[44px] flex-1 items-center justify-center gap-2 border-r border-[var(--line)] px-3 text-[10px] font-bold uppercase tracking-[0.18em] last:border-r-0 ${
-              tab === t.id ? "bg-[var(--bg-raised)] text-[var(--ink)]" : "text-[var(--dim)]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden bg-[var(--bg-raised)]">
-        {tab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
-        {tab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
-        {tab === "social" && <CnxSocialSidebar scenarioId={null} multilingualCountries={topOriginCountries} />}
-        {tab === "opendata" && <CnxOpenData />}
-      </div>
-    </>
   );
 }
