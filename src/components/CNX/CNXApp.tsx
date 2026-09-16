@@ -87,10 +87,24 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [busRoutes, setBusRoutes] = useState<BusRoute[]>([]);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
+  const [walls, setWalls] = useState<unknown[]>([]);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
+
+  // Walls — one-time fetch from a baked GeoJSON. Walls don't change,
+  // they only re-render when an OSM contributor updates the historic
+  // city_wall tag. ~7.8 KB so the parse cost is negligible.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJsonOrNull<{ features?: unknown[] }>("/data/cnx/walls.geojson").then((d) => {
+      if (!cancelled && d?.features) setWalls(d.features);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 1-min core feed polling
   useEffect(() => {
@@ -250,6 +264,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
             busRoutes={busRoutes}
+            walls={walls as never}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}

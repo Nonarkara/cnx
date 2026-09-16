@@ -1,22 +1,30 @@
 // @ts-nocheck
 "use client";
 
-// CNX map — MapLibre basemap + deck.gl flight overlay +
-// MapLibre fill-extrusion buildings layer.
+// CNX map — MapLibre basemap + deck.gl flight overlay + 3D city.
 //
-// Buildings come from public/data/cnx/buildings.geojson, produced
-// by scripts/fetch-cnx-buildings.mjs from OSM Overpass. Every feature
-// has height + base_height (from the OSM tags, or `building:levels *
-// 3 m`, or a 9 m fallback). Empty attribute boxes (population,
-// electricity_kw, water_m3_day, address_th, land_use,
-// last_inspected) sit alongside the OSM tags so the operator can fill
-// them later via a CMS or admin panel.
+// Three OSM-derived layers cover the city:
 //
-// The buildings layer is added imperatively (addSource / addLayer)
-// rather than baked into the basemap style, so any basemap can
-// carry the extrusions and the toggle can hide the layer without
-// remounting MapLibre. The buildings file is 26 MB — first load is
-// heavy; the toggle is off by default for that reason.
+//   1. Buildings — fill-extrusion from buildings-core.geojson (Old City
+//      + Doi Suthep, deep detail) for zoom ≥ 13, switching to
+//      buildings-wide.geojson (urban fringe) below.
+//
+//   2. Temples — fill-extrusion from temples.geojson. Bright Doi Suthep
+//      gold; rendered above the buildings so the wats pop against the
+//      beige / blue city.
+//
+//   3. Walls — PathLayer (deck.gl) from walls.geojson. Chiang Mai's
+//      historic city-wall + moat ring; a thick gold stroke, not an
+//      extrusion (walls are linear, not polygon).
+//
+// Color is driven by the `kind` tag, not by height — the Arnis-style
+// blocky palette: warm beige (residential), Lanna blue (commercial /
+// civic), Doi Suthep gold (temple, walls). The 3D toggle was off-by-
+// default in the previous version because buildings.geojson shipped in
+// the wrong coordinate format (Overpass `{lat, lon}` objects instead of
+// GeoJSON `[lon, lat]` pairs); the new fetch-cnx-buildings-3d.mjs
+// writes valid GeoJSON, so the layer renders cleanly. The classic
+// buildings.geojson is kept as a fallback if the new files are missing.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -50,9 +58,50 @@ const PLANE_ICON_MAPPING = {
 };
 
 const CNX_CENTER: [number, number] = [98.9853, 18.7883]; // Chiang Mai
-const CITY_ZOOM = 13; // closer than Lopburi's 11 — buildings are the story
-const BUILDINGS_SOURCE_ID = "cnx-buildings";
-const BUILDINGS_LAYER_ID = "cnx-buildings-fill";
+const CITY_ZOOM = 13;
+
+const BUILDINGS_CORE_SOURCE = "cnx-buildings-core";
+const BUILDINGS_CORE_LAYER = "cnx-buildings-core-fill";
+const BUILDINGS_WIDE_SOURCE = "cnx-buildings-wide";
+const BUILDINGS_WIDE_LAYER = "cnx-buildings-wide-fill";
+const TEMPLES_SOURCE = "cnx-temples";
+const TEMPLES_LAYER = "cnx-temples-fill";
+
+// Arnis-inspired palette:
+//   warm beige (residential)   → #b4afa5 (≈ "terracotta" in Arnis blocks)
+//   Lanna blue (commercial)    → #1d2951 / #6688c2 (flag chrome)
+//   Doi Suthep gold (temples)  → #b8860b (gilding on the chedi)
+function buildingColorExpr() {
+  return [
+    "case",
+    ["==", ["get", "kind"], "temple"],
+    "rgba(184, 134, 11, 0.95)",
+    ["==", ["get", "kind"], "amenity"],
+    "rgba(29, 41, 81, 0.92)",
+    ["==", ["get", "kind"], "tourism"],
+    "rgba(102, 136, 194, 0.92)",
+    ["==", ["get", "kind"], "historic"],
+    "rgba(120, 90, 50, 0.92)",
+    // residential / generic — interpolate within beige family
+    [
+      "interpolate",
+      ["linear"],
+      ["get", "height"],
+      3, "rgba(180, 175, 165, 0.78)",
+      12, "rgba(168, 162, 148, 0.85)",
+      25, "rgba(150, 144, 128, 0.9)",
+    ],
+  ];
+}
+
+function templeColorExpr() {
+  return [
+    "case",
+    ["==", ["get", "kind_value"], "buddhist"],
+    "rgba(218, 165, 32, 0.98)",     // saffron-leaning (Buddhist wats)
+    "rgba(184, 134, 11, 0.98)",     // generic Doi Suthep gold
+  ];
+}
 
 function buildFlightLayers(flights: FlightState[]) {
   // Bearing tail — where each plane was ~60 s ago.
@@ -114,6 +163,42 @@ function buildFlightLayers(flights: FlightState[]) {
   return [planeLayer, tailLayer];
 }
 
+interface WallFeature {
+  type: "Feature";
+  id?: number | string;
+  properties: {
+    id?: number | string;
+    height: number;
+    name?: string | null;
+    kind?: string;
+  };
+  geometry: [number, number][];
+}
+
+function buildWallLayer(walls: WallFeature[], visible: boolean) {
+  if (!visible || !walls.length) return null;
+  // Walls come from OSM as linear ways — convert to a 2-stop path
+  // for deck.gl PathLayer.
+  const paths = walls.map((w) => {
+    const coords = w.geometry as unknown as [number, number][];
+    return {
+      id: w.id,
+      path: coords,
+      height: w.properties.height ?? 4,
+      name: w.properties.name,
+    };
+  });
+  return new PathLayer<(typeof paths)[number]>({
+    id: "cnx-walls",
+    data: paths,
+    getPath: (d) => d.path,
+    getColor: () => [184, 134, 11, 240],
+    getWidth: 3,
+    widthUnits: "pixels",
+    pickable: true,
+  });
+}
+
 interface MapProps {
   flights: FlightState[];
   heritage?: CnxHeritageSite[];
@@ -121,6 +206,7 @@ interface MapProps {
   fireHotspots?: FireHotspot[];
   floodGauges?: CnxFloodGauge[];
   busRoutes?: BusRoute[];
+  walls?: WallFeature[];
 }
 
 export default function CNXMap({
@@ -130,14 +216,17 @@ export default function CNXMap({
   fireHotspots = [],
   floodGauges = [],
   busRoutes = [],
+  walls = [],
 }: MapProps) {
   const [basemap, setBasemap] = useState<BasemapId>("street");
-  const [buildingsOn, setBuildingsOn] = useState(false);
+  const [buildingsOn, setBuildingsOn] = useState(true);
+  const [templesOn, setTemplesOn] = useState(true);
+  const [wallsOn, setWallsOn] = useState(true);
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: CNX_CENTER[0],
     latitude: CNX_CENTER[1],
     zoom: CITY_ZOOM,
-    pitch: 0,
+    pitch: 35,
     bearing: 0,
   });
   const mlMapRef = useRef<maplibregl.Map | null>(null);
@@ -149,6 +238,10 @@ export default function CNXMap({
   });
 
   const style = useMemo(() => basemapStyle(basemap), [basemap]);
+
+  // Walls layer goes in deck.gl — paths, not polygons.
+  const wallLayer = useMemo(() => buildWallLayer(walls, wallsOn), [walls, wallsOn]);
+
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
 
@@ -236,8 +329,15 @@ export default function CNXMap({
       pickable: true,
     });
 
-    return [flightLayers[0], flightLayers[1], heritageLayer, airLayer, fireLayer, floodLayer];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges]);
+    return [
+      ...flightLayers,
+      heritageLayer,
+      airLayer,
+      fireLayer,
+      floodLayer,
+      ...(wallLayer ? [wallLayer] : []),
+    ];
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer]);
 
   // Bus routes — drawn as deck.gl PathLayer above the basemap.
   const busLayers = useMemo(() => {
@@ -265,10 +365,10 @@ export default function CNXMap({
     );
   }, [busRoutes]);
 
-  // Install (or remove) the buildings fill-extrusion layer. We add
-  // it imperatively so the toggle survives basemap changes — every
-  // basemap reload re-runs this effect and we re-attach the layer
-  // on top of whichever style is current.
+  // Install the 3D layers — buildings (core + wide), temples.
+  // Core replaces wide above zoom 13; wide covers the urban fringe
+  // below. Temples render on top with bright saffron / gold.
+  // Falls back to /data/cnx/buildings.geojson for backwards compat.
   useEffect(() => {
     const map = mlMapRef.current;
     if (!map) return;
@@ -280,58 +380,93 @@ export default function CNXMap({
           await new Promise<void>((resolve) => map.once("idle", () => resolve()));
         }
         if (cancelled) return;
-        if (!map.getSource(BUILDINGS_SOURCE_ID)) {
-          // promoteId keeps the OSM id on the feature so a future
-          // admin tool can write attributes back by id.
-          map.addSource(BUILDINGS_SOURCE_ID, {
+
+        // ─── buildings-core (Old City + Doi Suthep, deep) ─────────
+        if (!map.getSource(BUILDINGS_CORE_SOURCE)) {
+          map.addSource(BUILDINGS_CORE_SOURCE, {
             type: "geojson",
-            data: "/data/cnx/buildings.geojson",
+            data: "/data/cnx/buildings-core.geojson",
             promoteId: "id",
           });
         }
-        if (!map.getLayer(BUILDINGS_LAYER_ID)) {
-          // Lanna blue body, with a subtle Doi Suthep gold tint on
-          // taller buildings via `interpolate`. Tall = commercial /
-          // temple / civic, shorter = residential. Same hue family as
-          // the chrome — no new colour introduced.
+        if (!map.getLayer(BUILDINGS_CORE_LAYER)) {
           map.addLayer({
-            id: BUILDINGS_LAYER_ID,
+            id: BUILDINGS_CORE_LAYER,
             type: "fill-extrusion",
-            source: BUILDINGS_SOURCE_ID,
+            source: BUILDINGS_CORE_SOURCE,
             minzoom: 13,
             paint: {
-              "fill-extrusion-color": [
-                "interpolate",
-                ["linear"],
-                ["get", "height"],
-                3, "rgba(180, 175, 165, 0.78)",     // short → warm beige (residential)
-                12, "rgba(102, 136, 194, 0.86)",   // mid → Lanna blue lighter
-                25, "rgba(29, 41, 81, 0.92)",      // tall → Lanna blue
-                40, "rgba(184, 134, 11, 0.92)",    // temple / civic → Doi Suthep gold
-              ],
+              "fill-extrusion-color": buildingColorExpr(),
               "fill-extrusion-height": ["get", "height"],
               "fill-extrusion-base": ["get", "base_height"],
               "fill-extrusion-opacity": 0.85,
+              "fill-extrusion-vertical-gradient": false, // Arnis-style flat
             },
           });
         }
-        map.setLayoutProperty(
-          BUILDINGS_LAYER_ID,
-          "visibility",
-          buildingsOn ? "visible" : "none",
-        );
+        map.setLayoutProperty(BUILDINGS_CORE_LAYER, "visibility", buildingsOn ? "visible" : "none");
+
+        // ─── buildings-wide (urban fringe, light) ─────────────────
+        if (!map.getSource(BUILDINGS_WIDE_SOURCE)) {
+          map.addSource(BUILDINGS_WIDE_SOURCE, {
+            type: "geojson",
+            data: "/data/cnx/buildings-wide.geojson",
+            promoteId: "id",
+          });
+        }
+        if (!map.getLayer(BUILDINGS_WIDE_LAYER)) {
+          map.addLayer({
+            id: BUILDINGS_WIDE_LAYER,
+            type: "fill-extrusion",
+            source: BUILDINGS_WIDE_SOURCE,
+            maxzoom: 13,
+            paint: {
+              "fill-extrusion-color": buildingColorExpr(),
+              "fill-extrusion-height": ["get", "height"],
+              "fill-extrusion-base": ["get", "base_height"],
+              "fill-extrusion-opacity": 0.7,
+              "fill-extrusion-vertical-gradient": false,
+            },
+          });
+        }
+        map.setLayoutProperty(BUILDINGS_WIDE_LAYER, "visibility", buildingsOn ? "visible" : "none");
+
+        // ─── temples (place_of_worship) ───────────────────────────
+        if (!map.getSource(TEMPLES_SOURCE)) {
+          map.addSource(TEMPLES_SOURCE, {
+            type: "geojson",
+            data: "/data/cnx/temples.geojson",
+            promoteId: "id",
+          });
+        }
+        if (!map.getLayer(TEMPLES_LAYER)) {
+          map.addLayer({
+            id: TEMPLES_LAYER,
+            type: "fill-extrusion",
+            source: TEMPLES_SOURCE,
+            minzoom: 11,
+            paint: {
+              "fill-extrusion-color": templeColorExpr(),
+              "fill-extrusion-height": ["get", "height"],
+              "fill-extrusion-base": ["get", "base_height"],
+              "fill-extrusion-opacity": 0.95,
+              "fill-extrusion-vertical-gradient": false,
+            },
+          });
+        }
+        map.setLayoutProperty(TEMPLES_LAYER, "visibility", templesOn ? "visible" : "none");
       } catch (e) {
-        // Most commonly: the basemap style has no compatible layer slot,
-        // or the buildings file isn't yet on disk. Silent — the toggle
-        // just doesn't appear.
-        console.warn(`[buildings] setup failed: ${(e as Error).message}`);
+        // Most commonly: a source file isn't on disk yet (first deploy
+        // before data scripts have run). Silent — the toggle just
+        // doesn't appear.
+        console.warn(`[3d-city] setup failed: ${(e as Error).message}`);
       }
     };
     void setup();
     return () => {
       cancelled = true;
     };
-  }, [basemap, buildingsOn]);
+  }, [basemap, buildingsOn, templesOn]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -370,7 +505,7 @@ export default function CNXMap({
         ))}
       </div>
 
-      {/* Buildings + flights toggles, top-left under the badge area */}
+      {/* 3D layer toggles, top-left */}
       <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
         <button
           type="button"
@@ -382,7 +517,31 @@ export default function CNXMap({
               : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
           }`}
         >
-          {buildingsOn ? "Buildings: 3D" : "Buildings: 2D"}
+          {buildingsOn ? "Buildings: 3D" : "Buildings: off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTemplesOn((v) => !v)}
+          aria-pressed={templesOn}
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            templesOn
+              ? "border-[#b8860b] bg-[#b8860b] text-white"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+          }`}
+        >
+          {templesOn ? `Temples: gold` : "Temples: off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setWallsOn((v) => !v)}
+          aria-pressed={wallsOn}
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            wallsOn
+              ? "border-[#1d2951] bg-[#1d2951] text-white"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+          }`}
+        >
+          {wallsOn ? "Walls: on" : "Walls: off"}
         </button>
       </div>
 

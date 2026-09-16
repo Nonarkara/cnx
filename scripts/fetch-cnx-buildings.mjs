@@ -100,6 +100,24 @@ function classify(tags) {
   return { kind: "building", value: "yes" };
 }
 
+// Overpass returns geometry as `[{lat, lon}, ...]` objects. GeoJSON
+// requires `[lon, lat]` number pairs. Convert once at extraction time
+// so MapLibre / deck.gl can read the result without coercion.
+function osmGeomToGeoJSON(geom) {
+  if (!geom || geom.length === 0) return null;
+  const out = new Array(geom.length);
+  for (let i = 0; i < geom.length; i += 1) {
+    const p = geom[i];
+    // Some Overpass responses include [lon, lat] already (rare) — accept both.
+    if (Array.isArray(p)) {
+      out[i] = p.length >= 2 ? [p[0], p[1]] : [p[0], p[0]];
+    } else {
+      out[i] = [p.lon, p.lat];
+    }
+  }
+  return out;
+}
+
 function buildFeature(osm) {
   const tags = osm.tags ?? {};
   const height = heightFromTags(tags);
@@ -129,11 +147,13 @@ function buildFeature(osm) {
     land_use: null,
     last_inspected: null,
   };
+  const geometry = osmGeomToGeoJSON(osm.geometry);
+  if (!geometry) return null;
   return {
     type: "Feature",
     id: osm.id,
     properties: props,
-    geometry: osm.geometry,
+    geometry,
   };
 }
 
@@ -193,7 +213,8 @@ async function main() {
   const features = [];
   for (const el of elements) {
     if (!el.geometry || el.geometry.length < 3) continue;
-    features.push(buildFeature(el));
+    const feat = buildFeature(el);
+    if (feat) features.push(feat);
   }
   console.log(`wrote ${features.length} buildings with height + base_height`);
 
