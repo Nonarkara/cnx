@@ -29,9 +29,8 @@ import type { MapViewState } from "@deck.gl/core";
 import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { BusRoute } from "../../types/cnx";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as MaplibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import type { DataDrivenPropertyValueSpecification } from "@maplibre/maplibre-gl-style-spec";
-import type { ExpressionSpecification } from "maplibre-gl";
 
 import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/basemap-styles";
 import type { FlightState } from "../../lib/cnx/opensky";
@@ -463,19 +462,31 @@ export default function CNXMap({
     ];
   }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer, gridLayer]);
 
-  // Bus routes — drawn as deck.gl PathLayer above the basemap. Toggle
-  // off hides them so the operator can declutter when the rivers / walls /
-  // 3D city already cover the corridor.
+  // Bus routes — drawn as a single deck.gl PathLayer above the
+  // basemap. One data entry per constituent OSM way (BusRoute.geometry
+  // segment), NOT one per route: relation members aren't guaranteed
+  // contiguous or consistently oriented, so joining them into one path
+  // drew straight lines across the map between unrelated segments.
+  // Toggle off hides them so the operator can declutter when the
+  // rivers / walls / 3D city already cover the corridor.
   const busLayers = useMemo(() => {
     if (!busRoutes.length || !busesOn) return [];
-    return busRoutes.map((r) =>
-      new PathLayer<BusRoute>({
-        id: `bus-${r.id}`,
-        data: [r],
-        getPath: (d) => d.geometry,
-        getColor: () => {
+    const segments = busRoutes.flatMap((r) =>
+      r.geometry.map((path, i) => ({
+        id: `${r.id}-${i}`,
+        path,
+        colour: r.colour,
+      })),
+    );
+    if (!segments.length) return [];
+    return [
+      new PathLayer<(typeof segments)[number]>({
+        id: "cnx-bus-routes",
+        data: segments,
+        getPath: (d) => d.path,
+        getColor: (d) => {
           // Convert #rrggbb (Lanna blue default) to RGB; fall back on parse failure.
-          const m = /^#([0-9a-fA-F]{6})$/.exec(r.colour.trim());
+          const m = /^#([0-9a-fA-F]{6})$/.exec(d.colour.trim());
           if (m) {
             const hex = m[1];
             return [
@@ -491,7 +502,7 @@ export default function CNXMap({
         widthUnits: "pixels",
         pickable: true,
       }),
-    );
+    ];
   }, [busRoutes, busesOn]);
 
   // Install the 3D layers — buildings (core + wide), temples.
@@ -587,7 +598,7 @@ export default function CNXMap({
         map.setLayoutProperty(TEMPLES_LAYER, "visibility", templesOn ? "visible" : "none");
 
         // Interactive building inspection (Atlas / atlas.nonarkara.org pattern)
-        const onLayerClick = (e: any) => {
+        const onLayerClick = (e: MapLayerMouseEvent) => {
           const feat = e.features?.[0];
           if (!feat) return;
           const props = feat.properties ?? {};

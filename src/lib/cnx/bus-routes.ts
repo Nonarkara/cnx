@@ -141,20 +141,22 @@ async function loadOverpass(): Promise<BusDataFile> {
         routeRef: el.tags.ref ?? "",
       });
     } else if (el.type === "relation" && (el.tags?.route === "bus" || el.tags?.route === "minibus")) {
-      const geom: [number, number][] = [];
+      // Each way member is its own segment — see BusRoute.geometry's
+      // doc comment for why these aren't concatenated into one path.
+      const segments: [number, number][][] = [];
       for (const m of el.members ?? []) {
-        if (m.type === "way" && m.geometry) {
-          for (const p of m.geometry) geom.push([p.lon, p.lat]);
+        if (m.type === "way" && m.geometry && m.geometry.length >= 2) {
+          segments.push(m.geometry.map((p) => [p.lon, p.lat]));
         }
       }
-      if (geom.length >= 2) {
+      if (segments.length > 0) {
         routes.push({
           id: `route-${el.id}`,
           ref: el.tags.ref ?? el.tags.name ?? el.tags["name:th"] ?? `Route ${el.id}`,
           name: el.tags.name ?? el.tags["name:th"] ?? el.tags["name:en"] ?? "",
           operator: el.tags.operator ?? el.tags.network ?? "Unknown",
           colour: el.tags.colour ?? "#1d2951",
-          geometry: geom,
+          geometry: segments,
         });
       }
     }

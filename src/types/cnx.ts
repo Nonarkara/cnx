@@ -84,7 +84,9 @@ export interface SocialItem {
   url: string;
   publishedAt: string;
   sentiment?: "positive" | "neutral" | "negative";
-  tone?: "info" | "alert" | "rumor";
+  /** "demo" marks scenario/baseline items that are not live news — the
+   *  sidebar renders these with an amber DEMO badge. */
+  tone?: "info" | "alert" | "rumor" | "demo";
   topics?: string[];
 }
 
@@ -262,7 +264,12 @@ export interface BusRoute {
   name: string;
   operator: string;
   colour: string;
-  geometry: [number, number][]; // [lon, lat]
+  /** One entry per constituent OSM way — kept disjoint rather than
+   *  concatenated into a single path, because relation members are
+   *  not guaranteed to be contiguous or consistently ordered/oriented.
+   *  Joining them naively draws straight "teleport" lines across the
+   *  map between unrelated segments. [lon, lat] per point. */
+  geometry: [number, number][][];
 }
 
 // ─── Convenience unions ──────────────────────────────────────────

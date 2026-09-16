@@ -89,20 +89,25 @@ async function main() {
         routeRef: el.tags.ref ?? "",
       });
     } else if (el.type === "relation" && (el.tags?.route === "bus" || el.tags?.route === "minibus")) {
-      const geom = [];
+      // Keep each way member as its own segment rather than
+      // concatenating them into one path — relation members aren't
+      // guaranteed contiguous or consistently oriented, and joining
+      // them naively draws straight lines across the map between
+      // unrelated segments (looks like routes flying over buildings).
+      const segments = [];
       for (const m of el.members ?? []) {
-        if (m.type === "way" && m.geometry) {
-          for (const p of m.geometry) geom.push([p.lon, p.lat]);
+        if (m.type === "way" && m.geometry && m.geometry.length >= 2) {
+          segments.push(m.geometry.map((p) => [p.lon, p.lat]));
         }
       }
-      if (geom.length >= 2) {
+      if (segments.length > 0) {
         routes.push({
           id: `route-${el.id}`,
           ref: el.tags.ref ?? el.tags.name ?? el.tags["name:th"] ?? `Route ${el.id}`,
           name: el.tags.name ?? el.tags["name:th"] ?? el.tags["name:en"] ?? "",
           operator: el.tags.operator ?? el.tags.network ?? "Unknown",
           colour: el.tags.colour ?? "#1d2951",
-          geometry: geom,
+          geometry: segments,
         });
       }
     }

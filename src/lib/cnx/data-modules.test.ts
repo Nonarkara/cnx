@@ -73,8 +73,10 @@ describe("fetchCnxBus", () => {
             operator: "RTC",
             colour: "#FFBF00",
             geometry: [
-              [98.97, 18.78],
-              [98.98, 18.79],
+              [
+                [98.97, 18.78],
+                [98.98, 18.79],
+              ],
             ],
           },
         ],
