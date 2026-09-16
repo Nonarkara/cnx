@@ -285,7 +285,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           aria-label="Social listening stream"
           className="hidden w-[260px] shrink-0 border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[280px] 2xl:w-[300px]"
         >
-          <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={topOriginCountries} />
+          <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={topOriginCountries} initialData={social} />
         </aside>
 
         {/* Centre — map. Always visible; height is dynamic on mobile,
@@ -369,7 +369,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "air" && <CnxAirQualityPanel />}
           {mobileTab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
           {mobileTab === "social" && (
-            <CnxSocialSidebar scenarioId={null} multilingualCountries={topOriginCountries} />
+            <CnxSocialSidebar scenarioId={null} multilingualCountries={topOriginCountries} initialData={social} />
           )}
           {mobileTab === "data" && <CnxOpenData />}
           {mobileTab === "ask" && <CnxAskChat />}

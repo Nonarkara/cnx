@@ -86,7 +86,23 @@ export async function fetchCnxBus(): Promise<{ routes: BusRoute[]; stops: BusSto
 }
 
 async function loadBaked(): Promise<BusDataFile> {
-  const res = await fetch("/data/cnx/bus-routes.geojson", { cache: "no-store" });
+  if (typeof process !== "undefined" && process.cwd) {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const filePath = path.join(process.cwd(), "public/data/cnx/bus-routes.geojson");
+      const raw = await fs.readFile(filePath, "utf8");
+      const data = JSON.parse(raw) as BusDataFile;
+      if (Array.isArray(data.routes) && Array.isArray(data.stops)) {
+        return data;
+      }
+    } catch {
+      // fall through
+    }
+  }
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const url = siteUrl ? `${siteUrl}/data/cnx/bus-routes.geojson` : "/data/cnx/bus-routes.geojson";
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as BusDataFile;
   if (!Array.isArray(data.routes) || !Array.isArray(data.stops)) {

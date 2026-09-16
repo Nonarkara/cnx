@@ -90,11 +90,52 @@ export async function fetchCnxWaterways(): Promise<{ waterways: Waterway[]; gene
 }
 
 async function loadBaked(): Promise<WaterwaysFile> {
-  const res = await fetch("/data/cnx/waterways.geojson", { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = (await res.json()) as WaterwaysFile;
-  if (!Array.isArray(data.waterways)) throw new Error("missing `waterways` array");
-  return data;
+  let rawObj: unknown = null;
+  if (typeof process !== "undefined" && process.cwd) {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const filePath = path.join(process.cwd(), "public/data/cnx/waterways.geojson");
+      const raw = await fs.readFile(filePath, "utf8");
+      rawObj = JSON.parse(raw);
+    } catch {
+      // fall through
+    }
+  }
+  if (!rawObj) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+    const url = siteUrl ? `${siteUrl}/data/cnx/waterways.geojson` : "/data/cnx/waterways.geojson";
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    rawObj = await res.json();
+  }
+
+  const data = rawObj as {
+    meta?: { source?: string; generatedAt?: string; bbox?: unknown; scope?: string };
+    waterways?: Waterway[];
+    features?: Array<{
+      id?: number | string;
+      properties?: { id?: number | string; name?: string | null; category?: "river" | "stream"; width?: "major" | "minor" | "drain" };
+      geometry?: { type: string; coordinates: [number, number][] };
+    }>;
+  };
+
+  if (Array.isArray(data.waterways)) {
+    return { meta: data.meta, waterways: data.waterways };
+  }
+
+  if (Array.isArray(data.features)) {
+    const waterways: Waterway[] = data.features.map((f, i) => ({
+      id: String(f.id ?? f.properties?.id ?? `ww-${i}`),
+      name: f.properties?.name ?? "ลำน้ำ",
+      category: f.properties?.category ?? "stream",
+      geometry: f.geometry?.coordinates ?? [],
+      width: f.properties?.width ?? "minor",
+    }));
+    return { meta: data.meta, waterways };
+  }
+
+  throw new Error("unrecognized waterways file format");
 }
 
 async function loadOverpass(): Promise<{ waterways: Waterway[]; generatedAt: string }> {

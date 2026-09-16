@@ -67,28 +67,39 @@ const TEMPLES_SOURCE = "cnx-temples";
 const TEMPLES_LAYER = "cnx-temples-fill";
 
 // Arnis-inspired palette:
-//   warm beige (residential)   → #b4afa5 (≈ "terracotta" in Arnis blocks)
-//   Lanna blue (commercial)    → #1d2951 / #6688c2 (flag chrome)
-//   Doi Suthep gold (temples)  → #b8860b (gilding on the chedi)
+//   Doi Suthep gold (temples)  → #f59e0b / #d97706 (saffron / chedi gilding)
+//   Lanna navy (civic / gov)   → #1d2951
+//   Lanna blue (commercial)    → #2563eb
+//   Tourism / Hotel            → #0284c7
+//   Education / School         → #059669
+//   Healthcare / Hospital      → #e11d48
+//   Heritage / Walls           → #9a3412
+//   Warm beige (residential)   → #b4afa5 (≈ "terracotta/sandstone" in Arnis)
 function buildingColorExpr(): unknown[] {
   return [
     "case",
     ["==", ["get", "kind"], "temple"],
-    "rgba(184, 134, 11, 0.95)",
+    "rgba(245, 158, 11, 0.98)",
+    ["==", ["get", "kind"], "hospital"],
+    "rgba(225, 29, 72, 0.92)",
+    ["==", ["get", "kind"], "school"],
+    "rgba(5, 150, 105, 0.92)",
     ["==", ["get", "kind"], "amenity"],
-    "rgba(29, 41, 81, 0.92)",
+    "rgba(29, 41, 81, 0.95)",
     ["==", ["get", "kind"], "tourism"],
-    "rgba(102, 136, 194, 0.92)",
+    "rgba(2, 132, 199, 0.92)",
+    ["==", ["get", "kind"], "commercial"],
+    "rgba(37, 99, 235, 0.92)",
     ["==", ["get", "kind"], "historic"],
-    "rgba(120, 90, 50, 0.92)",
-    // residential / generic — interpolate within beige family
+    "rgba(154, 52, 18, 0.92)",
+    // residential / generic — interpolate within warm beige family
     [
       "interpolate",
       ["linear"],
       ["get", "height"],
-      3, "rgba(180, 175, 165, 0.78)",
-      12, "rgba(168, 162, 148, 0.85)",
-      25, "rgba(150, 144, 128, 0.9)",
+      3, "rgba(180, 175, 165, 0.82)",
+      12, "rgba(168, 162, 148, 0.88)",
+      25, "rgba(150, 144, 128, 0.92)",
     ],
   ];
 }
@@ -97,8 +108,12 @@ function templeColorExpr(): unknown[] {
   return [
     "case",
     ["==", ["get", "kind_value"], "buddhist"],
-    "rgba(218, 165, 32, 0.98)",     // saffron-leaning (Buddhist wats)
-    "rgba(184, 134, 11, 0.98)",     // generic Doi Suthep gold
+    "rgba(245, 158, 11, 0.98)",     // saffron-leaning (Buddhist wats / chedi)
+    ["==", ["get", "kind_value"], "christian"],
+    "rgba(168, 85, 247, 0.95)",
+    ["==", ["get", "kind_value"], "muslim"],
+    "rgba(16, 185, 129, 0.95)",
+    "rgba(218, 165, 32, 0.98)",     // generic Doi Suthep gold
   ];
 }
 
@@ -261,13 +276,48 @@ export default function CNXMap({
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
+  const [selectedBuilding, setSelectedBuilding] = useState<{
+    id: string | number;
+    name: string;
+    nameTh?: string;
+    nameEn?: string;
+    kind: string;
+    kindValue?: string;
+    height: number;
+    levels?: number | null;
+    address?: string | null;
+    coordinates?: [number, number];
+  } | null>(null);
+
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: CNX_CENTER[0],
     latitude: CNX_CENTER[1],
     zoom: CITY_ZOOM,
-    pitch: 35,
-    bearing: 0,
+    pitch: 55,
+    bearing: -15,
   });
+
+  const handleToggle3D = () => {
+    setBuildingsOn((prev) => {
+      const next = !prev;
+      if (next) {
+        setTemplesOn(true);
+        setViewState((vs) => ({
+          ...vs,
+          pitch: 58,
+          bearing: -15,
+          zoom: Math.max(vs.zoom ?? CITY_ZOOM, 14.8),
+        }));
+      } else {
+        setViewState((vs) => ({
+          ...vs,
+          pitch: 0,
+          bearing: 0,
+        }));
+      }
+      return next;
+    });
+  };
   const mlMapRef = useRef<MaplibreMap | null>(null);
 
   // Expose the live MapLibre handle to the dev console for debugging.
@@ -531,6 +581,42 @@ export default function CNXMap({
           });
         }
         map.setLayoutProperty(TEMPLES_LAYER, "visibility", templesOn ? "visible" : "none");
+
+        // Interactive building inspection (Atlas / atlas.nonarkara.org pattern)
+        const onLayerClick = (e: any) => {
+          const feat = e.features?.[0];
+          if (!feat) return;
+          const props = feat.properties ?? {};
+          const bHeight = Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
+          setSelectedBuilding({
+            id: feat.id ?? props.id ?? "Unknown",
+            name: props.name_th || props.name_en || props.name || `อาคาร #${props.id ?? feat.id ?? ""}`,
+            nameTh: props.name_th,
+            nameEn: props.name_en,
+            kind: props.kind || (feat.layer?.id === TEMPLES_LAYER ? "temple" : "building"),
+            kindValue: props.kind_value,
+            height: bHeight,
+            levels: props.levels ? Number(props.levels) : Math.round(bHeight / 3),
+            address: props.addr || null,
+            coordinates: [e.lngLat.lng, e.lngLat.lat],
+          });
+        };
+
+        const onMouseEnter = () => {
+          map.getCanvas().style.cursor = "pointer";
+        };
+        const onMouseLeave = () => {
+          map.getCanvas().style.cursor = "";
+        };
+
+        [BUILDINGS_CORE_LAYER, BUILDINGS_WIDE_LAYER, TEMPLES_LAYER].forEach((lid) => {
+          map.off("click", lid, onLayerClick);
+          map.off("mouseenter", lid, onMouseEnter);
+          map.off("mouseleave", lid, onMouseLeave);
+          map.on("click", lid, onLayerClick);
+          map.on("mouseenter", lid, onMouseEnter);
+          map.on("mouseleave", lid, onMouseLeave);
+        });
       } catch (e) {
         // Most commonly: a source file isn't on disk yet (first deploy
         // before data scripts have run). Silent — the toggle just
@@ -588,15 +674,15 @@ export default function CNXMap({
       <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
         <button
           type="button"
-          onClick={() => setBuildingsOn((v) => !v)}
+          onClick={handleToggle3D}
           aria-pressed={buildingsOn}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] shadow-sm transition-all ${
             buildingsOn
               ? "border-[#1d2951] bg-[#1d2951] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b] hover:border-[#1d2951]"
           }`}
         >
-          {buildingsOn ? "Buildings: 3D" : "Buildings: off"}
+          {buildingsOn ? "3D City: ON" : "3D City: 2D"}
         </button>
         <button
           type="button"
@@ -669,6 +755,90 @@ export default function CNXMap({
           {flights.length} {flights.length === 1 ? "flight" : "flights"}
         </span>
       </div>
+
+      {/* Atlas-compatible Building Information Card */}
+      {selectedBuilding && (
+        <aside
+          aria-label="รายละเอียดอาคาร 3 มิติ"
+          className="absolute bottom-12 left-3 z-40 max-w-[340px] rounded-sm border border-[var(--line)] bg-[var(--bg-raised)]/95 p-3 shadow-2xl backdrop-blur-md"
+        >
+          <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] pb-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block rounded bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-white">
+                  {selectedBuilding.kind === "temple" ? "ศาสนสถาน · วัด" : selectedBuilding.kind.toUpperCase()}
+                </span>
+                <span className="inline-block rounded border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-mono text-[8px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  พร้อมรับข้อมูล · Atlas Ready
+                </span>
+              </div>
+              <h3 className="mt-1 truncate font-mono text-[13px] font-bold text-[var(--ink)]">
+                {selectedBuilding.name}
+              </h3>
+              {selectedBuilding.nameEn && selectedBuilding.nameEn !== selectedBuilding.name && (
+                <div className="truncate text-[10px] text-[var(--dim)]">{selectedBuilding.nameEn}</div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedBuilding(null)}
+              className="flex h-5 w-5 items-center justify-center rounded text-[12px] font-bold text-[var(--dim)] hover:bg-[var(--line)] hover:text-[var(--ink)]"
+              aria-label="ปิด"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-1.5 font-mono text-[9px]">
+            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">ความสูง / ชั้น</span>
+              <span className="font-bold text-[var(--ink)]">
+                {selectedBuilding.height} ม. ({selectedBuilding.levels ? `${selectedBuilding.levels} ชั้น` : "—"})
+              </span>
+            </div>
+            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">การใช้ประโยชน์</span>
+              <span className="font-bold text-[var(--ink)]">
+                {selectedBuilding.kind === "temple" ? "วัด / ศาสนสถาน" : selectedBuilding.kind}
+              </span>
+            </div>
+            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">👥 ประชากร (คน)</span>
+              <span className="italic text-[var(--dim)]">รอเชื่อมโยงข้อมูล</span>
+            </div>
+            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">⚡ ไฟฟ้าสูงสุด</span>
+              <span className="italic text-[var(--dim)]">รอเชื่อม PEA</span>
+            </div>
+            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">💧 การใช้น้ำประปา</span>
+              <span className="italic text-[var(--dim)]">รอเชื่อม PWA</span>
+            </div>
+            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">📋 สำรวจล่าสุด</span>
+              <span className="italic text-[var(--dim)]">รอลงพื้นที่สำรวจ</span>
+            </div>
+          </div>
+
+          {selectedBuilding.address && (
+            <div className="mt-2 border-t border-[var(--line)] pt-1.5 font-mono text-[9px] text-[var(--dim)]">
+              📍 {selectedBuilding.address}
+            </div>
+          )}
+
+          <div className="mt-2 flex items-center justify-between border-t border-[var(--line)] pt-2 font-mono text-[8px] text-[var(--dim)]">
+            <span>OSM ID: {selectedBuilding.id}</span>
+            <a
+              href={`https://www.openstreetmap.org/way/${selectedBuilding.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--cool)] hover:underline"
+            >
+              ดูบน OSM ↗
+            </a>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

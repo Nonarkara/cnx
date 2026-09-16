@@ -81,12 +81,16 @@ async function buildAsyncCorpus(): Promise<Document[]> {
   try {
     const od = await fetchCnxOpenDataIndex();
     for (const d of od.datasets) {
+      const title = d.titleTh || d.titleEn || d.id;
+      const body = (d.summary && d.summary.trim().length > 0)
+        ? d.summary
+        : `${d.publisher} · รูปแบบ ${d.format}`;
       docs.push({
         id: d.id,
-        title: d.titleEn ?? d.titleTh ?? d.id,
-        body: d.summary ?? `${d.publisher} · ${d.format}`,
+        title,
+        body,
         tags: d.tags,
-        terms: tokenize(`${d.titleEn ?? ""} ${d.titleTh ?? ""} ${d.summary ?? ""} ${d.tags.join(" ")} ${d.publisher}`),
+        terms: tokenize(`${title} ${d.titleEn ?? ""} ${d.titleTh ?? ""} ${body} ${d.tags.join(" ")} ${d.publisher}`),
         source: "open-data",
         url: d.url,
         ts: d.fetchedAt,

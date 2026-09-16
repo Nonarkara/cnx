@@ -42,13 +42,20 @@ function sentimentBorder(item: SocialItem): string {
   return "border-l-[var(--line)]";
 }
 
-export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [] }: {
+export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [], initialData = null }: {
   scenarioId: string | null;
   multilingualCountries?: string[];
+  initialData?: SocialListeningResponse | null;
 }) {
-  const [data, setData] = useState<SocialListeningResponse | null>(null);
+  const [data, setData] = useState<SocialListeningResponse | null>(initialData);
   const [filter, setFilter] = useState<Filter>("all");
   const multilingualCountriesKey = multilingualCountries.join(",");
+
+  useEffect(() => {
+    if (initialData && !data) {
+      setData(initialData);
+    }
+  }, [initialData, data]);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +65,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
         : buildScenarioUrl("/api/cnx/social", scenarioId);
       const next = await fetchJsonOrNull<SocialListeningResponse>(url);
       if (cancelled) return;
-      if (next) setData(next);
+      if (next && next.items?.length) setData(next);
     };
     void load();
     const interval = window.setInterval(() => void load(), 3 * 60_000);
@@ -136,6 +143,14 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
                   <span className={`inline-flex items-center rounded-sm px-1.5 py-px text-[8px] font-bold uppercase tracking-[0.12em] ${badge.className}`}>
                     {badge.label}
                   </span>
+                  {item.tone === "demo" && (
+                    <span
+                      title="Baseline placeholder — headline copy + URL are scenario, not live news. Swapped for real feeds once Overpass / GDELT return."
+                      className="inline-flex items-center rounded-sm border border-[var(--sun)] bg-[var(--sun-dim)] px-1.5 py-px text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--sun)]"
+                    >
+                      DEMO
+                    </span>
+                  )}
                   <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
                     {relative(item.publishedAt)}
                   </span>
