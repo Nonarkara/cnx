@@ -275,6 +275,7 @@ export default function CNXMap({
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
+  const [busesOn, setBusesOn] = useState(true);
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
@@ -461,9 +462,11 @@ export default function CNXMap({
     ];
   }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer, gridLayer]);
 
-  // Bus routes — drawn as deck.gl PathLayer above the basemap.
+  // Bus routes — drawn as deck.gl PathLayer above the basemap. Toggle
+  // off hides them so the operator can declutter when the rivers / walls /
+  // 3D city already cover the corridor.
   const busLayers = useMemo(() => {
-    if (!busRoutes.length) return [];
+    if (!busRoutes.length || !busesOn) return [];
     return busRoutes.map((r) =>
       new PathLayer<BusRoute>({
         id: `bus-${r.id}`,
@@ -488,7 +491,7 @@ export default function CNXMap({
         pickable: true,
       }),
     );
-  }, [busRoutes]);
+  }, [busRoutes, busesOn]);
 
   // Install the 3D layers — buildings (core + wide), temples.
   // Core replaces wide above zoom 13; wide covers the urban fringe
@@ -719,6 +722,18 @@ export default function CNXMap({
           }`}
         >
           {waterwaysOn ? "Rivers: on" : "Rivers: off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setBusesOn((v) => !v)}
+          aria-pressed={busesOn}
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            busesOn
+              ? "border-[#b8860b] bg-[#b8860b] text-white"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+          }`}
+        >
+          {busesOn ? `Buses: on` : "Buses: off"}
         </button>
         {[1, 5, 10].map((km) => {
           const on = gridRadii.has(km);
