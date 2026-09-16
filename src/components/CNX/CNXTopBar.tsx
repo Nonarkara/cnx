@@ -6,7 +6,8 @@
 // shows live flood/air/fires/social counters in the masthead.
 
 import { useEffect, useState } from "react";
-import { Bell, BookOpen, Moon, Sun } from "lucide-react";
+import { Bell, BookOpen, FlaskConical, Moon, Sun } from "lucide-react";
+import Link from "next/link";
 import { useDarkMode } from "../../hooks/useDarkMode";
 import CNXLogoRow from "./CNXLogoRow";
 import type {
@@ -120,6 +121,14 @@ export default function CnxTopBar(props: TopBarProps) {
             <BookOpen className="h-3 w-3" />
             Manual
           </button>
+          <Link
+            href="/cnx/about"
+            target="_blank"
+            className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)]"
+          >
+            <FlaskConical className="h-3 w-3" />
+            Research
+          </Link>
           <button
             onClick={toggleDark}
             aria-label="Toggle theme"

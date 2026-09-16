@@ -9,8 +9,13 @@
 
 import type { OpenDataIndex, OpenDataDataset } from "../../types/cnx";
 
-const INDEX_PATH = "/data/cnx/open-data/index.json";
-const ALL_PATH = "/data/cnx/open-data/all.json";
+// Server-side `fetch` has no implicit origin to resolve a relative
+// path against (unlike the browser) — Cloudflare Workers included.
+// Build an absolute URL from the same env var the /api/cnx/build
+// route already falls back to.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cnx.nonarkara.org";
+const INDEX_PATH = `${SITE_URL}/data/cnx/open-data/index.json`;
+const ALL_PATH = `${SITE_URL}/data/cnx/open-data/all.json`;
 
 let cache: { at: number; index: OpenDataIndex } | null = null;
 const TTL_MS = 6 * 60 * 60_000;

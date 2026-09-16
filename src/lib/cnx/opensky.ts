@@ -13,7 +13,7 @@
 // km around CNX airport, but a plane on final from the south starts
 // showing up 150 km out.
 
-const OPENSKY_BASE = "https://opensky-network.org/api";
+export const OPENSKY_BASE = "https://opensky-network.org/api";
 
 /** Chiang Mai area bbox (lamin, lomin, lamax, lomax). */
 export const CNX_BBOX = {
@@ -124,6 +124,49 @@ interface RawResponse {
 let cache: { at: number; data: RawResponse | null } | null = null;
 const CACHE_MS = 30_000; // upstream cache: 30 s, well below the upstream refresh
 
+// Anonymous OpenSky access (400 credits/day, no auth) is throttled
+// aggressively by source IP — and Cloudflare Workers share egress IPs
+// across every customer on the platform, so anonymous requests from
+// here get rate-limited far more often than the same code running
+// from a residential or single-tenant IP. A free OpenSky account
+// (https://opensky-network.org/apidoc/rest.html#authentication) raises
+// the limit to 4000 credits/day and is keyed to the account, not the
+// IP, which sidesteps the shared-egress problem. Configure it with
+// OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET (OAuth2 client-credentials,
+// from the account's API client page) to enable it; falls back to
+// anonymous when unset.
+const TOKEN_URL =
+  "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+
+let tokenCache: { token: string; expiresAt: number } | null = null;
+
+export async function getAccessToken(): Promise<string | null> {
+  const clientId = process.env.OPENSKY_CLIENT_ID;
+  const clientSecret = process.env.OPENSKY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  if (tokenCache && Date.now() < tokenCache.expiresAt) return tokenCache.token;
+  try {
+    const res = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`token ${res.status}`);
+    const json = (await res.json()) as { access_token: string; expires_in: number };
+    // Refresh 30s early so a request never races an expiring token.
+    tokenCache = { token: json.access_token, expiresAt: Date.now() + (json.expires_in - 30) * 1000 };
+    return json.access_token;
+  } catch (e) {
+    console.warn(`[opensky] auth failed, falling back to anonymous: ${(e as Error).message}`);
+    return null;
+  }
+}
+
 async function fetchRaw(): Promise<RawResponse | null> {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) {
@@ -134,9 +177,13 @@ async function fetchRaw(): Promise<RawResponse | null> {
   url.searchParams.set("lomin", String(CNX_BBOX.lomin));
   url.searchParams.set("lamax", String(CNX_BBOX.lamax));
   url.searchParams.set("lomax", String(CNX_BBOX.lomax));
+  const token = await getAccessToken();
   try {
     const res = await fetch(url.toString(), {
-      headers: { "User-Agent": "cnx-dashboard/0.1 (https://cnx.nonarkara.org)" },
+      headers: {
+        "User-Agent": "cnx-dashboard/0.1 (https://cnx.nonarkara.org)",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       // 10 s ceiling — OpenSky occasionally hangs on cold paths.
       signal: AbortSignal.timeout(10_000),
     });
@@ -213,6 +260,39 @@ export function summariseByCountry(
     entry.bySize[size] += 1;
   }
   return [...out.values()].sort((a, b) => b.flights - a.flights);
+}
+
+export interface AircraftMeta {
+  icao24: string;
+  typecode?: string;
+  registration?: string;
+  manufacturerName?: string;
+  model?: string;
+}
+
+/** Shared aircraft-metadata lookup — used by /api/cnx/aircraft and the
+ *  arrivals visitor-estimate pipeline. Authenticated when OpenSky
+ *  credentials are configured (see getAccessToken), same as states. */
+export async function fetchAircraftMetadata(icao24List: string[]): Promise<AircraftMeta[]> {
+  if (icao24List.length === 0) return [];
+  const token = await getAccessToken();
+  const upstream = new URL(`${OPENSKY_BASE}/aircraft`);
+  upstream.searchParams.set("icao24", icao24List.join(","));
+  const res = await fetch(upstream.toString(), {
+    headers: {
+      "User-Agent": "cnx-dashboard/0.1 (https://cnx.nonarkara.org)",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) throw new Error(`opensky aircraft ${res.status}`);
+  const json = (await res.json()) as Record<string, AircraftMeta | null>;
+  const out: AircraftMeta[] = [];
+  for (const id of icao24List) {
+    const v = json[id];
+    if (v) out.push({ icao24: id, typecode: v.typecode, registration: v.registration, manufacturerName: v.manufacturerName, model: v.model });
+  }
+  return out;
 }
 
 export interface SizeBucket {

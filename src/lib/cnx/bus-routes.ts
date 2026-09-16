@@ -53,7 +53,13 @@ export async function fetchCnxBus(): Promise<{ routes: BusRoute[]; stops: BusSto
   try {
     const res = await fetch(OVERPASS, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        // overpass-api.de's Apache front-end returns a bare 406 for
+        // requests with no Accept / User-Agent header.
+        Accept: "*/*",
+        "User-Agent": "cnx-dashboard/1.0 (+https://cnx.nonarkara.org)",
+      },
       body: "data=" + encodeURIComponent(QUERY),
       signal: AbortSignal.timeout(30_000),
     });
@@ -92,7 +98,9 @@ export async function fetchCnxBus(): Promise<{ routes: BusRoute[]; stops: BusSto
     }
     cache = { at: Date.now(), routes, stops };
     return { routes, stops, generatedAt: new Date().toISOString() };
-  } catch {
+  } catch (e) {
+    console.warn(`[bus-routes] fetch failed: ${(e as Error).message}`);
+    if (cache) return { routes: cache.routes, stops: cache.stops, generatedAt: new Date(cache.at).toISOString() };
     return { routes: [], stops: [], generatedAt: new Date().toISOString() };
   }
 }

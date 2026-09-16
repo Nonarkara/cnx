@@ -47,8 +47,16 @@
   --glow: none;
 }
 
+/* Dark theme — three ways in:
+ *   1. OS preference (prefers-color-scheme), unless the user has
+ *      explicitly picked light via the in-app toggle.
+ *   2. The in-app toggle (data-theme="dark" on <html>), which always
+ *      wins regardless of OS preference.
+ * useDarkMode.ts sets/clears `data-theme` on <html> and persists the
+ * choice to localStorage; both selectors below must stay in sync.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0d1117;
     --bg-raised: #161b22;
     --bg-surface: #0d1117;
@@ -66,6 +74,23 @@
     --danger: #f85149;
     --success: #3fb950;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d1117;
+  --bg-raised: #161b22;
+  --bg-surface: #0d1117;
+  --line: #30363d;
+  --ink: #e6edf3;
+  --dim: #8b949e;
+  --accent: #e6edf3;
+  --accent-soft: #8b949e;
+  --cool: #6688c2;
+  --cool-dim: rgba(102, 136, 194, 0.15);
+  --sun: #e6b85c;
+  --sun-dim: rgba(230, 184, 92, 0.15);
+  --danger: #f85149;
+  --success: #3fb950;
 }
 
 html {

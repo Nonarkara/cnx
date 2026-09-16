@@ -41,6 +41,7 @@ import CnxFloodPanel from "./CNXFloodPanel";
 import CnxFirePanel from "./CNXFirePanel";
 import CnxAirQualityPanel from "./CNXAirQualityPanel";
 import CnxOutboundPanel from "./CNXOutboundPanel";
+import CnxArrivalsPanel from "./CNXArrivalsPanel";
 import CnxAskChat from "./CNXAskChat";
 import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
@@ -106,12 +107,39 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
   }, []);
 
-  // Waterways — OSM rivers/streams, server-cached for 7 days
-  // (see lib/cnx/waterways.ts). One-time fetch, same as walls.
+  // Waterways — one-time fetch from a baked GeoJSON, same as walls.
+  // Baked (scripts/fetch-cnx-waterways.mjs) rather than fetched live
+  // per-request: Overpass is too flaky for a cold-Worker-isolate fetch
+  // to depend on, and rivers/streams don't change week to week.
   useEffect(() => {
     let cancelled = false;
-    void fetchJsonOrNull<{ waterways?: Waterway[] }>("/api/cnx/waterways").then((d) => {
-      if (!cancelled && d?.waterways) setWaterways(d.waterways);
+    void fetchJsonOrNull<{
+      features?: { properties: { id: number; name: string | null; category: Waterway["category"]; width: Waterway["width"] }; geometry: { coordinates: [number, number][] } }[];
+    }>("/data/cnx/waterways.geojson").then((d) => {
+      if (cancelled || !d?.features) return;
+      setWaterways(
+        d.features.map((f) => ({
+          id: `w-${f.properties.id}`,
+          name: f.properties.name ?? "",
+          category: f.properties.category,
+          width: f.properties.width,
+          geometry: f.geometry.coordinates,
+        })),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Bus routes — one-time fetch from a baked GeoJSON, same reasoning
+  // as waterways (scripts/fetch-cnx-bus-routes.mjs): OSM route data
+  // doesn't change week to week and a live Overpass call per request
+  // was too flaky to be worth it.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJsonOrNull<{ routes?: BusRoute[] }>("/data/cnx/bus-routes.geojson").then((d) => {
+      if (!cancelled && d?.routes) setBusRoutes(d.routes);
     });
     return () => {
       cancelled = true;
@@ -144,9 +172,6 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       } catch { /* abort-safe */ }
       void fetchJsonOrNull<OutboundAnalysis>("/api/cnx/outbound").then((o) => {
         if (o && id === requestIdRef.current) setOutbound(o);
-      });
-      void fetchJsonOrNull<{ routes: BusRoute[] }>("/api/cnx/bus-routes").then((b) => {
-        if (b?.routes) setBusRoutes(b.routes);
       });
     };
     void load();
@@ -281,6 +306,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
+          <CnxArrivalsPanel />
         </section>
 
         {/* Right rail — operations desk. Visible from xl onwards. */}

@@ -216,6 +216,24 @@ function buildWallLayer(walls: WallFeature[], visible: boolean) {
   });
 }
 
+/** Distance-ring grid — concentric circles at fixed km radii around a
+ *  centre point. Pure math, no turf dependency: walk N points around
+ *  the circle and convert metre offsets to lon/lat using the
+ *  equirectangular approximation already used elsewhere in this file
+ *  (buildFlightLayers' bearing tails). Good enough at city scale. */
+function buildGridRing(centre: [number, number], radiusKm: number): [number, number][] {
+  const meters = radiusKm * 1000;
+  const points: [number, number][] = [];
+  const steps = 72;
+  for (let i = 0; i <= steps; i += 1) {
+    const angle = (i / steps) * 2 * Math.PI;
+    const dLat = (meters * Math.cos(angle)) / 111_111;
+    const dLon = (meters * Math.sin(angle)) / (111_111 * Math.cos((centre[1] * Math.PI) / 180));
+    points.push([centre[0] + dLon, centre[1] + dLat]);
+  }
+  return points;
+}
+
 interface MapProps {
   flights: FlightState[];
   heritage?: CnxHeritageSite[];
@@ -242,6 +260,7 @@ export default function CNXMap({
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
+  const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: CNX_CENTER[0],
     latitude: CNX_CENTER[1],
@@ -276,6 +295,22 @@ export default function CNXMap({
       pickable: true,
     });
   }, [waterways, waterwaysOn]);
+
+  // Distance-ring grid — 1/5/10 km circles centred on the Old City,
+  // independently toggleable.
+  const gridLayer = useMemo(() => {
+    if (gridRadii.size === 0) return null;
+    const rings = [...gridRadii].map((km) => ({ km, path: buildGridRing(CNX_CENTER, km) }));
+    return new PathLayer<(typeof rings)[number]>({
+      id: "cnx-grid",
+      data: rings,
+      getPath: (d) => d.path,
+      getColor: [107, 107, 107, 160],
+      getWidth: 1.5,
+      widthUnits: "pixels",
+      pickable: false,
+    });
+  }, [gridRadii]);
 
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
@@ -372,8 +407,9 @@ export default function CNXMap({
       floodLayer,
       ...(wallLayer ? [wallLayer] : []),
       ...(waterwayLayer ? [waterwayLayer] : []),
+      ...(gridLayer ? [gridLayer] : []),
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer, gridLayer]);
 
   // Bus routes — drawn as deck.gl PathLayer above the basemap.
   const busLayers = useMemo(() => {
@@ -598,6 +634,29 @@ export default function CNXMap({
         >
           {waterwaysOn ? "Rivers: on" : "Rivers: off"}
         </button>
+        {[1, 5, 10].map((km) => {
+          const on = gridRadii.has(km);
+          return (
+            <button
+              key={km}
+              type="button"
+              onClick={() =>
+                setGridRadii((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(km)) next.delete(km);
+                  else next.add(km);
+                  return next;
+                })
+              }
+              aria-pressed={on}
+              className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+                on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+              }`}
+            >
+              {km} km
+            </button>
+          );
+        })}
       </div>
 
       {/* Flight count badge, top-right */}
