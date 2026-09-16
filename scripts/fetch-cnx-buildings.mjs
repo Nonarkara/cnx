@@ -149,11 +149,15 @@ function buildFeature(osm) {
   };
   const geometry = osmGeomToGeoJSON(osm.geometry);
   if (!geometry) return null;
+  if (geometry.length >= 2 && (geometry[0][0] !== geometry[geometry.length - 1][0] || geometry[0][1] !== geometry[geometry.length - 1][1])) {
+    geometry.push([...geometry[0]]);
+  }
   return {
     type: "Feature",
     id: osm.id,
     properties: props,
-    geometry,
+    // Valid RFC 7946 polygon — MapLibre rejects a raw coordinate array.
+    geometry: { type: "Polygon", coordinates: [geometry] },
   };
 }
 

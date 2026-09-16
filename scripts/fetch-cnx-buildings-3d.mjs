@@ -71,7 +71,7 @@ function classify(tags) {
   return { kind: "building", value: "yes" };
 }
 
-function buildFeature(osm) {
+function buildFeature(osm, geomType) {
   const tags = osm.tags ?? {};
   const height = heightFromTags(tags);
   const base = baseHeightFromTags(tags);
@@ -82,6 +82,19 @@ function buildFeature(osm) {
   for (let i = 0; i < geom.length; i += 1) {
     const p = geom[i];
     out[i] = Array.isArray(p) ? [p[0], p[1]] : [p.lon, p.lat];
+  }
+  // Emit valid RFC 7946 GeoJSON: Polygon for areas, LineString for
+  // linear walls. (An earlier revision wrote the raw coordinate array
+  // as `geometry`, which MapLibre silently rejects — the 3D layer
+  // never rendered.)
+  let geometry;
+  if (geomType === "LineString") {
+    geometry = { type: "LineString", coordinates: out };
+  } else {
+    if (out.length >= 2 && (out[0][0] !== out[out.length - 1][0] || out[0][1] !== out[out.length - 1][1])) {
+      out.push([...out[0]]);
+    }
+    geometry = { type: "Polygon", coordinates: [out] };
   }
   return {
     type: "Feature",
@@ -100,7 +113,7 @@ function buildFeature(osm) {
         ? `${tags["addr:street"]} ${tags["addr:housenumber"] ?? ""}`.trim()
         : null,
     },
-    geometry: out,
+    geometry,
   };
 }
 
@@ -177,16 +190,27 @@ function withinBBox(geom, bbox) {
   return false;
 }
 
+function coordsOf(geometry) {
+  if (!geometry) return [];
+  if (Array.isArray(geometry)) return geometry;
+  if (geometry.type === "Polygon") return geometry.coordinates[0] ?? [];
+  if (geometry.type === "LineString") return geometry.coordinates ?? [];
+  return [];
+}
+
 function partition(elements, coreBbox) {
   const buildings = [];
   const temples = [];
   const walls = [];
   for (const el of elements) {
-    if (!el.geometry || el.geometry.length < 3) continue;
+    if (!el.geometry || el.geometry.length < 2) continue;
     const tags = el.tags ?? {};
     const isTemple = tags.amenity === "place_of_worship";
     const isWall = tags.historic === "city_wall" || tags.barrier === "city_wall";
-    const feat = buildFeature(el);
+    // Polygons need a closed ring (≥4 with closure, ≥3 raw);
+    // LineStrings only need 2 points.
+    if (!isWall && el.geometry.length < 3) continue;
+    const feat = buildFeature(el, isWall ? "LineString" : "Polygon");
     if (!feat) continue;
     if (isTemple) {
       temples.push(feat);
@@ -199,14 +223,14 @@ function partition(elements, coreBbox) {
     // Skip if not in either bbox — wider query returned a slightly
     // larger area than URBAN_BBOX due to the bbox round-trip, and
     // any feature outside should be dropped.
-    if (!withinBBox(feat.geometry, URBAN_BBOX_CHECK)) continue;
+    if (!withinBBox(coordsOf(feat.geometry), URBAN_BBOX_CHECK)) continue;
     buildings.push(feat);
   }
 
   const buildingsCore = [];
   const buildingsWide = [];
   for (const b of buildings) {
-    if (withinBBox(b.geometry, coreBbox)) {
+    if (withinBBox(coordsOf(b.geometry), coreBbox)) {
       buildingsCore.push(b);
     } else {
       buildingsWide.push(b);

@@ -19,12 +19,10 @@
 //
 // Color is driven by the `kind` tag, not by height — the Arnis-style
 // blocky palette: warm beige (residential), Lanna blue (commercial /
-// civic), Doi Suthep gold (temple, walls). The 3D toggle was off-by-
-// default in the previous version because buildings.geojson shipped in
-// the wrong coordinate format (Overpass `{lat, lon}` objects instead of
-// GeoJSON `[lon, lat]` pairs); the new fetch-cnx-buildings-3d.mjs
-// writes valid GeoJSON, so the layer renders cleanly. The classic
-// buildings.geojson is kept as a fallback if the new files are missing.
+// civic), Doi Suthep gold (temple, walls). All three files are valid
+// RFC 7946 GeoJSON (Polygon / LineString); an earlier revision wrote
+// the raw coordinate array as `geometry` and MapLibre silently
+// rejected the source, so the 3D layer never rendered.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -32,11 +30,12 @@ import type { MapViewState } from "@deck.gl/core";
 import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
 import type { BusRoute } from "../../types/cnx";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type maplibregl from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/basemap-styles";
 import type { FlightState } from "../../lib/cnx/opensky";
 import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge } from "../../types/cnx";
+import type { Waterway } from "../../lib/cnx/waterways";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
@@ -71,7 +70,7 @@ const TEMPLES_LAYER = "cnx-temples-fill";
 //   warm beige (residential)   → #b4afa5 (≈ "terracotta" in Arnis blocks)
 //   Lanna blue (commercial)    → #1d2951 / #6688c2 (flag chrome)
 //   Doi Suthep gold (temples)  → #b8860b (gilding on the chedi)
-function buildingColorExpr() {
+function buildingColorExpr(): unknown[] {
   return [
     "case",
     ["==", ["get", "kind"], "temple"],
@@ -94,7 +93,7 @@ function buildingColorExpr() {
   ];
 }
 
-function templeColorExpr() {
+function templeColorExpr(): unknown[] {
   return [
     "case",
     ["==", ["get", "kind_value"], "buddhist"],
@@ -163,31 +162,49 @@ function buildFlightLayers(flights: FlightState[]) {
   return [planeLayer, tailLayer];
 }
 
-interface WallFeature {
+export interface WallFeature {
   type: "Feature";
   id?: number | string;
   properties: {
     id?: number | string;
-    height: number;
+    height?: number;
     name?: string | null;
     kind?: string;
   };
-  geometry: [number, number][];
+  // Valid RFC 7946 shape. Legacy files (pre-2026-09-16) stored the raw
+  // coordinate array here — extractWallPath accepts both.
+  geometry:
+    | { type: "LineString"; coordinates: [number, number][] }
+    | { type: "Polygon"; coordinates: [number, number][][] }
+    | [number, number][];
+}
+
+function extractWallPath(w: WallFeature): [number, number][] {
+  const g = w.geometry as unknown;
+  if (Array.isArray(g)) return g as [number, number][];
+  if (g && typeof g === "object") {
+    const geom = g as { type?: string; coordinates?: unknown };
+    if (geom.type === "LineString" && Array.isArray(geom.coordinates)) {
+      return geom.coordinates as [number, number][];
+    }
+    if (geom.type === "Polygon" && Array.isArray(geom.coordinates)) {
+      const ring = (geom.coordinates as [number, number][][])[0];
+      if (Array.isArray(ring)) return ring;
+    }
+  }
+  return [];
 }
 
 function buildWallLayer(walls: WallFeature[], visible: boolean) {
   if (!visible || !walls.length) return null;
-  // Walls come from OSM as linear ways — convert to a 2-stop path
-  // for deck.gl PathLayer.
-  const paths = walls.map((w) => {
-    const coords = w.geometry as unknown as [number, number][];
-    return {
-      id: w.id,
-      path: coords,
-      height: w.properties.height ?? 4,
-      name: w.properties.name,
-    };
-  });
+  const paths = walls
+    .map((w) => ({
+      id: String(w.id ?? w.properties?.id ?? Math.random()),
+      path: extractWallPath(w),
+      name: w.properties?.name ?? null,
+    }))
+    .filter((p) => p.path.length >= 2);
+  if (!paths.length) return null;
   return new PathLayer<(typeof paths)[number]>({
     id: "cnx-walls",
     data: paths,
@@ -207,6 +224,7 @@ interface MapProps {
   floodGauges?: CnxFloodGauge[];
   busRoutes?: BusRoute[];
   walls?: WallFeature[];
+  waterways?: Waterway[];
 }
 
 export default function CNXMap({
@@ -217,11 +235,13 @@ export default function CNXMap({
   floodGauges = [],
   busRoutes = [],
   walls = [],
+  waterways = [],
 }: MapProps) {
   const [basemap, setBasemap] = useState<BasemapId>("street");
   const [buildingsOn, setBuildingsOn] = useState(true);
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
+  const [waterwaysOn, setWaterwaysOn] = useState(true);
   const [viewState, setViewState] = useState<MapViewState>({
     longitude: CNX_CENTER[0],
     latitude: CNX_CENTER[1],
@@ -229,18 +249,33 @@ export default function CNXMap({
     pitch: 35,
     bearing: 0,
   });
-  const mlMapRef = useRef<maplibregl.Map | null>(null);
+  const mlMapRef = useRef<MaplibreMap | null>(null);
 
   // Expose the live MapLibre handle to the dev console for debugging.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    (window as unknown as { __cnxMap?: maplibregl.Map }).__cnxMap = mlMapRef.current ?? undefined;
+    (window as unknown as { __cnxMap?: MaplibreMap }).__cnxMap = mlMapRef.current ?? undefined;
   });
 
   const style = useMemo(() => basemapStyle(basemap), [basemap]);
 
   // Walls layer goes in deck.gl — paths, not polygons.
   const wallLayer = useMemo(() => buildWallLayer(walls, wallsOn), [walls, wallsOn]);
+
+  // Waterways — OSM rivers + streams draining into the Ping basin.
+  const waterwayLayer = useMemo(() => {
+    if (!waterwaysOn || !waterways.length) return null;
+    return new PathLayer<Waterway>({
+      id: "cnx-waterways",
+      data: waterways,
+      getPath: (d) => d.geometry,
+      getColor: (d) =>
+        d.width === "major" ? [29, 78, 216, 200] : d.width === "minor" ? [59, 130, 246, 160] : [147, 197, 253, 130],
+      getWidth: (d) => (d.width === "major" ? 3 : d.width === "minor" ? 2 : 1),
+      widthUnits: "pixels",
+      pickable: true,
+    });
+  }, [waterways, waterwaysOn]);
 
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
@@ -336,8 +371,9 @@ export default function CNXMap({
       fireLayer,
       floodLayer,
       ...(wallLayer ? [wallLayer] : []),
+      ...(waterwayLayer ? [waterwayLayer] : []),
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer]);
 
   // Bus routes — drawn as deck.gl PathLayer above the basemap.
   const busLayers = useMemo(() => {
@@ -346,15 +382,18 @@ export default function CNXMap({
       new PathLayer<BusRoute>({
         id: `bus-${r.id}`,
         data: [r],
-        getPath: (d) => d.geometry as [number, number][],
+        getPath: (d) => d.geometry,
         getColor: () => {
-          // Convert #1d2951 (Lanna blue) to RGB
-          if (r.colour.startsWith("#")) {
-            const hex = r.colour.slice(1);
-            const r2 = parseInt(hex.slice(0, 2), 16);
-            const g2 = parseInt(hex.slice(2, 4), 16);
-            const b2 = parseInt(hex.slice(4, 6), 16);
-            return [r2, g2, b2, 200];
+          // Convert #rrggbb (Lanna blue default) to RGB; fall back on parse failure.
+          const m = /^#([0-9a-fA-F]{6})$/.exec(r.colour.trim());
+          if (m) {
+            const hex = m[1];
+            return [
+              parseInt(hex.slice(0, 2), 16),
+              parseInt(hex.slice(2, 4), 16),
+              parseInt(hex.slice(4, 6), 16),
+              200,
+            ];
           }
           return [29, 41, 81, 200];
         },
@@ -368,7 +407,6 @@ export default function CNXMap({
   // Install the 3D layers — buildings (core + wide), temples.
   // Core replaces wide above zoom 13; wide covers the urban fringe
   // below. Temples render on top with bright saffron / gold.
-  // Falls back to /data/cnx/buildings.geojson for backwards compat.
   useEffect(() => {
     const map = mlMapRef.current;
     if (!map) return;
@@ -377,7 +415,9 @@ export default function CNXMap({
     const setup = async () => {
       try {
         if (!map.isStyleLoaded()) {
-          await new Promise<void>((resolve) => map.once("idle", () => resolve()));
+          await new Promise<void>((resolve) => {
+            map.once("idle", () => resolve());
+          });
         }
         if (cancelled) return;
 
@@ -396,11 +436,11 @@ export default function CNXMap({
             source: BUILDINGS_CORE_SOURCE,
             minzoom: 13,
             paint: {
-              "fill-extrusion-color": buildingColorExpr(),
-              "fill-extrusion-height": ["get", "height"],
-              "fill-extrusion-base": ["get", "base_height"],
+              "fill-extrusion-color": buildingColorExpr() as never,
+              "fill-extrusion-height": ["get", "height"] as never,
+              "fill-extrusion-base": ["get", "base_height"] as never,
               "fill-extrusion-opacity": 0.85,
-              "fill-extrusion-vertical-gradient": false, // Arnis-style flat
+              "fill-extrusion-vertical-gradient": false,
             },
           });
         }
@@ -421,9 +461,9 @@ export default function CNXMap({
             source: BUILDINGS_WIDE_SOURCE,
             maxzoom: 13,
             paint: {
-              "fill-extrusion-color": buildingColorExpr(),
-              "fill-extrusion-height": ["get", "height"],
-              "fill-extrusion-base": ["get", "base_height"],
+              "fill-extrusion-color": buildingColorExpr() as never,
+              "fill-extrusion-height": ["get", "height"] as never,
+              "fill-extrusion-base": ["get", "base_height"] as never,
               "fill-extrusion-opacity": 0.7,
               "fill-extrusion-vertical-gradient": false,
             },
@@ -446,9 +486,9 @@ export default function CNXMap({
             source: TEMPLES_SOURCE,
             minzoom: 11,
             paint: {
-              "fill-extrusion-color": templeColorExpr(),
-              "fill-extrusion-height": ["get", "height"],
-              "fill-extrusion-base": ["get", "base_height"],
+              "fill-extrusion-color": templeColorExpr() as never,
+              "fill-extrusion-height": ["get", "height"] as never,
+              "fill-extrusion-base": ["get", "base_height"] as never,
               "fill-extrusion-opacity": 0.95,
               "fill-extrusion-vertical-gradient": false,
             },
@@ -473,7 +513,10 @@ export default function CNXMap({
       <DeckGL
         viewState={viewState}
         controller={true}
-        onViewStateChange={(e) => setViewState((prev) => ({ ...prev, ...(e.viewState as Partial<MapViewState>) }))}
+        onViewStateChange={(e) => {
+          const vs = (e as unknown as { viewState?: Partial<MapViewState> }).viewState;
+          if (vs) setViewState((prev) => ({ ...prev, ...vs }));
+        }}
         layers={[...layers, ...busLayers]}
       >
         <Map
@@ -481,7 +524,7 @@ export default function CNXMap({
           mapStyle={style}
           attributionControl={false}
           onLoad={(e) => {
-            mlMapRef.current = e.target as unknown as maplibregl.Map;
+            mlMapRef.current = e.target as unknown as MaplibreMap;
           }}
         />
       </DeckGL>
@@ -542,6 +585,18 @@ export default function CNXMap({
           }`}
         >
           {wallsOn ? "Walls: on" : "Walls: off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setWaterwaysOn((v) => !v)}
+          aria-pressed={waterwaysOn}
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            waterwaysOn
+              ? "border-[#1d4ed8] bg-[#1d4ed8] text-white"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+          }`}
+        >
+          {waterwaysOn ? "Rivers: on" : "Rivers: off"}
         </button>
       </div>
 

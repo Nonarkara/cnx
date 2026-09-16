@@ -20,7 +20,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { useDarkMode } from "../../hooks/useDarkMode";
 import { buildScenarioUrl, fetchJsonOrNull } from "../../lib/client-requests";
 import type {
   AirQualityResponse,
@@ -34,6 +33,7 @@ import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import type { OutboundAnalysis } from "../../lib/cnx/outbound";
+import type { Waterway } from "../../lib/cnx/waterways";
 import type { BusRoute } from "../../types/cnx";
 
 import CnxSocialSidebar from "./CNXSocialSidebar";
@@ -46,7 +46,7 @@ import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
 import CnxTopBar from "./CNXTopBar";
 import CnxTicker from "./CNXTicker";
-import CNXMap from "./CNXMap";
+import CNXMap, { type WallFeature } from "./CNXMap";
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import FlightPanel from "./FlightPanel";
@@ -75,7 +75,6 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
-  const [isDark, toggleDark] = useDarkMode();
   const [flood, setFlood] = useState<CnxFloodResponse | null>(null);
   const [social, setSocial] = useState<SocialListeningResponse | null>(null);
   const [cctv, setCctv] = useState<CctvFeedResponse | null>(null);
@@ -87,7 +86,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [busRoutes, setBusRoutes] = useState<BusRoute[]>([]);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
-  const [walls, setWalls] = useState<unknown[]>([]);
+  const [walls, setWalls] = useState<WallFeature[]>([]);
+  const [waterways, setWaterways] = useState<Waterway[]>([]);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -98,8 +98,20 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   // city_wall tag. ~7.8 KB so the parse cost is negligible.
   useEffect(() => {
     let cancelled = false;
-    void fetchJsonOrNull<{ features?: unknown[] }>("/data/cnx/walls.geojson").then((d) => {
+    void fetchJsonOrNull<{ features?: WallFeature[] }>("/data/cnx/walls.geojson").then((d) => {
       if (!cancelled && d?.features) setWalls(d.features);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Waterways — OSM rivers/streams, server-cached for 7 days
+  // (see lib/cnx/waterways.ts). One-time fetch, same as walls.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJsonOrNull<{ waterways?: Waterway[] }>("/api/cnx/waterways").then((d) => {
+      if (!cancelled && d?.waterways) setWaterways(d.waterways);
     });
     return () => {
       cancelled = true;
@@ -264,7 +276,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
             busRoutes={busRoutes}
-            walls={walls as never}
+            walls={walls}
+            waterways={waterways}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
