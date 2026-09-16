@@ -9,24 +9,50 @@
 //     pinch point)
 //
 // The OSM Overpass API exposes all of these as `highway=bus_stop` +
-// `route=bus` relations + `public_transport=*`. We pull a curated set
-// from Overpass, bake it to `src/data/cnx-bus-routes.json` via
-// `scripts/fetch-cnx-bus-routes.mjs`, and import the result here as
-// the source of truth.
+// `route=bus` relations + `public_transport=*`. The curated extract
+// is baked to `public/data/cnx/bus-routes.geojson` via
+// `scripts/fetch-cnx-bus-routes.mjs` (weekly refresh).
 //
-// Why bundled JSON and not a live Overpass call from the edge?
-//   - Overpass's anonymous tier regularly 503s / 429s from the
-//     Cloudflare edge — when it does, the dashboard was shipping
-//     empty arrays (no live snapshot fallback was wired).
-//   - The script's docstring already said 7-day refresh; we honour
-//     that by re-running the script weekly.
+// Three-tier loader (in order):
 //
-// `fetchCnxBus()` reads the bundled JSON. If a `META_BUST` env var
-// is set the function still tries a live refresh with the existing
-// cache as fallback — but the dashboard path is now bake-first.
+//   1. In-isolate module cache (1-hour TTL, served without I/O).
+//   2. The baked JSON via the worker's own static asset URL
+//      (`/data/cnx/bus-routes.geojson`). Resolved by Next.js in dev,
+//      by the `ASSETS` binding in production. ~311 KB; loads in one
+//      fetch.
+//   3. A live Overpass call as last resort. Anonymous tier is
+//      rate-limited from the Cloudflare edge, so this often fails —
+//      that's why tier 2 exists.
+//
+// Why not bundle the JSON statically? At 311 KB the static import
+// pushes the worker bundle to a size where the OpenNext bundler
+// hangs on Node 26 (process.nextTick stalls during esbuild). Pulling
+// it through the asset URL keeps the bundle small AND reliable.
 
 import type { BusRoute, BusStop } from "../../types/cnx";
-import baked from "../../data/cnx-bus-routes.json";
+
+const OVERPASS = "https://overpass-api.de/api/interpreter";
+
+interface OverpassElement {
+  type: "node" | "way" | "relation";
+  id: number;
+  lat?: number;
+  lon?: number;
+  tags?: Record<string, string>;
+  geometry?: { lat: number; lon: number }[];
+  members?: { type: string; ref: number; role?: string; geometry?: { lat: number; lon: number }[] }[];
+}
+
+const QUERY = `
+[out:json][timeout:60];
+(
+  node["highway"="bus_stop"](17.5,97.5,20.5,100.5);
+  way["highway"="bus_stop"](17.5,97.5,20.5,100.5);
+  relation["route"="bus"](17.5,97.5,20.5,100.5);
+  relation["type"="route"]["route"="minibus"](17.5,97.5,20.5,100.5);
+);
+out geom;
+`;
 
 interface BusDataFile {
   meta: { source: string; generatedAt: string; bbox: { south: number; west: number; north: number; east: number }; scope: string };
@@ -34,28 +60,88 @@ interface BusDataFile {
   stops: BusStop[];
 }
 
-// Sanity-check the baked JSON at module load. We do this once per
-// worker isolate — if the file is malformed, fail loud rather than
-// shipping empty arrays. The shape is fixed by `BusRoute` / `BusStop`
-// in src/types/cnx.ts.
-function asBusData(data: unknown): BusDataFile {
-  if (!data || typeof data !== "object") throw new Error("[bus-routes] baked JSON is not an object");
-  const d = data as Record<string, unknown>;
-  if (!Array.isArray(d.routes)) throw new Error("[bus-routes] baked JSON missing `routes` array");
-  if (!Array.isArray(d.stops)) throw new Error("[bus-routes] baked JSON missing `stops` array");
-  return {
-    meta: (d.meta as BusDataFile["meta"]) ?? { source: "unknown", generatedAt: new Date(0).toISOString(), bbox: { south: 0, west: 0, north: 0, east: 0 }, scope: "bus-routes" },
-    routes: d.routes as BusRoute[],
-    stops: d.stops as BusStop[],
-  };
-}
-
-const BAKED = asBusData(baked);
+let cache: { at: number; data: BusDataFile } | null = null;
+const TTL_MS = 60 * 60_000;
 
 export async function fetchCnxBus(): Promise<{ routes: BusRoute[]; stops: BusStop[]; generatedAt: string }> {
+  if (cache && Date.now() - cache.at < TTL_MS) {
+    return { routes: cache.data.routes, stops: cache.data.stops, generatedAt: cache.data.meta.generatedAt };
+  }
+  try {
+    const data = await loadBaked();
+    cache = { at: Date.now(), data };
+    return { routes: data.routes, stops: data.stops, generatedAt: data.meta.generatedAt };
+  } catch (e) {
+    console.warn(`[bus-routes] baked asset failed (${(e as Error).message}); trying live Overpass`);
+  }
+  try {
+    const data = await loadOverpass();
+    cache = { at: Date.now(), data };
+    return { routes: data.routes, stops: data.stops, generatedAt: data.meta.generatedAt };
+  } catch (e) {
+    console.warn(`[bus-routes] live Overpass failed: ${(e as Error).message}`);
+    if (cache) return { routes: cache.data.routes, stops: cache.data.stops, generatedAt: cache.data.meta.generatedAt };
+    return { routes: [], stops: [], generatedAt: new Date().toISOString() };
+  }
+}
+
+async function loadBaked(): Promise<BusDataFile> {
+  const res = await fetch("/data/cnx/bus-routes.geojson", { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as BusDataFile;
+  if (!Array.isArray(data.routes) || !Array.isArray(data.stops)) {
+    throw new Error("missing routes / stops arrays");
+  }
+  return data;
+}
+
+async function loadOverpass(): Promise<BusDataFile> {
+  const res = await fetch(OVERPASS, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain",
+      Accept: "*/*",
+      "User-Agent": "cnx-dashboard/1.0 (+https://cnx.nonarkara.org)",
+    },
+    body: QUERY,
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`overpass ${res.status}`);
+  const json = (await res.json()) as { elements: OverpassElement[] };
+  const routes: BusRoute[] = [];
+  const stops: BusStop[] = [];
+  for (const el of json.elements) {
+    if (el.type === "node" && el.tags?.highway === "bus_stop" && el.lat !== undefined && el.lon !== undefined) {
+      stops.push({
+        id: `stop-${el.id}`,
+        name: el.tags.name ?? el.tags["name:th"] ?? `Stop ${el.id}`,
+        longitude: el.lon,
+        latitude: el.lat,
+        operator: el.tags.operator ?? el.tags.network ?? "Unknown",
+        routeRef: el.tags.ref ?? "",
+      });
+    } else if (el.type === "relation" && (el.tags?.route === "bus" || el.tags?.route === "minibus")) {
+      const geom: [number, number][] = [];
+      for (const m of el.members ?? []) {
+        if (m.type === "way" && m.geometry) {
+          for (const p of m.geometry) geom.push([p.lon, p.lat]);
+        }
+      }
+      if (geom.length >= 2) {
+        routes.push({
+          id: `route-${el.id}`,
+          ref: el.tags.ref ?? el.tags.name ?? el.tags["name:th"] ?? `Route ${el.id}`,
+          name: el.tags.name ?? el.tags["name:th"] ?? el.tags["name:en"] ?? "",
+          operator: el.tags.operator ?? el.tags.network ?? "Unknown",
+          colour: el.tags.colour ?? "#1d2951",
+          geometry: geom,
+        });
+      }
+    }
+  }
   return {
-    routes: BAKED.routes,
-    stops: BAKED.stops,
-    generatedAt: BAKED.meta.generatedAt,
+    meta: { source: "OpenStreetMap (ODbL), via Overpass", generatedAt: new Date().toISOString(), bbox: { south: 17.5, west: 97.5, north: 20.5, east: 100.5 }, scope: "bus-routes" },
+    routes,
+    stops,
   };
 }

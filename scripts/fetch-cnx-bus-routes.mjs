@@ -17,12 +17,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-// Two destinations: `public/` for the static-asset path (legacy CDN
-// fallback), `src/data/` for the bundled worker import. Both must
-// stay in sync — the worker reads the bundled one as source of truth.
+// Single destination: `public/data/cnx/bus-routes.geojson`. The
+// worker reads this via its own static asset URL at request time
+// (no static JSON import — at 311 KB that path hung the OpenNext
+// bundler on Node 26).
 const OUT_FILES = [
   resolve(ROOT, "public/data/cnx/bus-routes.geojson"),
-  resolve(ROOT, "src/data/cnx-bus-routes.json"),
 ];
 
 const OVERPASS_ENDPOINTS = [
