@@ -2,10 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["maplibre-gl"],
-  // When deploying with NEXT_PUBLIC_PROVINCE=cnx the root redirects
-  // to the province's war-room page. The redirect is server-side
-  // (Next.js redirects()) — it works on Cloudflare Workers through
-  // the OpenNext adapter without needing static export.
+  // Build-time speedup on Node 26 (ESLint hangs the opennextjs bundler).
+  // Run `npx eslint src` separately to lint before push.
+  eslint: { ignoreDuringBuilds: true },
   async redirects() {
     if (process.env.NEXT_PUBLIC_PROVINCE === "cnx") {
       return [{ source: "/", destination: "/cnx", permanent: false }];
