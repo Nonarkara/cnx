@@ -42,7 +42,13 @@ export async function fetchCnxWaterways(): Promise<{ waterways: Waterway[]; gene
   try {
     const res = await fetch(OVERPASS, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        // overpass-api.de's Apache front-end returns a bare 406 for
+        // requests with no Accept / User-Agent header.
+        Accept: "*/*",
+        "User-Agent": "cnx-dashboard/1.0 (+https://cnx.nonarkara.org)",
+      },
       body: "data=" + encodeURIComponent(QUERY),
       signal: AbortSignal.timeout(60_000),
     });
@@ -71,7 +77,10 @@ export async function fetchCnxWaterways(): Promise<{ waterways: Waterway[]; gene
     }
     cache = { at: Date.now(), data: waterways };
     return { waterways, generatedAt: new Date().toISOString() };
-  } catch {
+  } catch (e) {
+    console.warn(`[waterways] fetch failed: ${(e as Error).message}`);
+    // Serve stale cache rather than an empty layer if Overpass is down.
+    if (cache) return { waterways: cache.data, generatedAt: new Date(cache.at).toISOString() };
     return { waterways: [], generatedAt: new Date().toISOString() };
   }
 }
