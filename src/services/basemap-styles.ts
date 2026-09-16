@@ -11,26 +11,47 @@ export const BASEMAP_OPTIONS: { id: BasemapId; label: string }[] = [
   { id: "vegetation", label: "Vegetation" },
 ];
 
+interface RasterSource {
+  type: "raster";
+  tiles: string[];
+  tileSize: number;
+  attribution: string;
+  maxzoom?: number;
+}
+
+interface RasterDemSource {
+  type: "raster-dem";
+  tiles: string[];
+  tileSize: number;
+  attribution: string;
+  encoding: "terrarium";
+  maxzoom?: number;
+}
+
 interface MaplibreRasterStyle {
   version: 8;
-  sources: Record<
-    string,
-    {
-      type: "raster";
-      tiles: string[];
-      tileSize: number;
-      attribution: string;
-      maxzoom?: number;
-    }
-  >;
-  layers: { id: string; type: "raster"; source: string }[];
+  sources: Record<string, RasterSource | RasterDemSource>;
+  layers: { id: string; type: "raster" | "hillshade"; source: string; paint?: Record<string, unknown> }[];
+  terrain?: { source: string; exaggeration?: number };
 }
+
+// AWS's public elevation-tiles-prod bucket — free, keyless, global
+// coverage in the "Terrarium" PNG-encoded DEM format MapLibre reads
+// natively via `encoding: "terrarium"`.
+const TERRAIN_DEM_SOURCE: RasterDemSource = {
+  type: "raster-dem",
+  tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+  tileSize: 256,
+  attribution: "Terrain: AWS Terrain Tiles (Terrarium), Mapzen",
+  encoding: "terrarium",
+  maxzoom: 15,
+};
 
 function singleRaster(
   _id: string,
   tiles: string[],
   attribution: string,
-  options: { tileSize?: number; maxzoom?: number } = {},
+  options: { tileSize?: number; maxzoom?: number; terrain?: boolean } = {},
 ): MaplibreRasterStyle {
   return {
     version: 8,
@@ -42,8 +63,20 @@ function singleRaster(
         attribution,
         maxzoom: options.maxzoom,
       },
+      ...(options.terrain ? { "terrain-dem": TERRAIN_DEM_SOURCE } : {}),
     },
-    layers: [{ id: "raster-base", type: "raster", source: "raster" }],
+    layers: [
+      { id: "raster-base", type: "raster", source: "raster" },
+      // Subtle hillshade on top of the imagery — this is what makes
+      // Doi Suthep / Doi Inthanon read as relief instead of a flat
+      // photo, without needing a separate "mountains only" mask: flat
+      // valley floor has ~0 slope, so the hillshade contributes
+      // ~nothing there and the satellite photo shows through as-is.
+      ...(options.terrain
+        ? [{ id: "hillshade", type: "hillshade" as const, source: "terrain-dem", paint: { "hillshade-exaggeration": 0.5 } }]
+        : []),
+    ],
+    ...(options.terrain ? { terrain: { source: "terrain-dem", exaggeration: 1.4 } } : {}),
   };
 }
 
@@ -63,7 +96,7 @@ export function basemapStyle(id: BasemapId): string | MaplibreRasterStyle {
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         ],
         "Imagery © Esri, Maxar, Earthstar Geographics",
-        { tileSize: 256, maxzoom: 19 },
+        { tileSize: 256, maxzoom: 19, terrain: true },
       );
     case "topography":
       // OpenTopoMap — community-maintained, free.

@@ -297,10 +297,72 @@ export default function CNXAboutPage() {
           </div>
         </section>
 
-        {/* ─── Section 06: Downloads ─────────────────────────────── */}
+        {/* ─── Section 06: University partners ───────────────────── */}
         <section className="border-t border-[var(--line)] py-8">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]">
-            06 · Downloads
+            06 · University partners
+          </div>
+          <h2
+            className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.01em]"
+            lang="th"
+          >
+            พันธมิตรมหาวิทยาลัย
+          </h2>
+          <div className="mt-3 max-w-[70ch] space-y-3 text-[15px] leading-[1.75]">
+            <p lang="th">
+              ศูนย์บริหารจัดการมหาวิทยาลัยอัจฉริยะ (Smart Campus Management Center — SCMC) มหาวิทยาลัยเชียงใหม่ เผยแพร่ข้อมูลอุบัติเหตุและข้อมูลยานพาหนะสาธารณะผ่าน Tableau Public — ฝังไว้ด้านล่างโดยตรงจากต้นทาง
+            </p>
+            <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
+              Chiang Mai University&rsquo;s Smart Campus Management Center (SCMC) publishes accident and campus-vehicle datasets on Tableau Public. Embedded live below, straight from the source — this dashboard doesn&rsquo;t re-host or scrape their data.
+            </p>
+          </div>
+          <div className="mt-4 border border-[var(--line)]">
+            <div className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--bg-surface)] px-3 py-2">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+                Accident — CMU SCMC
+              </span>
+              <a
+                href="https://public.tableau.com/app/profile/scmc/viz/Accident_17206129265280/Accident"
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--cool)] hover:underline"
+              >
+                Open on Tableau Public ↗
+              </a>
+            </div>
+            <iframe
+              title="CMU SCMC — Accident dashboard"
+              src="https://public.tableau.com/views/Accident_17206129265280/Accident?:showVizHome=no&:embed=true&:language=en-US"
+              className="h-[600px] w-full"
+              loading="lazy"
+            />
+          </div>
+          <p className="mt-2 font-mono text-[10px] text-[var(--dim)]" lang="th">
+            แหล่งอื่นจาก SCMC:{" "}
+            <a
+              href="https://public.tableau.com/app/profile/scmc/viz/Accident_17206129265280"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--cool)] underline-offset-2 hover:underline"
+            >
+              ข้อมูลการลงทะเบียนยานพาหนะ
+            </a>{" "}
+            ·{" "}
+            <a
+              href="https://public.tableau.com/app/profile/scmc"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--cool)] underline-offset-2 hover:underline"
+            >
+              SCMC profile
+            </a>
+          </p>
+        </section>
+
+        {/* ─── Section 07: Downloads ─────────────────────────────── */}
+        <section className="border-t border-[var(--line)] py-8">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]">
+            07 · Downloads
           </div>
           <h2
             className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.01em]"

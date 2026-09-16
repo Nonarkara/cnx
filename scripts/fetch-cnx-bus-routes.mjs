@@ -17,7 +17,13 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT_FILE = resolve(ROOT, "public/data/cnx/bus-routes.geojson");
+// Two destinations: `public/` for the static-asset path (legacy CDN
+// fallback), `src/data/` for the bundled worker import. Both must
+// stay in sync — the worker reads the bundled one as source of truth.
+const OUT_FILES = [
+  resolve(ROOT, "public/data/cnx/bus-routes.geojson"),
+  resolve(ROOT, "src/data/cnx-bus-routes.json"),
+];
 
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
@@ -65,7 +71,7 @@ async function fetchOverpass(query) {
 
 async function main() {
   console.log(`bbox: ${BBOX.south},${BBOX.west} → ${BBOX.north},${BBOX.east}`);
-  console.log(`out:  ${OUT_FILE}`);
+  console.log(`out:  ${OUT_FILES.join(", ")}`);
 
   const elements = await fetchOverpass(QUERY);
   console.log(`OSM returned ${elements.length} elements`);
@@ -103,25 +109,26 @@ async function main() {
   }
   console.log(`wrote ${routes.length} routes, ${stops.length} stops`);
 
-  mkdirSync(dirname(OUT_FILE), { recursive: true });
-  writeFileSync(
-    OUT_FILE,
-    JSON.stringify(
-      {
-        meta: {
-          source: "OpenStreetMap (ODbL), via Overpass",
-          generatedAt: new Date().toISOString(),
-          bbox: BBOX,
-          scope: "bus-routes",
-        },
-        routes,
-        stops,
+  mkdirSync(dirname(OUT_FILES[0]), { recursive: true });
+  const payload = JSON.stringify(
+    {
+      meta: {
+        source: "OpenStreetMap (ODbL), via Overpass",
+        generatedAt: new Date().toISOString(),
+        bbox: BBOX,
+        scope: "bus-routes",
       },
-      null,
-      0,
-    ),
+      routes,
+      stops,
+    },
+    null,
+    0,
   );
-  console.log(`✓ ${OUT_FILE}`);
+  for (const path of OUT_FILES) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, payload);
+    console.log(`✓ ${path}`);
+  }
 }
 
 main().catch((e) => {
