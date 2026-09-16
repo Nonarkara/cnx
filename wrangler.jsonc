@@ -12,9 +12,11 @@
   },
   "vars": {
     "PROVINCE": "cnx",
-    "SITE_URL": "https://cnx.nonarkara.org"
+    "SITE_URL": "https://cnx.nonarkara.org",
+    "NEXT_DISABLE_IMAGE_OPTIMIZATION": "1"
   },
   "routes": [
-    { "pattern": "api/cnx/*", "zone_name": "nonarkara.org", "custom_domain": true }
+    { "pattern": "cnx.nonarkara.org", "zone_name": "nonarkara.org", "custom_domain": true },
+    { "pattern": "www.cnx.nonarkara.org", "zone_name": "nonarkara.org", "custom_domain": true }
   ]
 }
