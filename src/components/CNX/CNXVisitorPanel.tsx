@@ -19,29 +19,14 @@
 //     and the methodology note is wider than the active flights.
 
 import { useEffect, useMemo, useState } from "react";
-import { Plane, Users, Globe, Languages, AlertTriangle } from "lucide-react";
+import { Plane, Users, Globe, AlertTriangle } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
+import type { VisitorAnalytics as BaseVisitorAnalytics } from "../../lib/cnx/visitors";
 
-interface VisitorOrigin {
-  country: string;
-  visitors: number;
-  flights: number;
-  airlines: string[];
-  languages: string[];
-}
-
-interface VisitorAnalytics {
-  generatedAt: string;
-  visitorsToday: number;
-  inboundFlights: number;
-  groundOps: number;
-  topOrigins: VisitorOrigin[];
-  recommendedLanguages: string[];
-  visitorsByHour: { hour: number; visitors: number; inbound: number; outgoing: number }[];
-  airlineMix: { airline: string; country: string; flights: number; visitors: number }[];
-  methodology: string;
-  socialCountries?: string[];
-}
+// The API route spreads `...analytics` plus a `socialCountries` field
+// it derives itself — not part of summariseVisitors()' own return
+// shape, so it's added here rather than in lib/cnx/visitors.ts.
+export type VisitorAnalytics = BaseVisitorAnalytics & { socialCountries?: string[] };
 
 const LANG_LABELS: Record<string, string> = {
   en: "EN",
@@ -54,7 +39,18 @@ const LANG_LABELS: Record<string, string> = {
   ru: "RU",
 };
 
-export default function CNXVisitorPanel() {
+export default function CNXVisitorPanel({
+  onData,
+}: {
+  /** Reports the fetched payload up to the parent — feeds
+   *  CnxSocialSidebar's multilingual fan-out (socialCountries) and the
+   *  top bar's visitor-timezone strip (topOrigins). Lets the parent
+   *  skip an independent poll of the same endpoint — /api/cnx/visitors
+   *  also appends a row to the visitor-snapshot archive on every call,
+   *  so polling it twice from the same tab doubled the archive's
+   *  write rate for no benefit. */
+  onData?: (data: VisitorAnalytics) => void;
+}) {
   const [data, setData] = useState<VisitorAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +62,7 @@ export default function CNXVisitorPanel() {
         if (!cancelled) {
           setData(next);
           setError(null);
+          if (next) onData?.(next);
         }
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -77,7 +74,7 @@ export default function CNXVisitorPanel() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, []);
+  }, [onData]);
 
   const peakHour = useMemo(() => {
     if (!data) return null;
@@ -224,10 +221,9 @@ export default function CNXVisitorPanel() {
                 className="flex-1"
               >
                 <div
-                  className="mx-px"
+                  className={`mx-px ${isCurrent ? "bg-[var(--sun)]" : "bg-[var(--cool)]"}`}
                   style={{ height: `${pct}%` }}
                   data-current={isCurrent ? "true" : undefined}
-                  className={`mx-px ${isCurrent ? "bg-[var(--sun)]" : "bg-[var(--cool)]"}`}
                 />
               </div>
             );

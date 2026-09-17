@@ -36,6 +36,8 @@ import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/ba
 import type { FlightState } from "../../lib/cnx/opensky";
 import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge } from "../../types/cnx";
 import type { Waterway } from "../../lib/cnx/waterways";
+import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
+import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
@@ -258,6 +260,8 @@ interface MapProps {
   busRoutes?: BusRoute[];
   walls?: WallFeature[];
   waterways?: Waterway[];
+  cmuStations?: CmuStation[];
+  cmuRoutes?: Record<string, CmuRoute>;
 }
 
 export default function CNXMap({
@@ -269,6 +273,8 @@ export default function CNXMap({
   busRoutes = [],
   walls = [],
   waterways = [],
+  cmuStations = [],
+  cmuRoutes = {},
 }: MapProps) {
   const [basemap, setBasemap] = useState<BasemapId>("street");
   const [buildingsOn, setBuildingsOn] = useState(true);
@@ -276,6 +282,8 @@ export default function CNXMap({
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
   const [busesOn, setBusesOn] = useState(true);
+  const [cmuShuttleOn, setCmuShuttleOn] = useState(false);
+  const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
@@ -362,6 +370,53 @@ export default function CNXMap({
       pickable: false,
     });
   }, [gridRadii]);
+
+  // CMU internal shuttle — route polylines (baked, per-route colour
+  // from the source page), station dots, and live buses from the
+  // MQTT feed (only connected while the toggle is on).
+  const cmuLayers = useMemo(() => {
+    if (!cmuShuttleOn) return [];
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
+      if (!m) return [29, 41, 81];
+      return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+    };
+    const routeEntries = Object.entries(cmuRoutes);
+    const routeLayer = new PathLayer<[string, CmuRoute]>({
+      id: "cmu-transit-routes",
+      data: routeEntries,
+      getPath: (d) => d[1].path,
+      getColor: (d) => [...hexToRgb(d[1].color), 160],
+      getWidth: 2,
+      widthUnits: "pixels",
+      pickable: false,
+    });
+    const stationLayer = new ScatterplotLayer<CmuStation>({
+      id: "cmu-transit-stations",
+      data: cmuStations,
+      getPosition: (d) => [d.lng, d.lat],
+      getRadius: 3,
+      radiusUnits: "pixels",
+      getFillColor: [255, 255, 255, 200],
+      getLineColor: [100, 100, 100, 200],
+      lineWidthMinPixels: 1,
+      stroked: true,
+      pickable: true,
+    });
+    const busLayer = new ScatterplotLayer<(typeof cmuBuses)[number]>({
+      id: "cmu-transit-buses",
+      data: cmuBuses,
+      getPosition: (d) => [d.lng, d.lat],
+      getRadius: 8,
+      radiusUnits: "pixels",
+      getFillColor: (d) => [...hexToRgb(cmuRoutes[d.route]?.color ?? "#1d2951"), 240],
+      getLineColor: [255, 255, 255, 255],
+      lineWidthMinPixels: 1.5,
+      stroked: true,
+      pickable: true,
+    });
+    return [routeLayer, stationLayer, busLayer];
+  }, [cmuShuttleOn, cmuRoutes, cmuStations, cmuBuses]);
 
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
@@ -459,8 +514,9 @@ export default function CNXMap({
       ...(wallLayer ? [wallLayer] : []),
       ...(waterwayLayer ? [waterwayLayer] : []),
       ...(gridLayer ? [gridLayer] : []),
+      ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer, gridLayer]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -751,6 +807,19 @@ export default function CNXMap({
           }`}
         >
           {busesOn ? `Buses: on` : "Buses: off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setCmuShuttleOn((v) => !v)}
+          aria-pressed={cmuShuttleOn}
+          title="Live CMU shuttle positions — opens a connection to the university's public MQTT feed while on"
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            cmuShuttleOn
+              ? "border-[#725b40] bg-[#725b40] text-white"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+          }`}
+        >
+          {cmuShuttleOn ? `CMU Shuttle: on (${cmuBuses.length})` : "CMU Shuttle: off"}
         </button>
         {[1, 5, 10].map((km) => {
           const on = gridRadii.has(km);

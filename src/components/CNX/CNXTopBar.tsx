@@ -6,10 +6,10 @@
 // shows live flood/air/fires/social counters in the masthead.
 
 import { useEffect, useState } from "react";
-import { Bell, BookOpen, FlaskConical, Moon, Sun } from "lucide-react";
-import Link from "next/link";
+import { Bell, BookOpen, FlaskConical, Moon, PhoneCall, Sun } from "lucide-react";
 import { useDarkMode } from "../../hooks/useDarkMode";
 import CNXLogoRow from "./CNXLogoRow";
+import CnxTimezoneStrip, { type TimezoneOrigin } from "./CNXTimezoneStrip";
 import type {
   AirQualityResponse,
   CctvFeedResponse,
@@ -34,8 +34,11 @@ interface TopBarProps {
   story: CnxStoryResponse | null;
   flights: FetchResult | null;
   scenarioId: string | null;
+  topOrigins: TimezoneOrigin[];
   onOpenStory: () => void;
   onOpenManual: () => void;
+  onOpenResearch: () => void;
+  onOpenEmergency: () => void;
 }
 
 function Pill({
@@ -64,7 +67,7 @@ function Pill({
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, onOpenStory, onOpenManual } = props;
+  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, onOpenStory, onOpenManual, onOpenResearch, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -121,14 +124,20 @@ export default function CnxTopBar(props: TopBarProps) {
             <BookOpen className="h-3 w-3" />
             Manual
           </button>
-          <Link
-            href="/cnx/about"
-            target="_blank"
+          <button
+            onClick={onOpenResearch}
             className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)]"
           >
             <FlaskConical className="h-3 w-3" />
             Research
-          </Link>
+          </button>
+          <button
+            onClick={onOpenEmergency}
+            className="flex items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white"
+          >
+            <PhoneCall className="h-3 w-3" />
+            Emergency
+          </button>
           <button
             onClick={toggleDark}
             aria-label="Toggle theme"
@@ -154,6 +163,7 @@ export default function CnxTopBar(props: TopBarProps) {
         <Pill label="CCTV" value={cctv ? `${cctv.reachableCount}/${cctv.totalCount}` : "—"} />
         <Pill label="News" value={social ? `${social.items.length}` : "—"} />
       </div>
+      <CnxTimezoneStrip topOrigins={topOrigins} />
     </header>
   );
 }

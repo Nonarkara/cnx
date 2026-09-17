@@ -6,10 +6,9 @@ import {
   type VisitorAnalytics,
 } from "../../../../lib/cnx/visitors";
 import {
-  appendSnapshot,
-  readSnapshotForDay,
-  type FlightSnapshot,
-} from "../../../../lib/cnx/snapshot-store";
+  appendVisitorSnapshot,
+  readVisitorSnapshotsForDay,
+} from "../../../../lib/cnx/visitors-store";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -21,30 +20,26 @@ export const revalidate = 0;
  *
  * Combines:
  *   - Live snapshot (current flights over the CNX area)
- *   - Persisted snapshot store (last 24 h hourly buckets for trend)
+ *   - Persisted visitor-snapshot store (last 24 h hourly buckets for
+ *     trend) — its own archive (visitors-store.ts), deliberately not
+ *     the shared flight-snapshots one outbound.ts writes to: that
+ *     store's `airborne` field means "total airborne in the bbox"
+ *     there, but would mean "inbound-to-VTCC only" here — writing
+ *     both under the same field silently corrupts the shared archive.
  *   - The airline / aircraft fleet registry (see lib/cnx/visitors.ts)
  *
  * The result is what the dashboard's VisitorPanel renders, and what
  * the social-rail sidebar reads to decide which language feeds to
  * subscribe to (the recommended languages are surfaced in
  * `recommendedLanguages`).
- *
- * Persistence: each request appends a FlightSnapshot to the store so
- * the dashboard's 24-h trend line is preserved across restarts.
  */
 export async function GET(): Promise<Response> {
   const ts = Date.now();
   const snapshot = await fetchCnxSnapshot();
   const today = new Date(ts).toISOString().slice(0, 10);
-  const recent = await readSnapshotForDay(today);
+  const recent = await readVisitorSnapshotsForDay(today);
 
-  // Aggregate inbound visitors per hour over the past 24 h from
-  // persisted snapshots. Each snapshot has airborne/ground counts —
-  // we can't recover the per-flight breakdown retroactively, so the
-  // hourly buckets are "snapshots-per-hour" → average visitors
-  // proxy. The current poll adds to the current hour bucket for live
-  // detail.
-  const hourlyFromHistory = aggregateHourlyFromSnapshots(recent, ts);
+  const hourlyFromHistory = aggregateHourlyFromHistory(recent, ts);
 
   const analytics: VisitorAnalytics = summariseVisitors(
     [...snapshot.airborne, ...snapshot.ground],
@@ -54,20 +49,8 @@ export async function GET(): Promise<Response> {
     },
   );
 
-  // Persist this snapshot for trend aggregation. The fields here are
-  // the legacy FlightSnapshot shape (airborne/ground/byQuadrant/
-  // topOrigins); the visitor analytics adds richer language fan-out.
-  const flightSnap: FlightSnapshot = {
-    ts,
-    fetchedAt: snapshot.fetchedAt,
-    airborne: analytics.inboundFlights,
-    ground: snapshot.ground.length,
-    byQuadrant: analytics.visitorsByHour.map((h) => ({ quadrant: `h${h.hour}`, count: h.inbound })),
-    topOrigins: analytics.topOrigins.map((o) => ({ country: o.country, count: o.flights })),
-  };
-  // Fire-and-forget — appendSnapshot returns a promise but the API
-  // response shouldn't wait on disk I/O.
-  void appendSnapshot(flightSnap).catch((e) =>
+  // Fire-and-forget — persistence shouldn't block the response.
+  void appendVisitorSnapshot(analytics).catch((e) =>
     console.warn(`[visitors] snapshot append failed: ${(e as Error).message}`),
   );
 
@@ -85,31 +68,33 @@ export async function GET(): Promise<Response> {
 }
 
 /**
- * Roll up the day's snapshots into 24 hourly buckets. Each snapshot
- * was captured at a known wall-clock time; we bucket by local-time
- * hour-of-day. The visitor estimate per snapshot is the inbound count
- * multiplied by the average fleet size (165 seats) — a coarse but
- * directionally correct trend.
+ * Roll up a day's persisted polls into 24 hourly buckets. Each poll's
+ * own `visitorsByHour` entry for ITS OWN recorded hour is the real
+ * point-in-time observation (the other 23 entries in that poll's array
+ * are zeroed padding from summariseVisitors' fixed 24-slot shape) — so
+ * for each historical poll we pull just that one real hour, and take
+ * the latest observation per hour across the day's polls.
  */
-function aggregateHourlyFromSnapshots(
-  snaps: FlightSnapshot[],
+function aggregateHourlyFromHistory(
+  rows: { recordedAt: number; analytics: VisitorAnalytics }[],
   now: number,
 ): { hour: number; visitors: number; inbound: number; outgoing: number }[] {
-  const buckets: { hour: number; visitors: number; inbound: number; outgoing: number }[] = [];
-  for (let h = 0; h < 24; h += 1) {
-    buckets.push({ hour: h, visitors: 0, inbound: 0, outgoing: 0 });
-  }
-  // Trim to last 24 h.
+  const buckets = new Map<number, { visitors: number; inbound: number; outgoing: number; recordedAt: number }>();
+  for (let h = 0; h < 24; h += 1) buckets.set(h, { visitors: 0, inbound: 0, outgoing: 0, recordedAt: 0 });
+
   const cutoff = now - 24 * 60 * 60_000;
-  for (const s of snaps) {
-    if (s.ts < cutoff) continue;
-    const hour = new Date(s.ts).getHours();
-    const bucket = buckets[hour];
-    if (!bucket) continue;
-    // Estimate visitors from inbound flights × average fleet size.
-    // Conservative: 165 seats (CNX is mostly narrow-body).
-    bucket.inbound += s.airborne;
-    bucket.visitors += s.airborne * 165;
+  for (const row of rows) {
+    if (row.recordedAt < cutoff) continue;
+    const hour = new Date(row.recordedAt).getHours();
+    const own = row.analytics.visitorsByHour.find((b) => b.hour === hour);
+    if (!own) continue;
+    const existing = buckets.get(hour);
+    if (existing && row.recordedAt >= existing.recordedAt) {
+      buckets.set(hour, { visitors: own.visitors, inbound: own.inbound, outgoing: own.outgoing, recordedAt: row.recordedAt });
+    }
   }
-  return buckets;
+
+  return [...buckets.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([hour, b]) => ({ hour, visitors: b.visitors, inbound: b.inbound, outgoing: b.outgoing }));
 }

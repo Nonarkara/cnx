@@ -64,7 +64,7 @@ export const AIRLINE_BY_CALLSIGN_PREFIX: Record<
   HU: { name: "Hainan Airlines", country: "China", fleet: "narrow" },
   ZH: { name: "Shenzhen Airlines", country: "China", fleet: "narrow" },
   MF: { name: "Xiamen Airlines", country: "China", fleet: "narrow" },
-  9C: { name: "Spring Airlines", country: "China", fleet: "narrow" },
+  "9C": { name: "Spring Airlines", country: "China", fleet: "narrow" },
   HO: { name: "Juneyao Airlines", country: "China", fleet: "narrow" },
 
   // ─── Japan / Korea ───
@@ -74,7 +74,7 @@ export const AIRLINE_BY_CALLSIGN_PREFIX: Record<
   OZ: { name: "Asiana", country: "South Korea", fleet: "wide" },
   LJ: { name: "Jin Air", country: "South Korea", fleet: "narrow" },
   TW: { name: "T'way Air", country: "South Korea", fleet: "narrow" },
-  7C: { name: "Jeju Air", country: "South Korea", fleet: "narrow" },
+  "7C": { name: "Jeju Air", country: "South Korea", fleet: "narrow" },
 
   // ─── Southeast Asia ───
   SQ: { name: "Singapore Airlines", country: "Singapore", fleet: "wide" },
@@ -83,15 +83,15 @@ export const AIRLINE_BY_CALLSIGN_PREFIX: Record<
   MH: { name: "Malaysia Airlines", country: "Malaysia", fleet: "wide" },
   AK: { name: "AirAsia", country: "Malaysia", fleet: "narrow" },
   PR: { name: "Philippine Airlines", country: "Philippines", fleet: "wide" },
-  5J: { name: "Cebu Pacific", country: "Philippines", fleet: "narrow" },
+  "5J": { name: "Cebu Pacific", country: "Philippines", fleet: "narrow" },
   VN: { name: "Vietnam Airlines", country: "Vietnam", fleet: "narrow" },
   VJ: { name: "VietJet Air", country: "Vietnam", fleet: "narrow" },
   QV: { name: "Lao Airlines", country: "Laos", fleet: "narrow" },
-  8M: { name: "Myanmar Airways", country: "Myanmar", fleet: "narrow" },
+  "8M": { name: "Myanmar Airways", country: "Myanmar", fleet: "narrow" },
 
   // ─── South Asia ───
   AI: { name: "Air India", country: "India", fleet: "wide" },
-  6E: { name: "IndiGo", country: "India", fleet: "narrow" },
+  "6E": { name: "IndiGo", country: "India", fleet: "narrow" },
 
   // ─── Middle East / Europe ───
   EK: { name: "Emirates", country: "UAE", fleet: "heavy" },

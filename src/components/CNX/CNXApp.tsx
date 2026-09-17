@@ -34,6 +34,7 @@ import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import type { OutboundAnalysis } from "../../lib/cnx/outbound";
 import type { Waterway } from "../../lib/cnx/waterways";
+import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import type { BusRoute } from "../../types/cnx";
 
 import CnxSocialSidebar from "./CNXSocialSidebar";
@@ -42,7 +43,7 @@ import CnxFirePanel from "./CNXFirePanel";
 import CnxAirQualityPanel from "./CNXAirQualityPanel";
 import CnxOutboundPanel from "./CNXOutboundPanel";
 import CnxArrivalsPanel from "./CNXArrivalsPanel";
-import CnxVisitorPanel from "./CNXVisitorPanel";
+import CnxVisitorPanel, { type VisitorAnalytics } from "./CNXVisitorPanel";
 import CnxAskChat from "./CNXAskChat";
 import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
@@ -51,6 +52,8 @@ import CnxTicker from "./CNXTicker";
 import CNXMap, { type WallFeature } from "./CNXMap";
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
+import CnxAboutModal from "./CNXAboutModal";
+import CnxEmergencyModal from "./CNXEmergencyModal";
 import FlightPanel from "./FlightPanel";
 import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
 
@@ -86,13 +89,17 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [aerosol, setAerosol] = useState<AerosolResponse | null>(null);
   const [outbound, setOutbound] = useState<OutboundAnalysis | null>(null);
   const [busRoutes, setBusRoutes] = useState<BusRoute[]>([]);
+  const [cmuStations, setCmuStations] = useState<CmuStation[]>([]);
+  const [cmuRoutes, setCmuRoutes] = useState<Record<string, CmuRoute>>({});
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
   const [waterways, setWaterways] = useState<Waterway[]>([]);
-  const [visitorSocialCountries, setVisitorSocialCountries] = useState<string[]>([]);
+  const [visitorAnalytics, setVisitorAnalytics] = useState<VisitorAnalytics | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
+  const [isResearchOpen, setIsResearchOpen] = useState(false);
+  const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
 
@@ -142,6 +149,23 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     let cancelled = false;
     void fetchJsonOrNull<{ routes?: BusRoute[] }>("/data/cnx/bus-routes.geojson").then((d) => {
       if (!cancelled && d?.routes) setBusRoutes(d.routes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // CMU internal shuttle — station + route-polyline geometry, one-time
+  // fetch from baked JSON (see public/data/cnx/cmu-transit-*.json).
+  // Live bus positions come separately via MQTT in CNXMap itself, only
+  // while the operator has that layer toggled on.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJsonOrNull<{ stations?: CmuStation[] }>("/data/cnx/cmu-transit-stations.json").then((d) => {
+      if (!cancelled && d?.stations) setCmuStations(d.stations);
+    });
+    void fetchJsonOrNull<{ routes?: Record<string, CmuRoute> }>("/data/cnx/cmu-transit-routes.json").then((d) => {
+      if (!cancelled && d?.routes) setCmuRoutes(d.routes);
     });
     return () => {
       cancelled = true;
@@ -253,27 +277,10 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         .slice(0, 5)
     : [];
 
-  // Visitor analytics — only the socialCountries signal is lifted here so
-  // CnxSocialSidebar can fan out its multilingual feeds by where today's
-  // inbound flights actually came from. The visitor panel below fetches
-  // its own full payload.
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const r = await fetchJsonOrNull<{ socialCountries?: string[] }>("/api/cnx/visitors");
-      if (!cancelled && r?.socialCountries) setVisitorSocialCountries(r.socialCountries);
-    };
-    void load();
-    const id = window.setInterval(() => void load(), 90_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, []);
-
   // Merge outbound-heading + visitor-callsign country signals. Visitor
   // data is more accurate (callsign → ICAO airline → country), so we
   // surface those first and back-fill with the heading-derived list.
+  const visitorSocialCountries = visitorAnalytics?.socialCountries ?? [];
   const multilingualCountries = [
     ...visitorSocialCountries,
     ...topOriginCountries.filter((c) => !visitorSocialCountries.includes(c)),
@@ -302,8 +309,11 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         story={story}
         flights={flights}
         scenarioId={scenarioId}
+        topOrigins={visitorAnalytics?.topOrigins ?? []}
         onOpenStory={() => setIsStoryOpen(true)}
         onOpenManual={() => setIsManualOpen(true)}
+        onOpenResearch={() => setIsResearchOpen(true)}
+        onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
       <CnxCctvStrip feed={cctv} />
@@ -333,6 +343,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             busRoutes={busRoutes}
             walls={walls}
             waterways={waterways}
+            cmuStations={cmuStations}
+            cmuRoutes={cmuRoutes}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
@@ -345,7 +357,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-hidden 2xl:w-[380px]"
         >
           <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxVisitorPanel />
+            <CnxVisitorPanel onData={setVisitorAnalytics} />
           </div>
           <div className="h-[28%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
@@ -402,7 +414,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
           {mobileTab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
-          {mobileTab === "visitors" && <CnxVisitorPanel />}
+          {mobileTab === "visitors" && <CnxVisitorPanel onData={setVisitorAnalytics} />}
           {mobileTab === "social" && (
             <CnxSocialSidebar scenarioId={null} multilingualCountries={multilingualCountries} initialData={social} />
           )}
@@ -425,6 +437,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
       <CnxStoryModal story={story} isOpen={isStoryOpen} onClose={() => setIsStoryOpen(false)} />
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
+      <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
+      <CnxEmergencyModal isOpen={isEmergencyOpen} onClose={() => setIsEmergencyOpen(false)} />
     </main>
   );
 }
