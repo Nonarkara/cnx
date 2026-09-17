@@ -29,6 +29,8 @@
 // history (live Overpass from edge was silently shipping empty
 // arrays on every rate-limit).
 
+import { fetchStaticAsset } from "./static-asset";
+
 export interface Waterway {
   id: string;
   name: string;
@@ -107,9 +109,7 @@ async function loadBaked(): Promise<WaterwaysFile> {
     }
   }
   if (!rawObj) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-    const url = siteUrl ? `${siteUrl}/data/cnx/waterways.geojson` : "/data/cnx/waterways.geojson";
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStaticAsset("/data/cnx/waterways.geojson");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     rawObj = await res.json();
   }

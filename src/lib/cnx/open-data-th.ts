@@ -8,18 +8,16 @@
 // that directory.
 
 import type { OpenDataIndex, OpenDataDataset } from "../../types/cnx";
+import { fetchStaticAsset } from "./static-asset";
 
-// Server-side `fetch` has no implicit origin to resolve a relative
-// path against (unlike the browser) — Cloudflare Workers included.
-// We try BOTH paths: relative (works in dev via Next.js dev server
-// and in prod via the same-edge-worker ASSETS hop) and absolute
-// (works when the worker can resolve its own hostname).
-//
-// The relative path is the one that's known to work in production —
-// see the same pattern in `bus-routes.ts` / `waterways.ts`. The
-// absolute URL was failing intermittently from the edge worker
-// (curl from outside returns 200, fetch from inside returned
-// `fetched:0`, the catch fallback). Stick with the relative form.
+// A bare relative path here previously failed outright (server-side
+// fetch has no implicit origin to resolve against); a plain absolute
+// URL self-fetch works but is intermittent — same issue documented in
+// bus-routes.ts / waterways.ts (~30-40% empty responses in production,
+// confirmed by hitting /api/cnx/bus-routes repeatedly and watching it
+// alternate between real data and empty on the same deployed version).
+// fetchStaticAsset uses the Workers ASSETS binding directly, which
+// reads the file in-process with no network round-trip.
 const INDEX_PATH = "/data/cnx/open-data/index.json";
 const ALL_PATH = "/data/cnx/open-data/all.json";
 
@@ -91,14 +89,12 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
     return diskIndex;
   }
 
-  // 2. Try network fetch — relative URL works in both dev (Next.js
-  // dev server) and prod (same-worker ASSETS hop). The previous
-  // absolute-URL form was hanging on the edge worker even though
-  // the same URL worked via curl from outside the worker.
+  // 2. Read via the Workers ASSETS binding (falls back to a plain
+  // fetch outside a Workers request context, e.g. local `next dev`).
   try {
     const [idxRes, allRes] = await Promise.all([
-      fetch(INDEX_PATH, { cache: "no-store" }),
-      fetch(ALL_PATH, { cache: "no-store" }).catch(() => null),
+      fetchStaticAsset(INDEX_PATH),
+      fetchStaticAsset(ALL_PATH).catch(() => null),
     ]);
     if (!idxRes.ok) throw new Error(`HTTP ${idxRes.status}`);
     const idx = (await idxRes.json()) as {

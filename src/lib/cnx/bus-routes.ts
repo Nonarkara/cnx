@@ -30,6 +30,7 @@
 // it through the asset URL keeps the bundle small AND reliable.
 
 import type { BusRoute, BusStop } from "../../types/cnx";
+import { fetchStaticAsset } from "./static-asset";
 
 const OVERPASS = "https://overpass-api.de/api/interpreter";
 
@@ -104,9 +105,7 @@ async function loadBaked(): Promise<BusDataFile> {
       }
     }
   }
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
-  const url = siteUrl ? `${siteUrl}/data/cnx/bus-routes.geojson` : "/data/cnx/bus-routes.geojson";
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetchStaticAsset("/data/cnx/bus-routes.geojson");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = (await res.json()) as BusDataFile;
   if (!Array.isArray(data.routes) || !Array.isArray(data.stops)) {
