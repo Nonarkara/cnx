@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Database, ExternalLink, Search } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
-import { groupDatasets, summariseDataset } from "../../lib/cnx/open-data-th";
+import { groupDatasets, summariseDataset } from "../../lib/cnx/open-data-format";
 import type { OpenDataIndex, OpenDataDataset } from "../../types/cnx";
 
 function PublisherGroups({ datasets }: { datasets: OpenDataDataset[] }) {

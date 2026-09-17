@@ -136,18 +136,7 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
   }
 }
 
-export function summariseDataset(d: OpenDataDataset): string {
-  if (d.summary && d.summary.trim().length > 0) return d.summary;
-  const tagsStr = d.tags.length ? ` · #${d.tags.slice(0, 3).join(" #")}` : "";
-  return `${d.publisher} · ${d.format}${tagsStr}`;
-}
-
-export function groupDatasets(datasets: OpenDataDataset[]): Record<string, OpenDataDataset[]> {
-  const out: Record<string, OpenDataDataset[]> = {};
-  for (const d of datasets) {
-    const key = d.publisher || "หน่วยงานราชการ";
-    out[key] = out[key] ?? [];
-    out[key].push(d);
-  }
-  return out;
-}
+// summariseDataset / groupDatasets moved to open-data-format.ts — pure
+// functions a client component needs, split out so importing them
+// doesn't drag this module's server-only node:fs/promises code into
+// the browser bundle.
