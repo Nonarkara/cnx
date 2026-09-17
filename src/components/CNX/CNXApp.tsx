@@ -42,6 +42,7 @@ import CnxFirePanel from "./CNXFirePanel";
 import CnxAirQualityPanel from "./CNXAirQualityPanel";
 import CnxOutboundPanel from "./CNXOutboundPanel";
 import CnxArrivalsPanel from "./CNXArrivalsPanel";
+import CnxVisitorPanel from "./CNXVisitorPanel";
 import CnxAskChat from "./CNXAskChat";
 import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
@@ -89,6 +90,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
   const [waterways, setWaterways] = useState<Waterway[]>([]);
+  const [visitorSocialCountries, setVisitorSocialCountries] = useState<string[]>([]);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -251,8 +253,36 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         .slice(0, 5)
     : [];
 
+  // Visitor analytics — only the socialCountries signal is lifted here so
+  // CnxSocialSidebar can fan out its multilingual feeds by where today's
+  // inbound flights actually came from. The visitor panel below fetches
+  // its own full payload.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const r = await fetchJsonOrNull<{ socialCountries?: string[] }>("/api/cnx/visitors");
+      if (!cancelled && r?.socialCountries) setVisitorSocialCountries(r.socialCountries);
+    };
+    void load();
+    const id = window.setInterval(() => void load(), 90_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  // Merge outbound-heading + visitor-callsign country signals. Visitor
+  // data is more accurate (callsign → ICAO airline → country), so we
+  // surface those first and back-fill with the heading-derived list.
+  const multilingualCountries = [
+    ...visitorSocialCountries,
+    ...topOriginCountries.filter((c) => !visitorSocialCountries.includes(c)),
+  ].slice(0, 5);
+
   // Mobile + tablet panel tab state
-  const [mobileTab, setMobileTab] = useState<"fire" | "air" | "flood" | "social" | "data" | "ask">("fire");
+  const [mobileTab, setMobileTab] = useState<
+    "fire" | "air" | "flood" | "visitors" | "social" | "data" | "ask"
+  >("fire");
 
   return (
     <main
@@ -285,7 +315,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           aria-label="Social listening stream"
           className="hidden w-[260px] shrink-0 border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[280px] 2xl:w-[300px]"
         >
-          <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={topOriginCountries} initialData={social} />
+          <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={multilingualCountries} initialData={social} />
         </aside>
 
         {/* Centre — map. Always visible; height is dynamic on mobile,
@@ -314,6 +344,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           aria-label="Operations desk"
           className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-hidden 2xl:w-[380px]"
         >
+          <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxVisitorPanel />
+          </div>
           <div className="h-[28%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
           </div>
@@ -347,6 +380,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
               { id: "fire", label: "Fire", icon: "🔥" },
               { id: "air", label: "Air", icon: "🌫" },
               { id: "flood", label: "Flood", icon: "🌊" },
+              { id: "visitors", label: "Visitors", icon: "✈" },
               { id: "social", label: "Social", icon: "📰" },
               { id: "data", label: "Open Data", icon: "🗂" },
               { id: "ask", label: "Ask", icon: "🔍" },
@@ -368,8 +402,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
           {mobileTab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
+          {mobileTab === "visitors" && <CnxVisitorPanel />}
           {mobileTab === "social" && (
-            <CnxSocialSidebar scenarioId={null} multilingualCountries={topOriginCountries} initialData={social} />
+            <CnxSocialSidebar scenarioId={null} multilingualCountries={multilingualCountries} initialData={social} />
           )}
           {mobileTab === "data" && <CnxOpenData />}
           {mobileTab === "ask" && <CnxAskChat />}
