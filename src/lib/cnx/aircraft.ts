@@ -24,6 +24,9 @@ export interface AircraftSpec {
 const AIRCRAFT: Record<string, AircraftSpec> = {
   // Heavy (4-aisle, >350 seats)
   A380: { typecode: "A380", seats: 555, size: "heavy", label: "A380" },
+  A388: { typecode: "A388", seats: 555, size: "heavy", label: "A380-800" },
+  B744: { typecode: "B744", seats: 416, size: "heavy", label: "747-400" },
+  B748: { typecode: "B748", seats: 410, size: "heavy", label: "747-8" },
   B747: { typecode: "B747", seats: 416, size: "heavy", label: "747" },
   A340: { typecode: "A340", seats: 380, size: "heavy", label: "A340" },
 
@@ -37,6 +40,12 @@ const AIRCRAFT: Record<string, AircraftSpec> = {
   A330: { typecode: "A330", seats: 290, size: "wide", label: "A330" },
   A332: { typecode: "A332", seats: 250, size: "wide", label: "A330-200" },
   A333: { typecode: "A333", seats: 290, size: "wide", label: "A330-300" },
+  A338: { typecode: "A338", seats: 250, size: "wide", label: "A330-800neo" },
+  A339: { typecode: "A339", seats: 300, size: "wide", label: "A330-900neo" },
+  A35K: { typecode: "A35K", seats: 370, size: "wide", label: "A350-1000" },
+  B772: { typecode: "B772", seats: 310, size: "wide", label: "777-200" },
+  B77W: { typecode: "B77W", seats: 360, size: "wide", label: "777-300ER" },
+  B763: { typecode: "B763", seats: 250, size: "wide", label: "767-300" },
 
   // Narrowbody (single-aisle, 130-220 seats)
   B738: { typecode: "B738", seats: 189, size: "narrow", label: "737-800" },
@@ -45,7 +54,6 @@ const AIRCRAFT: Record<string, AircraftSpec> = {
   B39M: { typecode: "B39M", seats: 210, size: "narrow", label: "737 MAX 9" },
   B752: { typecode: "B752", seats: 200, size: "narrow", label: "757-200" },
   B753: { typecode: "B753", seats: 240, size: "narrow", label: "757-300" },
-  B763: { typecode: "B763", seats: 270, size: "narrow", label: "767-300" },
   A20N: { typecode: "A20N", seats: 180, size: "narrow", label: "A320neo" },
   A21N: { typecode: "A21N", seats: 220, size: "narrow", label: "A321neo" },
   A320: { typecode: "A320", seats: 180, size: "narrow", label: "A320" },

@@ -142,6 +142,7 @@ function useTypecodeLookup(flights: FlightState[]): Map<string, string | undefin
   const known = useMemo(() => {
     const out = new Map<string, string | undefined>();
     for (const f of flights) {
+      if (f.typecode && !typecodeCache.has(f.icao24)) typecodeCache.set(f.icao24, f.typecode);
       if (typecodeCache.has(f.icao24)) {
         out.set(f.icao24, typecodeCache.get(f.icao24));
       }

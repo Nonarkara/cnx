@@ -35,6 +35,7 @@ import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import type { OutboundAnalysis } from "../../lib/cnx/outbound";
 import type { Waterway } from "../../lib/cnx/waterways";
 import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
+import type { RtcLine, RtcLinesFile } from "../../lib/cnx/rtc-bus-sim";
 import type { BusRoute } from "../../types/cnx";
 
 import CnxSocialSidebar from "./CNXSocialSidebar";
@@ -91,6 +92,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [busRoutes, setBusRoutes] = useState<BusRoute[]>([]);
   const [cmuStations, setCmuStations] = useState<CmuStation[]>([]);
   const [cmuRoutes, setCmuRoutes] = useState<Record<string, CmuRoute>>({});
+  const [rtcLines, setRtcLines] = useState<RtcLine[]>([]);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -166,6 +168,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     });
     void fetchJsonOrNull<{ routes?: Record<string, CmuRoute> }>("/data/cnx/cmu-transit-routes.json").then((d) => {
       if (!cancelled && d?.routes) setCmuRoutes(d.routes);
+    });
+    void fetchJsonOrNull<RtcLinesFile>("/data/cnx/rtc-bus-lines.json").then((d) => {
+      if (!cancelled && d?.lines) setRtcLines(d.lines);
     });
     return () => {
       cancelled = true;
@@ -345,6 +350,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             waterways={waterways}
             cmuStations={cmuStations}
             cmuRoutes={cmuRoutes}
+            rtcLines={rtcLines}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}

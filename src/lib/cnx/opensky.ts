@@ -13,6 +13,8 @@
 // km around CNX airport, but a plane on final from the south starts
 // showing up 150 km out.
 
+import { fetchAdsbLolStates } from "./adsb-lol";
+
 export const OPENSKY_BASE = "https://opensky-network.org/api";
 
 /** Chiang Mai area bbox (lamin, lomin, lamax, lomax). */
@@ -66,6 +68,9 @@ export interface FlightState {
   verticalRate: number | null;
   /** 0–4 (low confidence to high), -1 if unknown. 1+ is ADS-B. */
   positionSource: number;
+  /** ICAO type designator, when the source provides it inline (adsb.lol). */
+  typecode?: string;
+  registration?: string;
 }
 
 export interface FetchResult {
@@ -81,6 +86,8 @@ export interface FetchResult {
   degraded: boolean;
   /** Error message if degraded. */
   error?: string;
+  /** Which upstream produced this snapshot. */
+  source?: "adsb.lol" | "opensky";
 }
 
 type RawState = readonly unknown[];
@@ -205,9 +212,39 @@ async function fetchRaw(): Promise<RawResponse | null> {
   }
 }
 
-/** Fetch the current snapshot, with parsing and airborne/ground split. */
+function inBbox(s: FlightState): boolean {
+  return (
+    s.latitude !== null && s.longitude !== null &&
+    s.latitude >= CNX_BBOX.lamin && s.latitude <= CNX_BBOX.lamax &&
+    s.longitude >= CNX_BBOX.lomin && s.longitude <= CNX_BBOX.lomax
+  );
+}
+
+function split(states: FlightState[]) {
+  const located = states.filter(inBbox);
+  return {
+    airborne: located.filter((s) => !s.onGround),
+    ground: located.filter((s) => s.onGround),
+  };
+}
+
+let adsbCache: { at: number; data: Awaited<ReturnType<typeof fetchAdsbLolStates>> } | null = null;
+
+/** Fetch the current snapshot: adsb.lol first, OpenSky as fallback. */
 export async function fetchCnxSnapshot(): Promise<FetchResult> {
   const fetchedAt = Date.now();
+  if (!adsbCache || fetchedAt - adsbCache.at >= CACHE_MS) {
+    adsbCache = { at: fetchedAt, data: await fetchAdsbLolStates() };
+  }
+  if (adsbCache.data) {
+    return {
+      fetchedAt,
+      observedAt: adsbCache.data.observedAt,
+      ...split(adsbCache.data.states),
+      degraded: false,
+      source: "adsb.lol",
+    };
+  }
   const raw = await fetchRaw();
   if (!raw) {
     return {
@@ -216,16 +253,15 @@ export async function fetchCnxSnapshot(): Promise<FetchResult> {
       airborne: [],
       ground: [],
       degraded: true,
-      error: "OpenSky unavailable",
+      error: "adsb.lol and OpenSky both unavailable",
     };
   }
-  const states = (raw.states ?? []).map(parseState);
   return {
     fetchedAt,
     observedAt: raw.time * 1000,
-    airborne: states.filter((s) => !s.onGround && s.latitude !== null && s.longitude !== null),
-    ground: states.filter((s) => s.onGround && s.latitude !== null && s.longitude !== null),
+    ...split((raw.states ?? []).map(parseState)),
     degraded: false,
+    source: "opensky",
   };
 }
 

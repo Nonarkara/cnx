@@ -27,6 +27,7 @@
 // either at the origin or the destination).
 
 import type { FlightState } from "./opensky";
+import { lookupAircraft } from "./aircraft";
 import { fetchCnxSocialMultilingual } from "./social";
 
 /** Airline fleet-size mix. CNX is mostly narrow-body / regional. */
@@ -184,14 +185,16 @@ function classifyFlight(state: FlightState, ts: number): ClassifiedFlight | null
   if (!callsign) return null;
   const airline = classifyAirline(callsign);
   const { inbound, headingDeg } = classifyInboundOutbound(state);
-  const fleet = airline?.fleet ?? "narrow";
+  // Prefer the transponder-reported aircraft type; fall back to the airline's typical fleet.
+  const spec = state.typecode ? lookupAircraft(state.typecode) : null;
+  const fleet: FleetSize = spec?.size ?? airline?.fleet ?? "narrow";
   return {
     icao24: state.icao24,
     callsign,
     airline: airline?.name ?? null,
     country: airline?.country ?? state.originCountry ?? "Unknown",
     fleet,
-    estimatedSeats: FLEET_SEATS[fleet],
+    estimatedSeats: spec?.seats ?? FLEET_SEATS[fleet],
     inbound,
     ts,
     headingDeg,

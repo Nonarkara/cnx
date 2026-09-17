@@ -4,7 +4,7 @@
 // transit.scmc.cmu.ac.th's own page connects to client-side — this
 // isn't a scrape, it's the public feed their own site uses).
 //
-// Broker: wss://cmutransit-ws.bda.co.th:8883, topic pass_cmutransit/#,
+// Broker: wss://cmutransit-ws.bda.co.th:8883, topic pass_cmutransit/busonservice,
 // no auth. Client-side only (the browser holds the MQTT connection,
 // same as the reference page) — a Cloudflare Worker isn't a good fit
 // for a long-lived MQTT subscription, and there's nothing to
@@ -17,7 +17,9 @@
 // up just to draw the route lines.
 
 export const CMU_TRANSIT_WS_URL = "wss://cmutransit-ws.bda.co.th:8883";
-export const CMU_TRANSIT_TOPIC = "pass_cmutransit/#";
+// Every position is also republished on pass_cmutransit/routebus/<route>;
+// the busonservice topic alone carries each update once.
+export const CMU_TRANSIT_TOPIC = "pass_cmutransit/busonservice";
 
 export interface CmuBusPosition {
   bus: string;

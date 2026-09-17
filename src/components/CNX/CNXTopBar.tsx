@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { Bell, BookOpen, FlaskConical, Moon, PhoneCall, Sun } from "lucide-react";
 import { useDarkMode } from "../../hooks/useDarkMode";
 import CNXLogoRow from "./CNXLogoRow";
+import { lookupAircraft } from "../../lib/cnx/aircraft";
 import CnxTimezoneStrip, { type TimezoneOrigin } from "./CNXTimezoneStrip";
 import type {
   AirQualityResponse,
@@ -79,7 +80,9 @@ export default function CnxTopBar(props: TopBarProps) {
   }, []);
 
   const officeNotice: OfficeNotice | undefined = air?.office ?? flood?.office;
-  const widebodyCount = flights ? (flights.airborne.length + flights.ground.length) : 0;
+  const widebodyCount = flights
+    ? [...flights.airborne, ...flights.ground].filter((f) => ["heavy", "wide"].includes(lookupAircraft(f.typecode).size)).length
+    : 0;
 
   return (
     <header className="relative z-30 flex shrink-0 flex-col gap-1.5 border-b border-[var(--line)] bg-[var(--bg-raised)] px-4 py-2">

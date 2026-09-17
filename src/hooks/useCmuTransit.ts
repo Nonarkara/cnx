@@ -46,8 +46,9 @@ export function useCmuTransitBuses(enabled: boolean): CmuBusPosition[] {
         client.on("connect", () => {
           client?.subscribe(CMU_TRANSIT_TOPIC, { qos: 0 });
         });
+        const decoder = new TextDecoder();
         client.on("message", (_topic: string, payload: Uint8Array) => {
-          const parsed = parseCmuTransitMessage(payload.toString());
+          const parsed = parseCmuTransitMessage(decoder.decode(payload));
           if (!parsed) return;
           const next = new Map(busesRef.current);
           next.set(parsed.bus, parsed);

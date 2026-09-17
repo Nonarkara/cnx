@@ -38,6 +38,8 @@ import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge } from "..
 import type { Waterway } from "../../lib/cnx/waterways";
 import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
+import { useRtcBusSim } from "../../hooks/useRtcBusSim";
+import { RTC_LINE_COLOURS, SIM_SPEED_KMH, type RtcLine, type SimBus } from "../../lib/cnx/rtc-bus-sim";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
@@ -262,6 +264,15 @@ interface MapProps {
   waterways?: Waterway[];
   cmuStations?: CmuStation[];
   cmuRoutes?: Record<string, CmuRoute>;
+  rtcLines?: RtcLine[];
+}
+
+const NO_RTC_LINES: RtcLine[] = [];
+
+function hexToRgb(hex: string): [number, number, number] {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return [29, 41, 81];
+  return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
 }
 
 export default function CNXMap({
@@ -275,6 +286,7 @@ export default function CNXMap({
   waterways = [],
   cmuStations = [],
   cmuRoutes = {},
+  rtcLines = NO_RTC_LINES,
 }: MapProps) {
   const [basemap, setBasemap] = useState<BasemapId>("street");
   const [buildingsOn, setBuildingsOn] = useState(true);
@@ -282,8 +294,10 @@ export default function CNXMap({
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
   const [busesOn, setBusesOn] = useState(true);
-  const [cmuShuttleOn, setCmuShuttleOn] = useState(false);
+  const [cmuShuttleOn, setCmuShuttleOn] = useState(true);
   const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
+  const [airportBusOn, setAirportBusOn] = useState(true);
+  const airportBuses = useRtcBusSim(rtcLines, airportBusOn);
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
@@ -376,17 +390,16 @@ export default function CNXMap({
   // MQTT feed (only connected while the toggle is on).
   const cmuLayers = useMemo(() => {
     if (!cmuShuttleOn) return [];
-    const hexToRgb = (hex: string): [number, number, number] => {
-      const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
-      if (!m) return [29, 41, 81];
-      return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
-    };
-    const routeEntries = Object.entries(cmuRoutes);
-    const routeLayer = new PathLayer<[string, CmuRoute]>({
+    // Baked paths are [lat, lng] (the source page's Leaflet order); deck wants [lng, lat].
+    const routeEntries = Object.values(cmuRoutes).map((r) => ({
+      color: r.color,
+      path: r.path.map(([lat, lng]) => [lng, lat] as [number, number]),
+    }));
+    const routeLayer = new PathLayer<(typeof routeEntries)[number]>({
       id: "cmu-transit-routes",
       data: routeEntries,
-      getPath: (d) => d[1].path,
-      getColor: (d) => [...hexToRgb(d[1].color), 160],
+      getPath: (d) => d.path,
+      getColor: (d) => [...hexToRgb(d.color), 160],
       getWidth: 2,
       widthUnits: "pixels",
       pickable: false,
@@ -417,6 +430,35 @@ export default function CNXMap({
     });
     return [routeLayer, stationLayer, busLayer];
   }, [cmuShuttleOn, cmuRoutes, cmuStations, cmuBuses]);
+
+  const rtcRouteLayer = useMemo(() => {
+    if (!airportBusOn || rtcLines.length === 0) return null;
+    return new PathLayer<RtcLine>({
+      id: "rtc-airport-lines",
+      data: rtcLines,
+      getPath: (d) => d.path,
+      getColor: (d) => [...hexToRgb(RTC_LINE_COLOURS[d.ref] ?? "#1d2951"), 110],
+      getWidth: 4,
+      widthUnits: "pixels",
+      pickable: false,
+    });
+  }, [airportBusOn, rtcLines]);
+
+  const rtcBusLayer = useMemo(() => {
+    if (!airportBusOn) return null;
+    return new ScatterplotLayer<SimBus>({
+      id: "rtc-airport-buses",
+      data: airportBuses,
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: 9,
+      radiusUnits: "pixels",
+      getFillColor: (d) => [...hexToRgb(d.colour), 245],
+      getLineColor: [29, 41, 81, 255],
+      lineWidthMinPixels: 2,
+      stroked: true,
+      pickable: true,
+    });
+  }, [airportBusOn, airportBuses]);
 
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
@@ -712,7 +754,26 @@ export default function CNXMap({
           const vs = e.viewState as Partial<MapViewState> | undefined;
           if (vs) setViewState((prev) => ({ ...prev, ...vs }));
         }}
-        layers={[...layers, ...busLayers]}
+        layers={[
+          ...layers,
+          ...busLayers,
+          ...(rtcRouteLayer ? [rtcRouteLayer] : []),
+          ...(rtcBusLayer ? [rtcBusLayer] : []),
+        ]}
+        getTooltip={({ object, layer }) => {
+          if (!object || !layer) return null;
+          if (layer.id === "rtc-airport-buses") {
+            const b = object as SimBus;
+            const leg = b.status === "layover" ? "layover at terminus" : `${b.status} · ${b.kmDone.toFixed(1)}/${b.kmTotal.toFixed(1)} km`;
+            return `RTC ${b.ref} · left airport ${b.departedAt}\n${leg}\nSimulated from timetable at ${SIM_SPEED_KMH} km/h`;
+          }
+          if (layer.id === "cmu-transit-buses") {
+            const b = object as (typeof cmuBuses)[number];
+            return `CMU shuttle ${b.bus} · route ${b.route}\n${b.passenger} on board · live GPS`;
+          }
+          if (layer.id === "cmu-transit-stations") return (object as CmuStation).name;
+          return null;
+        }}
       >
         <Map
           reuseMaps
@@ -820,6 +881,19 @@ export default function CNXMap({
           }`}
         >
           {cmuShuttleOn ? `CMU Shuttle: on (${cmuBuses.length})` : "CMU Shuttle: off"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAirportBusOn((v) => !v)}
+          aria-pressed={airportBusOn}
+          title={`RTC 24A/24B/24C airport buses, simulated from the published timetable at ${SIM_SPEED_KMH} km/h — not live GPS`}
+          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+            airportBusOn
+              ? "border-[#e53935] bg-[#e53935] text-white"
+              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+          }`}
+        >
+          {airportBusOn ? `Airport Bus: sim (${airportBuses.length})` : "Airport Bus: off"}
         </button>
         {[1, 5, 10].map((km) => {
           const on = gridRadii.has(km);
