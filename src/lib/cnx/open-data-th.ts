@@ -68,7 +68,10 @@ async function loadFromDisk(): Promise<OpenDataIndex | null> {
       return {
         generatedAt: parsed.generatedAt || new Date().toISOString(),
         totalDatasets: parsed.totalDatasets ?? parsed.datasets.length,
-        fetched: parsed.fetched ?? parsed.datasets.length,
+        // Trust the array we're actually returning over the baked
+        // metadata field — a stale bake can (and did) ship
+        // `fetched: 0` alongside a fully-populated datasets array.
+        fetched: parsed.datasets.length,
         failed: parsed.failed ?? 0,
         datasets: normalizeDatasets(parsed.datasets),
       };
@@ -114,7 +117,9 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
     const normalized: OpenDataIndex = {
       generatedAt: idx.generatedAt || new Date().toISOString(),
       totalDatasets: idx.totalDatasets ?? datasets.length,
-      fetched: idx.fetched ?? datasets.length,
+      // Trust the array being returned, not the (possibly stale) baked
+      // metadata field — see the loadFromDisk comment above.
+      fetched: datasets.length,
       failed: idx.failed ?? 0,
       datasets: normalizeDatasets(datasets),
     };
