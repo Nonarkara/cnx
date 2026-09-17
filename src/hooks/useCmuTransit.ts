@@ -27,9 +27,18 @@ export function useCmuTransitBuses(enabled: boolean): CmuBusPosition[] {
 
     (async () => {
       try {
-        const mqtt = await import("mqtt");
+        const mod = await import("mqtt");
         if (cancelled) return;
-        client = mqtt.connect(CMU_TRANSIT_WS_URL, {
+        // The bundled runtime doesn't always promote mqtt's named
+        // exports onto the dynamic-import namespace the way its .d.ts
+        // suggests (webpack's CJS interop wraps the whole module under
+        // `.default` here) — fall back to that if `.connect` isn't
+        // directly callable.
+        const connectFn = (typeof mod.connect === "function" ? mod.connect : mod.default?.connect) as
+          | typeof mod.connect
+          | undefined;
+        if (!connectFn) throw new Error("mqtt module has no connect() export");
+        client = connectFn(CMU_TRANSIT_WS_URL, {
           clientId: `cnx-dashboard-${Math.random().toString(16).slice(2)}`,
           reconnectPeriod: 3000,
           connectTimeout: 15_000,
