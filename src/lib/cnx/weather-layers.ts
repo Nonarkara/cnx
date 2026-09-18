@@ -20,19 +20,13 @@ const RAINVIEWER_HOST = "https://tilecache.rainviewer.com";
 
 async function gibsTileExists(layer: string, tms: string, time: string): Promise<boolean> {
   const url = `${GIBS_BASE}/${layer}/default/${time}/${tms}/${REF_TILE.z}/${REF_TILE.y}/${REF_TILE.x}.png`;
-  // HEAD first — a probe only needs existence, not the PNG bytes
-  // (up to 25 probes on a cold start). Some CDN edges answer HEAD
-  // with 403/405 while GET works, so fall back to GET there; only a
-  // 404 means "no tile for this slot, keep probing older".
+  // GET only — verified empirically that GIBS's CDN answers HEAD with
+  // 404 on tiles that return 200 on GET (checked live: a tile that GET
+  // confirmed existed still 404'd on HEAD, repeatably). A HEAD-first
+  // probe would treat every real tile as missing and never find one.
   try {
-    const head = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(6_000) });
-    if (head.ok) return true;
-    if (head.status === 404) return false;
-    if (head.status === 405 || head.status === 501 || head.status === 403) {
-      const get = await fetch(url, { signal: AbortSignal.timeout(6_000) });
-      return get.ok;
-    }
-    return false;
+    const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
+    return res.ok;
   } catch {
     return false;
   }
