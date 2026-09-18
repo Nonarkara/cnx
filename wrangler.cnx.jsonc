@@ -10,6 +10,9 @@
   "observability": {
     "enabled": true
   },
+  "kv_namespaces": [
+    { "binding": "CNX_FLIGHTS_KV", "id": "069c48737c89469cb8c9265bead428a2" }
+  ],
   "vars": {
     "PROVINCE": "cnx",
     "SITE_URL": "https://cnx.nonarkara.org",

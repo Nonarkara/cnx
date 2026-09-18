@@ -14,6 +14,7 @@
 // showing up 150 km out.
 
 import { fetchAdsbLolStates } from "./adsb-lol";
+import { FLIGHTS_KV_KEY, FLIGHTS_KV_STALE_MS, isFetchResult } from "./flights-kv";
 
 export const OPENSKY_BASE = "https://opensky-network.org/api";
 
@@ -87,7 +88,7 @@ export interface FetchResult {
   /** Error message if degraded. */
   error?: string;
   /** Which upstream produced this snapshot. */
-  source?: "adsb.lol" | "opensky";
+  source?: "adsb.lol" | "opensky" | "relay";
 }
 
 type RawState = readonly unknown[];
@@ -230,8 +231,19 @@ function split(states: FlightState[]) {
 
 let adsbCache: { at: number; data: Awaited<ReturnType<typeof fetchAdsbLolStates>> } | null = null;
 
-/** Fetch the current snapshot: adsb.lol first, OpenSky as fallback. */
+/** Fetch the current snapshot.
+ *
+ * Neither upstream is reachable from Cloudflare's own network (see
+ * flights/ingest/route.ts) — OpenSky and adsb.lol are only tried here
+ * as a courtesy for local dev / a future non-Cloudflare deploy. In
+ * production the real data comes from KV, written by an external
+ * relay process (scripts/relay-flights.mjs) that polls from a normal
+ * IP and POSTs the result in every 20-30s.
+ */
 export async function fetchCnxSnapshot(): Promise<FetchResult> {
+  const fromKv = await fetchFromRelayKv();
+  if (fromKv) return fromKv;
+
   const fetchedAt = Date.now();
   if (!adsbCache || fetchedAt - adsbCache.at >= CACHE_MS) {
     adsbCache = { at: fetchedAt, data: await fetchAdsbLolStates() };
@@ -253,7 +265,7 @@ export async function fetchCnxSnapshot(): Promise<FetchResult> {
       airborne: [],
       ground: [],
       degraded: true,
-      error: "adsb.lol and OpenSky both unavailable",
+      error: "adsb.lol and OpenSky both unavailable, and no relay snapshot in KV",
     };
   }
   return {
@@ -263,6 +275,28 @@ export async function fetchCnxSnapshot(): Promise<FetchResult> {
     degraded: false,
     source: "opensky",
   };
+}
+
+/** Reads the latest snapshot written by the external relay poller.
+ *  Returns null (falling through to the direct-fetch path below) when
+ *  there's no Cloudflare context (local dev), no KV binding yet, no
+ *  snapshot written, or the snapshot is older than the staleness
+ *  threshold — a dead relay should surface as "degraded", not serve a
+ *  silently-frozen flight position from an hour ago. */
+async function fetchFromRelayKv(): Promise<FetchResult | null> {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const { env } = await getCloudflareContext({ async: true });
+    if (!env.CNX_FLIGHTS_KV) return null;
+    const raw = await env.CNX_FLIGHTS_KV.get(FLIGHTS_KV_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isFetchResult(parsed)) return null;
+    if (Date.now() - parsed.fetchedAt > FLIGHTS_KV_STALE_MS) return null;
+    return { ...parsed, source: parsed.source ?? "relay" };
+  } catch {
+    return null;
+  }
 }
 
 /** Group airborne flights by origin country and bucket by size.

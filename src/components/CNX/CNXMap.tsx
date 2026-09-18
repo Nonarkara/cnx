@@ -351,6 +351,23 @@ export default function CNXMap({
 
   const style = useMemo(() => basemapStyle(basemap), [basemap]);
 
+  // Switching away from a terrain-enabled basemap (satellite) crashes
+  // maplibre-gl: react-maplibre's setProps() calls map.redraw()
+  // synchronously right after handing over the new style, and that
+  // redraw can land before the new style's own "style.load" handler
+  // has run map.setTerrain(null) — the renderer then tries to draw the
+  // terrain depth pre-pass against shader/program state that style
+  // replacement already tore down ("Cannot read properties of
+  // undefined (reading 'shaderPreludeCode')"). Clearing terrain
+  // ourselves, synchronously, before the style prop ever changes,
+  // closes that race regardless of style-load timing.
+  const handleBasemapChange = (id: BasemapId) => {
+    if (typeof style !== "string" && style.terrain && mlMapRef.current) {
+      mlMapRef.current.setTerrain(null);
+    }
+    setBasemap(id);
+  };
+
   // Walls layer goes in deck.gl — paths, not polygons.
   const wallLayer = useMemo(() => buildWallLayer(walls, wallsOn), [walls, wallsOn]);
 
@@ -794,7 +811,7 @@ export default function CNXMap({
           <button
             key={b.id}
             type="button"
-            onClick={() => setBasemap(b.id)}
+            onClick={() => handleBasemapChange(b.id)}
             aria-pressed={basemap === b.id}
             className={`border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${
               basemap === b.id
