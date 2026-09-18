@@ -288,7 +288,16 @@ export default function CNXMap({
   cmuRoutes = {},
   rtcLines = NO_RTC_LINES,
 }: MapProps) {
-  const [basemap, setBasemap] = useState<BasemapId>("street");
+  // Default to Topography — Chiang Mai sits in a mountain basin (Doi Suthep,
+  // Doi Inthanon, the Ping valley), and the topographic context drives the
+  // operational read: PM2.5 traps in the valleys during burning season,
+  // flood basins along the Ping and its tributaries, the urban footprint
+  // outlined by the surrounding ridges. OpenTopoMap tiles are free and
+  // already wired (basemapStyle("topography")); this just promotes them to
+  // the default landing view, matching the Phuket dashboard pattern. The
+  // basemap toggle stays available — operators can swap to Street /
+  // Satellite / Vegetation for street-level or imagery-heavy work.
+  const [basemap, setBasemap] = useState<BasemapId>("topography");
   const [buildingsOn, setBuildingsOn] = useState(true);
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
