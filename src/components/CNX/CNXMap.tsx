@@ -40,6 +40,7 @@ import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
 import { useRtcBusSim } from "../../hooks/useRtcBusSim";
 import { RTC_LINE_COLOURS, SIM_SPEED_KMH, type RtcLine, type SimBus } from "../../lib/cnx/rtc-bus-sim";
+import type { WeatherLayerUrls } from "../../lib/cnx/weather-layers";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
@@ -119,6 +120,54 @@ function templeColorExpr(): DataDrivenPropertyValueSpecification<string> {
     "rgba(16, 185, 129, 0.95)",
     "rgba(218, 165, 32, 0.98)",     // generic Doi Suthep gold
   ];
+}
+
+/** Small uppercase heading between toggle groups in the left-hand
+ *  layer bar (3D City / Transit / Weather & Air / Range Rings). */
+function ToggleGroupLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
+  return (
+    <div className={`px-1 text-[8px] font-bold uppercase tracking-[0.18em] text-[#8a8578] ${first ? "" : "mt-1.5"}`}>
+      {children}
+    </div>
+  );
+}
+
+/** One toggle in the left-hand layer bar. `disabled` greys the button
+ *  out and blocks the click — used when a layer's data isn't available
+ *  yet (e.g. a weather overlay whose upstream has no current tile). */
+function MapToggleButton({
+  pressed,
+  onClick,
+  activeClassName,
+  disabled,
+  title,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  activeClassName: string;
+  disabled?: boolean;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={pressed}
+      title={title}
+      className={`border px-2 py-1 text-left text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
+        disabled
+          ? "cursor-not-allowed border-[#e5e1d6] bg-white/70 text-[#b8b3a6]"
+          : pressed
+          ? activeClassName
+          : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b] hover:border-[#1d2951]"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function buildFlightLayers(flights: FlightState[]) {
@@ -265,6 +314,7 @@ interface MapProps {
   cmuStations?: CmuStation[];
   cmuRoutes?: Record<string, CmuRoute>;
   rtcLines?: RtcLine[];
+  weatherLayers?: WeatherLayerUrls | null;
 }
 
 const NO_RTC_LINES: RtcLine[] = [];
@@ -287,6 +337,7 @@ export default function CNXMap({
   cmuStations = [],
   cmuRoutes = {},
   rtcLines = NO_RTC_LINES,
+  weatherLayers = null,
 }: MapProps) {
   // Default to Topography — Chiang Mai sits in a mountain basin (Doi Suthep,
   // Doi Inthanon, the Ping valley), and the topographic context drives the
@@ -307,6 +358,10 @@ export default function CNXMap({
   const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
   const [airportBusOn, setAirportBusOn] = useState(true);
   const airportBuses = useRtcBusSim(rtcLines, airportBusOn);
+  // Off by default — supplementary weather context, not core-view clutter.
+  const [rainRadarOn, setRainRadarOn] = useState(false);
+  const [himawariOn, setHimawariOn] = useState(false);
+  const [aerosolLayerOn, setAerosolLayerOn] = useState(false);
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
@@ -769,6 +824,52 @@ export default function CNXMap({
     };
   }, [basemap, buildingsOn, templesOn]);
 
+  // Weather overlays — rain radar, Himawari infrared, MODIS aerosol.
+  // Tile URL templates come from /api/cnx/weather-layers (server-side
+  // time-slot resolution — see lib/cnx/weather-layers.ts); this effect
+  // just adds/removes the raster source+layer per toggle. Switching
+  // basemap replaces the whole style object and wipes these along with
+  // the 3D city layers above, so `basemap` is a dependency here too.
+  useEffect(() => {
+    const map = mlMapRef.current;
+    if (!map) return;
+    let cancelled = false;
+
+    const overlays: { id: string; on: boolean; url: string | null; attribution: string; opacity: number }[] = [
+      { id: "cnx-rain-radar", on: rainRadarOn, url: weatherLayers?.rainRadar ?? null, attribution: weatherLayers?.attribution.rainRadar ?? "", opacity: 0.55 },
+      { id: "cnx-himawari", on: himawariOn, url: weatherLayers?.himawari ?? null, attribution: weatherLayers?.attribution.himawari ?? "", opacity: 0.5 },
+      { id: "cnx-aerosol", on: aerosolLayerOn, url: weatherLayers?.aerosol ?? null, attribution: weatherLayers?.attribution.aerosol ?? "", opacity: 0.65 },
+    ];
+
+    const setup = async () => {
+      if (!map.isStyleLoaded()) {
+        await new Promise<void>((resolve) => map.once("idle", () => resolve()));
+      }
+      if (cancelled) return;
+      try {
+        for (const layer of overlays) {
+          const sourceId = `${layer.id}-src`;
+          if (map.getLayer(layer.id)) map.removeLayer(layer.id);
+          if (map.getSource(sourceId)) map.removeSource(sourceId);
+          if (!layer.on || !layer.url) continue;
+          map.addSource(sourceId, {
+            type: "raster",
+            tiles: [layer.url],
+            tileSize: 256,
+            attribution: layer.attribution,
+          });
+          map.addLayer({ id: layer.id, type: "raster", source: sourceId, paint: { "raster-opacity": layer.opacity } });
+        }
+      } catch (e) {
+        console.warn(`[weather-layers] setup failed: ${(e as Error).message}`);
+      }
+    };
+    void setup();
+    return () => {
+      cancelled = true;
+    };
+  }, [basemap, weatherLayers, rainRadarOn, himawariOn, aerosolLayerOn]);
+
   return (
     <div className="relative h-full w-full overflow-hidden">
       <DeckGL
@@ -833,117 +934,121 @@ export default function CNXMap({
         ))}
       </div>
 
-      {/* 3D layer toggles, top-left */}
-      <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
-        <button
-          type="button"
+      {/* Layer toggles, top-left — grouped so the operator can scan by
+          concern (city, transit, weather, range) instead of a flat
+          undifferentiated stack. Scrolls internally past ~13 buttons
+          rather than running off the bottom of a short viewport. */}
+      <div className="absolute left-2 top-2 z-10 flex max-h-[calc(100%-5.5rem)] w-[168px] flex-col gap-1 overflow-y-auto">
+        <ToggleGroupLabel first>3D City</ToggleGroupLabel>
+        <MapToggleButton
+          pressed={buildingsOn}
           onClick={handleToggle3D}
-          aria-pressed={buildingsOn}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] shadow-sm transition-all ${
-            buildingsOn
-              ? "border-[#1d2951] bg-[#1d2951] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b] hover:border-[#1d2951]"
-          }`}
+          activeClassName="border-[#1d2951] bg-[#1d2951] text-white shadow-sm"
         >
-          {buildingsOn ? "3D City: ON" : "3D City: 2D"}
-        </button>
-        <button
-          type="button"
+          {buildingsOn ? "3D City: on" : "3D City: 2D"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={templesOn}
           onClick={() => setTemplesOn((v) => !v)}
-          aria-pressed={templesOn}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-            templesOn
-              ? "border-[#b8860b] bg-[#b8860b] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-          }`}
+          activeClassName="border-[#b8860b] bg-[#b8860b] text-white"
         >
-          {templesOn ? `Temples: gold` : "Temples: off"}
-        </button>
-        <button
-          type="button"
+          {templesOn ? "Temples: gold" : "Temples: off"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={wallsOn}
           onClick={() => setWallsOn((v) => !v)}
-          aria-pressed={wallsOn}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-            wallsOn
-              ? "border-[#1d2951] bg-[#1d2951] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-          }`}
+          activeClassName="border-[#1d2951] bg-[#1d2951] text-white"
         >
           {wallsOn ? "Walls: on" : "Walls: off"}
-        </button>
-        <button
-          type="button"
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={waterwaysOn}
           onClick={() => setWaterwaysOn((v) => !v)}
-          aria-pressed={waterwaysOn}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-            waterwaysOn
-              ? "border-[#1d4ed8] bg-[#1d4ed8] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-          }`}
+          activeClassName="border-[#1d4ed8] bg-[#1d4ed8] text-white"
         >
           {waterwaysOn ? "Rivers: on" : "Rivers: off"}
-        </button>
-        <button
-          type="button"
+        </MapToggleButton>
+
+        <ToggleGroupLabel>Transit</ToggleGroupLabel>
+        <MapToggleButton
+          pressed={busesOn}
           onClick={() => setBusesOn((v) => !v)}
-          aria-pressed={busesOn}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-            busesOn
-              ? "border-[#b8860b] bg-[#b8860b] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-          }`}
+          activeClassName="border-[#b8860b] bg-[#b8860b] text-white"
         >
-          {busesOn ? `Buses: on` : "Buses: off"}
-        </button>
-        <button
-          type="button"
+          {busesOn ? "Buses: on" : "Buses: off"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={cmuShuttleOn}
           onClick={() => setCmuShuttleOn((v) => !v)}
-          aria-pressed={cmuShuttleOn}
+          activeClassName="border-[#725b40] bg-[#725b40] text-white"
           title="Live CMU shuttle positions — opens a connection to the university's public MQTT feed while on"
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-            cmuShuttleOn
-              ? "border-[#725b40] bg-[#725b40] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-          }`}
         >
           {cmuShuttleOn ? `CMU Shuttle: on (${cmuBuses.length})` : "CMU Shuttle: off"}
-        </button>
-        <button
-          type="button"
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={airportBusOn}
           onClick={() => setAirportBusOn((v) => !v)}
-          aria-pressed={airportBusOn}
+          activeClassName="border-[#e53935] bg-[#e53935] text-white"
           title={`RTC 24A/24B/24C airport buses, simulated from the published timetable at ${SIM_SPEED_KMH} km/h — not live GPS`}
-          className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-            airportBusOn
-              ? "border-[#e53935] bg-[#e53935] text-white"
-              : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-          }`}
         >
           {airportBusOn ? `Airport Bus: sim (${airportBuses.length})` : "Airport Bus: off"}
-        </button>
-        {[1, 5, 10].map((km) => {
-          const on = gridRadii.has(km);
-          return (
-            <button
-              key={km}
-              type="button"
-              onClick={() =>
-                setGridRadii((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(km)) next.delete(km);
-                  else next.add(km);
-                  return next;
-                })
-              }
-              aria-pressed={on}
-              className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-                on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
-              }`}
-            >
-              {km} km
-            </button>
-          );
-        })}
+        </MapToggleButton>
+
+        <ToggleGroupLabel>Weather &amp; Air</ToggleGroupLabel>
+        <MapToggleButton
+          pressed={rainRadarOn}
+          onClick={() => setRainRadarOn((v) => !v)}
+          activeClassName="border-[#0891b2] bg-[#0891b2] text-white"
+          disabled={!weatherLayers?.rainRadar}
+          title="Live precipitation radar — RainViewer, refreshes ~every 10 min"
+        >
+          {weatherLayers?.rainRadar ? (rainRadarOn ? "Rain Radar: on" : "Rain Radar: off") : "Rain Radar: no data"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={himawariOn}
+          onClick={() => setHimawariOn((v) => !v)}
+          activeClassName="border-[#7c3aed] bg-[#7c3aed] text-white"
+          disabled={!weatherLayers?.himawari}
+          title="Himawari-9 infrared cloud imagery — NASA GIBS / JMA, ~10 min cadence"
+        >
+          {weatherLayers?.himawari ? (himawariOn ? "Satellite IR: on" : "Satellite IR: off") : "Satellite IR: no data"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={aerosolLayerOn}
+          onClick={() => setAerosolLayerOn((v) => !v)}
+          activeClassName="border-[#a16207] bg-[#a16207] text-white"
+          disabled={!weatherLayers?.aerosol}
+          title="MODIS aerosol optical depth — haze / smoke density, daily, NASA GIBS"
+        >
+          {weatherLayers?.aerosol ? (aerosolLayerOn ? "Aerosol (AOD): on" : "Aerosol (AOD): off") : "Aerosol (AOD): no data"}
+        </MapToggleButton>
+
+        <ToggleGroupLabel>Range Rings</ToggleGroupLabel>
+        <div className="flex gap-1">
+          {[1, 5, 10].map((km) => {
+            const on = gridRadii.has(km);
+            return (
+              <button
+                key={km}
+                type="button"
+                onClick={() =>
+                  setGridRadii((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(km)) next.delete(km);
+                    else next.add(km);
+                    return next;
+                  })
+                }
+                aria-pressed={on}
+                className={`flex-1 border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+                  on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+                }`}
+              >
+                {km} km
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Flight count badge, top-right */}

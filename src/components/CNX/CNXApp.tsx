@@ -36,6 +36,7 @@ import type { OutboundAnalysis } from "../../lib/cnx/outbound";
 import type { Waterway } from "../../lib/cnx/waterways";
 import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import type { RtcLine, RtcLinesFile } from "../../lib/cnx/rtc-bus-sim";
+import type { WeatherLayerUrls } from "../../lib/cnx/weather-layers";
 import type { BusRoute } from "../../types/cnx";
 
 import CnxSocialSidebar from "./CNXSocialSidebar";
@@ -93,6 +94,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [cmuStations, setCmuStations] = useState<CmuStation[]>([]);
   const [cmuRoutes, setCmuRoutes] = useState<Record<string, CmuRoute>>({});
   const [rtcLines, setRtcLines] = useState<RtcLine[]>([]);
+  const [weatherLayers, setWeatherLayers] = useState<WeatherLayerUrls | null>(null);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -218,13 +220,15 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [nextSocial, nextStory] = await Promise.all([
+      const [nextSocial, nextStory, nextWeatherLayers] = await Promise.all([
         fetchJsonOrNull<SocialListeningResponse>(buildScenarioUrl("/api/cnx/social", scenarioId)),
         fetchJsonOrNull<CnxStoryResponse>(buildScenarioUrl("/api/cnx/story", scenarioId)),
+        fetchJsonOrNull<WeatherLayerUrls>("/api/cnx/weather-layers"),
       ]);
       if (!cancelled) {
         if (nextSocial) setSocial(nextSocial);
         if (nextStory) setStory(nextStory);
+        if (nextWeatherLayers) setWeatherLayers(nextWeatherLayers);
       }
     };
     void load();
@@ -351,6 +355,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             cmuStations={cmuStations}
             cmuRoutes={cmuRoutes}
             rtcLines={rtcLines}
+            weatherLayers={weatherLayers}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
