@@ -12,7 +12,8 @@
 | Royal Forest Department | Fire safety panel | wildfire.forest.go.th/firemap/getdb.php | none |
 | Open-Meteo CAMS | Air quality + AOD | air-quality-api.open-meteo.com | none |
 | ThaiWater / HII | Flood panel | water.rid.go.th (scenario fallback) | key TBD |
-| NASA GIBS | Satellite layer | gibs.earthdata.nasa.gov | none |
+| NASA GIBS | Satellite layer + Himawari-9 IR + MODIS AOD weather overlays | gibs.earthdata.nasa.gov | none |
+| RainViewer | Live precipitation radar tiles | api.rainviewer.com | none |
 | Longdo CCTV | CCTV strip | longdo.com/services/cctv | key TBD |
 | iTIC | CCTV strip | itic.traffic.rid.go.th | key TBD |
 | OpenSky Network | Flight panel | opensky-network.org | anonymous |

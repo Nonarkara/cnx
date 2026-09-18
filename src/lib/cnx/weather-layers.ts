@@ -19,10 +19,20 @@ const RAINVIEWER_MAPS_URL = "https://api.rainviewer.com/public/weather-maps.json
 const RAINVIEWER_HOST = "https://tilecache.rainviewer.com";
 
 async function gibsTileExists(layer: string, tms: string, time: string): Promise<boolean> {
+  const url = `${GIBS_BASE}/${layer}/default/${time}/${tms}/${REF_TILE.z}/${REF_TILE.y}/${REF_TILE.x}.png`;
+  // HEAD first — a probe only needs existence, not the PNG bytes
+  // (up to 25 probes on a cold start). Some CDN edges answer HEAD
+  // with 403/405 while GET works, so fall back to GET there; only a
+  // 404 means "no tile for this slot, keep probing older".
   try {
-    const url = `${GIBS_BASE}/${layer}/default/${time}/${tms}/${REF_TILE.z}/${REF_TILE.y}/${REF_TILE.x}.png`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
-    return res.ok;
+    const head = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(6_000) });
+    if (head.ok) return true;
+    if (head.status === 404) return false;
+    if (head.status === 405 || head.status === 501 || head.status === 403) {
+      const get = await fetch(url, { signal: AbortSignal.timeout(6_000) });
+      return get.ok;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -75,19 +85,25 @@ async function resolveRainRadarPath(): Promise<{ host: string; path: string; gen
   try {
     const res = await fetch(RAINVIEWER_MAPS_URL, { signal: AbortSignal.timeout(8_000) });
     if (!res.ok) return null;
-    const json = (await res.json()) as RainViewerResponse;
-    const latest = json.radar.past.at(-1);
-    if (!latest) return null;
-    return { host: json.host || RAINVIEWER_HOST, path: latest.path, generatedAt: latest.time * 1000 };
+    const json = (await res.json()) as Partial<RainViewerResponse>;
+    const past = json.radar?.past;
+    const latest = Array.isArray(past) ? past.at(-1) : undefined;
+    // Guard the shape — a half-changed upstream schema must degrade to
+    // "no radar right now", never to a template with "undefined" in it.
+    if (!latest || typeof latest.path !== "string" || typeof latest.time !== "number") return null;
+    const host = typeof json.host === "string" && json.host ? json.host : RAINVIEWER_HOST;
+    return { host, path: latest.path, generatedAt: latest.time * 1000 };
   } catch {
     return null;
   }
 }
 
 export interface WeatherLayerUrls {
-  /** MapLibre raster tile URL, with {z}/{x}/{y} placeholders — null when
-   *  the upstream has no data available right now (all three degrade
-   *  independently; a dead one doesn't block the others). */
+  /** MapLibre raster tile URL template — null when the upstream has no
+   *  data available right now (all three degrade independently; a dead
+   *  one doesn't block the others). RainViewer uses {z}/{x}/{y}; the
+   *  GIBS WMTS templates use {z}/{y}/{x} order, which MapLibre fills
+   *  correctly since it substitutes each placeholder by name. */
   rainRadar: string | null;
   himawari: string | null;
   aerosol: string | null;

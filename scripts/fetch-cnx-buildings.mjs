@@ -2,10 +2,12 @@
 /**
  * fetch-cnx-buildings.mjs
  *
- * Pull every OSM building footprint inside the Chiang Mai bbox and
- * emit a single GeoJSON with `height` + `base_height` on every feature,
- * plus empty attribute boxes ready to be filled (the same pattern as
- * atlas.nonarkara.org's bkk-buildings-rattanakosin.geojson).
+ * DEPRECATED — superseded by fetch-cnx-buildings-3d.mjs, which splits
+ * the extraction into buildings-core / buildings-wide / temples /
+ * walls as valid RFC 7946 GeoJSON. This script's single-file
+ * `buildings.geojson` output is no longer read by anything (deleted
+ * from public/data/cnx to save ~22 MB of deploy payload) and is kept
+ * only for one-off ad-hoc extracts.
  *
  * Heuristics for height (priority order):
  *   1. `height` tag (if present and parseable)

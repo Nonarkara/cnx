@@ -26,6 +26,7 @@ import type {
   CctvFeedResponse,
   CnxFiresResponse,
   CnxFloodResponse,
+  CnxHeritageSite,
   CnxStoryResponse,
   SocialListeningResponse,
 } from "../../types/cnx";
@@ -99,6 +100,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
   const [waterways, setWaterways] = useState<Waterway[]>([]);
+  const [heritage, setHeritage] = useState<CnxHeritageSite[]>([]);
   const [visitorAnalytics, setVisitorAnalytics] = useState<VisitorAnalytics | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -139,6 +141,19 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           geometry: f.geometry.coordinates,
         })),
       );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Heritage — one-time fetch from the curated static API (12 sites,
+  // 24 h server cache). Previously hardcoded to [] so the map's
+  // heritage layer never had data.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchJsonOrNull<{ sites?: CnxHeritageSite[] }>("/api/cnx/heritage").then((d) => {
+      if (!cancelled && d?.sites) setHeritage(d.sites);
     });
     return () => {
       cancelled = true;
@@ -345,7 +360,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         >
           <CNXMap
             flights={flightStates}
-            heritage={[]}
+            heritage={heritage}
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}

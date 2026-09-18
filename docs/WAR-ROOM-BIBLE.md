@@ -38,6 +38,7 @@ If you read only one paragraph:
 | **CCTV** | 12 corridor cameras + reachable/live count | Longdo / iTIC / TAT / YouTube | 1 min |
 | **Flights** | Real-time airspace count over the CNX bbox, plane size buckets | [OpenSky Network](https://opensky-network.org) | 30 s |
 | **Heritage** | 12 curated temples / parks / waterfalls / gates | static (curated) | 24 h |
+| **Weather overlays** | Live rain radar + Himawari-9 IR + MODIS AOD raster tiles on the map | RainViewer + NASA GIBS | 3 min |
 | **Open Data** | 311 datasets on data.go.th matching `เชียงใหม่` / `Chiang Mai` | [data.go.th CKAN](https://data.go.th) | on-demand (`npm run fetch:opendata`) |
 | **Social listening** | Thai + English + GDELT mentions of Chiang Mai | Google News RSS + GDELT 2.0 | 3 min |
 | **Story** | Keystone narrative + actionable bullets, computed from live state | derived | 3 min |

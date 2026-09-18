@@ -81,6 +81,19 @@ describe("fetchWeatherLayerUrls", () => {
     expect(result.aerosol).toContain(`/${goodDate}/`);
   });
 
+  it("returns null for rainRadar when RainViewer changes schema, not a broken template", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("rainviewer")) return jsonResponse({ host: "https://tilecache.rainviewer.com", radar: {} });
+        return new Response(null, { status: 503 });
+      }),
+    );
+    const { fetchWeatherLayerUrls } = await freshModule();
+    const result = await fetchWeatherLayerUrls();
+    expect(result.rainRadar).toBeNull();
+  });
+
   it("gives up after a bounded number of probes rather than searching forever", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.includes("rainviewer")) return new Response(null, { status: 503 });
