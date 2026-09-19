@@ -34,7 +34,7 @@ import type { DataDrivenPropertyValueSpecification } from "@maplibre/maplibre-gl
 
 import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/basemap-styles";
 import type { FlightState } from "../../lib/cnx/opensky";
-import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge } from "../../types/cnx";
+import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge, CctvSlot } from "../../types/cnx";
 import type { Waterway } from "../../lib/cnx/waterways";
 import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
@@ -308,6 +308,7 @@ interface MapProps {
   airStations?: AirStation[];
   fireHotspots?: FireHotspot[];
   floodGauges?: CnxFloodGauge[];
+  cctv?: CctvSlot[];
   busRoutes?: BusRoute[];
   walls?: WallFeature[];
   waterways?: Waterway[];
@@ -331,6 +332,7 @@ export default function CNXMap({
   airStations = [],
   fireHotspots = [],
   floodGauges = [],
+  cctv = [],
   busRoutes = [],
   walls = [],
   waterways = [],
@@ -628,18 +630,49 @@ export default function CNXMap({
       pickable: true,
     });
 
+    // CCTV cameras — square-ish dots (slightly larger than gauges so the
+    // operator can spot coverage gaps). Colour by category; offline
+    // cameras render grey, never green.
+    const cctvLayer = new ScatterplotLayer<CctvSlot>({
+      id: "cnx-cctv",
+      data: cctv,
+      getPosition: (d) => [d.longitude, d.latitude],
+      getRadius: 7,
+      radiusUnits: "pixels",
+      getFillColor: (d) => {
+        if (!d.reachable) return [107, 107, 107, 200];
+        switch (d.category) {
+          case "traffic":
+          case "highway":
+            return [29, 41, 81, 220];
+          case "flood":
+            return [29, 78, 216, 220];
+          case "heritage":
+          case "tourism":
+            return [184, 134, 11, 220];
+          default:
+            return [29, 41, 81, 220];
+        }
+      },
+      getLineColor: () => [255, 255, 255, 230],
+      lineWidthMinPixels: 1.5,
+      stroked: true,
+      pickable: true,
+    });
+
     return [
       ...flightLayers,
       heritageLayer,
       airLayer,
       fireLayer,
       floodLayer,
+      cctvLayer,
       ...(wallLayer ? [wallLayer] : []),
       ...(waterwayLayer ? [waterwayLayer] : []),
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -903,6 +936,10 @@ export default function CNXMap({
             return `CMU shuttle ${b.bus} · route ${b.route}\n${b.passenger} on board · live GPS`;
           }
           if (layer.id === "cmu-transit-stations") return (object as CmuStation).name;
+          if (layer.id === "cnx-cctv") {
+            const c = object as CctvSlot;
+            return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? "วิดีโอสด" : "ภาพนิ่งรีเฟรช") : "OFFLINE"} — เปิดดูในแถบ CCTV ด้านบน`;
+          }
           return null;
         }}
       >

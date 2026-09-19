@@ -1,23 +1,25 @@
 // CNX CCTV strip — sources of truth:
 //
-//   1. Longdo's national camera index (camera.longdo.com/feed) — free,
-//      public, no key required. It already aggregates iTIC Motion,
-//      BMA, and other municipal feeds nationwide; we just filter to
-//      the CNX bbox. Coverage inside Chiang Mai proper is currently
-//      sparse (Longdo's network is heaviest around Bangkok), so real
-//      cameras are merged into the curated scenario set rather than
-//      replacing it outright.
-//   2. iTIC Thailand traffic cams (itic.traffic.rid.go.th). DoH ITS
-//      provincial highway cameras — needs a key we don't have; left
-//      as a stub.
-//   3. Tourism Authority of Thailand (TAT) live cams at Wat Phra
-//      Singh and Doi Suthep — used during burning-season advisories.
+//   1. Windy.com public webcams (9 across the basin + Lamphun corridors)
+//      — keyless snapshot JPEGs + day-player iframes. Registry + probing
+//      in cctv-windy.ts. This is the backbone: verified live 2026-09-19.
+//   2. Longdo's national camera index (camera.longdo.com/feed) — free,
+//      public, no key. Filtered to the operational bbox (basin +
+//      approach corridors, not the whole province box) so distant
+//      Tak/Uttaradit highway cams don't masquerade as Chiang Mai feeds.
+//   3. Municipal registry (municipal-cameras.ts) — empty until the
+//      municipality onboards cameras via docs/CCTV-PIPELINE.md.
 //
-// When the upstream returns nothing new we degrade to the curated
-// scenario set so the strip never goes blank.
+// There is deliberately NO scenario filler. A previous revision rendered
+// 12 curated slots with green reachable dots and no streams behind them;
+// that is exactly the fake-green the About-page doctrine forbids. When
+// every upstream is down the strip says so honestly and keeps the
+// municipal onboarding call-to-action visible.
 
 import { CNX_PROVINCE } from "./config";
 import type { CctvFeedResponse, CctvSlot, CctvSource } from "../../types/cnx";
+import { MUNICIPAL_CAMERAS } from "./municipal-cameras";
+import { WINDY_CAMERAS, WINDY_TTL_MS, probeWindySnapshots } from "./cctv-windy";
 
 interface UpstreamCctv {
   id: string;
@@ -85,47 +87,73 @@ async function fetchLongdo(): Promise<UpstreamCctv[]> {
 
 async function fetchItic(): Promise<UpstreamCctv[]> {
   // itic.traffic.rid.go.th — DoH ITS mirrors — needs API key
-  // provisioned. Until then, scenario fallback.
+  // provisioned. Until then, nothing (never filler).
   return [];
 }
 
-// ─── Scenario fallback (12 slots) ────────────────────────────────
+// ─── Operational bbox ──────────────────────────────────────────
+// Tighter than CNX_PROVINCE.bbox (which spans Tak→Uttaradit): the CCTV
+// wall covers the basin + approach corridors only, so a Tak highway
+// camera never renders as a Chiang Mai feed.
+const CCTV_BBOX = { west: 98.5, south: 18.3, east: 99.5, north: 19.4 };
 
-const SCENARIO_SLOTS: CctvSlot[] = [
-  { id: "cnx-c01", label: "Nawarat Bridge", source: "longdo", longitude: 99.0008, latitude: 18.7887, hlsUrl: undefined, posterUrl: undefined, reachable: true, category: "traffic" },
-  { id: "cnx-c02", label: "Tha Phae Gate", source: "longdo", longitude: 98.9933, latitude: 18.7909, reachable: true, category: "heritage" },
-  { id: "cnx-c03", label: "Mae Ping Bridge", source: "longdo", longitude: 99.0291, latitude: 18.7821, reachable: true, category: "highway" },
-  { id: "cnx-c04", label: "Doi Suthep Lower", source: "youtube", longitude: 98.9215, latitude: 18.8048, hlsUrl: undefined, posterUrl: undefined, reachable: true, category: "tourism" },
-  { id: "cnx-c05", label: "CNX Airport Apron", source: "private", longitude: 98.9622, latitude: 18.7715, reachable: true, category: "highway" },
-  { id: "cnx-c06", label: "Night Bazaar", source: "longdo", longitude: 99.0003, latitude: 18.7843, reachable: true, category: "heritage" },
-  { id: "cnx-c07", label: "Nimman One", source: "youtube", longitude: 98.9671, latitude: 18.8014, reachable: true, category: "tourism" },
-  { id: "cnx-c08", label: "Hang Dong Junction", source: "itic", longitude: 98.9213, latitude: 18.6871, reachable: true, category: "traffic" },
-  { id: "cnx-c09", label: "Mae Rim Highway", source: "itic", longitude: 98.9611, latitude: 18.9101, reachable: true, category: "highway" },
-  { id: "cnx-c10", label: "Ping River Park", source: "longdo", longitude: 99.029, latitude: 18.797, reachable: true, category: "flood" },
-  { id: "cnx-c11", label: "Wat Phra Singh", source: "youtube", longitude: 98.9867, latitude: 18.7895, reachable: true, category: "heritage" },
-  { id: "cnx-c12", label: "Doi Inthanon Summit", source: "private", longitude: 98.4867, latitude: 18.5883, reachable: false, category: "tourism" },
-];
+function inCctvBbox(lon: number, lat: number): boolean {
+  return lon >= CCTV_BBOX.west && lon <= CCTV_BBOX.east && lat >= CCTV_BBOX.south && lat <= CCTV_BBOX.north;
+}
+
+interface WindySlot extends UpstreamCctv {
+  playerUrl: string;
+  upstreamUrl: string;
+}
+
+let windyCache: { at: number; slots: WindySlot[] } | null = null;
+
+async function fetchWindy(): Promise<WindySlot[]> {
+  if (windyCache && Date.now() - windyCache.at < WINDY_TTL_MS) return windyCache.slots;
+  const probes = await probeWindySnapshots();
+  const byId = new Map(probes.map((p) => [p.id, p.reachable]));
+  const slots: WindySlot[] = WINDY_CAMERAS.map((c) => ({
+    id: c.id,
+    label: c.nameTh ? `${c.nameTh} · ${c.name}` : c.name,
+    longitude: c.longitude,
+    latitude: c.latitude,
+    posterUrl: c.snapshot,
+    playerUrl: c.player,
+    upstreamUrl: c.detail,
+    source: "windy" as CctvSource,
+    category: c.category === "tourism" ? "tourism" : "traffic",
+    reachable: byId.get(c.id) ?? false,
+  }));
+  windyCache = { at: Date.now(), slots };
+  return slots;
+}
 
 let cache: { at: number; data: CctvFeedResponse } | null = null;
 const TTL_MS = 60_000;
 
 export async function fetchCnxCctv(): Promise<CctvFeedResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
-  const [longdo, itic] = await Promise.all([fetchLongdo(), fetchItic()]);
-  const live: CctvSlot[] = [...longdo, ...itic].map((u) => ({ ...u, reachable: u.reachable ?? true }));
-  // Live cameras are merged into the curated scenario set rather than
-  // replacing it — national feeds (Longdo) currently have sparse
-  // coverage inside Chiang Mai proper, so a handful of real cameras
-  // shouldn't blank out the other 12 curated slots.
-  //
-  // Scenario slots keep a deterministic reachable-flag jitter (so the
-  // strip isn't a wall of green dots); live slots report their real
-  // fetch outcome, which is already true here.
-  const scenario = SCENARIO_SLOTS.map((s) => ({
-    ...s,
-    reachable: s.reachable && s.id.charCodeAt(s.id.length - 1) % 5 !== 0,
+  const [longdo, itic, windy] = await Promise.all([fetchLongdo(), fetchItic(), fetchWindy()]);
+  // Longdo is national: keep only cameras inside the operational bbox.
+  const live: CctvSlot[] = [...longdo, ...itic]
+    .filter((u) => inCctvBbox(u.longitude, u.latitude))
+    .map((u) => ({ ...u, reachable: u.reachable ?? true }));
+  const windySlots: CctvSlot[] = windy.map((w) => ({
+    ...w,
+    snapshotRefreshSec: Math.round(WINDY_TTL_MS / 1000),
   }));
-  const slots: CctvSlot[] = [...live, ...scenario];
+  const municipal: CctvSlot[] = MUNICIPAL_CAMERAS.map((m) => ({
+    id: m.id,
+    label: m.label,
+    longitude: m.longitude,
+    latitude: m.latitude,
+    hlsUrl: m.hlsUrl,
+    posterUrl: m.snapshotUrl,
+    source: "municipal" as CctvSource,
+    category: m.category,
+    reachable: Boolean(m.hlsUrl || m.snapshotUrl),
+  }));
+  const slots: CctvSlot[] = [...windySlots, ...live, ...municipal];
   const reachableCount = slots.filter((s) => s.reachable).length;
   const response: CctvFeedResponse = {
     generatedAt: new Date().toISOString(),

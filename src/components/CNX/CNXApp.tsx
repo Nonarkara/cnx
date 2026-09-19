@@ -364,6 +364,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
+            cctv={cctv?.slots ?? []}
             busRoutes={busRoutes}
             walls={walls}
             waterways={waterways}

@@ -98,7 +98,7 @@ export interface SocialListeningResponse {
 
 // ─── CCTV ────────────────────────────────────────────────────────
 
-export type CctvSource = "longdo" | "itic" | "doh" | "private" | "lanta" | "youtube";
+export type CctvSource = "longdo" | "itic" | "doh" | "private" | "lanta" | "youtube" | "windy" | "municipal";
 
 export interface CctvSlot {
   id: string;
@@ -108,6 +108,12 @@ export interface CctvSlot {
   latitude: number;
   hlsUrl?: string;
   posterUrl?: string;
+  /** Day-player / upstream player page to <iframe> in the modal. */
+  playerUrl?: string;
+  /** Link-out for attribution (upstream detail page). */
+  upstreamUrl?: string;
+  /** Seconds between snapshot refreshes (still-image cameras). */
+  snapshotRefreshSec?: number;
   reachable: boolean;
   category: "highway" | "heritage" | "flood" | "traffic" | "tourism";
 }

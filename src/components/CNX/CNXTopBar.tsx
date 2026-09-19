@@ -95,8 +95,8 @@ export default function CnxTopBar(props: TopBarProps) {
             <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--cool)]">
               Chiang Mai Province War Room
             </div>
-            <div className="font-mono text-[12px] font-bold text-[var(--ink)]">
-              เชียงใหม่ · v1
+            <div className="font-display text-[19px] font-bold leading-tight text-[var(--ink)]">
+              เชียงใหม่ · ห้องบัญชาการ
             </div>
           </div>
           <CNXLogoRow size={22} />
