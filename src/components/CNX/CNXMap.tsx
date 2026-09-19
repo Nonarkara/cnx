@@ -835,10 +835,13 @@ export default function CNXMap({
     if (!map) return;
     let cancelled = false;
 
-    const overlays: { id: string; on: boolean; url: string | null; attribution: string; opacity: number }[] = [
-      { id: "cnx-rain-radar", on: rainRadarOn, url: weatherLayers?.rainRadar ?? null, attribution: weatherLayers?.attribution.rainRadar ?? "", opacity: 0.55 },
-      { id: "cnx-himawari", on: himawariOn, url: weatherLayers?.himawari ?? null, attribution: weatherLayers?.attribution.himawari ?? "", opacity: 0.5 },
-      { id: "cnx-aerosol", on: aerosolLayerOn, url: weatherLayers?.aerosol ?? null, attribution: weatherLayers?.attribution.aerosol ?? "", opacity: 0.65 },
+    // maxzoom = the deepest tile level each upstream actually serves; past it
+    // MapLibre upscales the last level instead of requesting tiles that
+    // don't exist (GIBS Level6 400s on z7+, RainViewer's free tier tops out at z7).
+    const overlays: { id: string; on: boolean; url: string | null; attribution: string; opacity: number; maxzoom: number }[] = [
+      { id: "cnx-rain-radar", on: rainRadarOn, url: weatherLayers?.rainRadar ?? null, attribution: weatherLayers?.attribution.rainRadar ?? "", opacity: 0.55, maxzoom: 7 },
+      { id: "cnx-himawari", on: himawariOn, url: weatherLayers?.himawari ?? null, attribution: weatherLayers?.attribution.himawari ?? "", opacity: 0.5, maxzoom: 6 },
+      { id: "cnx-aerosol", on: aerosolLayerOn, url: weatherLayers?.aerosol ?? null, attribution: weatherLayers?.attribution.aerosol ?? "", opacity: 0.65, maxzoom: 6 },
     ];
 
     const setup = async () => {
@@ -856,6 +859,7 @@ export default function CNXMap({
             type: "raster",
             tiles: [layer.url],
             tileSize: 256,
+            maxzoom: layer.maxzoom,
             attribution: layer.attribution,
           });
           map.addLayer({ id: layer.id, type: "raster", source: sourceId, paint: { "raster-opacity": layer.opacity } });
