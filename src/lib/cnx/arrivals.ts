@@ -22,6 +22,7 @@
 import { OPENSKY_BASE, getAccessToken, fetchAircraftMetadata } from "./opensky";
 import { lookupAircraft } from "./aircraft";
 import { isThaiAirport, lookupAirport } from "./airports";
+import { readArrivalsFromKv } from "./arrivals-kv";
 
 const AIRPORT_ICAO = "VTCC"; // Chiang Mai International
 
@@ -30,7 +31,7 @@ const AIRPORT_ICAO = "VTCC"; // Chiang Mai International
 // single source of truth — change here, not per call site.
 export const ASSUMED_LOAD_FACTOR = 0.82;
 
-interface OpenSkyArrival {
+export interface OpenSkyArrival {
   icao24: string;
   firstSeen: number;
   estDepartureAirport: string | null;
@@ -95,15 +96,12 @@ async function fetchArrivalsWindow(startSec: number, endSec: number): Promise<Op
   return json ?? [];
 }
 
-async function summariseDay(daysAgo: number, typecodeByIcao: Map<string, string | undefined>): Promise<DayArrivals> {
-  const { date, startSec, endSec } = bangkokDayRange(daysAgo);
-  let arrivals: OpenSkyArrival[] = [];
-  try {
-    arrivals = await fetchArrivalsWindow(startSec, endSec);
-  } catch (e) {
-    console.warn(`[arrivals] fetch failed for ${date}: ${(e as Error).message}`);
-  }
-
+/** Pure: turns one day's raw arrival records into the per-day summary. */
+export function summariseArrivalRecords(
+  date: string,
+  arrivals: OpenSkyArrival[],
+  typecodeByIcao: Map<string, string | undefined>,
+): DayArrivals {
   const byCountry = new Map<string, { flights: number; estimatedVisitors: number }>();
   let internationalFlights = 0;
   let domesticFlights = 0;
@@ -138,9 +136,36 @@ async function summariseDay(daysAgo: number, typecodeByIcao: Map<string, string 
   };
 }
 
+export interface ArrivalsWindow {
+  /** YYYY-MM-DD, Asia/Bangkok. */
+  date: string;
+  arrivals: OpenSkyArrival[];
+}
+
+/** Pure: raw per-day arrival records + aircraft types → the API response.
+ *  Shared by the direct OpenSky path and the relay-ingest path so both
+ *  produce identical numbers. */
+export function buildArrivalsResponse(
+  windows: ArrivalsWindow[],
+  typecodeByIcao: Map<string, string | undefined>,
+  generatedAt = new Date().toISOString(),
+): ArrivalsResponse {
+  return {
+    generatedAt,
+    methodology: `International arrivals at VTCC (Chiang Mai Intl). Visitor counts are estimated as seat capacity × ${Math.round(ASSUMED_LOAD_FACTOR * 100)}% assumed load factor — flight counts and origin countries are real observed data; passenger counts are not.`,
+    days: windows.map((w) => summariseArrivalRecords(w.date, w.arrivals, typecodeByIcao)),
+  };
+}
+
 export async function fetchCnxArrivals(): Promise<ArrivalsResponse> {
-  // Fetch all three days' raw arrivals first so we can batch-resolve
-  // every icao24's aircraft type in one metadata call.
+  // Production path: OpenSky is unreachable from Cloudflare's network
+  // (see flights/ingest/route.ts), so the off-Cloudflare relay computes
+  // nothing itself — it pushes raw arrival records, the ingest route
+  // builds the response with buildArrivalsResponse() and stores it in KV.
+  const fromKv = await readArrivalsFromKv();
+  if (fromKv) return fromKv;
+
+  // Local dev / non-Cloudflare deploy: ask OpenSky directly.
   const windows = [0, 1, 2].map((d) => bangkokDayRange(d));
   const rawByWindow = await Promise.all(
     windows.map((w) => fetchArrivalsWindow(w.startSec, w.endSec).catch(() => [] as OpenSkyArrival[])),
@@ -159,11 +184,8 @@ export async function fetchCnxArrivals(): Promise<ArrivalsResponse> {
     console.warn(`[arrivals] aircraft metadata batch failed: ${(e as Error).message}`);
   }
 
-  const days = await Promise.all([0, 1, 2].map((d) => summariseDay(d, typecodeByIcao)));
-
-  return {
-    generatedAt: new Date().toISOString(),
-    methodology: `International arrivals at VTCC (Chiang Mai Intl). Visitor counts are estimated as seat capacity × ${Math.round(ASSUMED_LOAD_FACTOR * 100)}% assumed load factor — flight counts and origin countries are real observed data; passenger counts are not.`,
-    days,
-  };
+  return buildArrivalsResponse(
+    windows.map((w, i) => ({ date: w.date, arrivals: rawByWindow[i] })),
+    typecodeByIcao,
+  );
 }

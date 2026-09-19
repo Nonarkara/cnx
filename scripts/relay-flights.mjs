@@ -28,8 +28,9 @@
 //   OPENSKY_CLIENT_ID          optional — falls back to adsb.lol/anonymous OpenSky if unset
 //   OPENSKY_CLIENT_SECRET
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 loadEnvFile(new URL("relay-flights.env", `file://${HERE}`).pathname);
@@ -192,24 +193,163 @@ function split(states) {
   return { airborne: located.filter((s) => !s.onGround), ground: located.filter((s) => s.onGround) };
 }
 
+// OpenSky /states/all over the 3°×3° CNX box costs 1 credit (<25 sq°), so a
+// 60 s cadence is ~1,440 of the free account's 4,000 daily credits —
+// leaving room for the hourly arrivals pull below.
+const OPENSKY_STATES_EVERY_MS = 60_000;
+let lastOpenSky = { at: 0, states: [], observedAt: 0 };
+
+/** adsb.lol and OpenSky each see planes the other misses (adsb.lol is a
+ *  thin community network; OpenSky has far more receivers but no aircraft
+ *  type). Union by icao24, preferring adsb.lol's record because it carries
+ *  the aircraft type and registration. */
+function mergeStates(adsb, opensky) {
+  const byId = new Map(opensky.map((s) => [s.icao24, s]));
+  for (const s of adsb) byId.set(s.icao24, { ...byId.get(s.icao24), ...s });
+  return [...byId.values()];
+}
+
 async function buildSnapshot() {
   const fetchedAt = Date.now();
+  const [adsbRes, openRes] = await Promise.allSettled([
+    fetchAdsbLol(),
+    Date.now() - lastOpenSky.at >= OPENSKY_STATES_EVERY_MS ? fetchOpenSky() : Promise.resolve(null),
+  ]);
+  if (adsbRes.status === "rejected") console.warn(`[relay] adsb.lol failed: ${adsbRes.reason.message}`);
+  if (openRes.status === "rejected") console.warn(`[relay] opensky failed: ${openRes.reason.message}`);
+  if (openRes.status === "fulfilled" && openRes.value) lastOpenSky = { at: Date.now(), ...openRes.value };
+
+  const adsb = adsbRes.status === "fulfilled" ? adsbRes.value : null;
+  // Reuse the last OpenSky poll between its slower ticks, but never one
+  // older than 3 minutes — a frozen position is worse than no position.
+  const openFresh = Date.now() - lastOpenSky.at < 3 * 60_000;
+  const open = openFresh ? lastOpenSky : null;
+  if (!adsb && !open) return null;
+
+  for (const s of adsb?.states ?? []) rememberTypecode(s.icao24, s.typecode);
+  const states = mergeStates(adsb?.states ?? [], open?.states ?? []);
+  const source = adsb && open ? "merged" : adsb ? "adsb.lol" : "opensky";
+  return { fetchedAt, observedAt: adsb?.observedAt ?? open.observedAt, ...split(states), degraded: false, source };
+}
+
+// ─── arrivals (tourism stats) ───────────────────────────────────────
+// OpenSky's /flights/arrival endpoint lists real observed landings at
+// VTCC. The Worker can't reach OpenSky, so this pulls the last three
+// Asia/Bangkok days plus each aircraft's type and POSTs the raw records
+// to /api/cnx/arrivals/ingest; the Worker does the visitor-estimate maths.
+
+const ARRIVALS_URL = process.env.CNX_ARRIVALS_INGEST_URL ?? INGEST_URL.replace(/flights\/ingest$/, "arrivals/ingest");
+const ARRIVALS_EVERY_MS = 60 * 60_000;
+const CACHE_DIR = process.env.CNX_RELAY_CACHE_DIR ?? "/Volumes/Data/CNX/relay-cache";
+const TYPECODE_FILE = join(CACHE_DIR, "typecodes.json");
+const MAX_METADATA_LOOKUPS_PER_RUN = 80;
+let lastArrivalsAt = 0;
+
+/** icao24 → aircraft type. undefined = never looked up, "" = looked up, unknown. */
+const typecodes = (() => {
   try {
-    const { observedAt, states } = await fetchAdsbLol();
-    return { fetchedAt, observedAt, ...split(states), degraded: false, source: "adsb.lol" };
-  } catch (e) {
-    console.warn(`[relay] adsb.lol failed: ${e.message}`);
+    return new Map(Object.entries(JSON.parse(readFileSync(TYPECODE_FILE, "utf8"))));
+  } catch {
+    return new Map();
   }
+})();
+
+function rememberTypecode(icao24, typecode) {
+  if (!icao24 || !typecode || typecodes.get(icao24) === typecode) return;
+  typecodes.set(icao24, typecode);
+}
+
+function saveTypecodes() {
   try {
-    const { observedAt, states } = await fetchOpenSky();
-    return { fetchedAt, observedAt, ...split(states), degraded: false, source: "opensky" };
+    mkdirSync(CACHE_DIR, { recursive: true });
+    writeFileSync(TYPECODE_FILE, JSON.stringify(Object.fromEntries(typecodes)));
   } catch (e) {
-    console.warn(`[relay] opensky failed: ${e.message}`);
+    console.warn(`[relay] could not persist typecode cache: ${e.message}`);
   }
-  return null;
+}
+
+async function lookupTypecode(icao24, token) {
+  const res = await fetch(`https://opensky-network.org/api/metadata/aircraft/icao/${icao24}`, {
+    headers: { "User-Agent": UA, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (res.status === 404) return ""; // OpenSky doesn't know this airframe — don't ask again
+  if (!res.ok) throw new Error(`metadata ${res.status}`);
+  const json = await res.json();
+  return typeof json.typecode === "string" ? json.typecode : "";
+}
+
+const BANGKOK_OFFSET_MS = 7 * 60 * 60_000;
+function bangkokDay(daysAgo) {
+  const nowB = new Date(Date.now() + BANGKOK_OFFSET_MS);
+  const startUtcMs = Date.UTC(nowB.getUTCFullYear(), nowB.getUTCMonth(), nowB.getUTCDate() - daysAgo) - BANGKOK_OFFSET_MS;
+  return {
+    date: new Date(startUtcMs + BANGKOK_OFFSET_MS).toISOString().slice(0, 10),
+    begin: Math.floor(startUtcMs / 1000),
+    end: Math.floor((startUtcMs + 24 * 3_600_000) / 1000),
+  };
+}
+
+async function fetchArrivalsDay({ begin, end }, token) {
+  const url = new URL("https://opensky-network.org/api/flights/arrival");
+  url.searchParams.set("airport", "VTCC");
+  url.searchParams.set("begin", String(begin));
+  url.searchParams.set("end", String(end));
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status === 404) return []; // "no flights in range"
+  if (!res.ok) throw new Error(`arrival ${res.status}`);
+  return ((await res.json()) ?? []).map((a) => ({
+    icao24: a.icao24,
+    firstSeen: a.firstSeen,
+    lastSeen: a.lastSeen,
+    estDepartureAirport: a.estDepartureAirport ?? null,
+    estArrivalAirport: a.estArrivalAirport ?? null,
+    callsign: a.callsign ?? null,
+  }));
+}
+
+async function pushArrivals() {
+  if (Date.now() - lastArrivalsAt < ARRIVALS_EVERY_MS) return;
+  lastArrivalsAt = Date.now(); // set first: a failure retries next hour, not every 30 s
+  try {
+    const token = await getOpenSkyToken();
+    const windows = [];
+    for (const d of [0, 1, 2]) {
+      const day = bangkokDay(d);
+      windows.push({ date: day.date, arrivals: await fetchArrivalsDay(day, token) });
+    }
+    const ids = [...new Set(windows.flatMap((w) => w.arrivals.map((a) => a.icao24)))];
+    let lookups = 0;
+    for (const id of ids) {
+      if (typecodes.has(id) || lookups >= MAX_METADATA_LOOKUPS_PER_RUN) continue;
+      lookups++;
+      try {
+        typecodes.set(id, await lookupTypecode(id, token));
+      } catch (e) {
+        console.warn(`[relay] typecode lookup ${id}: ${e.message}`);
+      }
+    }
+    saveTypecodes();
+    const typeMap = Object.fromEntries(ids.filter((id) => typecodes.get(id)).map((id) => [id, typecodes.get(id)]));
+    const res = await fetch(ARRIVALS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+      body: JSON.stringify({ windows, typecodes: typeMap }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const body = await res.text();
+    if (!res.ok) throw new Error(`ingest ${res.status} ${body}`);
+    console.log(`[relay] arrivals pushed: ${windows.map((w) => `${w.date}=${w.arrivals.length}`).join(" ")}, ${Object.keys(typeMap).length}/${ids.length} typed`);
+  } catch (e) {
+    console.warn(`[relay] arrivals push failed: ${e.message}`);
+  }
 }
 
 async function tick() {
+  void pushArrivals();
   const snapshot = await buildSnapshot();
   if (!snapshot) {
     console.warn("[relay] both upstreams failed this tick, not writing (Worker keeps its last-known snapshot)");

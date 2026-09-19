@@ -140,6 +140,7 @@ export async function fetchCnxCctv(): Promise<CctvFeedResponse> {
     .map((u) => ({ ...u, reachable: u.reachable ?? true }));
   const windySlots: CctvSlot[] = windy.map((w) => ({
     ...w,
+    reachable: w.reachable ?? false,
     snapshotRefreshSec: Math.round(WINDY_TTL_MS / 1000),
   }));
   const municipal: CctvSlot[] = MUNICIPAL_CAMERAS.map((m) => ({
