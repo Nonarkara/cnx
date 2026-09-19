@@ -268,15 +268,17 @@ function saveTypecodes() {
   }
 }
 
-async function lookupTypecode(icao24, token) {
-  const res = await fetch(`https://opensky-network.org/api/metadata/aircraft/icao/${icao24}`, {
-    headers: { "User-Agent": UA, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+// OpenSky retired its aircraft-metadata API (410), so airframe types come from
+// hexdb.io (free, keyless). "" = unknown airframe, cached so we never re-ask.
+async function lookupTypecode(icao24) {
+  const res = await fetch(`https://hexdb.io/api/v1/aircraft/${icao24}`, {
+    headers: { "User-Agent": UA },
     signal: AbortSignal.timeout(10_000),
   });
-  if (res.status === 404) return ""; // OpenSky doesn't know this airframe — don't ask again
-  if (!res.ok) throw new Error(`metadata ${res.status}`);
+  if (res.status === 404) return "";
+  if (!res.ok) throw new Error(`hexdb ${res.status}`);
   const json = await res.json();
-  return typeof json.typecode === "string" ? json.typecode : "";
+  return typeof json.ICAOTypeCode === "string" ? json.ICAOTypeCode : "";
 }
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60_000;
@@ -327,7 +329,7 @@ async function pushArrivals() {
       if (typecodes.has(id) || lookups >= MAX_METADATA_LOOKUPS_PER_RUN) continue;
       lookups++;
       try {
-        typecodes.set(id, await lookupTypecode(id, token));
+        typecodes.set(id, await lookupTypecode(id));
       } catch (e) {
         console.warn(`[relay] typecode lookup ${id}: ${e.message}`);
       }
@@ -341,7 +343,7 @@ async function pushArrivals() {
       signal: AbortSignal.timeout(20_000),
     });
     const body = await res.text();
-    if (!res.ok) throw new Error(`ingest ${res.status} ${body}`);
+    if (!res.ok) throw new Error(`ingest ${res.status} ${body.slice(0, 160)}`);
     console.log(`[relay] arrivals pushed: ${windows.map((w) => `${w.date}=${w.arrivals.length}`).join(" ")}, ${Object.keys(typeMap).length}/${ids.length} typed`);
   } catch (e) {
     console.warn(`[relay] arrivals push failed: ${e.message}`);
@@ -364,7 +366,7 @@ async function tick() {
     });
     const body = await res.text();
     if (!res.ok) {
-      console.warn(`[relay] ingest rejected: ${res.status} ${body}`);
+      console.warn(`[relay] ingest rejected: ${res.status} ${body.slice(0, 160)}`);
       return;
     }
     console.log(`[relay] ${snapshot.source}: ${snapshot.airborne.length} airborne, ${snapshot.ground.length} ground`);
