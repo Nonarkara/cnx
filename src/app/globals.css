@@ -2,35 +2,35 @@
 
 /* ─── The CNX palette ─────────────────────────────────────────────
  *
- * Chiang Mai's own colours:
- *   Lanna blue       — deep blue-violet, like Doi Suthep's roofs at
- *                      dusk and the indigo of northern textiles. The
- *                      province's flag chrome.
- *   Doi Suthep gold  — the gilding on the chedi and the temple roofs.
- *                      Reserved for accents, never a status role.
+ * Museum-white surfaces (NST discipline): black and white carry the
+ * interface; colour is reserved for data and status, never decoration.
+ * Hierarchy comes from size and weight, not tint or ornament.
+ *
+ * Chiang Mai's own colours survive as chrome only:
+ *   Lanna blue       — deep blue-violet, Doi Suthep's roofs at dusk.
+ *                      The province's flag chrome: wordmark, links.
+ *   Doi Suthep gold  — the gilding on the chedi. Accents only, never
+ *                      a status role (it sits near watch-amber on the
+ *                      wheel, so the separation is positional).
  *
  * The status ramp (green/amber/orange/red) is load-bearing and
  * untouched, so brand colours own chrome only and never a status role.
- * Gold sits near the watch amber on the colour wheel, so the separation
- * is positional rather than chromatic — gold only ever appears where
- * no status is being expressed.
  *
- * Typography stays Noto Sans Thai for body / IBM Plex Mono for code
- * and tracked labels, same as Lopburi. One family across the two
- * provinces' dashboards makes them feel like a product line, not
- * strangers.
+ * Type: Sao Chingcha (Thai display) + Libre Franklin (Latin display)
+ * via the "CNX Display" composite in fonts.css; IBM Plex Sans Thai
+ * body; IBM Plex Mono for numerals and tracked labels.
  */
 
 :root {
-  /* Light theme */
-  --bg: #f4f1ea;            /* warm beige — Chiang Mai temple walls */
+  /* Light theme — museum white */
+  --bg: #ffffff;
   --bg-raised: #ffffff;
-  --bg-surface: #faf8f3;
-  --line: #d8d2c4;
-  --ink: #1a1a1a;
-  --dim: #6b6b6b;
+  --bg-surface: #f7f7f7;
+  --line: #e0e0e0;
+  --ink: #111111;
+  --dim: #575757;
   --accent: #111111;
-  --accent-soft: #767676;
+  --accent-soft: #6b6b6b;
 
   /* Lanna blue — flag chrome */
   --cool: #1d2951;
@@ -100,7 +100,7 @@ html {
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: "Noto Sans Thai", "Sarabun", "Segoe UI", system-ui, sans-serif;
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Sarabun", "Segoe UI", system-ui, sans-serif;
   font-feature-settings: "kern", "liga";
   -webkit-font-smoothing: antialiased;
 }
