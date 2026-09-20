@@ -55,8 +55,8 @@ export default function CNXAboutPage() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/logos/rcad.svg"
-                    alt="RCAD — Royal College of Architectural Designers"
-                    title="RCAD — Royal College of Architectural Designers"
+                    alt="RCAD — สำนักงานเร่งรัดการวิจัยและนวัตกรรมเพื่อเพิ่มความสามารถการแข่งขันและการพัฒนาพื้นที่ (องค์การมหาชน)"
+                    title="RCAD — สำนักงานเร่งรัดการวิจัยและนวัตกรรมเพื่อเพิ่มความสามารถการแข่งขันและการพัฒนาพื้นที่ (องค์การมหาชน)"
                     style={{ height: 24, width: "auto" }}
                     className="hidden object-contain lg:block"
                   />
