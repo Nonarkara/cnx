@@ -39,7 +39,7 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
     setFailed(false);
     const video = videoRef.current;
     if (!video) return;
-    let hls: {
+let hls: {
       destroy: () => void;
       onError?: ((data: { fatal: boolean }) => void) | undefined;
       loadSource: (src: string) => void;
@@ -59,7 +59,7 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
         setFailed(true);
         return;
       }
-      hls = new Hls({ maxBufferLength: 30 });
+hls = new Hls({ maxBufferLength: 30 });
       hls.onError = () => {
         if (!cancelled) setFailed(true);
       };

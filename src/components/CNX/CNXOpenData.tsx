@@ -74,7 +74,7 @@ function PublisherGroups({ datasets }: { datasets: OpenDataDataset[] }) {
   );
 }
 
-export default function CnxOpenData() {
+export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () => void } = {}) {
   const [data, setData] = useState<OpenDataIndex | null>(null);
   const [query, setQuery] = useState("");
 
@@ -127,6 +127,19 @@ export default function CnxOpenData() {
           className="min-w-0 flex-1 bg-transparent text-[10px] text-[var(--ink)] outline-none placeholder:text-[var(--dim)]"
         />
       </div>
+      {onOpenWorkbench && (
+        <button
+          type="button"
+          onClick={onOpenWorkbench}
+          className="flex w-full shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--cool-dim)] px-3 py-1.5 text-left hover:bg-[var(--cool-dim)]/70"
+        >
+          <div className="min-w-0">
+            <div className="truncate text-[10px] font-semibold text-[var(--ink)]">Open the full data workbench</div>
+            <div className="font-mono text-[8px] text-[var(--dim)]">tables parsed · previews · tourism statistics · every file linked</div>
+          </div>
+          <span className="font-mono text-[10px] text-[var(--cool)]">→</span>
+        </button>
+      )}
       {/* Pinned external reference — not a data.go.th dataset, kept
           visually distinct and separately sourced/labelled so it never
           reads as an official government record. */}

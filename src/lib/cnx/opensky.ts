@@ -88,7 +88,7 @@ export interface FetchResult {
   /** Error message if degraded. */
   error?: string;
   /** Which upstream produced this snapshot. */
-  source?: "adsb.lol" | "opensky" | "relay";
+  source?: "adsb.lol" | "opensky" | "relay" | "merged";
 }
 
 type RawState = readonly unknown[];

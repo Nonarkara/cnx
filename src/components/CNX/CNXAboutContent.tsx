@@ -583,8 +583,8 @@ export default function CNXAboutContent() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/logos/rcad.svg"
-                  alt="RCAD — Royal College of Architectural Designers"
-                  title="RCAD — Royal College of Architectural Designers"
+                  alt="RCAD — สำนักงานเร่งรัดการวิจัยและนวัตกรรมเพื่อเพิ่มความสามารถการแข่งขันและการพัฒนาพื้นที่ (องค์การมหาชน)"
+                  title="RCAD — สำนักงานเร่งรัดการวิจัยและนวัตกรรมเพื่อเพิ่มความสามารถการแข่งขันและการพัฒนาพื้นที่ (องค์การมหาชน)"
                   style={{ height: 32, width: "auto" }}
                   className="block object-contain"
                 />
@@ -596,10 +596,10 @@ export default function CNXAboutContent() {
                 </span>
               </h3>
               <p className="mt-2 text-[14px] leading-[1.7] text-[var(--ink)]" lang="th">
-                ประธาน Royal College of Architectural Designers (RCAD) — ผู้สนับสนุนโครงการห้องปฏิบัติการเชียงใหม่ สนับสนุนด้านสถาปัตยกรรมเมืองและการออกแบบเชิงนวัตกรรมเพื่อให้ระบบดิจิทัลแฝดเมืองตอบโจทย์บริบทล้านนาได้อย่างแท้จริง
+                รองผู้อำนวยการหน่วยบริหารและจัดการทุนด้านการพัฒนาพื้นที่ (บพท.) — ปัจจุบัน บพท. ยุบรวมเป็นส่วนงานหนึ่งของสำนักงานเร่งรัดการวิจัยและนวัตกรรมเพื่อเพิ่มความสามารถการแข่งขันและการพัฒนาพื้นที่ (องค์การมหาชน) หรือ รวพ. (RCAD) — อดีตอาจารย์ประจำคณะวิศวกรรมศาสตร์ มหาวิทยาลัยเชียงใหม่ ผู้เชี่ยวชาญด้านการพัฒนาเมืองและการขนส่ง สนับสนุนโครงการห้องปฏิบัติการเชียงใหม่ในฐานะผู้สนับสนุนของ รวพ.
               </p>
               <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
-                Chair of the Royal College of Architectural Designers (RCAD) — the project&rsquo;s institutional sponsor. RCAD&rsquo;s support anchors the city-architecture and innovative-design lens that grounds the Chiang Mai digital twin in the Lanna context.
+                Deputy Director of the Program Management Unit on Area-Based Development (PMU-A, Thai: บพท.), now a division of RCAD, and former faculty member of the Faculty of Engineering, Chiang Mai University — an expert in urban development and transport. RCAD is the Office for Accelerating Research and Innovation for Competitiveness and Area Development (Public Organization), a public organisation under the Ministry of Higher Education, Science, Research and Innovation, established by Royal Decree announced 31 December 2025 (B.E. 2568). English rendering of the Thai official name; RCAD is the abbreviation used on its website.
               </p>
               <div className="mt-4 border-t border-[var(--line)] pt-3 font-mono text-[11px] text-[var(--dim)]">
                 <span>
@@ -610,7 +610,7 @@ export default function CNXAboutContent() {
                     rel="noopener noreferrer"
                     className="text-[var(--cool)] underline-offset-2 hover:underline"
                   >
-                    RCAD · nxpo.or.th/rcad
+                    รวพ. (RCAD) · nxpo.or.th/rcad
                   </a>
                 </span>
               </div>

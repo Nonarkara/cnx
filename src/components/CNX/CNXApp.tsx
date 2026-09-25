@@ -56,6 +56,7 @@ import CNXMap, { type WallFeature } from "./CNXMap";
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
+import CnxDataLibraryModal from "./CNXDataLibraryModal";
 import CnxEmergencyModal from "./CNXEmergencyModal";
 import FlightPanel from "./FlightPanel";
 import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
@@ -105,6 +106,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isResearchOpen, setIsResearchOpen] = useState(false);
+  const [isDataOpen, setIsDataOpen] = useState(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
@@ -337,6 +339,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         onOpenStory={() => setIsStoryOpen(true)}
         onOpenManual={() => setIsManualOpen(true)}
         onOpenResearch={() => setIsResearchOpen(true)}
+        onOpenData={() => setIsDataOpen(true)}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
@@ -396,7 +399,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             <CnxAirQualityPanel />
           </div>
           <div className="min-h-[160px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxOpenData />
+            <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />
           </div>
           <div className="min-h-[180px] flex-1 overflow-hidden border-t border-[var(--line)]">
             <CnxAskChat />
@@ -445,7 +448,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "social" && (
             <CnxSocialSidebar scenarioId={null} multilingualCountries={multilingualCountries} initialData={social} />
           )}
-          {mobileTab === "data" && <CnxOpenData />}
+          {mobileTab === "data" && <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />}
           {mobileTab === "ask" && <CnxAskChat />}
         </div>
       </section>
@@ -465,6 +468,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxStoryModal story={story} isOpen={isStoryOpen} onClose={() => setIsStoryOpen(false)} />
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
+      <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
       <CnxEmergencyModal isOpen={isEmergencyOpen} onClose={() => setIsEmergencyOpen(false)} />
     </main>
   );
