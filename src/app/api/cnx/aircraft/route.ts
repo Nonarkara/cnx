@@ -4,6 +4,8 @@ import { fetchAircraftMetadata } from "../../../../lib/cnx/opensky";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const MAX_ICAO_BATCH = 20;
+
 /**
  * Aircraft metadata lookup. Proxies OpenSky's /api/aircraft on the
  * server side: one call per request, multiple icao24s comma-separated.
@@ -21,17 +23,20 @@ export async function GET(request: Request): Promise<Response> {
   if (!icao24) {
     return NextResponse.json({ error: "icao24 is required" }, { status: 400 });
   }
+  const codes = icao24.split(",").map((s) => s.trim()).filter(Boolean);
+  if (codes.length === 0) {
+    return NextResponse.json({ error: "icao24 must contain at least one ICAO code" }, { status: 400 });
+  }
+  if (codes.length > MAX_ICAO_BATCH) {
+    return NextResponse.json({ error: `icao24 batch exceeds ${MAX_ICAO_BATCH}` }, { status: 400 });
+  }
   try {
-    const aircraft = await fetchAircraftMetadata(
-      icao24.split(",").map((s) => s.trim()).filter(Boolean),
-    );
+    const aircraft = await fetchAircraftMetadata(codes);
     return NextResponse.json(
       { aircraft },
       { headers: { "Cache-Control": "s-maxage=86400" } },
     );
   } catch (e) {
-    // Anonymous rate limit hit or upstream issue. Return empty rather
-    // than breaking the page; the cache will retry on the next poll.
     console.warn(`[aircraft] upstream failed: ${(e as Error).message}`);
     return NextResponse.json({ aircraft: [] }, { status: 200 });
   }

@@ -14,6 +14,8 @@ export const revalidate = 0;
  * pure functions the direct path uses, so a relay can't push numbers
  * that bypass the documented load-factor methodology.
  */
+const MAX_BODY_BYTES = 1_024_1024; // 1 MB ceiling for arrival payloads
+
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
   if (!secret) return NextResponse.json({ error: "relay ingest not configured" }, { status: 503 });
@@ -21,9 +23,13 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "payload exceeds 1 MB" }, { status: 413 });
+  }
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }

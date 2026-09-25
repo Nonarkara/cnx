@@ -18,6 +18,8 @@ export const revalidate = 0;
  * can no longer fetch flight data itself — a process on a normal
  * (non-Cloudflare) IP has to fetch it and push it in.
  */
+const MAX_BODY_BYTES = 1_024_1024; // 1 MB ceiling for flight snapshots
+
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
   if (!secret) {
@@ -27,9 +29,13 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ error: "payload exceeds 1 MB" }, { status: 413 });
+  }
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
