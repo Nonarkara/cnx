@@ -20,6 +20,8 @@ import type {
   OfficeNotice,
   SocialListeningResponse,
 } from "../../types/cnx";
+import type { CnxTwinResponse } from "../../lib/cnx/twin";
+import { HOTLINES } from "../../lib/cnx/verdict";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
@@ -36,6 +38,7 @@ interface TopBarProps {
   flights: FetchResult | null;
   scenarioId: string | null;
   topOrigins: TimezoneOrigin[];
+  twin: CnxTwinResponse | null;
   onOpenStory: () => void;
   onOpenManual: () => void;
   onOpenResearch: () => void;
@@ -68,8 +71,93 @@ function Pill({
   );
 }
 
+/**
+ * Province-level verdict strip — the unified risk surface.
+ *
+ * This is the FIRST thing the operator sees after the masthead.
+ * Bilingual headline + top reason + checklist + hotlines so the
+ * wall reads as a war-room board, not a dashboard. Mirrors the
+ * FloodDash / AirDash /api/twin verdict surface — see the sibling
+ * repos and docs/TWIN-API.md for the contract.
+ */
+function VerdictStrip({
+  twin,
+  onOpenEmergency,
+}: {
+  twin: CnxTwinResponse;
+  onOpenEmergency: () => void;
+}) {
+  const v = twin.verdict;
+  const level = v.level;
+  // Match the existing topbar pill palette so the strip reads as
+  // part of the same chrome, not a foreign block.
+  const colour =
+    level === "danger"
+      ? "border-[var(--danger)] bg-[var(--sun-dim)] text-[var(--danger)]"
+      : level === "prepare"
+      ? "border-[#fb923c] bg-[#fb923c]/10 text-[#fb923c]"
+      : level === "watch"
+      ? "border-[#f59e0b] bg-[#f59e0b]/10 text-[#f59e0b]"
+      : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
+  const chipLabel =
+    level === "danger"
+      ? "DANGER"
+      : level === "prepare"
+      ? "PREPARE"
+      : level === "watch"
+      ? "WATCH"
+      : "SAFE";
+  const topReason = v.reasons[0];
+  return (
+    <div className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]">
+          {chipLabel}
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em] opacity-70">
+          score {v.score}/100 · band {v.band} · data {v.data_provenance}
+        </span>
+        <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.14em] opacity-70">
+          {twin.province_en} · ปภ. {HOTLINES.ddpm} · EMS {HOTLINES.ems}
+        </span>
+      </div>
+      <div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-3">
+        <div className="font-display text-[15px] font-bold leading-tight">{v.head_th}</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.12em] opacity-80">
+          {v.head_en}
+        </div>
+      </div>
+      {topReason && (
+        <div className="flex flex-wrap items-baseline gap-x-3 text-[10px]">
+          <span className="font-mono uppercase tracking-[0.14em] opacity-60">
+            {topReason.domain === "twins" ? "FloodDash × AirDash" : topReason.domain}
+          </span>
+          <span>{topReason.th}</span>
+          <span className="font-mono opacity-70">— {topReason.en}</span>
+          {topReason.evidence && (
+            <span className="font-mono opacity-50">{topReason.evidence}</span>
+          )}
+        </div>
+      )}
+      {v.level !== "safe" && (
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          <button
+            onClick={onOpenEmergency}
+            className="border border-current px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:bg-current hover:text-[var(--bg)]"
+          >
+            Hotlines
+          </button>
+          <span className="font-mono text-[9px] uppercase tracking-[0.12em] opacity-70">
+            Checklist: {v.checklist.length} items — open Story for the full list
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenEmergency } = props;
+  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -174,6 +262,11 @@ export default function CnxTopBar(props: TopBarProps) {
         <Pill label="CCTV" value={cctv ? `${cctv.reachableCount}/${cctv.totalCount}` : "—"} />
         <Pill label="News" value={social ? `${social.items.length}` : "—"} />
       </div>
+
+      {twin && (
+        <VerdictStrip twin={twin} onOpenEmergency={onOpenEmergency} />
+      )}
+
       <CnxTimezoneStrip topOrigins={topOrigins} />
     </header>
   );

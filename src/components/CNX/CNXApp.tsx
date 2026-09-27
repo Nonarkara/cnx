@@ -97,6 +97,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [cmuRoutes, setCmuRoutes] = useState<Record<string, CmuRoute>>({});
   const [rtcLines, setRtcLines] = useState<RtcLine[]>([]);
   const [weatherLayers, setWeatherLayers] = useState<WeatherLayerUrls | null>(null);
+  const [twin, setTwin] = useState<import("../../lib/cnx/twin").CnxTwinResponse | null>(null);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -271,6 +272,26 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
   }, []);
 
+  // 60-s province-level verdict poll. The verdict moves slowly enough that
+  // faster polling just hammers the upstream feeds — and the topbar chip is
+  // the operator's first glance, so it has to reflect the live state without
+  // thrashing. Cache-Control s-maxage=60 keeps wall-of-12-viewers honest.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchJsonOrNull<import("../../lib/cnx/twin").CnxTwinResponse>(
+        "/api/cnx/twin",
+      );
+      if (!cancelled && next) setTwin(next);
+    };
+    void load();
+    const interval = window.setInterval(() => void load(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -336,6 +357,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         flights={flights}
         scenarioId={scenarioId}
         topOrigins={visitorAnalytics?.topOrigins ?? []}
+        twin={twin}
         onOpenStory={() => setIsStoryOpen(true)}
         onOpenManual={() => setIsManualOpen(true)}
         onOpenResearch={() => setIsResearchOpen(true)}
