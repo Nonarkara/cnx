@@ -294,10 +294,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
   }, []);
 
-  // Haze season feeds: DustBoy (Chiang Mai dense ground PM2.5) + ASMC
-  // (transboundary hotspots/wind). Both are token-gated — without a key
-  // the modules return provenance="needs-key" + a setup note, never
-  // fabricated readings. Polled every 5 min — both move slowly.
+  // Haze season feeds: DustBoy (CMU CCDC public ground PM2.5 feed) + ASMC
+  // (transboundary assessment; no public API host yet, so it stays empty).
+  // Neither ever fabricates readings. Polled every 5 min — both move slowly.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -396,6 +395,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         scenarioId={scenarioId}
         topOrigins={visitorAnalytics?.topOrigins ?? []}
         twin={twin}
+        dustboy={dustboy}
+        asmc={asmc}
         onOpenStory={() => setIsStoryOpen(true)}
         onOpenManual={() => setIsManualOpen(true)}
         onOpenResearch={() => setIsResearchOpen(true)}

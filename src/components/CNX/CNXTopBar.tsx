@@ -187,6 +187,10 @@ export default function CnxTopBar(props: TopBarProps) {
           <div>
             <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--cool)]">
               Chiang Mai Province War Room
+              <span className="ml-2 text-[var(--dim)]" title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"}`}>
+                v{process.env.NEXT_PUBLIC_APP_VERSION}
+                {process.env.NEXT_PUBLIC_GIT_SHA ? ` · ${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}
+              </span>
             </div>
             <div className="font-display text-[19px] font-bold leading-tight text-[var(--ink)]">
               เชียงใหม่ · ห้องบัญชาการ
@@ -264,7 +268,7 @@ export default function CnxTopBar(props: TopBarProps) {
             dustboy
               ? dustboy.provenance === "live"
                 ? `${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`
-                : "needs key"
+                : "offline"
               : "—"
           }
           level={
@@ -281,13 +285,15 @@ export default function CnxTopBar(props: TopBarProps) {
         />
         <Pill label="RFD" value={firesRfd ? `${firesRfd.totalCount}` : "—"} level={rfdReserveCount > 5 ? "critical" : firesRfd && firesRfd.totalCount > 0 ? "watch" : undefined} />
         <Pill label="FIRMS" value={fires ? `${fires.totalCount}` : "—"} level={fires && fires.totalCount > 30 ? "alert" : undefined} />
-        <Pill
+        {/* ASMC has no public API host yet (see lib/cnx/asmc.ts) — the pill
+            only appears once a working ASMC_BASE + key return live data. */}
+        {asmc?.provenance === "live" && <Pill
           label="ASMC"
           value={
             asmc
               ? asmc.provenance === "live"
                 ? `${asmc.regions.reduce((a, r) => a + r.hotspots24h, 0)}`
-                : "needs key"
+                : "—"
               : "—"
           }
           level={
@@ -301,7 +307,7 @@ export default function CnxTopBar(props: TopBarProps) {
                 : undefined
               : undefined
           }
-        />
+        />}
         <Pill label="AOD" value={aerosol ? aerosol.aod550.toFixed(2) : "—"} level={aerosol?.level} />
         <Pill label="Aircraft" value={flights ? `${flights.airborne.length + flights.ground.length}` : "—"} />
         <Pill label="Widebody" value={flights ? `${widebodyCount}` : "—"} />

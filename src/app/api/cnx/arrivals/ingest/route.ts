@@ -14,7 +14,7 @@ export const revalidate = 0;
  * pure functions the direct path uses, so a relay can't push numbers
  * that bypass the documented load-factor methodology.
  */
-const MAX_BODY_BYTES = 1_024_1024; // 1 MB ceiling for arrival payloads
+const MAX_BODY_BYTES = 1_048_576; // 1 MB ceiling for arrival payloads
 
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;

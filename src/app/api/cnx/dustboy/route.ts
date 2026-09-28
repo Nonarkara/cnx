@@ -8,9 +8,8 @@ export const revalidate = 0;
  * CNX /api/cnx/dustboy — CMU Climate Change Data Center ground PM2.5.
  *
  * Dense Chiang Mai + upper-northern sensor network (hundreds of stations).
- * With DUSTBOY_TOKEN set, returns live readings + basin aggregate.
- * Without the token, returns an empty basin + provenance="needs-key" +
- * a setup note — never fabricated sensor values.
+ * Public keyless feed; returns live readings + basin aggregate, or an
+ * empty basin + provenance="scenario" + a note — never fabricated values.
  *
  * Cache: 10 min in-process.
  */

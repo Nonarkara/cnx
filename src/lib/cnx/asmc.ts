@@ -99,7 +99,8 @@ function normaliseRegions(raw: AsmcRawPayload): AsmcHotspotRegion[] {
   const out: AsmcHotspotRegion[] = [];
   for (const r of src) {
     const region = r.region ?? "";
-    const count = typeof r.count === "number" ? r.count : typeof r.hotspots_24h === "number" ? r.hotspots_24h : 0;
+    const c = "count" in r ? r.count : "hotspots_24h" in r ? r.hotspots_24h : undefined;
+    const count = typeof c === "number" ? c : 0;
     out.push({
       region,
       name: r.name ?? region,
@@ -207,7 +208,7 @@ export async function fetchCnxAsmc(): Promise<AsmcResponse> {
     provenance: hasKey ? "scenario" : "needs-key",
     note: hasKey
       ? "ASMC_API_KEY is set but no regional endpoint responded — set ASMC_BASE to the working host, or check token scope."
-      : "ASMC_API_KEY is not set. ASMC (ASEAN Specialized Meteorological Centre) provides the only public transboundary haze assessment covering Myanmar/Laos/Thailand/Cambodia/Vietnam — provisioning a free key lights up the regional signal.",
+      : "ASMC publishes its haze assessment as web pages only; no public API host is known (api.haze.asean.org does not resolve). Nothing is shown until a working ASMC_BASE is configured.",
   };
   cache = { at: Date.now(), data };
   return data;

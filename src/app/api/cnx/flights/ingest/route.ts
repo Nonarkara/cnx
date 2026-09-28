@@ -18,7 +18,7 @@ export const revalidate = 0;
  * can no longer fetch flight data itself — a process on a normal
  * (non-Cloudflare) IP has to fetch it and push it in.
  */
-const MAX_BODY_BYTES = 1_024_1024; // 1 MB ceiling for flight snapshots
+const MAX_BODY_BYTES = 1_048_576; // 1 MB ceiling for flight snapshots
 
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;

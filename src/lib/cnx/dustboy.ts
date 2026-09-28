@@ -2,30 +2,34 @@
 // ground PM2.5 sensor network, dense coverage across Chiang Mai and
 // the upper northern provinces.
 //
-// Why DustBoy is the keystone for Chiang Mai haze:
-//   - Hundreds of low-cost sensors across CNX + Chiang Rai + Lamphun +
-//     Lampang + Mae Hong Son — density no other network matches
-//   - Hourly readings, published within minutes
-//   - Open API at https://open-api.cmuccdc.org/ with Bearer token after
-//     registration (https://www.cmuccdc.org — public/researchers/gov tiers)
-//   - Cross-validates satellite PM estimates (GISTDA) and Open-Meteo CAMS
-//     — the three together give a defensible basin-average
+// Source: the public, keyless feed behind CMU CCDC's DustBoy web app
+// (www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json) — ~400
+// stations with hourly PM2.5, Bangkok-time timestamps and province code.
+// The newer open-api.cmuccdc.org returns 403 without a token, and the
+// /api/ccdc/stations list carries caretakers' names and phone numbers,
+// so neither is used. Readings older than STALE_HOURS count as offline.
 //
-// Honest-data shape:
-//   - With token: live readings per station + summary stats
-//   - Without token: returns null + provenance="needs-key", panel renders
-//     a "needs API key" chip honestly — never fabricates CMU sensor data
+// Honest-data shape: "live" when the feed answered; otherwise "scenario"
+// with an empty basin and a note — never fabricated sensor values.
 //
-// Endpoints probed 2026-09-28 (all 403 = token-gated, none anonymous):
-//   - GET /api/dustboy/getLatest  (live readings)
-//   - GET /api/dustboy/getStation (station metadata)
-//
-// Cache: 10 min in-process. Readings move slowly enough that more frequent
-// polls just hammer the upstream; the upstream itself publishes hourly.
+// Cache: 10 min in-process; the upstream publishes hourly.
 
 import type { SeverityLevel } from "../../types/cnx";
 
-const DUSTBOY_BASE = "https://open-api.cmuccdc.org";
+const DUSTBOY_FEED = "https://www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json";
+const STALE_HOURS = 3;
+
+/** Thai province code → name, upper-north basin only. */
+const UPPER_NORTH_PROVINCES: Record<string, string> = {
+  "50": "เชียงใหม่",
+  "51": "ลำพูน",
+  "52": "ลำปาง",
+  "54": "แพร่",
+  "55": "น่าน",
+  "56": "พะเยา",
+  "57": "เชียงราย",
+  "58": "แม่ฮ่องสอน",
+};
 
 export interface DustboyStation {
   /** CMU CCDC station id (e.g. "35tH") */
@@ -61,22 +65,12 @@ export interface DustboyResponse {
     /** Worst-affected district in the basin right now. */
     worstDistrict: string | null;
   };
-  /** Provenance — "live" with key, "needs-key" without, "scenario" otherwise. */
+  /** Provenance — "live" when the public feed answered, "scenario" otherwise. */
   provenance: "live" | "needs-key" | "scenario";
   /** Honest message about why there's no live data (only set when provenance != live). */
   note: string | null;
 }
 
-const UPPER_NORTH_PROVINCES = new Set([
-  "เชียงใหม่", // Chiang Mai
-  "เชียงราย", // Chiang Rai
-  "ลำพูน", // Lamphun
-  "ลำปาง", // Lampang
-  "แม่ฮ่องสอน", // Mae Hong Son
-  "พะเยา", // Phayao
-  "แพร่", // Phrae
-  "น่าน", // Nan
-]);
 
 function severityForPm25(pm: number | null): SeverityLevel {
   if (pm === null) return "good";
@@ -86,81 +80,52 @@ function severityForPm25(pm: number | null): SeverityLevel {
   return "critical";
 }
 
-interface DustboyRawStation {
-  station_id?: string;
-  station_name?: string;
-  station_name_th?: string;
-  amphoe?: string;
-  district?: string;
-  province?: string;
-  changwat?: string;
-  lat?: number;
-  lng?: number;
-  latitude?: number;
-  longitude?: number;
+export interface DustboyRawStation {
+  dustboy_uri?: string;
+  dustboy_name?: string;
+  dustboy_lat?: string | number;
+  dustboy_lon?: string | number;
   pm25?: number | null;
-  pm25_value?: number | null;
-  pm25_avg?: number | null;
-  /** ISO timestamp of the latest reading. */
-  reading_at?: string;
-  updated_at?: string;
-  timestamp?: string;
+  province_code?: string;
+  /** Bangkok local time, "YYYY-MM-DD HH:mm:ss". */
+  log_datetime?: string;
 }
 
-interface DustboyRawResponse {
-  data?: DustboyRawStation[];
-  stations?: DustboyRawStation[];
-  result?: DustboyRawStation[];
-}
-
-function normaliseStation(raw: DustboyRawStation): DustboyStation | null {
-  const lat = typeof raw.latitude === "number" ? raw.latitude : typeof raw.lat === "number" ? raw.lat : null;
-  const lng = typeof raw.longitude === "number" ? raw.longitude : typeof raw.lng === "number" ? raw.lng : null;
-  if (lat === null || lng === null) return null;
-  const province = raw.province ?? raw.changwat ?? "";
-  // Filter to upper-northern provinces only (the basin CNX covers).
-  if (province && !UPPER_NORTH_PROVINCES.has(province)) return null;
-  const pmRaw = raw.pm25 ?? raw.pm25_value ?? raw.pm25_avg ?? null;
-  const pm = typeof pmRaw === "number" && Number.isFinite(pmRaw) ? Math.round(pmRaw * 10) / 10 : null;
-  const observedAt = raw.reading_at ?? raw.updated_at ?? raw.timestamp ?? new Date().toISOString();
-  const readingAgeMs = Date.now() - new Date(observedAt).getTime();
-  const readingAgeHours = Number.isFinite(readingAgeMs) ? Math.max(0, Math.round(readingAgeMs / 3_600_000)) : null;
+export function normaliseStation(raw: DustboyRawStation, nowMs = Date.now()): DustboyStation | null {
+  const province = UPPER_NORTH_PROVINCES[raw.province_code ?? ""];
+  if (!province) return null;
+  const lat = Number(raw.dustboy_lat);
+  const lng = Number(raw.dustboy_lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !raw.dustboy_uri) return null;
+  const observedMs = raw.log_datetime ? Date.parse(`${raw.log_datetime.replace(" ", "T")}+07:00`) : NaN;
+  const readingAgeHours = Number.isFinite(observedMs) ? Math.max(0, Math.round((nowMs - observedMs) / 3_600_000)) : null;
+  const fresh = readingAgeHours !== null && readingAgeHours <= STALE_HOURS;
+  const pm = fresh && typeof raw.pm25 === "number" && Number.isFinite(raw.pm25) ? raw.pm25 : null;
+  const name = raw.dustboy_name ?? "";
   return {
-    stationId: raw.station_id ?? "",
-    nameTh: raw.station_name_th ?? raw.station_name ?? "",
-    district: raw.amphoe ?? raw.district ?? "",
+    stationId: raw.dustboy_uri,
+    nameTh: name,
+    district: /อ\.\s*([^\s]+)/.exec(name)?.[1] ?? "",
     province,
     longitude: lng,
     latitude: lat,
     pm25: pm,
     readingAgeHours,
     severity: severityForPm25(pm),
-    observedAt,
+    observedAt: Number.isFinite(observedMs) ? new Date(observedMs).toISOString() : "",
   };
 }
 
 async function fetchLiveDustboy(): Promise<DustboyStation[] | null> {
-  const token = process.env.DUSTBOY_TOKEN;
-  if (!token) return null;
   try {
-    const res = await fetch(`${DUSTBOY_BASE}/api/dustboy/getLatest`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json",
-      },
-    });
+    const res = await fetch(DUSTBOY_FEED, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15_000) });
     if (!res.ok) {
       console.warn(`[dustboy] upstream ${res.status}`);
       return null;
     }
-    const json = (await res.json()) as DustboyRawResponse;
-    const raw = json.data ?? json.stations ?? json.result ?? [];
-    const out: DustboyStation[] = [];
-    for (const r of raw) {
-      const s = normaliseStation(r);
-      if (s && s.stationId) out.push(s);
-    }
-    return out;
+    const raw = (await res.json()) as DustboyRawStation[];
+    if (!Array.isArray(raw)) return null;
+    return raw.map((r) => normaliseStation(r)).filter((s): s is DustboyStation => s !== null);
   } catch (e) {
     console.warn(`[dustboy] fetch failed: ${(e as Error).message}`);
     return null;
@@ -218,12 +183,6 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
     cache = { at: Date.now(), data };
     return data;
   }
-  // Honest-data fallback: no token = no live data, but the operator
-  // should see the basin skeleton (zero stations) with a clear note
-  // rather than fabricated readings. This is the documented "needs key"
-  // surface — when the operator provisions DUSTBOY_TOKEN, this module
-  // upgrades to provenance="live" automatically.
-  const hasToken = !!process.env.DUSTBOY_TOKEN;
   const data: DustboyResponse = {
     generatedAt: now,
     stations: [],
@@ -235,10 +194,8 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
       worstProvince: null,
       worstDistrict: null,
     },
-    provenance: hasToken ? "scenario" : "needs-key",
-    note: hasToken
-      ? "DUSTBOY_TOKEN is set but the upstream returned no stations — check token scope or upstream status."
-      : "DUSTBOY_TOKEN is not set. Provision a free API key at https://www.cmuccdc.org to light up the basin-wide PM2.5 ground sensor network.",
+    provenance: "scenario",
+    note: "CMU CCDC DustBoy feed did not answer — no ground PM2.5 readings this cycle.",
   };
   cache = { at: Date.now(), data };
   return data;

@@ -14,8 +14,8 @@ export const revalidate = 0;
  * upstream, not domestic burning — so the regional read matters more
  * than the FIRMS-CNX-bbox-only count.
  *
- * With ASMC_API_KEY set, returns live assessment + regional counts.
- * Without the key, returns an empty regions array + provenance="needs-key"
+ * No public ASMC API host is known yet; with a working ASMC_BASE + key it
+ * returns live assessment + regional counts, otherwise empty + provenance="needs-key"
  * + a setup note — never fabricated regional hotspot counts.
  *
  * Cache: 30 min in-process.
