@@ -21,6 +21,8 @@ import type {
   SocialListeningResponse,
 } from "../../types/cnx";
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
+import type { DustboyResponse } from "../../lib/cnx/dustboy";
+import type { AsmcResponse } from "../../lib/cnx/asmc";
 import { HOTLINES } from "../../lib/cnx/verdict";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
@@ -39,6 +41,8 @@ interface TopBarProps {
   scenarioId: string | null;
   topOrigins: TimezoneOrigin[];
   twin: CnxTwinResponse | null;
+  dustboy: DustboyResponse | null;
+  asmc: AsmcResponse | null;
   onOpenStory: () => void;
   onOpenManual: () => void;
   onOpenResearch: () => void;
@@ -157,7 +161,7 @@ function VerdictStrip({
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenEmergency } = props;
+  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -254,8 +258,50 @@ export default function CnxTopBar(props: TopBarProps) {
           value={typeof flood?.pingCapacityFraction === "number" ? `${((flood?.pingCapacityFraction ?? 0) * 100).toFixed(0)}%` : "—"}
           level={(flood?.pingCapacityFraction ?? 0) > 0.85 ? "critical" : (flood?.pingCapacityFraction ?? 0) > 0.7 ? "alert" : undefined}
         />
+        <Pill
+          label="DustBoy"
+          value={
+            dustboy
+              ? dustboy.provenance === "live"
+                ? `${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`
+                : "needs key"
+              : "—"
+          }
+          level={
+            dustboy?.provenance === "live" && dustboy.basin.avgPm25 !== null
+              ? dustboy.basin.avgPm25 >= 90
+                ? "critical"
+                : dustboy.basin.avgPm25 >= 50
+                ? "alert"
+                : dustboy.basin.avgPm25 >= 25
+                ? "watch"
+                : undefined
+              : undefined
+          }
+        />
         <Pill label="RFD" value={firesRfd ? `${firesRfd.totalCount}` : "—"} level={rfdReserveCount > 5 ? "critical" : firesRfd && firesRfd.totalCount > 0 ? "watch" : undefined} />
         <Pill label="FIRMS" value={fires ? `${fires.totalCount}` : "—"} level={fires && fires.totalCount > 30 ? "alert" : undefined} />
+        <Pill
+          label="ASMC"
+          value={
+            asmc
+              ? asmc.provenance === "live"
+                ? `${asmc.regions.reduce((a, r) => a + r.hotspots24h, 0)}`
+                : "needs key"
+              : "—"
+          }
+          level={
+            asmc?.provenance === "live"
+              ? asmc.assessment === "hazardous"
+                ? "critical"
+                : asmc.assessment === "unhealthy"
+                ? "alert"
+                : asmc.assessment === "moderate"
+                ? "watch"
+                : undefined
+              : undefined
+          }
+        />
         <Pill label="AOD" value={aerosol ? aerosol.aod550.toFixed(2) : "—"} level={aerosol?.level} />
         <Pill label="Aircraft" value={flights ? `${flights.airborne.length + flights.ground.length}` : "—"} />
         <Pill label="Widebody" value={flights ? `${widebodyCount}` : "—"} />

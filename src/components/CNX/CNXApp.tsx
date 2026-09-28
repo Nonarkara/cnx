@@ -98,6 +98,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [rtcLines, setRtcLines] = useState<RtcLine[]>([]);
   const [weatherLayers, setWeatherLayers] = useState<WeatherLayerUrls | null>(null);
   const [twin, setTwin] = useState<import("../../lib/cnx/twin").CnxTwinResponse | null>(null);
+  const [dustboy, setDustboy] = useState<import("../../lib/cnx/dustboy").DustboyResponse | null>(null);
+  const [asmc, setAsmc] = useState<import("../../lib/cnx/asmc").AsmcResponse | null>(null);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -286,6 +288,42 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
     void load();
     const interval = window.setInterval(() => void load(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  // Haze season feeds: DustBoy (Chiang Mai dense ground PM2.5) + ASMC
+  // (transboundary hotspots/wind). Both are token-gated — without a key
+  // the modules return provenance="needs-key" + a setup note, never
+  // fabricated readings. Polled every 5 min — both move slowly.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchJsonOrNull<import("../../lib/cnx/dustboy").DustboyResponse>(
+        "/api/cnx/dustboy",
+      );
+      if (!cancelled && next) setDustboy(next);
+    };
+    void load();
+    const interval = window.setInterval(() => void load(), 5 * 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchJsonOrNull<import("../../lib/cnx/asmc").AsmcResponse>(
+        "/api/cnx/asmc",
+      );
+      if (!cancelled && next) setAsmc(next);
+    };
+    void load();
+    const interval = window.setInterval(() => void load(), 5 * 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
