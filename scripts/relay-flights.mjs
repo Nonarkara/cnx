@@ -31,6 +31,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { runHazeVision } from "./haze-vision.mjs";
+import { runCitizenReports } from "./citizen-reports.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 loadEnvFile(new URL("relay-flights.env", `file://${HERE}`).pathname);
@@ -350,8 +352,14 @@ async function pushArrivals() {
   }
 }
 
+// Same Worker, same secret: webcam haze scoring (10 min) and citizen haze
+// reports (15 min) ride along on this process — each throttles itself.
+const WORKER_BASE = INGEST_URL.replace(/\/api\/cnx\/flights\/ingest$/, "");
+
 async function tick() {
   void pushArrivals();
+  void runHazeVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
+  void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   const snapshot = await buildSnapshot();
   if (!snapshot) {
     console.warn("[relay] both upstreams failed this tick, not writing (Worker keeps its last-known snapshot)");

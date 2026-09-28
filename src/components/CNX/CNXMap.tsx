@@ -24,6 +24,9 @@
 // rejected the source, so the 3D layer never rendered.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CameraHaze } from "../../lib/cnx/haze-vision";
+import type { HazeLabel } from "../../lib/cnx/haze-vision-core";
+import type { CitizenReport } from "../../lib/cnx/citizen-core";
 import dynamic from "next/dynamic";
 import type { MapViewState } from "@deck.gl/core";
 import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
@@ -316,7 +319,21 @@ interface MapProps {
   cmuRoutes?: Record<string, CmuRoute>;
   rtcLines?: RtcLine[];
   weatherLayers?: WeatherLayerUrls | null;
+  /** Relay webcam haze verdicts, keyed onto CCTV slots by cameraId. */
+  cameraHaze?: CameraHaze[];
+  /** Haze posts/news the relay could place; unplaced ones are not drawn. */
+  citizenReports?: CitizenReport[];
 }
+
+const NO_CAMERA_HAZE: CameraHaze[] = [];
+const NO_REPORTS: CitizenReport[] = [];
+const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
+  "haze-likely": [220, 38, 38, 235],
+  "some-haze": [234, 179, 8, 230],
+  clear: [29, 78, 216, 220],
+  "too-dark": [107, 107, 107, 200],
+  calibrating: [107, 107, 107, 200],
+};
 
 const NO_RTC_LINES: RtcLine[] = [];
 
@@ -340,6 +357,8 @@ export default function CNXMap({
   cmuRoutes = {},
   rtcLines = NO_RTC_LINES,
   weatherLayers = null,
+  cameraHaze = NO_CAMERA_HAZE,
+  citizenReports = NO_REPORTS,
 }: MapProps) {
   // Default to Topography — Chiang Mai sits in a mountain basin (Doi Suthep,
   // Doi Inthanon, the Ping valley), and the topographic context drives the
@@ -543,6 +562,9 @@ export default function CNXMap({
     });
   }, [airportBusOn, airportBuses]);
 
+  // `Map` here is react-map-gl's component, hence globalThis.Map.
+  const hazeById = useMemo(() => new globalThis.Map(cameraHaze.map((h) => [h.cameraId, h])), [cameraHaze]);
+
   const layers = useMemo(() => {
     const flightLayers = buildFlightLayers(flights);
 
@@ -641,6 +663,8 @@ export default function CNXMap({
       radiusUnits: "pixels",
       getFillColor: (d) => {
         if (!d.reachable) return [107, 107, 107, 200];
+        const haze = hazeById.get(d.id);
+        if (haze) return HAZE_FILL[haze.verdict];
         switch (d.category) {
           case "traffic":
           case "highway":
@@ -660,19 +684,50 @@ export default function CNXMap({
       pickable: true,
     });
 
+    // Citizen / news haze reports: a translucent circle as wide as the
+    // place-name precision (a district mention is ~15 km, not a pinpoint),
+    // plus a small centre dot to hover.
+    const placed = citizenReports.filter((r) => r.place);
+    const citizenAreaLayer = new ScatterplotLayer<CitizenReport>({
+      id: "cnx-citizen-area",
+      data: placed,
+      getPosition: (d) => [d.place!.lon, d.place!.lat],
+      getRadius: (d) => d.place!.precisionKm * 1000,
+      radiusUnits: "meters",
+      getFillColor: [147, 51, 234, 28],
+      getLineColor: [147, 51, 234, 120],
+      lineWidthMinPixels: 1,
+      stroked: true,
+      pickable: false,
+    });
+    const citizenLayer = new ScatterplotLayer<CitizenReport>({
+      id: "cnx-citizen",
+      data: placed,
+      getPosition: (d) => [d.place!.lon, d.place!.lat],
+      getRadius: 5,
+      radiusUnits: "pixels",
+      getFillColor: [147, 51, 234, 235],
+      getLineColor: [255, 255, 255, 230],
+      lineWidthMinPixels: 1,
+      stroked: true,
+      pickable: true,
+    });
+
     return [
       ...flightLayers,
       heritageLayer,
       airLayer,
       fireLayer,
       floodLayer,
+      citizenAreaLayer,
+      citizenLayer,
       cctvLayer,
       ...(wallLayer ? [wallLayer] : []),
       ...(waterwayLayer ? [waterwayLayer] : []),
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, hazeById, citizenReports, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -938,7 +993,13 @@ export default function CNXMap({
           if (layer.id === "cmu-transit-stations") return (object as CmuStation).name;
           if (layer.id === "cnx-cctv") {
             const c = object as CctvSlot;
-            return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? "วิดีโอสด" : "ภาพนิ่งรีเฟรช") : "OFFLINE"} — เปิดดูในแถบ CCTV ด้านบน`;
+            const haze = hazeById.get(c.id);
+            const hazeLine = haze ? `\nHaze: ${haze.verdict}${haze.score !== null ? ` (${haze.score.toFixed(2)})` : ""} · frame ${haze.observedAt.slice(11, 16)} UTC` : "";
+            return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? "วิดีโอสด" : "ภาพนิ่งรีเฟรช") : "OFFLINE"} — เปิดดูในแถบ CCTV ด้านบน${hazeLine}`;
+          }
+          if (layer.id === "cnx-citizen") {
+            const r = object as CitizenReport;
+            return `${r.source === "reddit" ? "Reddit post" : "News"} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n📍 ${r.place?.nameEn || r.place?.nameTh} (±${r.place?.precisionKm} km, from the place name)`;
           }
           return null;
         }}

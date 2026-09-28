@@ -73,80 +73,101 @@ async function fetchOpenMeteo(): Promise<AirStation[] | null> {
   }
 }
 
-function buildScenario(now: string): AirQualityResponse {
-  // Scenario: burning-season-leaning values for Sep 15 (mid-burn
-  // period); Hash-based jitter keeps refreshes from looking frozen.
-  const stations: AirStation[] = STATIONS.map((s, i) => {
-    const base = 38 + i * 2;
-    const pm25 = Math.max(2, base + (Math.sin(Date.now() / 60_000 + i) * 6));
-    return {
-      stationId: s.stationId,
-      name: s.name,
-      longitude: s.longitude,
-      latitude: s.latitude,
-      pm25: Math.round(pm25),
-      pm10: Math.round(pm25 * 1.7),
-      o3: Math.round(60 + i * 4),
-      no2: Math.round(8 + i * 2),
-      source: "open-meteo",
-      observedAt: now,
-      aqiLevel: severityForPm25(pm25),
-    };
-  });
-  const avgPm = stations.reduce((a, s) => a + (s.pm25 ?? 0), 0) / stations.length;
-  const level = severityForPm25(avgPm);
-  const office: OfficeNotice | undefined =
-    level === "alert" || level === "critical"
-      ? {
-          source: "PCD (Pollution Control Dept.)",
-          title: "PM2.5 advisory for Chiang Mai valley",
-          detail: `Province-average PM2.5 ${avgPm.toFixed(0)} µg/m³ — distribute N95 masks at PCD mobile units.`,
-          issuedAt: now,
-          level,
-        }
-      : undefined;
-  return {
-    generatedAt: now,
-    stations,
-    provinceAvgPm25: Math.round(avgPm),
-    provinceAvgAqiLevel: level,
-    office,
-  };
+const AIR4THAI = "https://air4thai.pcd.go.th/services/getNewAQI_JSON.php";
+/** Air4Thai reports hourly; older readings are treated as offline. */
+const AIR4THAI_STALE_MS = 3 * 60 * 60_000;
+
+interface Air4ThaiStation {
+  stationID?: string;
+  nameEN?: string;
+  nameTH?: string;
+  areaTH?: string;
+  lat?: string;
+  long?: string;
+  AQILast?: { date?: string; time?: string; PM25?: { value?: string }; PM10?: { value?: string } };
+}
+
+const reading = (v: string | undefined): number | undefined => {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+};
+
+/** PCD's official ground monitors in Chiang Mai province (Air4Thai). */
+export function parseAir4Thai(json: { stations?: Air4ThaiStation[] }, nowMs = Date.now()): AirStation[] {
+  return (json.stations ?? [])
+    .filter((s) => (s.areaTH ?? "").includes("เชียงใหม่"))
+    .flatMap((s): AirStation[] => {
+      const lat = Number(s.lat);
+      const lon = Number(s.long);
+      const last = s.AQILast;
+      const observedMs = last?.date && last.time ? Date.parse(`${last.date}T${last.time}:00+07:00`) : NaN;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(observedMs)) return [];
+      if (nowMs - observedMs > AIR4THAI_STALE_MS) return [];
+      const pm25 = reading(last?.PM25?.value);
+      if (pm25 === undefined) return [];
+      return [
+        {
+          stationId: `pcd-${s.stationID ?? ""}`,
+          name: s.nameEN?.trim() || s.nameTH?.trim() || "PCD station",
+          longitude: lon,
+          latitude: lat,
+          pm25,
+          pm10: reading(last?.PM10?.value),
+          source: "pcd",
+          observedAt: new Date(observedMs).toISOString(),
+          aqiLevel: severityForPm25(pm25),
+        },
+      ];
+    });
+}
+
+async function fetchAir4Thai(): Promise<AirStation[]> {
+  try {
+    const res = await fetch(AIR4THAI, { signal: AbortSignal.timeout(12_000) });
+    if (!res.ok) return [];
+    return parseAir4Thai((await res.json()) as { stations?: Air4ThaiStation[] });
+  } catch {
+    return [];
+  }
 }
 
 let cache: { at: number; data: AirQualityResponse } | null = null;
 const TTL_MS = 5 * 60_000;
 
+/** Ground monitors (PCD Air4Thai) come first and drive the province
+ *  average when any is reporting; Open-Meteo's CAMS model grid points fill
+ *  in space and are the fallback average. If both fail the response is
+ *  empty — no invented readings, and no advisory attributed to an agency
+ *  that did not issue one. */
 export async function fetchCnxAirQuality(): Promise<AirQualityResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
   const now = new Date().toISOString();
-  const live = await fetchOpenMeteo();
-  if (live && live.length === STATIONS.length) {
-    const avg = live.reduce((a, s) => a + (s.pm25 ?? 0), 0) / live.length;
-    const level = severityForPm25(avg);
-    const office: OfficeNotice | undefined =
-      level === "alert" || level === "critical"
-        ? {
-            source: "PCD (Pollution Control Dept.)",
-            title: "PM2.5 advisory for Chiang Mai valley",
-            detail: `Province-average PM2.5 ${avg.toFixed(0)} µg/m³`,
-            issuedAt: now,
-            level,
-          }
-        : undefined;
-    const response: AirQualityResponse = {
-      generatedAt: now,
-      stations: live,
-      provinceAvgPm25: Math.round(avg),
-      provinceAvgAqiLevel: level,
-      office,
-    };
-    cache = { at: Date.now(), data: response };
-    return response;
-  }
-  const scenario = buildScenario(now);
-  cache = { at: Date.now(), data: scenario };
-  return scenario;
+  const [ground, model] = await Promise.all([fetchAir4Thai(), fetchOpenMeteo()]);
+  const stations = [...ground, ...(model ?? [])];
+  const basis = ground.length > 0 ? ground : model ?? [];
+  const withPm = basis.filter((s) => typeof s.pm25 === "number");
+  const avg = withPm.length > 0 ? withPm.reduce((a, s) => a + (s.pm25 ?? 0), 0) / withPm.length : null;
+  const level = avg === null ? undefined : severityForPm25(avg);
+  const basisLabel = ground.length > 0 ? `${ground.length} PCD ground monitor(s)` : "Open-Meteo CAMS model";
+  const office: OfficeNotice | undefined =
+    level === "alert" || level === "critical"
+      ? {
+          source: `CNX dashboard — ${basisLabel}`,
+          title: "High PM2.5 across Chiang Mai",
+          detail: `Province-average PM2.5 ${avg?.toFixed(0)} µg/m³ (${basisLabel}). Not an official advisory — check PCD / provincial announcements.`,
+          issuedAt: now,
+          level,
+        }
+      : undefined;
+  const response: AirQualityResponse = {
+    generatedAt: now,
+    stations,
+    provinceAvgPm25: avg === null ? undefined : Math.round(avg),
+    provinceAvgAqiLevel: level,
+    office,
+  };
+  cache = { at: Date.now(), data: response };
+  return response;
 }
 
 export function inCnxBbox(lat: number, lon: number): boolean {

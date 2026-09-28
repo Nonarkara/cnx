@@ -57,6 +57,7 @@ import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
 import CnxDataLibraryModal from "./CNXDataLibraryModal";
+import CnxHazeModal from "./CNXHazeModal";
 import CnxEmergencyModal from "./CNXEmergencyModal";
 import FlightPanel from "./FlightPanel";
 import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
@@ -100,6 +101,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [twin, setTwin] = useState<import("../../lib/cnx/twin").CnxTwinResponse | null>(null);
   const [dustboy, setDustboy] = useState<import("../../lib/cnx/dustboy").DustboyResponse | null>(null);
   const [asmc, setAsmc] = useState<import("../../lib/cnx/asmc").AsmcResponse | null>(null);
+  const [hazeVision, setHazeVision] = useState<import("../../lib/cnx/haze-vision").HazeVisionResponse | null>(null);
+  const [citizen, setCitizen] = useState<import("../../lib/cnx/citizen-reports").CitizenResponse | null>(null);
+  const [isHazeOpen, setIsHazeOpen] = useState(false);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -329,6 +333,27 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
   }, []);
 
+  // Webcam haze verdicts + citizen/news haze reports, both built by the
+  // off-Cloudflare relay. Polled every 5 min (relay cadence is 10–15 min).
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const [hv, cr] = await Promise.all([
+        fetchJsonOrNull<import("../../lib/cnx/haze-vision").HazeVisionResponse>("/api/cnx/haze-vision"),
+        fetchJsonOrNull<import("../../lib/cnx/citizen-reports").CitizenResponse>("/api/cnx/citizen"),
+      ]);
+      if (cancelled) return;
+      if (hv) setHazeVision(hv);
+      if (cr) setCitizen(cr);
+    };
+    void load();
+    const interval = window.setInterval(() => void load(), 5 * 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -401,6 +426,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         onOpenManual={() => setIsManualOpen(true)}
         onOpenResearch={() => setIsResearchOpen(true)}
         onOpenData={() => setIsDataOpen(true)}
+        onOpenHaze={() => setIsHazeOpen(true)}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
@@ -436,6 +462,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             cmuRoutes={cmuRoutes}
             rtcLines={rtcLines}
             weatherLayers={weatherLayers}
+            cameraHaze={hazeVision?.cameras ?? []}
+            citizenReports={citizen?.reports ?? []}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
@@ -530,6 +558,15 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
       <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
+      <CnxHazeModal
+        isOpen={isHazeOpen}
+        onClose={() => setIsHazeOpen(false)}
+        air={air}
+        aerosol={aerosol}
+        dustboy={dustboy}
+        hazeVision={hazeVision}
+        citizen={citizen}
+      />
       <CnxEmergencyModal isOpen={isEmergencyOpen} onClose={() => setIsEmergencyOpen(false)} />
     </main>
   );
