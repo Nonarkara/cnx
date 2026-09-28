@@ -36,10 +36,14 @@ function tileRefreshMs(slots: CctvSlot[]): number {
   return Math.max(30, Math.min(...secs, 150)) * 1000;
 }
 
-function ageLabel(since: number, now: number): string {
-  const s = Math.max(0, Math.round((now - since) / 1000));
-  if (s < 60) return `อัปเดต ${s} วิที่แล้ว`;
-  return `อัปเดต ${Math.floor(s / 60)} นาทีที่แล้ว`;
+/** Age of the image itself (camera capture time), not of our fetch. */
+function capturedLabel(capturedAt: string | undefined, now: number): string {
+  const t = Date.parse(capturedAt ?? "");
+  if (!Number.isFinite(t)) return "ไม่ทราบเวลาถ่าย";
+  const min = Math.max(0, Math.round((now - t) / 60_000));
+  if (min < 60) return `ภาพเมื่อ ${min} นาทีที่แล้ว`;
+  if (min < 48 * 60) return `ภาพเมื่อ ${Math.round(min / 60)} ชม.ที่แล้ว`;
+  return `ภาพเมื่อ ${Math.round(min / 1440)} วันที่แล้ว`;
 }
 
 export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }) {
@@ -131,7 +135,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                       {s.label}
                     </div>
                     <div className="font-mono text-[8px] tabular-nums text-[var(--dim)]">
-                      {s.posterUrl ? ageLabel(ts, now) : s.hlsUrl ? "สตรีมสด" : "—"}
+                      {s.hlsUrl ? "สตรีมสด" : s.posterUrl ? capturedLabel(s.capturedAt, now) : "—"}
                     </div>
                   </div>
                 </button>

@@ -104,6 +104,7 @@ function inCctvBbox(lon: number, lat: number): boolean {
 interface WindySlot extends UpstreamCctv {
   playerUrl: string;
   upstreamUrl: string;
+  capturedAt?: string;
 }
 
 let windyCache: { at: number; slots: WindySlot[] } | null = null;
@@ -111,7 +112,7 @@ let windyCache: { at: number; slots: WindySlot[] } | null = null;
 async function fetchWindy(): Promise<WindySlot[]> {
   if (windyCache && Date.now() - windyCache.at < WINDY_TTL_MS) return windyCache.slots;
   const probes = await probeWindySnapshots();
-  const byId = new Map(probes.map((p) => [p.id, p.reachable]));
+  const byId = new Map(probes.map((p) => [p.id, p]));
   const slots: WindySlot[] = WINDY_CAMERAS.map((c) => ({
     id: c.id,
     label: c.nameTh ? `${c.nameTh} · ${c.name}` : c.name,
@@ -122,7 +123,8 @@ async function fetchWindy(): Promise<WindySlot[]> {
     upstreamUrl: c.detail,
     source: "windy" as CctvSource,
     category: c.category === "tourism" ? "tourism" : "traffic",
-    reachable: byId.get(c.id) ?? false,
+    reachable: byId.get(c.id)?.reachable ?? false,
+    capturedAt: byId.get(c.id)?.capturedAt,
   }));
   windyCache = { at: Date.now(), slots };
   return slots;

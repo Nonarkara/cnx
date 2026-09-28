@@ -46,9 +46,22 @@ export const WINDY_CAMERAS: WindyCamera[] = [
 // Snapshot TTL mirrors Windy's own cache-control (max-age=150).
 export const WINDY_TTL_MS = 150_000;
 
+/** Windy keeps serving a camera's last still after it stops uploading;
+ *  older than this, the camera counts as offline. */
+export const WINDY_STALE_MS = 24 * 60 * 60_000;
+
 export interface WindyProbe {
   id: string;
   reachable: boolean;
+  /** Upstream Last-Modified of the still, ISO; absent if not sent. */
+  capturedAt?: string;
+}
+
+/** Reachable = the still is served AND was taken within WINDY_STALE_MS. */
+export function windyProbeFromResponse(id: string, ok: boolean, lastModified: string | null, nowMs = Date.now()): WindyProbe {
+  const t = Date.parse(lastModified ?? "");
+  if (!Number.isFinite(t)) return { id, reachable: ok };
+  return { id, reachable: ok && nowMs - t <= WINDY_STALE_MS, capturedAt: new Date(t).toISOString() };
 }
 
 async function probeOne(cam: WindyCamera, timeoutMs: number): Promise<WindyProbe> {
@@ -61,7 +74,7 @@ async function probeOne(cam: WindyCamera, timeoutMs: number): Promise<WindyProbe
     if (res.body) {
       try { await res.body.cancel(); } catch { /* already consumed */ }
     }
-    return { id: cam.id, reachable: res.ok };
+    return windyProbeFromResponse(cam.id, res.ok, res.headers.get("last-modified"));
   } catch {
     return { id: cam.id, reachable: false };
   }

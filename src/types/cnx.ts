@@ -114,6 +114,9 @@ export interface CctvSlot {
   upstreamUrl?: string;
   /** Seconds between snapshot refreshes (still-image cameras). */
   snapshotRefreshSec?: number;
+  /** When the camera actually took the current still (upstream
+   *  Last-Modified) — not when the dashboard fetched it. */
+  capturedAt?: string;
   reachable: boolean;
   category: "highway" | "heritage" | "flood" | "traffic" | "tourism";
 }

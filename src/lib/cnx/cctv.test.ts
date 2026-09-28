@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { windyProbeFromResponse } from "./cctv-windy";
 
 // Module-level caches mean each test needs a fresh module instance.
 async function freshModule() {
@@ -75,5 +76,22 @@ describe("fetchCnxCctv", () => {
     expect(windy).toHaveLength(9);
     expect(windy.every((w) => w.reachable === false)).toBe(true);
     expect(feed.reachableCount).toBe(0);
+  });
+});
+
+describe("windyProbeFromResponse", () => {
+  const NOW = Date.parse("2026-09-28T15:00:00Z");
+
+  it("keeps the camera's own capture time and stays live within 24 h", () => {
+    const p = windyProbeFromResponse("w1", true, "Mon, 28 Sep 2026 02:23:47 GMT", NOW);
+    expect(p).toEqual({ id: "w1", reachable: true, capturedAt: "2026-09-28T02:23:47.000Z" });
+  });
+
+  it("marks a camera offline when Windy is still serving a days-old still", () => {
+    expect(windyProbeFromResponse("w2", true, "Sat, 26 Sep 2026 05:20:10 GMT", NOW).reachable).toBe(false);
+  });
+
+  it("falls back to HTTP status when no Last-Modified is sent", () => {
+    expect(windyProbeFromResponse("w3", true, null, NOW)).toEqual({ id: "w3", reachable: true });
   });
 });
