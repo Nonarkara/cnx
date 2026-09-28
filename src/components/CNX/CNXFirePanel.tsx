@@ -78,7 +78,7 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
         {(
           [
             { id: "rfd", label: "RFD", count: rfd?.totalCount },
-            { id: "firms", label: "FIRMS", count: firms?.totalCount },
+            { id: "firms", label: "FIRMS", count: firms?.provenance === "live" ? firms.totalCount : undefined },
             { id: "aerosol", label: "AOD", count: undefined },
           ] as const
         ).map((t, i) => (
@@ -195,6 +195,14 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
 
 function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
   if (!firms) return <div className="p-3 text-[10px] text-[var(--dim)]">loading FIRMS…</div>;
+  if (firms.provenance !== "live") {
+    return (
+      <div className="p-3 text-[11px] leading-relaxed text-[var(--dim)]">
+        NASA FIRMS did not return a live pass. Illustrated hotspots are not listed as detections.
+        The smoke map stays empty until <span className="font-mono">FIRMS_MAP_KEY</span> answers.
+      </div>
+    );
+  }
   return (
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">

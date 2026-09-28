@@ -100,6 +100,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [weatherLayers, setWeatherLayers] = useState<WeatherLayerUrls | null>(null);
   const [twin, setTwin] = useState<import("../../lib/cnx/twin").CnxTwinResponse | null>(null);
   const [dustboy, setDustboy] = useState<import("../../lib/cnx/dustboy").DustboyResponse | null>(null);
+  const [smoke, setSmoke] = useState<import("../../lib/cnx/smoke-trajectory").SmokeTrajectoryResponse | null>(null);
   const [asmc, setAsmc] = useState<import("../../lib/cnx/asmc").AsmcResponse | null>(null);
   const [hazeVision, setHazeVision] = useState<import("../../lib/cnx/haze-vision").HazeVisionResponse | null>(null);
   const [citizen, setCitizen] = useState<import("../../lib/cnx/citizen-reports").CitizenResponse | null>(null);
@@ -298,16 +299,20 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     };
   }, []);
 
-  // Haze season feeds: DustBoy (CMU CCDC public ground PM2.5 feed) + ASMC
-  // (transboundary assessment; no public API host yet, so it stays empty).
-  // Neither ever fabricates readings. Polled every 5 min — both move slowly.
+  // Haze season feeds. DustBoy is the public CMU ground network.
+  // Smoke trajectory advects a live VIIRS pass across the 350 km window
+  // (Shan State + northern Laos + Chiang Mai). ASMC stays empty until a
+  // real API host exists. None of these fabricate readings.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const next = await fetchJsonOrNull<import("../../lib/cnx/dustboy").DustboyResponse>(
-        "/api/cnx/dustboy",
-      );
-      if (!cancelled && next) setDustboy(next);
+      const [nextDust, nextSmoke] = await Promise.all([
+        fetchJsonOrNull<import("../../lib/cnx/dustboy").DustboyResponse>("/api/cnx/dustboy"),
+        fetchJsonOrNull<import("../../lib/cnx/smoke-trajectory").SmokeTrajectoryResponse>("/api/cnx/smoke-trajectory"),
+      ]);
+      if (cancelled) return;
+      if (nextDust) setDustboy(nextDust);
+      if (nextSmoke) setSmoke(nextSmoke);
     };
     void load();
     const interval = window.setInterval(() => void load(), 5 * 60_000);
@@ -375,7 +380,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const flightStates = flights ? [...flights.airborne, ...flights.ground] : [];
 
   const allFireHotspots = [
-    ...(fires?.hotspots ?? []),
+    ...(fires?.provenance === "live" ? fires.hotspots : []),
     ...(firesRfd?.hotspots ?? []).map(rfdToFireHotspot),
   ];
 
@@ -422,6 +427,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         twin={twin}
         dustboy={dustboy}
         asmc={asmc}
+        smoke={smoke}
         onOpenStory={() => setIsStoryOpen(true)}
         onOpenManual={() => setIsManualOpen(true)}
         onOpenResearch={() => setIsResearchOpen(true)}
@@ -464,6 +470,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             weatherLayers={weatherLayers}
             cameraHaze={hazeVision?.cameras ?? []}
             citizenReports={citizen?.reports ?? []}
+            dustboyStations={dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.pm25 !== null) : []}
+            smokeSegments={smoke?.provenance === "live" ? smoke.segments : []}
           />
           {flights && <FlightPanel snapshot={flights} />}
           {outbound && <CnxOutboundPanel snapshot={outbound} />}
@@ -566,6 +574,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         dustboy={dustboy}
         hazeVision={hazeVision}
         citizen={citizen}
+        smoke={smoke}
       />
       <CnxEmergencyModal isOpen={isEmergencyOpen} onClose={() => setIsEmergencyOpen(false)} />
     </main>

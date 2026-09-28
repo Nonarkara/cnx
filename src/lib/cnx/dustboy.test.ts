@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normaliseStation } from "./dustboy";
+import { normaliseStation, summariseBasin } from "./dustboy";
 
 const NOW = Date.parse("2026-09-28T07:30:00Z"); // 14:30 Bangkok
 
@@ -28,5 +28,26 @@ describe("DustBoy normaliseStation", () => {
   it("treats a stale reading as offline instead of reporting an old value", () => {
     const s = normaliseStation({ ...raw, log_datetime: "2026-09-27 13:00:00" }, NOW);
     expect(s?.pm25).toBeNull();
+  });
+
+  it("keeps the Chiang Mai average separate from the rest of the upper north", () => {
+    const cm = normaliseStation(raw, NOW);
+    const lampang = normaliseStation(
+      {
+        ...raw,
+        dustboy_uri: "lampang",
+        province_code: "52",
+        pm25: 180,
+        dustboy_name: "ทดสอบ อ.เมือง จ.ลำปาง",
+      },
+      NOW,
+    );
+    expect(cm && lampang).toBeTruthy();
+    const basin = summariseBasin([cm!, lampang!]);
+    expect(basin.chiangMai.avgPm25).toBe(42);
+    expect(basin.chiangMai.onlineCount).toBe(1);
+    expect(basin.chiangMai.newestReadingAgeHours).toBe(2);
+    expect(basin.avgPm25).toBeGreaterThan(42);
+    expect(basin.onlineCount).toBe(2);
   });
 });

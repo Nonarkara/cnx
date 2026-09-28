@@ -27,6 +27,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CameraHaze } from "../../lib/cnx/haze-vision";
 import type { HazeLabel } from "../../lib/cnx/haze-vision-core";
 import type { CitizenReport } from "../../lib/cnx/citizen-core";
+import type { DustboyStation } from "../../lib/cnx/dustboy";
+import type { TrajectorySegment } from "../../lib/cnx/smoke-trajectory";
 import dynamic from "next/dynamic";
 import type { MapViewState } from "@deck.gl/core";
 import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
@@ -323,10 +325,16 @@ interface MapProps {
   cameraHaze?: CameraHaze[];
   /** Haze posts/news the relay could place; unplaced ones are not drawn. */
   citizenReports?: CitizenReport[];
+  /** Online DustBoy sensors. Offline rows are omitted by the caller. */
+  dustboyStations?: DustboyStation[];
+  /** Live plume polylines. Empty when FIRMS did not answer. */
+  smokeSegments?: TrajectorySegment[];
 }
 
 const NO_CAMERA_HAZE: CameraHaze[] = [];
 const NO_REPORTS: CitizenReport[] = [];
+const NO_DUSTBOY: DustboyStation[] = [];
+const NO_PLUMES: TrajectorySegment[] = [];
 const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
   "haze-likely": [220, 38, 38, 235],
   "some-haze": [234, 179, 8, 230],
@@ -359,6 +367,8 @@ export default function CNXMap({
   weatherLayers = null,
   cameraHaze = NO_CAMERA_HAZE,
   citizenReports = NO_REPORTS,
+  dustboyStations = NO_DUSTBOY,
+  smokeSegments = NO_PLUMES,
 }: MapProps) {
   // Default to Topography — Chiang Mai sits in a mountain basin (Doi Suthep,
   // Doi Inthanon, the Ping valley), and the topographic context drives the
@@ -374,6 +384,8 @@ export default function CNXMap({
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
+  const [plumesOn, setPlumesOn] = useState(true);
+  const [dustboyOn, setDustboyOn] = useState(true);
   const [busesOn, setBusesOn] = useState(true);
   const [cmuShuttleOn, setCmuShuttleOn] = useState(true);
   const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
@@ -612,6 +624,44 @@ export default function CNXMap({
       pickable: true,
     });
 
+    const dustboyLayer = new ScatterplotLayer<DustboyStation>({
+      id: "cnx-dustboy",
+      data: dustboyOn ? dustboyStations : [],
+      getPosition: (d) => [d.longitude, d.latitude],
+      getRadius: 4,
+      radiusUnits: "pixels",
+      getFillColor: (d) => {
+        switch (d.severity) {
+          case "critical":
+            return [127, 29, 29, 230];
+          case "alert":
+            return [194, 65, 12, 220];
+          case "watch":
+            return [180, 83, 9, 210];
+          default:
+            return [21, 128, 61, 200];
+        }
+      },
+      getLineColor: () => [255, 255, 255, 200],
+      lineWidthMinPixels: 1,
+      stroked: true,
+      pickable: true,
+    });
+
+    const plumeLayer = new PathLayer<TrajectorySegment>({
+      id: "cnx-smoke",
+      data: plumesOn ? smokeSegments : [],
+      getPath: (d) => [
+        [d.origin.longitude, d.origin.latitude] as [number, number],
+        ...d.points.map((p) => [p.longitude, p.latitude] as [number, number]),
+      ],
+      getColor: (d) =>
+        d.nearCnx ? [220, 38, 38, 210] : d.hitsCnxBbox ? [234, 88, 12, 190] : [120, 113, 108, 80],
+      getWidth: (d) => 1.5 + d.weight * 2.5,
+      widthUnits: "pixels",
+      pickable: true,
+    });
+
     // Fire hotspots — FIRMS bright dots, fixed-pixel size.
     const fireLayer = new ScatterplotLayer<FireHotspot>({
       id: "cnx-fires",
@@ -717,6 +767,8 @@ export default function CNXMap({
       ...flightLayers,
       heritageLayer,
       airLayer,
+      plumeLayer,
+      dustboyLayer,
       fireLayer,
       floodLayer,
       citizenAreaLayer,
@@ -727,7 +779,7 @@ export default function CNXMap({
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, hazeById, citizenReports, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, hazeById, citizenReports, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -1001,6 +1053,15 @@ export default function CNXMap({
             const r = object as CitizenReport;
             return `${r.source === "reddit" ? "Reddit post" : "News"} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n📍 ${r.place?.nameEn || r.place?.nameTh} (±${r.place?.precisionKm} km, from the place name)`;
           }
+          if (layer.id === "cnx-dustboy") {
+            const s = object as DustboyStation;
+            return `${s.nameTh}\n${s.province} · PM2.5 ${s.pm25 ?? "—"} µg/m³ · ${s.readingAgeHours ?? "?"} h old\nCMU DustBoy ground sensor`;
+          }
+          if (layer.id === "cnx-smoke") {
+            const s = object as TrajectorySegment;
+            const where = s.nearCnx ? "within 50 km of the city at 6 h" : s.hitsCnxBbox ? "enters the province at 6 h" : "misses the city at 6 h";
+            return `Plume ${s.hotspotId}\n${where}\nStraight-line advection — not a forecast`;
+          }
           return null;
         }}
       >
@@ -1123,6 +1184,24 @@ export default function CNXMap({
           title="MODIS aerosol optical depth — haze / smoke density, daily, NASA GIBS"
         >
           {weatherLayers?.aerosol ? (aerosolLayerOn ? "Aerosol (AOD): on" : "Aerosol (AOD): off") : "Aerosol (AOD): no data"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={dustboyOn}
+          onClick={() => setDustboyOn((v) => !v)}
+          activeClassName="border-[#166534] bg-[#166534] text-white"
+          disabled={dustboyStations.length === 0}
+          title="CMU DustBoy ground PM2.5. Dots appear only for sensors with a reading under 3 hours old."
+        >
+          {dustboyStations.length ? (dustboyOn ? `DustBoy: on (${dustboyStations.length})` : "DustBoy: off") : "DustBoy: no data"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={plumesOn}
+          onClick={() => setPlumesOn((v) => !v)}
+          activeClassName="border-[#c2410c] bg-[#c2410c] text-white"
+          disabled={smokeSegments.length === 0}
+          title="Where smoke is heading in 6 hours. Straight-line wind advection from a live VIIRS pass — not a forecast. Red reaches the city."
+        >
+          {smokeSegments.length ? (plumesOn ? `Plumes: on (${smokeSegments.length})` : "Plumes: off") : "Plumes: none"}
         </MapToggleButton>
 
         <ToggleGroupLabel>Range Rings</ToggleGroupLabel>

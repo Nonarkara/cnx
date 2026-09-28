@@ -55,8 +55,8 @@ export default function CnxTicker({
         key: "fires",
         icon: "🔥",
         label: "FIRMS",
-        value: `${fires.totalCount} hotspots`,
-        level: fires.totalCount > 30 ? "alert" : undefined,
+        value: fires.provenance === "live" ? `${fires.totalCount} hotspots` : "no live pass",
+        level: fires.provenance === "live" && fires.totalCount > 30 ? "alert" : undefined,
       });
     }
     if (cctv) {

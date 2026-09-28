@@ -64,6 +64,16 @@ export interface DustboyResponse {
     worstProvince: string | null;
     /** Worst-affected district in the basin right now. */
     worstDistrict: string | null;
+    /** Chiang Mai province only — the number the city operator acts on.
+     *  `avgPm25` above mixes in Chiang Rai, Mae Hong Son, and the rest. */
+    chiangMai: {
+      stationCount: number;
+      onlineCount: number;
+      avgPm25: number | null;
+      maxPm25: number | null;
+      /** Age of the newest Chiang Mai row, including stale ones. */
+      newestReadingAgeHours: number | null;
+    };
   };
   /** Provenance — "live" when the public feed answered, "scenario" otherwise. */
   provenance: "live" | "needs-key" | "scenario";
@@ -132,27 +142,26 @@ async function fetchLiveDustboy(): Promise<DustboyStation[] | null> {
   }
 }
 
-function buildBasin(stations: DustboyStation[]): DustboyResponse["basin"] {
+function aggregate(stations: DustboyStation[]): {
+  stationCount: number;
+  onlineCount: number;
+  avgPm25: number | null;
+  maxPm25: number | null;
+  worst: DustboyStation | null;
+} {
   const online = stations.filter((s) => s.pm25 !== null);
   if (online.length === 0) {
-    return {
-      stationCount: stations.length,
-      onlineCount: 0,
-      avgPm25: null,
-      maxPm25: null,
-      worstProvince: null,
-      worstDistrict: null,
-    };
+    return { stationCount: stations.length, onlineCount: 0, avgPm25: null, maxPm25: null, worst: null };
   }
   let avgSum = 0;
   let maxPm = 0;
-  let maxStation: DustboyStation | null = null;
+  let worst: DustboyStation | null = null;
   for (const s of online) {
     if (s.pm25 === null) continue;
     avgSum += s.pm25;
     if (s.pm25 > maxPm) {
       maxPm = s.pm25;
-      maxStation = s;
+      worst = s;
     }
   }
   return {
@@ -160,10 +169,48 @@ function buildBasin(stations: DustboyStation[]): DustboyResponse["basin"] {
     onlineCount: online.length,
     avgPm25: Math.round((avgSum / online.length) * 10) / 10,
     maxPm25: maxPm,
-    worstProvince: maxStation?.province ?? null,
-    worstDistrict: maxStation?.district ?? null,
+    worst,
   };
 }
+
+export function summariseBasin(stations: DustboyStation[]): DustboyResponse["basin"] {
+  const all = aggregate(stations);
+  const cm = aggregate(stations.filter((s) => s.province === "เชียงใหม่"));
+  return {
+    stationCount: all.stationCount,
+    onlineCount: all.onlineCount,
+    avgPm25: all.avgPm25,
+    maxPm25: all.maxPm25,
+    worstProvince: all.worst?.province ?? null,
+    worstDistrict: all.worst?.district ?? null,
+    chiangMai: {
+      stationCount: cm.stationCount,
+      onlineCount: cm.onlineCount,
+      avgPm25: cm.avgPm25,
+      maxPm25: cm.maxPm25,
+      newestReadingAgeHours: newestAge(stations.filter((s) => s.province === "เชียงใหม่")),
+    },
+  };
+}
+
+function newestAge(stations: DustboyStation[]): number | null {
+  let best: number | null = null;
+  for (const s of stations) {
+    if (s.readingAgeHours === null) continue;
+    if (best === null || s.readingAgeHours < best) best = s.readingAgeHours;
+  }
+  return best;
+}
+
+const EMPTY_BASIN: DustboyResponse["basin"] = {
+  stationCount: 0,
+  onlineCount: 0,
+  avgPm25: null,
+  maxPm25: null,
+  worstProvince: null,
+  worstDistrict: null,
+  chiangMai: { stationCount: 0, onlineCount: 0, avgPm25: null, maxPm25: null, newestReadingAgeHours: null },
+};
 
 let cache: { at: number; data: DustboyResponse } | null = null;
 const TTL_MS = 10 * 60_000;
@@ -176,7 +223,7 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
     const data: DustboyResponse = {
       generatedAt: now,
       stations: live,
-      basin: buildBasin(live),
+      basin: summariseBasin(live),
       provenance: "live",
       note: null,
     };
@@ -186,14 +233,7 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
   const data: DustboyResponse = {
     generatedAt: now,
     stations: [],
-    basin: {
-      stationCount: 0,
-      onlineCount: 0,
-      avgPm25: null,
-      maxPm25: null,
-      worstProvince: null,
-      worstDistrict: null,
-    },
+    basin: EMPTY_BASIN,
     provenance: "scenario",
     note: "CMU CCDC DustBoy feed did not answer — no ground PM2.5 readings this cycle.",
   };

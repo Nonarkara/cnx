@@ -49,7 +49,7 @@ export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
           [
             { id: "flood", Icon: Droplets, label: "Flood", count: flood?.gauges.length },
             { id: "air", Icon: Wind, label: "Air", count: air?.stations.length },
-            { id: "fires", Icon: Flame, label: "Fires", count: fires?.totalCount },
+            { id: "fires", Icon: Flame, label: "Fires", count: fires?.provenance === "live" ? fires.totalCount : undefined },
           ] as const
         ).map((t, i) => (
           <button
@@ -201,6 +201,13 @@ function AirTab({ data }: { data: AirQualityResponse | null }) {
 
 function FiresTab({ data }: { data: CnxFiresResponse | null }) {
   if (!data) return <div className="p-3 text-[10px] text-[var(--dim)]">loading fires…</div>;
+  if (data.provenance !== "live") {
+    return (
+      <div className="p-3 text-[11px] leading-relaxed text-[var(--dim)]">
+        NASA FIRMS did not return a live pass. Illustrated hotspots are not listed as detections.
+      </div>
+    );
+  }
   return (
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">

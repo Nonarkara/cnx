@@ -13,6 +13,7 @@ import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { AeronetResponse } from "../../lib/cnx/aeronet";
 import type { CitizenResponse } from "../../lib/cnx/citizen-reports";
 import type { DustboyResponse } from "../../lib/cnx/dustboy";
+import type { SmokeTrajectoryResponse } from "../../lib/cnx/smoke-trajectory";
 import type { CameraHaze, HazeVisionResponse } from "../../lib/cnx/haze-vision";
 import { MIN_BASELINE_SAMPLES, type HazeLabel } from "../../lib/cnx/haze-vision-core";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
@@ -26,6 +27,7 @@ interface Props {
   dustboy: DustboyResponse | null;
   hazeVision: HazeVisionResponse | null;
   citizen: CitizenResponse | null;
+  smoke: SmokeTrajectoryResponse | null;
 }
 
 const VERDICT: Record<HazeLabel, { th: string; en: string; cls: string }> = {
@@ -83,7 +85,7 @@ function CameraCard({ cam }: { cam: CameraHaze }) {
   );
 }
 
-export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, hazeVision, citizen }: Props) {
+export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, hazeVision, citizen, smoke }: Props) {
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
 
   useEffect(() => {
@@ -147,11 +149,11 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
           />
           <Stat
             label="DustBoy ground (CMU)"
-            value={dustboy?.basin.avgPm25 != null ? `${dustboy.basin.avgPm25}` : "—"}
+            value={dustboy?.basin.chiangMai.avgPm25 != null ? `${dustboy.basin.chiangMai.avgPm25}` : "—"}
             sub={
-              dustboy?.provenance === "live" && dustboy.basin.onlineCount > 0
-                ? `µg/m³ · ${dustboy.basin.onlineCount}/${dustboy.basin.stationCount} sensors online (upper north)`
-                : `${dustboy?.basin.stationCount ?? 0} sensors, none with a reading < 3 h old`
+              dustboy?.provenance === "live" && dustboy.basin.chiangMai.onlineCount > 0
+                ? `µg/m³ · Chiang Mai ${dustboy.basin.chiangMai.onlineCount} online · upper north ${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`
+                : `${dustboy?.basin.stationCount ?? 0} sensors, none with a Chiang Mai reading < 3 h old`
             }
           />
           <Stat
@@ -174,6 +176,30 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
             value={cams.length ? `${hazyCams}/${cams.length}` : "—"}
             sub={cams.length ? "cameras showing haze" : hazeVision?.note ?? "loading…"}
           />
+        </section>
+
+        <section className="mt-6">
+          <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+            Where the smoke is going (6 h)
+          </h3>
+          <p className="mt-1 max-w-[90ch] text-[12px] leading-relaxed text-[var(--dim)]">
+            {smoke?.methodology_en ?? "Straight-line advection from surface wind. Not a forecast."}
+          </p>
+          {smoke?.provenance === "live" ? (
+            <p className="mt-2 text-[13px] text-[var(--ink)]">
+              Wind {smoke.wind ? `${smoke.wind.speedKmh} km/h from ${smoke.wind.fromDirectionDeg}°` : "unavailable"}.
+              {" "}Fires sit <span className="font-semibold">{smoke.summary.origin_en}</span>
+              {" "}(<span lang="th">{smoke.summary.origin_th}</span>).
+              {" "}{smoke.summary.nearCnx} plume{smoke.summary.nearCnx === 1 ? "" : "s"} within 50 km of the city,
+              {" "}{smoke.summary.hitsCnx} enter the province,
+              {" "}{smoke.summary.total} detection{smoke.summary.total === 1 ? "" : "s"} in the 350 km window
+              {smoke.summary.shown < smoke.summary.total ? ` (map shows ${smoke.summary.shown})` : ""}.
+            </p>
+          ) : (
+            <p className="mt-2 border border-[var(--line)] bg-[var(--bg-surface)] p-3 text-[12px] text-[var(--dim)]">
+              {smoke?.note ?? "Loading the live VIIRS pass…"}
+            </p>
+          )}
         </section>
 
         <section className="mt-6">

@@ -96,7 +96,7 @@ export default function CNXAboutPage() {
                   </h1>
                 </a>
                 <span className="mt-0.5 truncate text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-                  Chiang Mai Operations
+                  Chiang Mai Operations · v{process.env.NEXT_PUBLIC_APP_VERSION}
                 </span>
               </div>
             </div>

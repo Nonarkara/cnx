@@ -3,7 +3,7 @@
 // Run: `npx vitest run src/lib/cnx/smoke-trajectory.test.ts`
 
 import { describe, it, expect } from "vitest";
-import { computeTrajectories, type HotspotPoint, type WindVector } from "./smoke-trajectory";
+import { computeTrajectories, presentForOperator, transportBbox, type HotspotPoint } from "./smoke-trajectory";
 
 // CNX province centre from config.ts: lat 18.788, lng 98.985, bbox
 // 97.5–100.5 / 17.5–20.5. The trajectory engine uses these to flag
@@ -110,6 +110,32 @@ describe("computeTrajectories — summary", () => {
     const r = computeTrajectories([], { speedKmh: 10, fromDirectionDeg: 0 });
     expect(r.summary.origin_th).toBe("ไม่มีจุดความร้อน");
     expect(r.summary.origin_en).toBe("no hotspots");
+  });
+});
+
+describe("transport window", () => {
+  it("reaches west of the Chiang Mai border so a Shan State fire is inside the pass", () => {
+    const box = transportBbox();
+    expect(box.west).toBeLessThan(97.5);
+    expect(box.north).toBeGreaterThan(20.5);
+  });
+
+  it("keeps a city-bound plume when the payload is capped", () => {
+    const far: HotspotPoint[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `far-${i}`,
+      latitude: 15.2,
+      longitude: 105,
+      frp: 1,
+    }));
+    const full = computeTrajectories(
+      [...far, { id: "hit", latitude: 18.788, longitude: 99.255, frp: 5 }],
+      { speedKmh: 5, fromDirectionDeg: 90 },
+    );
+    const shown = presentForOperator(full);
+    expect(shown.segments.length).toBeLessThanOrEqual(80);
+    expect(shown.segments.some((s) => s.hotspotId === "hit")).toBe(true);
+    expect(shown.summary.total).toBe(full.summary.total);
+    expect(shown.summary.nearCnx).toBe(full.summary.nearCnx);
   });
 });
 

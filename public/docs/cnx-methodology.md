@@ -15,10 +15,13 @@ dashboard already says.
 
 ## Province air score
 
-Worst-station-wins across all 25 amphoes. The province-level AQI pill
-on the masthead shows the worst reading, never the average. A single
-amphoe with hazardous PM2.5 cannot be hidden by a quiet province
-average.
+The masthead PM2.5 pill is the average of fresh PCD Air4Thai monitors
+in Chiang Mai. If none are fresh, it falls back to the Open-Meteo CAMS
+city cell and is a model, not a measurement. DustBoy is a separate
+pill: Chiang Mai sensors only, and a reading older than 3 hours is
+withheld. A quiet province average can hide a bad district — DustBoy
+raises the verdict only when it is the sole PM reading or at least
+15 µg/m³ worse than that average.
 
 ## Forest-tenure hotspot priority (RFD)
 

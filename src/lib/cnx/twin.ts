@@ -20,6 +20,8 @@
 import { fetchCnxFlood } from "./flood";
 import { fetchCnxAirQuality } from "./air-quality";
 import { fetchCnxFires } from "./fires";
+import { fetchCnxDustboy } from "./dustboy";
+import { fetchSmokeTrajectory } from "./smoke-feed";
 import { computeVerdict, type VerdictCard, type VerdictInputs } from "./verdict";
 
 export interface CnxTwinResponse {
@@ -54,6 +56,14 @@ export interface CnxTwinResponse {
     fire: {
       hotspots_24h: number | null;
       forest_share: number | null;
+    };
+    haze: {
+      dustboy_pm25: number | null;
+      dustboy_online: number;
+      smoke_near_cnx: number | null;
+      smoke_hits_cnx: number | null;
+      smoke_origin_en: string | null;
+      smoke_provenance: "live" | "unavailable";
     };
   };
   /** Honest-data disclaimer — same wording as FloodDash / AirDash. */
@@ -158,7 +168,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
 
   // Gather in parallel — the slowest upstream dictates wall-clock latency.
-  const [flood, air, fires, wind, pm25_fc, rain_fc_24h_mm_from_air] = await Promise.all([
+  const [flood, air, fires, wind, pm25_fc, rain_fc_24h_mm_from_air, dustboy, smoke] = await Promise.all([
     fetchCnxFlood(),
     fetchCnxAirQuality(),
     fetchCnxFires(),
@@ -183,6 +193,8 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
         return null;
       }
     }),
+    fetchCnxDustboy(),
+    fetchSmokeTrajectory(),
   ]);
 
   const pm25_now = air.provinceAvgPm25 ?? null;
@@ -199,8 +211,12 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     (m, s) => Math.max(m, s.rainfall24hMm),
     0,
   ) || null;
-  const fireCount = fires.totalCount ?? null;
-  const forestShare = fires.forestShare ?? null;
+  const firesAreLive = fires.provenance === "live";
+  const fireCount = firesAreLive ? fires.totalCount : null;
+  const forestShare = firesAreLive ? (fires.forestShare ?? null) : null;
+  const dustboyPm =
+    dustboy.provenance === "live" ? dustboy.basin.chiangMai.avgPm25 : null;
+  const smokeLive = smoke.provenance === "live";
 
   const washout = washoutBand(rain_fc_24h_mm_from_air);
   const danger = dangerScore({
@@ -215,11 +231,11 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   // is live when Open-Meteo returns 200. Honour both honestly.
   const floodLive = process.env.CNX_FLOOD_LIVE === "1";
   const airLive = pm25_now !== null;
-  const firesLive = process.env.FIRMS_MAP_KEY ? fireCount !== null : false;
+  const dustboyLive = dustboyPm !== null;
   const provenance: "live" | "scenario" | "mixed" =
-    floodLive && airLive && firesLive
+    floodLive && airLive && firesAreLive
       ? "live"
-      : floodLive || airLive || firesLive
+      : floodLive || airLive || firesAreLive || dustboyLive || smokeLive
         ? "mixed"
         : "scenario";
 
@@ -233,6 +249,11 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     fire_count: fireCount,
     wind_kmh: wind,
     provenance,
+    dustboy_pm25: dustboyPm,
+    smoke_hits_cnx: smokeLive ? smoke.summary.hitsCnx : null,
+    smoke_near_cnx: smokeLive ? smoke.summary.nearCnx : null,
+    smoke_origin_th: smokeLive ? smoke.summary.origin_th : null,
+    smoke_origin_en: smokeLive ? smoke.summary.origin_en : null,
   };
   const verdict = computeVerdict(verdictInputs);
 
@@ -266,6 +287,14 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
       fire: {
         hotspots_24h: fireCount,
         forest_share: forestShare,
+      },
+      haze: {
+        dustboy_pm25: dustboyPm,
+        dustboy_online: dustboy.provenance === "live" ? dustboy.basin.chiangMai.onlineCount : 0,
+        smoke_near_cnx: smokeLive ? smoke.summary.nearCnx : null,
+        smoke_hits_cnx: smokeLive ? smoke.summary.hitsCnx : null,
+        smoke_origin_en: smokeLive ? smoke.summary.origin_en : null,
+        smoke_provenance: smoke.provenance,
       },
     },
     disclaimer_th:

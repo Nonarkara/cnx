@@ -23,6 +23,7 @@ import type {
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
 import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { AsmcResponse } from "../../lib/cnx/asmc";
+import type { SmokeTrajectoryResponse } from "../../lib/cnx/smoke-trajectory";
 import { HOTLINES } from "../../lib/cnx/verdict";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
@@ -43,6 +44,7 @@ interface TopBarProps {
   twin: CnxTwinResponse | null;
   dustboy: DustboyResponse | null;
   asmc: AsmcResponse | null;
+  smoke: SmokeTrajectoryResponse | null;
   onOpenStory: () => void;
   onOpenManual: () => void;
   onOpenResearch: () => void;
@@ -55,10 +57,12 @@ function Pill({
   label,
   value,
   level,
+  title,
 }: {
   label: string;
   value: string;
   level?: "good" | "watch" | "alert" | "critical";
+  title?: string;
 }) {
   const colour =
     level === "critical"
@@ -69,7 +73,7 @@ function Pill({
       ? "bg-[#f59e0b] text-black"
       : "bg-[var(--bg-raised)] text-[var(--ink)] border border-[var(--line)]";
   return (
-    <div className={`flex items-center gap-1.5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] ${colour}`}>
+    <div title={title} className={`flex items-center gap-1.5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] ${colour}`}>
       <span className="text-[8px] text-[var(--dim)]">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
@@ -133,15 +137,19 @@ function VerdictStrip({
         </div>
       </div>
       {topReason && (
-        <div className="flex flex-wrap items-baseline gap-x-3 text-[10px]">
-          <span className="font-mono uppercase tracking-[0.14em] opacity-60">
-            {topReason.domain === "twins" ? "FloodDash × AirDash" : topReason.domain}
-          </span>
-          <span>{topReason.th}</span>
-          <span className="font-mono opacity-70">— {topReason.en}</span>
-          {topReason.evidence && (
-            <span className="font-mono opacity-50">{topReason.evidence}</span>
-          )}
+        <div className="flex flex-col gap-0.5 text-[10px]">
+          {v.reasons.slice(0, 3).map((reason) => (
+            <div key={`${reason.domain}-${reason.evidence ?? reason.en}`} className="flex flex-wrap items-baseline gap-x-3">
+              <span className="font-mono uppercase tracking-[0.14em] opacity-60">
+                {reason.domain === "twins" ? "FloodDash × AirDash" : reason.domain}
+              </span>
+              <span>{reason.th}</span>
+              <span className="font-mono opacity-70">— {reason.en}</span>
+              {reason.evidence && (
+                <span className="font-mono opacity-50">{reason.evidence}</span>
+              )}
+            </div>
+          ))}
         </div>
       )}
       {v.level !== "safe" && (
@@ -162,7 +170,7 @@ function VerdictStrip({
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenEmergency } = props;
+  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -180,6 +188,19 @@ export default function CnxTopBar(props: TopBarProps) {
 
   return (
     <header className="relative z-30 flex shrink-0 flex-col gap-1.5 border-b border-[var(--line)] bg-[var(--bg-raised)] px-4 py-2">
+      <div className="flex items-center gap-2">
+        <span
+          className="bg-[var(--ink)] px-2 py-0.5 font-mono text-[13px] font-bold tracking-[0.16em] text-[var(--bg)]"
+          title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"}`}
+        >
+          v{process.env.NEXT_PUBLIC_APP_VERSION}
+        </span>
+        {process.env.NEXT_PUBLIC_GIT_SHA && (
+          <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--dim)]">
+            {process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center bg-[var(--cool)] text-[14px] font-black text-white">
@@ -188,10 +209,6 @@ export default function CnxTopBar(props: TopBarProps) {
           <div>
             <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--cool)]">
               Chiang Mai Province War Room
-              <span className="ml-2 text-[var(--dim)]" title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"}`}>
-                v{process.env.NEXT_PUBLIC_APP_VERSION}
-                {process.env.NEXT_PUBLIC_GIT_SHA ? ` · ${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}
-              </span>
             </div>
             <div className="font-display text-[19px] font-bold leading-tight text-[var(--ink)]">
               เชียงใหม่ · ห้องบัญชาการ
@@ -272,27 +289,71 @@ export default function CnxTopBar(props: TopBarProps) {
         />
         <Pill
           label="DustBoy"
+          title={
+            dustboy?.provenance === "live"
+              ? `Chiang Mai ${dustboy.basin.chiangMai.onlineCount} sensors with a reading under 3 h${
+                  dustboy.basin.chiangMai.newestReadingAgeHours !== null
+                    ? ` · newest ${dustboy.basin.chiangMai.newestReadingAgeHours} h old`
+                    : ""
+                } · upper-north avg ${dustboy.basin.avgPm25 ?? "—"} µg/m³`
+              : dustboy?.note ?? undefined
+          }
           value={
-            dustboy
-              ? dustboy.provenance === "live"
-                ? `${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`
-                : "offline"
+            dustboy?.provenance === "live" && dustboy.basin.chiangMai.avgPm25 !== null
+              ? `${dustboy.basin.chiangMai.avgPm25} (${dustboy.basin.chiangMai.onlineCount})`
+              : dustboy?.provenance === "live"
+              ? "stale"
+              : dustboy
+              ? "offline"
               : "—"
           }
           level={
-            dustboy?.provenance === "live" && dustboy.basin.avgPm25 !== null
-              ? dustboy.basin.avgPm25 >= 90
+            dustboy?.provenance === "live" && dustboy.basin.chiangMai.avgPm25 !== null
+              ? dustboy.basin.chiangMai.avgPm25 >= 90
                 ? "critical"
-                : dustboy.basin.avgPm25 >= 50
+                : dustboy.basin.chiangMai.avgPm25 >= 50
                 ? "alert"
-                : dustboy.basin.avgPm25 >= 25
+                : dustboy.basin.chiangMai.avgPm25 >= 25
                 ? "watch"
                 : undefined
               : undefined
           }
         />
         <Pill label="RFD" value={firesRfd ? `${firesRfd.totalCount}` : "—"} level={rfdReserveCount > 5 ? "critical" : firesRfd && firesRfd.totalCount > 0 ? "watch" : undefined} />
-        <Pill label="FIRMS" value={fires ? `${fires.totalCount}` : "—"} level={fires && fires.totalCount > 30 ? "alert" : undefined} />
+        <Pill
+          label="FIRMS"
+          title={fires?.provenance === "scenario" ? "Illustrated hotspots — not a satellite pass" : "NASA VIIRS, Chiang Mai bbox, 24 h"}
+          value={fires ? (fires.provenance === "live" ? `${fires.totalCount}` : "no live") : "—"}
+          level={fires?.provenance === "live" && fires.totalCount > 30 ? "alert" : undefined}
+        />
+        <Pill
+          label="Smoke"
+          title={
+            smoke?.provenance === "live"
+              ? `${smoke.summary.origin_en} · ${smoke.summary.nearCnx} within 50 km · ${smoke.summary.hitsCnx} enter the province. ${smoke.methodology_en}`
+              : smoke?.note ?? "Straight-line advection from a live VIIRS pass"
+          }
+          value={
+            !smoke
+              ? "—"
+              : smoke.provenance !== "live"
+              ? "no pass"
+              : smoke.summary.nearCnx > 0
+              ? `${smoke.summary.nearCnx} near`
+              : smoke.summary.hitsCnx > 0
+              ? `${smoke.summary.hitsCnx} in prov.`
+              : smoke.summary.total === 0
+              ? "none"
+              : "clear"
+          }
+          level={
+            smoke?.provenance === "live" && smoke.summary.nearCnx > 0
+              ? "alert"
+              : smoke?.provenance === "live" && smoke.summary.hitsCnx > 0
+              ? "watch"
+              : undefined
+          }
+        />
         {/* ASMC has no public API host yet (see lib/cnx/asmc.ts) — the pill
             only appears once a working ASMC_BASE + key return live data. */}
         {asmc?.provenance === "live" && <Pill

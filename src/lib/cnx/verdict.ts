@@ -31,7 +31,7 @@ export interface VerdictReason {
   th: string;
   en: string;
   /** Domain the reason came from — lets the UI render a chip. */
-  domain: "flood" | "air" | "fire" | "twins";
+  domain: "flood" | "air" | "fire" | "haze" | "twins";
   /** Optional structured data point behind the headline. */
   evidence?: string;
 }
@@ -120,7 +120,54 @@ export const CHECKLIST: Record<VerdictLevel, ChecklistItem[]> = {
 
 // ─── Threshold tables (deliberate, auditable) ───────────────────
 
-/** Score band → label, mirrors the FloodDash /api/twin contract. */
+/** Air points from a PM2.5 reading. Wind under 12 km/h applies the
+ *  mountain-basin trap (×1.25) because smoke does not leave the valley. */
+function airPoints(pm: number, windKmh: number | null): number {
+  const windFactor = windKmh !== null && windKmh < 12 ? 1.25 : 1;
+  const effectivePm = pm * windFactor;
+  if (effectivePm >= 150) return 40;
+  if (effectivePm >= 90) return 30;
+  if (effectivePm >= 50) return 20;
+  if (effectivePm >= 25) return 10;
+  return 0;
+}
+
+function airReason(pm: number, windKmh: number | null): VerdictReason | null {
+  const points = airPoints(pm, windKmh);
+  if (points >= 40) {
+    return {
+      domain: "air",
+      th: `PM2.5 อันตราย (${Math.round(pm)} µg/m³) — ห้ามออกนอกอาคาร แจก N95`,
+      en: `PM2.5 hazardous (${Math.round(pm)} µg/m³) — stay indoors, distribute N95`,
+      evidence: `pm25=${pm} wind=${windKmh ?? "?"}`,
+    };
+  }
+  if (points >= 30) {
+    return {
+      domain: "air",
+      th: `PM2.5 มีผลกระทบต่อสุขภาพ (${Math.round(pm)} µg/m³)`,
+      en: `PM2.5 unhealthy (${Math.round(pm)} µg/m³)`,
+      evidence: `pm25=${pm}`,
+    };
+  }
+  if (points >= 20) {
+    return {
+      domain: "air",
+      th: `PM2.5 เริ่มมีผล (${Math.round(pm)} µg/m³) — กลุ่มเปราะบางควรอยู่ในอาคาร`,
+      en: `PM2.5 moderate (${Math.round(pm)} µg/m³) — vulnerable groups indoors`,
+      evidence: `pm25=${pm}`,
+    };
+  }
+  if (points >= 10) {
+    return {
+      domain: "air",
+      th: `PM2.5 ปานกลาง (${Math.round(pm)} µg/m³)`,
+      en: `PM2.5 moderate-low (${Math.round(pm)} µg/m³)`,
+      evidence: `pm25=${pm}`,
+    };
+  }
+  return null;
+}
 export function bandForScore(score: number): VerdictBand {
   if (score >= 75) return "high";
   if (score >= 50) return "elevated";
@@ -163,6 +210,14 @@ export interface VerdictInputs {
   wind_kmh: number | null;
   /** Provenance: are these live or scenario numbers? */
   provenance: "live" | "scenario" | "mixed";
+  /** Chiang Mai DustBoy average, µg/m³. Omit when the feed is not live. */
+  dustboy_pm25?: number | null;
+  /** Plumes whose 6 h endpoint falls inside the province bbox. */
+  smoke_hits_cnx?: number | null;
+  /** Plumes whose 6 h endpoint is within 50 km of the city centre. */
+  smoke_near_cnx?: number | null;
+  smoke_origin_th?: string | null;
+  smoke_origin_en?: string | null;
 }
 
 const EMPTY_CARD: VerdictCard = {
@@ -245,46 +300,40 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   // ─── Air contribution (0–40) — mountain-basin trap weighting ─
   let airScore = 0;
   if (input.pm25_now !== null) {
-    const pm = input.pm25_now;
-    // Wind-basin amplification: when wind < 12 km/h, smoke doesn't disperse.
-    // Apply a 1.25x weight so a "moderate" PM2.5 in a windless basin reads
-    // like a "high" reading.
-    const windFactor = input.wind_kmh !== null && input.wind_kmh < 12 ? 1.25 : 1;
-    const effectivePm = pm * windFactor;
+    airScore = airPoints(input.pm25_now, input.wind_kmh);
+    const reason = airReason(input.pm25_now, input.wind_kmh);
+    if (reason) reasons.push(reason);
+  }
 
-    if (effectivePm >= 150) {
-      airScore = 40;
-      reasons.push({
-        domain: "air",
-        th: `PM2.5 อันตราย (${Math.round(pm)} µg/m³) — ห้ามออกนอกอาคาร แจก N95`,
-        en: `PM2.5 hazardous (${Math.round(pm)} µg/m³) — stay indoors, distribute N95`,
-        evidence: `pm25=${pm} wind=${input.wind_kmh ?? "?"}`,
-      });
-    } else if (effectivePm >= 90) {
-      airScore = 30;
-      reasons.push({
-        domain: "air",
-        th: `PM2.5 มีผลกระทบต่อสุขภาพ (${Math.round(pm)} µg/m³)`,
-        en: `PM2.5 unhealthy (${Math.round(pm)} µg/m³)`,
-        evidence: `pm25=${pm}`,
-      });
-    } else if (effectivePm >= 50) {
-      airScore = 20;
-      reasons.push({
-        domain: "air",
-        th: `PM2.5 เริ่มมีผล (${Math.round(pm)} µg/m³) — กลุ่มเปราะบางควรอยู่ในอาคาร`,
-        en: `PM2.5 moderate (${Math.round(pm)} µg/m³) — vulnerable groups indoors`,
-        evidence: `pm25=${pm}`,
-      });
-    } else if (effectivePm >= 25) {
-      airScore = 10;
-      reasons.push({
-        domain: "air",
-        th: `PM2.5 ปานกลาง (${Math.round(pm)} µg/m³)`,
-        en: `PM2.5 moderate-low (${Math.round(pm)} µg/m³)`,
-        evidence: `pm25=${pm}`,
-      });
+  // DustBoy is a denser ground network than the PCD average. It becomes
+  // a reason once it is in the watch band, and it raises the air score
+  // only when it is the sole PM reading or clearly worse than that average
+  // — otherwise the same haze would be counted twice.
+  if (typeof input.dustboy_pm25 === "number" && input.dustboy_pm25 >= 25) {
+    const pm = input.dustboy_pm25;
+    reasons.push({
+      domain: "haze",
+      th: `DustBoy เชียงใหม่เฉลี่ย ${Math.round(pm)} µg/m³ (เซ็นเซอร์พื้นดิน มช.)`,
+      en: `DustBoy Chiang Mai average ${Math.round(pm)} µg/m³ (CMU ground sensors)`,
+      evidence: `dustboy_pm25=${pm}`,
+    });
+    const model = input.pm25_now;
+    if (model === null || pm >= model + 15) {
+      airScore = Math.max(airScore, airPoints(pm, input.wind_kmh));
     }
+  }
+
+  const near = input.smoke_near_cnx;
+  const hits = input.smoke_hits_cnx;
+  if ((typeof near === "number" && near > 0) || (typeof hits === "number" && hits > 0)) {
+    const originTh = input.smoke_origin_th || "รอบเชียงใหม่";
+    const originEn = input.smoke_origin_en || "around Chiang Mai";
+    reasons.push({
+      domain: "haze",
+      th: `ควัน ${near ?? 0} กลุ่มเข้าใกล้เมืองใน 6 ชม. (${hits ?? 0} กลุ่มเข้าจังหวัด) — มาจาก${originTh} แนวลมตรง ไม่ใช่พยากรณ์`,
+      en: `${near ?? 0} plume(s) within 50 km at 6 h (${hits ?? 0} enter the province) — from ${originEn}. Straight-line advection, not a forecast`,
+      evidence: `near=${near ?? 0} hits=${hits ?? 0}`,
+    });
   }
 
   // ─── Fire contribution (0–20) — burning season watch ─────────

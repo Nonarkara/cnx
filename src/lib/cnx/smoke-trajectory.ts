@@ -88,6 +88,8 @@ export interface SmokeTrajectoryResponse {
   /** Operator-visible signal: "smoke heading toward CNX". */
   summary: {
     total: number;
+    /** Segments included in this payload (approaching plumes first, capped). */
+    shown: number;
     hitsCnx: number;
     nearCnx: number;
     /** Where the smoke is coming from — "from the west", "from Myanmar", etc. */
@@ -97,6 +99,46 @@ export interface SmokeTrajectoryResponse {
   /** Honest methodology — every prediction surface carries this. */
   methodology_th: string;
   methodology_en: string;
+  /** `live` means the hotspots came from a FIRMS pass. Never advect illustrations. */
+  provenance: "live" | "unavailable";
+  hotspotSource: "firms" | "none";
+  note: string | null;
+}
+
+/** How far from Chiang Mai we look for fires that can feed the basin.
+ *  250 km stops at the border and misses the Shan State burns that
+ *  actually arrive on a northwest wind. 350 km reaches them. */
+export const SMOKE_RADIUS_KM = 350;
+export const SMOKE_SEGMENT_CAP = 80;
+
+export function transportBbox(
+  center: { latitude: number; longitude: number } = CNX_PROVINCE.center,
+  radiusKm = SMOKE_RADIUS_KM,
+): { west: number; south: number; east: number; north: number } {
+  const dLat = radiusKm / 111;
+  const dLng = radiusKm / (111 * Math.cos((center.latitude * Math.PI) / 180));
+  return {
+    west: Math.round((center.longitude - dLng) * 100) / 100,
+    east: Math.round((center.longitude + dLng) * 100) / 100,
+    south: Math.round((center.latitude - dLat) * 100) / 100,
+    north: Math.round((center.latitude + dLat) * 100) / 100,
+  };
+}
+
+/** Keep the wire payload readable: plumes that reach the city first, then
+ *  the strongest remaining fires, capped. Summary counts stay on the full set. */
+export function presentForOperator(response: SmokeTrajectoryResponse): SmokeTrajectoryResponse {
+  const ranked = [...response.segments].sort((a, b) => {
+    const rank = (s: TrajectorySegment) => (s.nearCnx ? 2 : 0) + (s.hitsCnxBbox ? 1 : 0);
+    const diff = rank(b) - rank(a);
+    return diff !== 0 ? diff : b.weight - a.weight;
+  });
+  const shown = ranked.slice(0, SMOKE_SEGMENT_CAP);
+  return {
+    ...response,
+    segments: shown,
+    summary: { ...response.summary, shown: shown.length },
+  };
 }
 
 const HOURS = [1, 3, 6] as const;
@@ -154,12 +196,10 @@ function inCnxCore(p: { latitude: number; longitude: number }): boolean {
   return distKm(p, CNX_PROVINCE.center) <= 50;
 }
 
-function describeOrigin(segments: TrajectorySegment[]): { th: string; en: string } {
-  if (segments.length === 0) return { th: "ไม่มีจุดความร้อน", en: "no hotspots" };
-  const meanLat =
-    segments.reduce((a, s) => a + s.origin.latitude, 0) / segments.length;
-  const meanLng =
-    segments.reduce((a, s) => a + s.origin.longitude, 0) / segments.length;
+function describeOrigin(points: { latitude: number; longitude: number }[]): { th: string; en: string } {
+  if (points.length === 0) return { th: "ไม่มีจุดความร้อน", en: "no hotspots" };
+  const meanLat = points.reduce((a, p) => a + p.latitude, 0) / points.length;
+  const meanLng = points.reduce((a, p) => a + p.longitude, 0) / points.length;
   const cnx = CNX_PROVINCE.center;
   const bearingFromCnx = (() => {
     const dLng = meanLng - cnx.longitude;
@@ -197,20 +237,45 @@ export function computeTrajectories(
 ): SmokeTrajectoryResponse {
   const now = new Date().toISOString();
   const segments: TrajectorySegment[] = [];
-  if (!wind || wind.speedKmh < 1) {
+  if (!wind) {
     return {
       generatedAt: now,
       wind,
       segments: [],
       summary: {
         total: hotspots.length,
+        shown: 0,
         hitsCnx: 0,
         nearCnx: 0,
         origin_th: "ไม่มีข้อมูลลม",
         origin_en: "no wind data",
       },
-      methodology_th: "พัดลมนิ่ง — ไม่สามารถคำนวณการเคลื่อนที่ของควันได้",
+      methodology_th: "ไม่มีข้อมูลลม — ไม่สามารถคำนวณการเคลื่อนที่ของควันได้",
+      methodology_en: "No wind reading — smoke advection cannot be computed.",
+      provenance: "live",
+      hotspotSource: hotspots.length > 0 ? "firms" : "none",
+      note: null,
+    };
+  }
+  if (wind.speedKmh < 1) {
+    const origin = describeOrigin(hotspots);
+    return {
+      generatedAt: now,
+      wind,
+      segments: [],
+      summary: {
+        total: hotspots.length,
+        shown: 0,
+        hitsCnx: 0,
+        nearCnx: 0,
+        origin_th: origin.th,
+        origin_en: origin.en,
+      },
+      methodology_th: "ลมสงบ — ไม่สามารถคำนวณการเคลื่อนที่ของควันได้",
       methodology_en: "Calm wind — smoke advection cannot be computed reliably.",
+      provenance: "live",
+      hotspotSource: hotspots.length > 0 ? "firms" : "none",
+      note: null,
     };
   }
   for (const h of hotspots) {
@@ -235,13 +300,14 @@ export function computeTrajectories(
   }
   const hitsCnx = segments.filter((s) => s.hitsCnxBbox).length;
   const nearCnx = segments.filter((s) => s.nearCnx).length;
-  const origin = describeOrigin(segments);
+  const origin = describeOrigin(segments.map((s) => s.origin));
   return {
     generatedAt: now,
     wind,
     segments,
     summary: {
       total: hotspots.length,
+      shown: segments.length,
       hitsCnx,
       nearCnx,
       origin_th: origin.th,
@@ -251,5 +317,8 @@ export function computeTrajectories(
       "การเคลื่อนที่ของควันคำนวณจากลมผิวพื้นที่เมือง — ไม่รวม turbulence, mixing, deposition",
     methodology_en:
       "Plume advection from surface wind only — straight-line, no turbulence or deposition.",
+    provenance: "live",
+    hotspotSource: hotspots.length > 0 ? "firms" : "none",
+    note: null,
   };
 }

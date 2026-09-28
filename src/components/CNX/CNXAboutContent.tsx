@@ -93,7 +93,95 @@ export default function CNXAboutContent() {
         </p>
         <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
           A plain-language explanation of the system: where every number comes from, how the system reaches its judgments, and why it can be trusted.
+          {" "}Document v{process.env.NEXT_PUBLIC_APP_VERSION}.
         </p>
+
+        {/* ─── Findings from the night of 29 Sep 2026 ───────────── */}
+        <section className="border-t border-[var(--line)] py-8">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]">
+            Findings · 29 Sep 2026, 01:07 ICT
+          </div>
+          <h2 className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.01em]" lang="th">
+            คืนนี้กระดานบอกอะไร
+          </h2>
+          <div className="mt-3 max-w-[74ch] space-y-3 text-[15px] leading-[1.75]">
+            <p lang="th">
+              บันทึกจากฟีดจริงบนเครื่องที่รัน v1.2.0 เวลา 01:07 น. ของวันที่ 29 กันยายน 2569 ไม่ใช่ฤดูเผาสูงสุด (มี.ค.–เม.ย.) แต่เป็นคืนที่แหล่งข้อมูลไม่เห็นพ้องกัน และความไม่เห็นพ้องนั้นคือข้อมูล
+            </p>
+            <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
+              Taken from the live feeds at 01:07 ICT on 29 September 2026. This is not peak burning season. The sources disagreed, and the disagreement is the finding.
+            </p>
+          </div>
+          <div className="mt-4 overflow-x-auto border border-[var(--line)]">
+            <table className="w-full min-w-[640px] text-left text-[13px]">
+              <thead className="bg-[var(--bg-raised)] font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--dim)]">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Signal</th>
+                  <th className="px-3 py-2 font-semibold">What came back</th>
+                  <th className="px-3 py-2 font-semibold">Read</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--line)]">
+                <tr>
+                  <td className="px-3 py-2 font-semibold">DustBoy (CMU)</td>
+                  <td className="px-3 py-2">165 sensors, 8 provinces. Chiang Mai 80, Chiang Rai 32, Phayao 16, Mae Hong Son 13, Lampang 8, Lamphun 7, Phrae 6, Nan 3. Every row timestamped 17:00 ICT 28 Sep. Age 8 h. Online: 0.</td>
+                  <td className="px-3 py-2">The public feed is one hourly batch, not 165 independent clocks. After 3 h the board says stale. It does not carry yesterday evening forward as tonight&apos;s PM2.5.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">PCD Air4Thai</td>
+                  <td className="px-3 py-2">0 fresh Chiang Mai monitors.</td>
+                  <td className="px-3 py-2">The official ground network was quiet at the same hour the university network froze.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">CAMS model</td>
+                  <td className="px-3 py-2">13 µg/m³ at the city cell. The seven map dots are scaled copies of that one cell.</td>
+                  <td className="px-3 py-2">The only PM number on the board, and it is a forecast model. It is not seven measurements and it is not a ground reading.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">MODIS AOD</td>
+                  <td className="px-3 py-2">0.196 at 550 nm. Watch band is 0.10–0.25. Critical starts at 0.40.</td>
+                  <td className="px-3 py-2">The satellite is in the watch band, not a smoke event.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">AERONET</td>
+                  <td className="px-3 py-2">23 cloud-screened days, 29 Aug–27 Sep. Latest daily AOD 0.061 at 500 nm (27 Sep). The 29 Aug day was 0.099. Ångström exponent about 1.13 on both.</td>
+                  <td className="px-3 py-2">The ground photometer has been looking at fine particles, not a thick smoke plume. Cloudy days are simply missing.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">RFD hotspots</td>
+                  <td className="px-3 py-2">0 in the Chiang Mai box over 7 days.</td>
+                  <td className="px-3 py-2">The forest department&apos;s own feed is quiet.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">NASA FIRMS</td>
+                  <td className="px-3 py-2">No map key on this machine. The old fallback is 14 illustrated points.</td>
+                  <td className="px-3 py-2">Those 14 are not drawn, not scored, and not advected into a plume. The pill says &quot;no live&quot;. The verdict fire count is empty.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">Smoke trajectory</td>
+                  <td className="px-3 py-2">provenance unavailable. Segments: 0.</td>
+                  <td className="px-3 py-2">A 6-hour plume is only drawn from a live VIIRS pass inside 350 km (the window that reaches Shan State). Straight-line wind, not a forecast.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">Cameras</td>
+                  <td className="px-3 py-2">4 of 9 reachable. Several Windy stills are hours to days old.</td>
+                  <td className="px-3 py-2">A days-old still is offline. The webcam haze scorer had not reported in 45 minutes, so no camera verdict is shown.</td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-semibold">Verdict</td>
+                  <td className="px-3 py-2">Score 0, level safe, provenance mixed.</td>
+                  <td className="px-3 py-2">Mixed because the model answered and the satellite fire pass did not. Safe is not &quot;the air was measured clean on the ground.&quot;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 max-w-[74ch] text-[15px] leading-[1.75]" lang="th">
+            สิ่งที่คืนนี้สอน: ตอนเซ็นเซอร์พื้นดินเงียบพร้อมกันทั้งลุ่มน้ำ แบบจำลอง 13 µg/m³ กับค่า AOD ที่ต่ำไม่ได้แปลว่าวัดฝุ่นบนถนนได้แล้ว มันแปลว่าเรายังไม่มีค่าพื้นดิน และระบบต้องพูดแบบนั้น
+          </p>
+          <p className="max-w-[74ch] text-[13px] leading-[1.7] text-[var(--dim)]">
+            When the ground network goes dark together, a model at 13 µg/m³ and a low aerosol optical depth do not become a street-level measurement. They mean we do not have a ground reading, and the board has to say so.
+          </p>
+        </section>
 
         {/* ─── Section 01: What this is ──────────────────────────── */}
         <section className="border-t border-[var(--line)] py-8">
@@ -162,13 +250,13 @@ export default function CNXAboutContent() {
               หลักการเดียวกันทั้งระบบ: <strong>ตัวเลขไม่ใช่คำตอบ — คำกริยาคือคำตอบ</strong> ระบบแปลงตัวเลขเป็นการปฏิบัติหนึ่งอย่างเสมอ เช่น จุดความร้อนเกิน 5 จุดในเขตอุทยาน = “แจ้งเจ้าหน้าที่ดับไฟ ประสานกำนันผู้ใหญ่บ้าน” ฝุ่น PM2.5 เกิน 75 µg/m³ = “ออกประกาศงดกิจกรรมกลางแจ้ง สวมหน้ากาก”
             </p>
             <p lang="th">
-              ค่าฝุ่นทั้งจังหวัดใช้ “สถานีที่แย่ที่สุด” ไม่ใช่ค่าเฉลี่ย — ชุมชนที่อากาศแย่หนึ่งแห่งจะไม่ถูกเฉลี่ยจนมองไม่เห็น และมีกติกาพิเศษของเชียงใหม่: จุดความร้อนในเขตป่าสงวนจะถูกจัดลำดับความสำคัญเหนือกว่าจุดในพื้นที่เกษตร (เพราะการลุกลามเข้าเขตอุทยานคือความเสี่ยงสูงสุด) ช่วงฤดูเผา (มี.ค.-เม.ย.) ระบบจะเร่งการแจ้งเตือนโดยอัตโนมัติ
+              ค่าฝุ่นบนแถบด้านบนคือค่าเฉลี่ยของสถานีกรมควบคุมมลพิษที่ยังสดในจังหวัด ถ้าไม่มีสถานีสด ระบบใช้แบบจำลอง CAMS และติดป้ายว่าเป็นแบบจำลอง DustBoy เป็นคนละตัวเลข ไม่ถูกยุบรวม และค่าที่เก่ากว่า 3 ชั่วโมงถูกตัดทิ้ง จุดความร้อนในเขตป่าสงวนยังสำคัญกว่าจุดในพื้นที่เกษตร ช่วงมี.ค.–เม.ย. ระบบเร่งจังหวะเตือนเอง
             </p>
             <p lang="th">
               จุดวิเคราะห์หลักของระบบคือ “สมุดบัญชีแม่ปิง” — ลุ่มน้ำเดียวกันท่วมเดือนตุลาคม (มรสุมตะวันตกเฉียงใต้) และแล้งเดือนเมษายน (ฤดูเผา + พายุฤดูร้อน) เขื่อนแม่งัดคือบัญชีที่คั่นกลาง ทุกการระบายคือการแลก ความเสี่ยงน้ำท่วมท้ายน้ำคืนนี้กับน้ำชลประทานฤดูแล้งปีหน้า
             </p>
             <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
-              One principle everywhere: a number is not an answer — a verb is. Readings become one imperative action. The province air score is worst-station-wins, never an average. A Chiang Mai-specific rule prioritises hotspots inside Royal Forest / National Reserve lands over agricultural-field hotspots (because escalation into park boundaries is the highest-risk path); during burning season (Mar–Apr) the alert cadence auto-tightens. The keystone read is the Ping Ledger: the same basin floods in October (southwest monsoon) and burns dry in April (burning season + pre-monsoon storms), and the Mae Ngat dam is the ledger between the two.
+              One principle everywhere: a number is not an answer — a verb is. Readings become one imperative action. The masthead PM2.5 is the average of fresh PCD monitors in the province; if none are fresh it falls back to the CAMS model and is labeled as a model. DustBoy stays a separate number, and a reading older than 3 hours is dropped. Hotspots inside Royal Forest / National Reserve lands still outrank agricultural burns; during March–April the alert cadence tightens. The keystone read is the Ping Ledger: the same basin floods in October and burns dry in April, and the Mae Ngat dam sits between the two.
             </p>
           </div>
         </section>

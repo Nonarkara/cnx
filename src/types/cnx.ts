@@ -176,6 +176,9 @@ export interface CnxFiresResponse {
   /** Fraction of FIRMS hotspots that fall inside the protected forest
    * boundary — burning-season watch metric. */
   forestShare?: number;
+  /** `live` is a FIRMS pass. `scenario` is an illustration — do not score it,
+   * plot it as a detection, or advect it into a smoke plume. */
+  provenance: "live" | "scenario";
 }
 
 // ─── Open data catalog ───────────────────────────────────────────

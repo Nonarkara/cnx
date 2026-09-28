@@ -9,7 +9,7 @@ import "./fonts.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chiang Mai Operations War Room",
+  title: `Chiang Mai Operations War Room · v${process.env.NEXT_PUBLIC_APP_VERSION ?? ""}`,
   description:
     "Live flights, weather, and operations data for Chiang Mai. Lanna blue + Doi Suthep gold.",
 };

@@ -22,7 +22,10 @@ function severityForBrightness(b: number): SeverityLevel {
   return "good";
 }
 
-function parseFirmsCsv(csv: string): FireHotspot[] {
+export function parseFirmsCsv(
+  csv: string,
+  bbox: { west: number; south: number; east: number; north: number } = CNX_PROVINCE.bbox,
+): FireHotspot[] {
   const lines = csv.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const header = lines[0].split(",").map((h) => h.trim());
@@ -33,15 +36,14 @@ function parseFirmsCsv(csv: string): FireHotspot[] {
     confidence: header.indexOf("confidence"),
     frp: header.indexOf("frp"),
     satellite: header.indexOf("satellite"),
-    acq: header.indexOf("acq_date") + 1,
+    acq: header.indexOf("acq_date"),
     acqTime: header.indexOf("acq_time"),
   };
   return lines.slice(1).map((line, i) => {
     const cells = line.split(",");
     const lat = +cells[idx.lat];
     const lon = +cells[idx.lon];
-    const b = CNX_PROVINCE.bbox;
-    if (lon < b.west || lon > b.east || lat < b.south || lat > b.north) return null;
+    if (lon < bbox.west || lon > bbox.east || lat < bbox.south || lat > bbox.north) return null;
     const brightness = +cells[idx.bright];
     const hotspot: FireHotspot = {
       id: `firms-${cells[0]}-${i}`,
@@ -60,20 +62,32 @@ function parseFirmsCsv(csv: string): FireHotspot[] {
   }).filter((h): h is FireHotspot => h !== null);
 }
 
-async function fetchLiveFirms(): Promise<FireHotspot[] | null> {
+/** Live VIIRS pass for an arbitrary box. `null` means no key or the
+ *  upstream did not answer — never an empty illustration. `[]` is a real
+ *  pass with zero detections. */
+export async function fetchFirmsInBbox(bbox: {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}): Promise<FireHotspot[] | null> {
   const mapKey = process.env.FIRMS_MAP_KEY;
   if (!mapKey) return null;
-  const b = CNX_PROVINCE.bbox;
   const today = new Date().toISOString().slice(0, 10);
-  const url = `${FIRMS_BASE}/${mapKey}/VIIRS_SNPP_NRT/${b.west},${b.south},${b.east},${b.north}/1/${today}`;
+  const url = `${FIRMS_BASE}/${mapKey}/VIIRS_SNPP_NRT/${bbox.west},${bbox.south},${bbox.east},${bbox.north}/1/${today}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     if (!res.ok) return null;
     const csv = await res.text();
-    return parseFirmsCsv(csv);
+    if (!csv.trim() || csv.trimStart().startsWith("<")) return null;
+    return parseFirmsCsv(csv, bbox);
   } catch {
     return null;
   }
+}
+
+async function fetchLiveFirms(): Promise<FireHotspot[] | null> {
+  return fetchFirmsInBbox(CNX_PROVINCE.bbox);
 }
 
 function buildScenario(now: string): CnxFiresResponse {
@@ -113,6 +127,7 @@ function buildScenario(now: string): CnxFiresResponse {
     hotspots,
     totalCount: hotspots.length,
     forestShare: 0.71,
+    provenance: "scenario",
   };
 }
 
@@ -128,6 +143,7 @@ export async function fetchCnxFires(): Promise<CnxFiresResponse> {
       generatedAt: now,
       hotspots: live,
       totalCount: live.length,
+      provenance: "live",
     };
     cache = { at: Date.now(), data: response };
     return response;

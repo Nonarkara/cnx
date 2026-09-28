@@ -21,7 +21,9 @@ const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryRespons
     headline: "Burning-season haze holds over the Ping valley",
     paragraphs: [
       `Province-average PM2.5 is ${s.pm25} µg/m³ — the valley floor is sitting in the "unhealthy" band that the PCD declared at ${s.pm25 > 90 ? "13:00" : "08:30"}.`,
-      `NASA FIRMS shows ${s.fireCount} hotspots inside the CNX bbox, with ${Math.round((s.forestShare ?? 0) * 100)}% of them in the protected forest ring around Doi Suthep–Pui and Doi Inthanon.`,
+      s.firesLive
+        ? `NASA FIRMS shows ${s.fireCount} hotspots inside the CNX bbox, with ${Math.round((s.forestShare ?? 0) * 100)}% of them in the protected forest ring around Doi Suthep–Pui and Doi Inthanon.`
+        : "NASA FIRMS has no live pass this cycle, so no satellite hotspot count is stated.",
       `Ping river at Nawarat Bridge is at ${(s.pingCap * 100).toFixed(0)}% of bank-full — no flood risk today, but the windless valley inversion is the story.`,
     ],
     bullets: [
@@ -85,6 +87,7 @@ const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryRespons
 interface StoryInputs {
   pm25: number;
   fireCount: number;
+  firesLive: boolean;
   forestShare: number | undefined;
   pingCap: number;
   bhmFraction: number;
@@ -98,6 +101,7 @@ function scenarioDefaults(): StoryInputs {
   return {
     pm25: 38,
     fireCount: 14,
+    firesLive: true,
     forestShare: 0.71,
     pingCap: 0.42,
     bhmFraction: 0.81,
@@ -125,7 +129,8 @@ export async function buildCnxStory(
 
   const inputs: StoryInputs = {
     pm25: air.provinceAvgPm25 ?? 38,
-    fireCount: fires.totalCount,
+    fireCount: fires.provenance === "live" ? fires.totalCount : 0,
+    firesLive: fires.provenance === "live",
     forestShare: fires.forestShare,
     pingCap: flood.pingCapacityFraction ?? 0.42,
     bhmFraction: bhm ? Math.round(bhm.fillFraction * 100) : 81,

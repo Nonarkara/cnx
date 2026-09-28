@@ -266,6 +266,48 @@ describe("computeVerdict — provenance is honest", () => {
   });
 });
 
+describe("computeVerdict — haze reasons", () => {
+  const quiet: VerdictInputs = {
+    pm25_now: 18,
+    pm25_fc_24h: null,
+    rain_fc_24h_mm: null,
+    rain_now_24h_mm: null,
+    ping_capacity_ratio: null,
+    reservoir_surge: false,
+    fire_count: 0,
+    wind_kmh: 20,
+    provenance: "live",
+  };
+
+  it("does not double-count DustBoy when it agrees with the province average", () => {
+    const base = computeVerdict(quiet);
+    const withDust = computeVerdict({ ...quiet, pm25_now: 80, dustboy_pm25: 85 });
+    const airOnly = computeVerdict({ ...quiet, pm25_now: 80 });
+    expect(withDust.score).toBe(airOnly.score);
+    expect(withDust.reasons.some((r) => r.domain === "haze" && r.evidence === "dustboy_pm25=85")).toBe(true);
+    expect(base.score).toBe(0);
+  });
+
+  it("lets DustBoy move the score when it is the only PM reading", () => {
+    const v = computeVerdict({ ...quiet, pm25_now: null, dustboy_pm25: 100 });
+    expect(v.score).toBe(30);
+    expect(v.reasons.some((r) => r.domain === "haze")).toBe(true);
+  });
+
+  it("names approaching plumes without adding a second fire score", () => {
+    const base = computeVerdict(quiet);
+    const v = computeVerdict({
+      ...quiet,
+      smoke_near_cnx: 4,
+      smoke_hits_cnx: 6,
+      smoke_origin_en: "northwest of Chiang Mai",
+      smoke_origin_th: "ตะวันตกเฉียงเหนือของเชียงใหม่",
+    });
+    expect(v.score).toBe(base.score);
+    expect(v.reasons.some((r) => r.domain === "haze" && r.en.includes("northwest of Chiang Mai"))).toBe(true);
+  });
+});
+
 describe("HOTLINES surface", () => {
   it("names DDPM 1784, PCD 1650, DDC 1422, EMS 1669 — never fabricated", () => {
     expect(HOTLINES.ddpm).toBe("1784");
