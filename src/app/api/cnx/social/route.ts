@@ -7,7 +7,7 @@ export const revalidate = 0;
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const multilingual = url.searchParams.get("multilingual") === "1";
-  const countries = (url.searchParams.get("countries") ?? "").split(",").filter(Boolean);
+  const countries = (url.searchParams.get("countries") ?? "").split(",").filter(Boolean).slice(0, 20);
   const data = multilingual
     ? await fetchCnxSocialMultilingual(countries)
     : await fetchCnxSocial();

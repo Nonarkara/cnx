@@ -10,6 +10,9 @@ export async function GET(request: Request) {
   if (!q || q.length < 2) {
     return NextResponse.json({ error: "Query string 'q' must be at least 2 characters" }, { status: 400 });
   }
+  if (q.length > 500) {
+    return NextResponse.json({ error: "Query exceeds 500 characters" }, { status: 400 });
+  }
   const result = await answerQuestion(q);
   return NextResponse.json(result, {
     headers: { "Cache-Control": "no-store" },
