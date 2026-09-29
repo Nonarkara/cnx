@@ -340,6 +340,7 @@ const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
   "some-haze": [234, 179, 8, 230],
   clear: [29, 78, 216, 220],
   "too-dark": [107, 107, 107, 200],
+  "no-colour": [107, 107, 107, 200],
   calibrating: [107, 107, 107, 200],
 };
 

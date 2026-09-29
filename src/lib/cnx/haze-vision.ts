@@ -8,7 +8,7 @@ export const HAZE_VISION_KV_KEY = "haze-vision-latest";
 /** The relay scores every 10 min; 45 min without a push means it is down. */
 const STALE_MS = 45 * 60_000;
 const MAX_CAMERAS = 60;
-const LABELS: HazeLabel[] = ["haze-likely", "some-haze", "clear", "too-dark", "calibrating"];
+const LABELS: HazeLabel[] = ["haze-likely", "some-haze", "clear", "too-dark", "no-colour", "calibrating"];
 
 export interface NearestPm25 {
   stationName: string;

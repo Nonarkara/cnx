@@ -5,6 +5,13 @@ const compat = new FlatCompat({
 });
 
 export default [
+  {
+    // Build output and dependencies are not source. Without this, `eslint`
+    // walked .next/ and .open-next/ and reported ~2,500 errors from
+    // generated bundles — noise that hides real findings and makes the
+    // CI lint step meaningless.
+    ignores: [".next/**", ".open-next/**", "node_modules/**", "out/**", "public/**", "next-env.d.ts"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {

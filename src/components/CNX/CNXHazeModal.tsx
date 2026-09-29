@@ -35,6 +35,7 @@ const VERDICT: Record<HazeLabel, { th: string; en: string; cls: string }> = {
   "some-haze": { th: "มีหมอกควันบ้าง", en: "Some haze", cls: "border-[var(--sun)] text-[var(--ink)]" },
   clear: { th: "ฟ้าใส", en: "Clear", cls: "border-[var(--cool)] text-[var(--cool)]" },
   "too-dark": { th: "มืดเกินประเมิน", en: "Too dark to judge", cls: "border-[var(--line)] text-[var(--dim)]" },
+  "no-colour": { th: "ภาพขาวดำ (กล้องกลางคืน)", en: "Monochrome IR — not scored", cls: "border-[var(--line)] text-[var(--dim)]" },
   calibrating: { th: "กำลังเรียนรู้ภาพฟ้าใส", en: "Calibrating", cls: "border-[var(--line)] text-[var(--dim)]" },
 };
 

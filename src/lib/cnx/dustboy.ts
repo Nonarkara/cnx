@@ -4,7 +4,9 @@
 //
 // Source: the public, keyless feed behind CMU CCDC's DustBoy web app
 // (www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json) — ~400
-// stations with hourly PM2.5, Bangkok-time timestamps and province code.
+// stations with hourly PM2.5 and province code. No API key: the report's
+// "provision DUSTBOY_TOKEN" step is unnecessary, that variable is not
+// read anywhere.
 // The newer open-api.cmuccdc.org returns 403 without a token, and the
 // /api/ccdc/stations list carries caretakers' names and phone numbers,
 // so neither is used. Readings older than STALE_HOURS count as offline.
@@ -97,8 +99,31 @@ export interface DustboyRawStation {
   dustboy_lon?: string | number;
   pm25?: number | null;
   province_code?: string;
-  /** Bangkok local time, "YYYY-MM-DD HH:mm:ss". */
+  /** UTC, "YYYY-MM-DD HH:mm:ss". The feed stamps in UTC even though the
+   *  site is Bangkok-local — see parseLogDatetime for how this is known. */
   log_datetime?: string;
+}
+
+/**
+ * Parse the feed's `log_datetime`.
+ *
+ * The field LOOKS Bangkok-local (the site is Thai and every other
+ * timestamp on the page is +07:00), but it is UTC. Proven two ways
+ * against the live feed on 2026-09-29:
+ *   1. Every row carried `log_datetime: "2026-09-29 12:00:00"` while the
+ *      response's own `Last-Modified` was `12:09:46 GMT` — the file is
+ *      written 9 minutes after the stamp it contains, in the same clock.
+ *      Read as Bangkok, the reading was 8 h old and the hourly feed looked
+ *      7 h stale; read as UTC it is 1 h old, matching the hourly cadence.
+ *   2. Reading it as +07:00 pushed every station past STALE_HOURS and
+ *      blanked all 197 northern sensors to `pm25: null` — the panel
+ *      reported "offline" while the upstream was healthy.
+ *
+ * Keep this as UTC. If the feed ever switches to local time, the hourly
+ * cadence and the Last-Modified delta are the two signals that catch it.
+ */
+function parseLogDatetime(logDatetime: string): number {
+  return Date.parse(`${logDatetime.replace(" ", "T")}Z`);
 }
 
 export function normaliseStation(raw: DustboyRawStation, nowMs = Date.now()): DustboyStation | null {
@@ -107,7 +132,7 @@ export function normaliseStation(raw: DustboyRawStation, nowMs = Date.now()): Du
   const lat = Number(raw.dustboy_lat);
   const lng = Number(raw.dustboy_lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !raw.dustboy_uri) return null;
-  const observedMs = raw.log_datetime ? Date.parse(`${raw.log_datetime.replace(" ", "T")}+07:00`) : NaN;
+  const observedMs = raw.log_datetime ? parseLogDatetime(raw.log_datetime) : NaN;
   const readingAgeHours = Number.isFinite(observedMs) ? Math.max(0, Math.round((nowMs - observedMs) / 3_600_000)) : null;
   const fresh = readingAgeHours !== null && readingAgeHours <= STALE_HOURS;
   const pm = fresh && typeof raw.pm25 === "number" && Number.isFinite(raw.pm25) ? raw.pm25 : null;

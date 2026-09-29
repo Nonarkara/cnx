@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_BASELINE_SAMPLES, baselineFrom, classifyFrame, computeFrameMetrics, pearson, type FrameMetrics } from "./haze-vision-core";
+import { MIN_BASELINE_SAMPLES, MIN_COLOUR_SATURATION, baselineFrom, classifyFrame, computeFrameMetrics, isScorable, pearson, type FrameMetrics } from "./haze-vision-core";
 
 const W = 40;
 const H = 40;
@@ -19,7 +19,23 @@ function scene(haze: number, brightness = 1): Uint8Array {
   return px;
 }
 
+/** A monochrome infrared night-vision frame: R=G=B everywhere. Mirrors the
+ *  real Windy still captured 2026-09-29 19:25 BKK (luminance 0.315,
+ *  darkChannel 0.271, saturation exactly 0). */
+function infraredScene(brightness = 0.31): Uint8Array {
+  const px = new Uint8Array(W * H * 3);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 3;
+      const g = Math.round(((x * 31 + y * 17) % 90 + 40) * brightness * 3);
+      px[i] = px[i + 1] = px[i + 2] = g;
+    }
+  }
+  return px;
+}
+
 const metrics = (haze: number, brightness = 1) => computeFrameMetrics(scene(haze, brightness), W, H, 3);
+const irMetrics = (brightness = 0.31) => computeFrameMetrics(infraredScene(brightness), W, H, 3);
 
 describe("computeFrameMetrics", () => {
   it("raises the dark channel and lowers contrast and saturation as haze thickens", () => {
@@ -40,6 +56,34 @@ describe("classifyFrame", () => {
 
   it("skips night frames instead of calling them hazy", () => {
     expect(classifyFrame(metrics(0, 0.05), history).label).toBe("too-dark");
+  });
+
+  it("rejects bright monochrome infrared frames that pass the luminance gate", () => {
+    // Regression: Windy cameras that switch to IR after dusk produce frames
+    // bright enough to clear MIN_DAYLIGHT_LUMINANCE but with no colour.
+    const ir = irMetrics();
+    expect(ir.meanLuminance).toBeGreaterThan(0.14);
+    expect(ir.saturation).toBeLessThan(MIN_COLOUR_SATURATION);
+    expect(isScorable(ir)).toBe(false);
+    const v = classifyFrame(ir, history);
+    expect(v.label).toBe("no-colour");
+    expect(v.score).toBeNull();
+  });
+
+  it("keeps infrared frames out of the baseline so they cannot drift the score", () => {
+    // 20 daylight frames + 20 IR frames. The baseline must be built from the
+    // 20 daylight frames only, not diluted by the night-vision images.
+    const withIr = [...history, ...Array.from({ length: 20 }, () => irMetrics())];
+    const base = baselineFrom(withIr);
+    expect(base?.samples).toBe(MIN_BASELINE_SAMPLES);
+    const clean = baselineFrom(history);
+    expect(base?.darkChannel).toBeCloseTo(clean?.darkChannel ?? -1, 10);
+  });
+
+  it("still scores genuinely colourful frames as daylight", () => {
+    const day = metrics(0.05);
+    expect(day.saturation).toBeGreaterThan(MIN_COLOUR_SATURATION);
+    expect(isScorable(day)).toBe(true);
   });
 
   it("separates a hazy frame from a clear one against the camera's own baseline", () => {

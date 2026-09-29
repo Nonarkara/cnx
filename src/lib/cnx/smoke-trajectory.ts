@@ -9,27 +9,35 @@
 //      t=1h, 3h, 6h using straight-line wind advection
 //      (x = x0 + windSpeed * cos(bearing) * dt)
 //      (y = y0 + windSpeed * sin(bearing) * dt)
-//   2. Apply a slight Gaussian spread perpendicular to the wind
-//      direction (smoke plumes widen as they travel).
-//   3. Tag every point with the predicted time so the panel can
+//   2. Tag every point with the predicted time so the panel can
 //      colour by "in 1h / 3h / 6h".
+//   3. Measure the 6 h endpoint against the CNX bbox and a 50 km
+//      radius of the city centre, and summarise how many plumes
+//      arrive and roughly where they come from.
+//
+// There is deliberately NO plume widening: the wire format is a
+// centreline, and a synthetic Gaussian spread would draw a modelled
+// width that no measurement supports. If you want uncertainty, say so
+// with a corridor around the line, not with invented sigma.
 //
 // Limitations — stated up front in the API response so the panel can
 // render them honestly:
 //   - Straight-line advection ignores turbulence, boundary-layer
 //     dynamics, and deposition. Real plumes curve.
 //   - No vertical mixing assumed; surface wind only.
-//   - One wind reading per hotspot (the basin city-centre reading),
-//     not per-grid. A 25 km spatial error is plausible for distant
-//     hotspots.
+//   - One wind reading for the whole response (the Chiang Mai city
+//     point), not per-hotspot. A hotspot 300 km away in Shan State
+//     can be under completely different wind, so treat the far end of
+//     the segment as indicative rather than a forecast.
 //   - All trajectory points are *predictions*, never observed
 //     values. The UI must surface the methodology.
 //
 // Inputs:
-//   - Hotspots: lat/lng per fire (FIRMS or RFD or DustBoy-fused)
+//   - Hotspots: lat/lng per fire, from a live FIRMS pass (fires.ts).
 //   - Wind: speed (km/h) + direction (degrees from north, 0=N, 90=E)
-//     from Open-Meteo's city-centre point. Same fetch as the verdict
-//     engine already does — no new external call.
+//     from Open-Meteo's city-centre point, fetched by smoke-feed.ts.
+//     That is a separate request from the one the verdict engine makes
+//     — they are not shared, and each is cached on its own TTL.
 //
 // Output:
 //   - TrajectorySegment[] — one per hotspot, with predicted points

@@ -37,7 +37,7 @@ export interface Baseline {
   samples: number;
 }
 
-export type HazeLabel = "haze-likely" | "some-haze" | "clear" | "too-dark" | "calibrating";
+export type HazeLabel = "haze-likely" | "some-haze" | "clear" | "too-dark" | "no-colour" | "calibrating";
 
 export interface HazeVerdict {
   label: HazeLabel;
@@ -50,6 +50,15 @@ export interface HazeVerdict {
 export const MIN_DAYLIGHT_LUMINANCE = 0.14;
 /** Daylight frames needed before a camera's baseline is trusted. */
 export const MIN_BASELINE_SAMPLES = 12;
+/** A frame with no measurable colour is not a daylight RGB scene.
+ *
+ *  Several Windy cameras switch to monochrome infrared after dusk: the
+ *  still is a bright enough greyscale night-vision image (luminance ~0.30
+ *  on 2026-09-29, well over MIN_DAYLIGHT_LUMINANCE) but every pixel has
+ *  R=G=B. Those frames passed the luminance gate, were scored as daylight
+ *  haze, and poisoned the per-camera baseline with a completely different
+ *  imaging mode. Saturation is already computed, so require some of it. */
+export const MIN_COLOUR_SATURATION = 0.02;
 const PATCH_RADIUS = 3;
 const SKY_FRACTION = 0.25;
 
@@ -123,10 +132,16 @@ export function isDaylight(m: FrameMetrics): boolean {
   return m.meanLuminance >= MIN_DAYLIGHT_LUMINANCE;
 }
 
+/** True when the frame is bright AND carries colour. Monochrome IR night
+ *  vision is bright but has no colour channel to lose to haze. */
+export function isScorable(m: FrameMetrics): boolean {
+  return isDaylight(m) && m.saturation >= MIN_COLOUR_SATURATION;
+}
+
 /** The camera's "clear day": low dark channel, high contrast, taken as
  *  robust percentiles of its daylight history. */
 export function baselineFrom(history: FrameMetrics[]): Baseline | null {
-  const day = history.filter(isDaylight);
+  const day = history.filter(isScorable);
   if (day.length < MIN_BASELINE_SAMPLES) return null;
   return {
     darkChannel: percentile(day.map((m) => m.darkChannel), 0.2),
@@ -146,6 +161,7 @@ export function hazeScore(m: FrameMetrics, base: Baseline): number {
 
 export function classifyFrame(m: FrameMetrics, history: FrameMetrics[]): HazeVerdict {
   if (!isDaylight(m)) return { label: "too-dark", score: null };
+  if (m.saturation < MIN_COLOUR_SATURATION) return { label: "no-colour", score: null };
   const base = baselineFrom(history);
   if (!base) return { label: "calibrating", score: null };
   const score = hazeScore(m, base);
@@ -171,4 +187,4 @@ export function pearson(xs: number[], ys: number[]): number | null {
 }
 
 export const HAZE_METHODOLOGY =
-  "Classical image statistics on public webcam snapshots (dark-channel prior, He et al. 2009; luminance contrast; saturation), each camera compared with its own clearest daylight frames. Not a trained model and not a PM2.5 measurement: rain, fog, low cloud and a dirty lens also read as haze; night frames are skipped; a camera that has only seen hazy days under-reports. The agreement figure compares scores with the nearest DustBoy ground sensor.";
+  "Classical image statistics on public webcam snapshots (dark-channel prior, He et al. 2009; luminance contrast; saturation), each camera compared with its own clearest daylight frames. Not a trained model and not a PM2.5 measurement: rain, fog, low cloud and a dirty lens also read as haze; night frames are skipped, as are monochrome infrared frames from cameras that switch to night vision after dusk; a camera that has only seen hazy days under-reports. The agreement figure compares scores with the nearest DustBoy ground sensor.";

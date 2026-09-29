@@ -38,8 +38,6 @@
 
 import type { SeverityLevel } from "../../types/cnx";
 
-const ASMC_BASE = process.env.ASMC_BASE ?? "https://api.haze.asean.org";
-
 export interface AsmcHotspotRegion {
   /** ISO country code or ASMC sub-region (e.g. "MMR-N", "THA-N", "LAO-N"). */
   region: string;
@@ -149,10 +147,14 @@ function assessmentHeadline(level: AsmcResponse["assessment"]): { th: string; en
 async function fetchLiveAsmc(): Promise<AsmcResponse | null> {
   const key = process.env.ASMC_API_KEY;
   if (!key) return null;
-  // Two known probes; flip ASMC_BASE in env if the operator finds a
-  // different working host. Both endpoints are reasonable starting
-  // points for the WIS 2.0 regional product family.
-  const urls = [`${ASMC_BASE}/api/v1/regional/haze-assessment`, `${ASMC_BASE}/api/v1/haze-assessment`];
+  // No default host. api.haze.asean.org does not resolve (NXDOMAIN, checked
+  // from the CF edge 2026-09-28) and api-asmc.onegeology.org likewise, so
+  // defaulting to either just burns two DNS failures every cycle. Require the
+  // operator to name a host that actually resolves.
+  const base = process.env.ASMC_BASE;
+  if (!base) return null;
+  // Two endpoint shapes to try; flip ASMC_BASE if the host moves.
+  const urls = [`${base}/api/v1/regional/haze-assessment`, `${base}/api/v1/haze-assessment`];
   for (const url of urls) {
     try {
       const res = await fetch(url, {
@@ -160,6 +162,7 @@ async function fetchLiveAsmc(): Promise<AsmcResponse | null> {
           Authorization: `Bearer ${key}`,
           Accept: "application/json",
         },
+        signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) continue;
       const json = (await res.json()) as AsmcRawPayload;
@@ -196,6 +199,7 @@ export async function fetchCnxAsmc(): Promise<AsmcResponse> {
   }
   // Honest-data fallback — never fabricate regional hotspot counts.
   const hasKey = !!process.env.ASMC_API_KEY;
+  const hasBase = !!process.env.ASMC_BASE;
   const head = assessmentHeadline("unknown");
   const data: AsmcResponse = {
     generatedAt: new Date().toISOString(),
@@ -205,10 +209,13 @@ export async function fetchCnxAsmc(): Promise<AsmcResponse> {
     assessment_th: head.th,
     assessment_en: head.en,
     summary: null,
-    provenance: hasKey ? "scenario" : "needs-key",
-    note: hasKey
-      ? "ASMC_API_KEY is set but no regional endpoint responded — set ASMC_BASE to the working host, or check token scope."
-      : "ASMC publishes its haze assessment as web pages only; no public API host is known (api.haze.asean.org does not resolve). Nothing is shown until a working ASMC_BASE is configured.",
+    provenance: hasKey && hasBase ? "scenario" : "needs-key",
+    note:
+      hasKey && hasBase
+        ? "ASMC_API_KEY and ASMC_BASE are set but no regional endpoint responded — check the token scope or the host."
+        : hasKey
+        ? "ASMC_API_KEY is set but ASMC_BASE is not. ASMC publishes its assessment as web pages only and no public API host is known (api.haze.asean.org does not resolve), so there is nothing to call yet."
+        : "ASMC publishes its haze assessment as web pages only; no public API host is known (api.haze.asean.org does not resolve). Nothing is shown until a working ASMC_BASE is configured.",
   };
   cache = { at: Date.now(), data };
   return data;

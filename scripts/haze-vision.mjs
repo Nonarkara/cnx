@@ -8,7 +8,7 @@
 
 import sharp from "sharp";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { classifyFrame, computeFrameMetrics, isDaylight, pearson } from "../src/lib/cnx/haze-vision-core.ts";
+import { classifyFrame, computeFrameMetrics, isScorable, pearson } from "../src/lib/cnx/haze-vision-core.ts";
 import { normaliseStation } from "../src/lib/cnx/dustboy.ts";
 
 const EVERY_MS = 10 * 60_000;
@@ -100,7 +100,13 @@ export async function runHazeVision({ baseUrl, secret }) {
   try {
     const cctvRes = await fetch(`${baseUrl}/api/cnx/cctv`, { signal: AbortSignal.timeout(20_000) });
     if (!cctvRes.ok) throw new Error(`cctv list ${cctvRes.status}`);
-    const cams = ((await cctvRes.json()).slots ?? []).filter((c) => typeof c.posterUrl === "string" && c.posterUrl.startsWith("https://"));
+    // Only score cameras the wall reports as reachable. The Windy roster is
+    // mostly stale (8 of 9 were 34–79 h old on 2026-09-29), and scoring
+    // those stills wastes a download per camera per cycle and buries the
+    // real signal in dead frames.
+    const cams = ((await cctvRes.json()).slots ?? []).filter(
+      (c) => c.reachable !== false && typeof c.posterUrl === "string" && c.posterUrl.startsWith("https://"),
+    );
     const sensors = await fetchDustboyOnline();
     const history = loadHistory();
     const cutoff = Date.now() - HISTORY_DAYS * 86_400_000;
@@ -117,7 +123,9 @@ export async function runHazeVision({ baseUrl, secret }) {
         const verdict = classifyFrame(metrics, past.map((e) => e.m));
         const pm = nearestPm25(cam, sensors);
         // Same frame as last run (Windy refreshes slower than we poll) — don't double-count it.
-        if (past.at(-1)?.t !== observedAt && isDaylight(metrics)) {
+        // isScorable (not just isDaylight) so monochrome IR night-vision frames
+        // never enter the baseline or the stored history.
+        if (past.at(-1)?.t !== observedAt && isScorable(metrics)) {
           past.push({ t: observedAt, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null });
         }
         history[cam.id] = past;
