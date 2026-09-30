@@ -394,10 +394,17 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
   const now = new Date().toISOString();
   const live = await fetchLiveDustboy();
   if (live && live.length > 0) {
-    const basin = summariseBasin(live);
+    // Flag BEFORE summarising, and return the flagged rows. summariseBasin
+    // flags internally too (it is exported and used directly by tests), but
+    // if we passed the raw rows the per-station `suspect` flag would never
+    // reach the client — suspectCount would say 2 while every station in the
+    // drill-down read suspect: false, leaving the operator no way to find
+    // which sensor to check.
+    const flagged = flagSuspects(live);
+    const basin = summariseBasin(flagged);
     const data: DustboyResponse = {
       generatedAt: now,
-      stations: live,
+      stations: flagged,
       basin,
       provenance: "live",
       note: null,

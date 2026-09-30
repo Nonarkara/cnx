@@ -21,7 +21,7 @@
 // p95/p99 clamp would hide that. A neighbour-consistency test catches
 // the fault and passes the episode. Both directions are asserted below.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { flagSuspects, summariseBasin, type DustboyStation } from "./dustboy";
 
 let seq = 0;
@@ -160,5 +160,41 @@ describe("summariseBasin — suspect-excluded aggregates", () => {
     expect(basin.avgPm25).toBeNull();
     expect(basin.suspectCount).toBe(0);
     expect(basin.worstProvince).toBeNull();
+  });
+});
+
+describe("fetchCnxDustboy — per-station flag reaches the client", () => {
+  it("returns flagged rows, not the raw ones (regression)", async () => {
+    // fetchCnxDustboy used to summarise the RAW rows and return those same
+    // raw rows, so basin.suspectCount said 2 while every station in
+    // `stations[]` still read suspect: false. The operator was told two
+    // sensors were excluded but had no way to see WHICH — the drill-down
+    // the whole fix is premised on silently did not exist.
+    const live = [...cleanProvince("เชียงใหม่", 30, 6), station("เชียงใหม่", 649)];
+    vi.resetModules();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(live.map((s) => ({
+        dustboy_uri: s.stationId,
+        dustboy_name: s.nameTh,
+        dustboy_lat: s.latitude,
+        dustboy_lon: s.longitude,
+        pm25: s.pm25,
+        province_code: "50",
+        log_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
+      })))),
+    );
+    const { fetchCnxDustboy } = await import("./dustboy");
+    const res = await fetchCnxDustboy();
+
+    const flagged = res.stations.filter((s) => s.suspect);
+    // The headline count and the drill-down flags must agree.
+    expect(flagged.length).toBe(res.basin.suspectCount);
+    expect(flagged.length).toBe(1);
+    // The faulted row keeps its real value — nothing is hidden.
+    expect(flagged[0]?.pm25).toBe(649);
+    expect(res.basin.maxPm25Raw).toBe(649);
+    expect(res.caveat).not.toBeNull();
+    vi.unstubAllGlobals();
   });
 });
