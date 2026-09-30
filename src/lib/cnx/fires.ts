@@ -17,7 +17,26 @@ const FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
 /** Days requested per pass — see fetchFirmsInBbox for why not 1. */
 const FIRMS_WINDOW_DAYS = 2;
 
+/**
+ * What we actually report, and what the UI must say.
+ *
+ * These are different on purpose. The fetch asks for 2 days because a
+ * 1-day request returns a valid but empty body during the NRT publishing
+ * lag, and empty is indistinguishable from "clear". The 2-day body is
+ * the *liveness proof*. What an operator is shown stays a 24-hour number,
+ * because "FIRMS Hotspots (24 h)" next to a 48-hour count is a false
+ * statement about how much ground the number covers.
+ */
+const FIRMS_REPORT_HOURS = 24;
+
 function severityForBrightness(b: number): SeverityLevel {
+  // An unreadable brightness is not a cool fire. `NaN >= 360` is false all
+  // the way down this ladder, so without this guard a CSV that omits
+  // `bright_ti4` — LANDSAT carries no brightness or FRP column at all —
+  // returns `good` for every detection. That is a false all-clear printed
+  // by a missing field, and it is the same failure mode the VIIRS
+  // confidence letters caused one line up: unparseable in, quiet out.
+  if (!Number.isFinite(b)) return "unknown";
   if (b >= 360) return "critical";
   if (b >= 340) return "alert";
   if (b >= 320) return "watch";
@@ -93,18 +112,20 @@ export function parseFirmsCsv(
     const lat = +cells[idx.lat];
     const lon = +cells[idx.lon];
     if (lon < bbox.west || lon > bbox.east || lat < bbox.south || lat > bbox.north) return null;
-    const brightness = +cells[idx.bright];
+    const rawBright = cells[idx.bright];
+    // A missing column index (or an empty cell) is not a temperature of 0.
+    const brightness = rawBright === undefined || rawBright === "" ? null : +rawBright;
     const hotspot: FireHotspot = {
       id: `firms-${cells[0]}-${i}`,
       latitude: lat,
       longitude: lon,
-      brightness,
+      brightness: Number.isFinite(brightness) ? brightness : null,
       confidence: parseConfidence(cells[idx.confidence]),
       satellite: normaliseSatellite(cells[idx.satellite]),
       detectedAt: `${cells[idx.acq]}T${String(cells[idx.acqTime]).padStart(4, "0").slice(0, 2)}:${String(
         cells[idx.acqTime],
       ).padStart(4, "0").slice(2, 4)}:00Z`,
-      severity: severityForBrightness(brightness),
+      severity: brightness === null || !Number.isFinite(brightness) ? "unknown" : severityForBrightness(brightness),
       frp: cells[idx.frp] ? +cells[idx.frp] : undefined,
     };
     return hotspot;
@@ -148,11 +169,24 @@ export async function fetchFirmsInBbox(bbox: {
     // string in the body and a 200, so guard the content explicitly.
     if (csv.trimStart().startsWith("Invalid") || csv.trimStart().startsWith("-1")) return null;
     const rows = parseFirmsCsv(csv, bbox);
-    // A header with zero data rows means the pass has not been published
-    // yet, NOT that the province is free of fire. Report "unknown" so the
-    // caller falls back rather than asserting a clean sky.
-    if (rows.length === 0 && csv.trim().split(/\r?\n/).length < 2) return null;
-    return rows;
+    // Three outcomes, and collapsing any two of them is how a haze board
+    // ends up wrong in both directions:
+    //
+    //   header only, zero rows  → the pass is not published yet: UNKNOWN
+    //   rows, none in last 24 h → the pass is LIVE and the sky is clear
+    //   rows within 24 h        → the number
+    //
+    // The second case is the one a blanket `empty → null` cannot express,
+    // and it is common: CNX sits in a real burn season, so yesterday had
+    // fire and today may not. Returning null there tells the operator
+    // "NASA did not answer" on a day when NASA answered clearly.
+    if (rows.length === 0) return null;
+
+    const cutoff = Date.now() - FIRMS_REPORT_HOURS * 3_600_000;
+    return rows.filter((h) => {
+      const t = Date.parse(h.detectedAt);
+      return Number.isFinite(t) && t >= cutoff;
+    });
   } catch {
     return null;
   }

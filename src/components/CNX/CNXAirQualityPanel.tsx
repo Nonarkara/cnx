@@ -22,6 +22,7 @@ import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { GistdaPm25Response } from "../../lib/cnx/gistda-pm25";
 
 const SEVERITY_CLASSES: Record<string, string> = {
+  unknown: "bg-[var(--line)] text-[var(--dim)]",
   good: "bg-[var(--success)] text-white",
   watch: "bg-[#f59e0b] text-black",
   alert: "bg-[#fb923c] text-black",

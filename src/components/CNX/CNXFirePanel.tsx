@@ -37,6 +37,7 @@ const TENURE_LABEL: Record<string, { th: string; en: string }> = {
 };
 
 const SEVERITY_CLASSES: Record<string, string> = {
+  unknown: "bg-[var(--line)] text-[var(--dim)]",
   good: "bg-[var(--success)] text-white",
   watch: "bg-[#f59e0b] text-black",
   alert: "bg-[#fb923c] text-black",
@@ -229,7 +230,7 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
               </div>
             </div>
             <span className="font-mono text-[10px] tabular-nums text-[var(--ink)]">
-              {h.brightness.toFixed(0)}K
+              {h.brightness === null ? "\u2014" : `${h.brightness.toFixed(0)}K`}
             </span>
             <span
               className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}

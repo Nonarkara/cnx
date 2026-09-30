@@ -4,7 +4,7 @@
 // multiple endpoints (ticker, story), every feed's payload must be
 // represented here so the TS inference stays total.
 
-export type SeverityLevel = "good" | "watch" | "alert" | "critical";
+export type SeverityLevel = "good" | "watch" | "alert" | "critical" | "unknown";
 
 export interface SeverityTag {
   level: SeverityLevel;
@@ -174,8 +174,10 @@ export interface FireHotspot {
   id: string;
   longitude: number;
   latitude: number;
-  /** Brightness temperature in Kelvin. */
-  brightness: number;
+  /** Brightness temperature in Kelvin. `null` when the source carries no
+   *  brightness column (LANDSAT) or the cell is unreadable — never 0, which
+   *  is a temperature. */
+  brightness: number | null;
   /** Confidence percent 0–100. */
   confidence: number;
   /** FRP — fire radiative power in MW. */

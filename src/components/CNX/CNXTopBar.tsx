@@ -61,7 +61,7 @@ function Pill({
 }: {
   label: string;
   value: string;
-  level?: "good" | "watch" | "alert" | "critical";
+  level?: "good" | "watch" | "alert" | "critical" | "unknown";
   title?: string;
 }) {
   const colour =
