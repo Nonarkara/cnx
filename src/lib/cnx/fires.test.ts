@@ -125,11 +125,12 @@ describe("fetchFirmsInBbox — unknown, clear, and detections are three states",
     if (!ok) vi.stubGlobal("fetch", async () => new Response(body, { status }));
   }
 
-  it("reports unknown when the pass has not been published (header only)", async () => {
-    // Not "the sky is clear" — we do not know yet.
+  it("reports a live zero when FIRMS answers with a header and no rows", async () => {
+    // Two-day window: yesterday's passes are published, so an empty answer
+    // is "no detections", not "not published yet". Wet-season normal.
     stubFirms(FULL_HEADER);
     const { fetchFirmsInBbox } = await import("./fires");
-    expect(await fetchFirmsInBbox(BBOX)).toBeNull();
+    expect(await fetchFirmsInBbox(BBOX)).toEqual([]);
   });
 
   it("reports a live, genuinely empty 24 h when yesterday had fire and today does not", async () => {

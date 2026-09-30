@@ -169,18 +169,18 @@ export async function fetchFirmsInBbox(bbox: {
     // string in the body and a 200, so guard the content explicitly.
     if (csv.trimStart().startsWith("Invalid") || csv.trimStart().startsWith("-1")) return null;
     const rows = parseFirmsCsv(csv, bbox);
-    // Three outcomes, and collapsing any two of them is how a haze board
-    // ends up wrong in both directions:
-    //
-    //   header only, zero rows  → the pass is not published yet: UNKNOWN
-    //   rows, none in last 24 h → the pass is LIVE and the sky is clear
-    //   rows within 24 h        → the number
-    //
-    // The second case is the one a blanket `empty → null` cannot express,
-    // and it is common: CNX sits in a real burn season, so yesterday had
-    // fire and today may not. Returning null there tells the operator
-    // "NASA did not answer" on a day when NASA answered clearly.
-    if (rows.length === 0) return null;
+    // A valid CSV with zero rows is an ANSWER, not a missing pass. The
+    // window is two days, so yesterday's passes are already published even
+    // when today's are not; "header only" therefore means no VIIRS
+    // detection in ~48 h of published passes — the normal state for the
+    // whole wet season (May–Oct). Treating it as unknown made the board say
+    // "key missing, or NASA did not answer" for months while NASA was
+    // answering clearly (verified 2026-09-30: NASA's keyless 48 h SE-Asia
+    // file had 0 detections in the CNX bbox while this path read
+    // "scenario"). Unknown is reserved for the failures above: no key, HTTP
+    // error, rejected key, over quota. Cloud can still hide fires — the
+    // panel says so; that caveat applies to every pass, zero or not.
+    if (rows.length === 0) return [];
 
     const cutoff = Date.now() - FIRMS_REPORT_HOURS * 3_600_000;
     return rows.filter((h) => {
