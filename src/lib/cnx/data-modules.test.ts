@@ -61,26 +61,33 @@ describe("fetchCnxOpenDataIndex", () => {
 });
 
 describe("fetchCnxBus", () => {
-  it("reads routes + stops from the network response", async () => {
+  it("reads routes + stops from the live Overpass response", async () => {
+    // Two network reads happen in order when the baked asset is skipped:
+    //   1. fetchStaticAsset for /data/cnx/bus-routes.geojson (must fail)
+    //   2. the Overpass POST (returns the { elements: [...] } shape that
+    //      loadOverpass actually parses)
+    // Mocking only one left the second read hitting an undefined mock.
+    // This also means the test now genuinely covers the network path —
+    // previously it was satisfied by the local public/data fixture, so it
+    // passed on this machine and failed in CI.
+    fetchMock.mockRejectedValueOnce(new Error("no baked asset"));
     fetchMock.mockResolvedValueOnce(
       fakeJson({
-        meta: { generatedAt: "2026-01-01T00:00:00.000Z" },
-        routes: [
+        elements: [
           {
-            id: "r-1",
-            ref: "24B",
-            name: "24B",
-            operator: "RTC",
-            colour: "#FFBF00",
-            geometry: [
-              [
-                [98.97, 18.78],
-                [98.98, 18.79],
-              ],
-            ],
+            type: "relation",
+            id: 1,
+            tags: { route: "bus", ref: "24B", name: "24B", operator: "RTC", colour: "#FFBF00" },
+            members: [{ type: "way", geometry: [{ lat: 18.78, lon: 98.97 }, { lat: 18.79, lon: 98.98 }] }],
+          },
+          {
+            type: "node",
+            id: 2,
+            lat: 18.78,
+            lon: 98.97,
+            tags: { highway: "bus_stop", name: "S1", operator: "RTC", ref: "24B" },
           },
         ],
-        stops: [{ id: "s-1", name: "S1", longitude: 98.97, latitude: 18.78, operator: "RTC", routeRef: "24B" }],
       }),
     );
     const { fetchCnxBus } = await import("./bus-routes");
