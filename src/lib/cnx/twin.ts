@@ -38,10 +38,16 @@ export interface CnxTwinResponse {
   /** Domain-specific deltas, kept small so the wire payload is cheap. */
   deltas: {
     flood: {
+      /** Measurement or scenario fill. Always present — mirrors
+       *  `haze.smoke_provenance`, and exists precisely for the consumer
+       *  who forgets to check. */
+      provenance: "live" | "scenario";
+      /** Null whenever `provenance !== "live"`, so a scenario gauge ratio
+       *  cannot be quoted as a river level downstream. */
       ping_capacity_ratio: number | null;
-      stations_rising: number;
-      stations_total: number;
-      reservoir_surge: boolean;
+      stations_rising: number | null;
+      stations_total: number | null;
+      reservoir_surge: boolean | null;
       rain_now_24h_mm: number | null;
     };
     air: {
@@ -227,9 +233,13 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   });
 
   // Provenance: live if at least flood + air are live-fetched, scenario otherwise.
-  // CNX flood module is scenario by default (CNX_FLOOD_LIVE gate is off); air
-  // is live when Open-Meteo returns 200. Honour both honestly.
-  const floodLive = process.env.CNX_FLOOD_LIVE === "1";
+  // Read `flood.provenance` — NOT `process.env.CNX_FLOOD_LIVE`. The env var is
+  // only the *gate*; `fetchCnxFlood()` sets provenance to "live" solely when
+  // `fetchLive()` actually returned a payload, and that function is still a
+  // `return null` placeholder. Keying off the gate would mean that setting
+  // CNX_FLOOD_LIVE=1 today publishes hash-seeded scenario numbers labelled
+  // live — the exact failure this file's header claims cannot happen.
+  const floodLive = flood.provenance === "live";
   const airLive = pm25_now !== null;
   const dustboyLive = dustboyPm !== null;
   const provenance: "live" | "scenario" | "mixed" =
@@ -249,6 +259,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     fire_count: fireCount,
     wind_kmh: wind,
     provenance,
+    flood_provenance: flood.provenance,
     dustboy_pm25: dustboyPm,
     smoke_hits_cnx: smokeLive ? smoke.summary.hitsCnx : null,
     smoke_near_cnx: smokeLive ? smoke.summary.nearCnx : null,
@@ -269,11 +280,12 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     verdict,
     deltas: {
       flood: {
-        ping_capacity_ratio: pingCapacity,
-        stations_rising: stationsRising,
-        stations_total: stationsTotal,
-        reservoir_surge: reservoirSurge,
-        rain_now_24h_mm: rainNow24hMm,
+        provenance: flood.provenance,
+        ping_capacity_ratio: floodLive ? pingCapacity : null,
+        stations_rising: floodLive ? stationsRising : null,
+        stations_total: floodLive ? stationsTotal : null,
+        reservoir_surge: floodLive ? reservoirSurge : null,
+        rain_now_24h_mm: floodLive ? rainNow24hMm : null,
       },
       air: {
         pm25_now,

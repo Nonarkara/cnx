@@ -99,29 +99,38 @@ async function buildAsyncCorpus(): Promise<Document[]> {
   } catch { /* fail-soft */ }
   try {
     const flood = await fetchCnxFlood();
-    for (const g of flood.gauges) {
-      docs.push({
-        id: g.stationId,
-        title: `${g.name} (${g.river})`,
-        body: `${g.levelM.toFixed(2)} m / ${g.bankFullM?.toFixed(2) ?? "?"} m · severity ${g.severity} · ${g.trend}`,
-        tags: ["flood", "gauge", g.river, g.basin],
-        terms: tokenize(`${g.name} ${g.river} ${g.basin} ${g.stationId}`),
-        source: "flood",
-        longitude: g.longitude,
-        latitude: g.latitude,
-        ts: g.observedAt,
-      });
-    }
-    for (const r of flood.reservoirs) {
-      docs.push({
-        id: r.damId,
-        title: r.name,
-        body: `Storage ${(r.fillFraction * 100).toFixed(0)}% (${r.storageMCM} MCM) · inflow ${r.inflowM3s} m³/s · outflow ${r.outflowM3s} m³/s · severity ${r.severity}`,
-        tags: ["flood", "dam", "reservoir"],
-        terms: tokenize(`${r.name} dam reservoir`),
-        source: "flood",
-        ts: r.observedAt,
-      });
+    // Scenario gauges stay out of the corpus entirely. This is the one
+    // place that matters most: a doc body is quoted verbatim, so
+    // "Nawarat Bridge (Ping) · 1.42 m / 3.50 m · severity watch · rising"
+    // built from a hash seed is indistinguishable from a gauge reading by
+    // the time a person reads it, and the RAG layer is the surface that
+    // sounds most authoritative. Indexing it would launder a fabrication
+    // into a citation.
+    if (flood.provenance === "live") {
+      for (const g of flood.gauges) {
+        docs.push({
+          id: g.stationId,
+          title: `${g.name} (${g.river})`,
+          body: `${g.levelM.toFixed(2)} m / ${g.bankFullM?.toFixed(2) ?? "?"} m · severity ${g.severity} · ${g.trend}`,
+          tags: ["flood", "gauge", g.river, g.basin],
+          terms: tokenize(`${g.name} ${g.river} ${g.basin} ${g.stationId}`),
+          source: "flood",
+          longitude: g.longitude,
+          latitude: g.latitude,
+          ts: g.observedAt,
+        });
+      }
+      for (const r of flood.reservoirs) {
+        docs.push({
+          id: r.damId,
+          title: r.name,
+          body: `Storage ${(r.fillFraction * 100).toFixed(0)}% (${r.storageMCM} MCM) · inflow ${r.inflowM3s} m³/s · outflow ${r.outflowM3s} m³/s · severity ${r.severity}`,
+          tags: ["flood", "dam", "reservoir"],
+          terms: tokenize(`${r.name} dam reservoir`),
+          source: "flood",
+          ts: r.observedAt,
+        });
+      }
     }
   } catch { /* fail-soft */ }
   try {

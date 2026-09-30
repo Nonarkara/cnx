@@ -34,6 +34,14 @@ export interface VerdictReason {
   domain: "flood" | "air" | "fire" | "haze" | "twins";
   /** Optional structured data point behind the headline. */
   evidence?: string;
+  /**
+   * True when this reason describes what we could NOT measure, rather than
+   * something we observed. Caveats are always rendered, even when a UI caps
+   * the reason list — the whole point is that a wall which is too busy to
+   * show "we cannot see the river" is exactly the wall that shouldn't say
+   * nothing to do.
+   */
+  isCaveat?: boolean;
 }
 
 export interface ChecklistItem {
@@ -189,6 +197,21 @@ export function levelForBand(band: VerdictBand): VerdictLevel {
   }
 }
 
+/** Inverse of levelForBand — used to keep a card coherent when the level
+ *  is capped by a data-availability rule rather than by the score. */
+export function bandForLevel(level: VerdictLevel): VerdictBand {
+  switch (level) {
+    case "danger":
+      return "high";
+    case "prepare":
+      return "elevated";
+    case "watch":
+      return "watch";
+    default:
+      return "normal";
+  }
+}
+
 // ─── Inputs the engine reads ─────────────────────────────────────
 
 export interface VerdictInputs {
@@ -210,6 +233,14 @@ export interface VerdictInputs {
   wind_kmh: number | null;
   /** Provenance: are these live or scenario numbers? */
   provenance: "live" | "scenario" | "mixed";
+  /**
+   * Provenance of the FLOOD inputs specifically. Required, not optional:
+   * the scenario flood module is wired in by default, so any caller that
+   * forgets this field would otherwise silently feed hash-seeded numbers
+   * into the verdict. Making it required turns that mistake into a
+   * compile error instead of a fabricated evacuation checklist.
+   */
+  flood_provenance: "live" | "scenario";
   /** Chiang Mai DustBoy average, µg/m³. Omit when the feed is not live. */
   dustboy_pm25?: number | null;
   /** Plumes whose 6 h endpoint falls inside the province bbox. */
@@ -246,55 +277,80 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   const reasons: VerdictReason[] = [];
 
   // ─── Flood contribution (0–40) ─────────────────────────────
+  //
+  // A scenario flood is not a weak signal, it is NO signal. Three separate
+  // things follow from that, and all three have to hold or the wall can
+  // still end up telling a governor something the river never said:
+  //   1. it must not raise the score;
+  //   2. it must not produce a reason phrased as an observation — once
+  //      "Ping river above normal (65%)" is a string in `reasons` it is
+  //      indistinguishable from a measurement to every downstream reader;
+  //   3. it must not certify "safe" (see the level cap below).
+  //
+  // What it *does* get to do is state its own absence, because a blank
+  // flood axis is not evidence that the river is quiet.
+  const floodIsScenario = input.flood_provenance !== "live";
+  // "Blind" covers both ways the flood axis can fail to speak, because
+  // neither is evidence of a quiet river: a scenario fill, and a live feed
+  // whose gauge reading simply did not come through tonight.
+  const floodBlind = floodIsScenario || input.ping_capacity_ratio === null;
+
   let floodScore = 0;
-  if (input.ping_capacity_ratio !== null) {
-    const r = input.ping_capacity_ratio;
-    if (r >= 0.95) {
-      floodScore = 40;
+  if (floodIsScenario) {
+    // Deliberately no points and no observation. The caveat reason is
+    // pushed LAST, after every measured domain, so that a real air or fire
+    // hazard still owns the headline — a governor must never be led by
+    // "we can't see the river" while the air is at 200 µg/m³.
+  } else {
+    if (input.ping_capacity_ratio !== null) {
+      const r = input.ping_capacity_ratio;
+      if (r >= 0.95) {
+        floodScore = 40;
+        reasons.push({
+          domain: "flood",
+          th: `แม่น้ำปิงล้นตลิ่ง (${Math.round(r * 100)}% ของความจุ) — น้ำท่วมขังริมฝั่ง`,
+          en: `Ping river overflowing (${Math.round(r * 100)}% of bank capacity) — flooding riverbanks`,
+          evidence: `ping_ratio=${r.toFixed(2)}`,
+        });
+      } else if (r >= 0.85) {
+        floodScore = 30;
+        reasons.push({
+          domain: "flood",
+          th: `แม่น้ำปิงใกล้ล้นตลิ่ง (${Math.round(r * 100)}%)`,
+          en: `Ping river near bank (${Math.round(r * 100)}%)`,
+          evidence: `ping_ratio=${r.toFixed(2)}`,
+        });
+      } else if (r >= 0.6) {
+        floodScore = 15;
+        reasons.push({
+          domain: "flood",
+          th: `แม่น้ำปิงสูงกว่าปกติ (${Math.round(r * 100)}%) — ติดตามทุก 3 ชม.`,
+          en: `Ping river above normal (${Math.round(r * 100)}%) — watch every 3h`,
+          evidence: `ping_ratio=${r.toFixed(2)}`,
+        });
+      }
+    }
+    if (input.reservoir_surge) {
+      // Independent signal: a dam release is not the same as a gauge reading,
+      // so it stacks on top of the gauge contribution. The composite total
+      // is still capped at 100 below.
+      floodScore += 15;
       reasons.push({
         domain: "flood",
-        th: `แม่น้ำปิงล้นตลิ่ง (${Math.round(r * 100)}% ของความจุ) — น้ำท่วมขังริมฝั่ง`,
-        en: `Ping river overflowing (${Math.round(r * 100)}% of bank capacity) — flooding riverbanks`,
-        evidence: `ping_ratio=${r.toFixed(2)}`,
-      });
-    } else if (r >= 0.85) {
-      floodScore = 30;
-      reasons.push({
-        domain: "flood",
-        th: `แม่น้ำปิงใกล้ล้นตลิ่ง (${Math.round(r * 100)}%)`,
-        en: `Ping river near bank (${Math.round(r * 100)}%)`,
-        evidence: `ping_ratio=${r.toFixed(2)}`,
-      });
-    } else if (r >= 0.6) {
-      floodScore = 15;
-      reasons.push({
-        domain: "flood",
-        th: `แม่น้ำปิงสูงกว่าปกติ (${Math.round(r * 100)}%) — ติดตามทุก 3 ชม.`,
-        en: `Ping river above normal (${Math.round(r * 100)}%) — watch every 3h`,
-        evidence: `ping_ratio=${r.toFixed(2)}`,
+        th: "เขื่อนภูมิพล/สิริกิติ์ ระบายน้ำเพิ่ม — ระดับน้ำปิงจะสูงขึ้นภายใน 24 ชม.",
+        en: "Bhumibol/Sirikit dam releasing extra water — Ping level will rise within 24h",
+        evidence: "reservoir_surge=true",
       });
     }
-  }
-  if (input.reservoir_surge) {
-    // Independent signal: a dam release is not the same as a gauge reading,
-    // so it stacks on top of the gauge contribution. The composite total
-    // is still capped at 100 below.
-    floodScore += 15;
-    reasons.push({
-      domain: "flood",
-      th: "เขื่อนภูมิพล/สิริกิติ์ ระบายน้ำเพิ่ม — ระดับน้ำปิงจะสูงขึ้นภายใน 24 ชม.",
-      en: "Bhumibol/Sirikit dam releasing extra water — Ping level will rise within 24h",
-      evidence: "reservoir_surge=true",
-    });
-  }
-  if (input.rain_now_24h_mm !== null && input.rain_now_24h_mm >= 80) {
-    floodScore += 10;
-    reasons.push({
-      domain: "flood",
-      th: `ฝนตกหนักใน 24 ชม. ${Math.round(input.rain_now_24h_mm)} มม.`,
-      en: `Heavy rain in last 24h: ${Math.round(input.rain_now_24h_mm)} mm`,
-      evidence: `rain_24h=${input.rain_now_24h_mm}`,
-    });
+    if (input.rain_now_24h_mm !== null && input.rain_now_24h_mm >= 80) {
+      floodScore += 10;
+      reasons.push({
+        domain: "flood",
+        th: `ฝนตกหนักใน 24 ชม. ${Math.round(input.rain_now_24h_mm)} มม.`,
+        en: `Heavy rain in last 24h: ${Math.round(input.rain_now_24h_mm)} mm`,
+        evidence: `rain_24h=${input.rain_now_24h_mm}`,
+      });
+    }
   }
 
   // ─── Air contribution (0–40) — mountain-basin trap weighting ─
@@ -367,7 +423,9 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   }
 
   // ─── Cross-domain "twins" join (FloodDash ↔ AirDash pattern) ──
-  const floodDomain = input.ping_capacity_ratio !== null && input.ping_capacity_ratio >= 0.85;
+  // Gated on a live flood feed: joining a scenario ratio against a real
+  // PM2.5 would assert a coincidence between a hash seed and the sky.
+  const floodDomain = !floodIsScenario && input.ping_capacity_ratio !== null && input.ping_capacity_ratio >= 0.85;
   const airDomain = input.pm25_now !== null && input.pm25_now >= 90;
   if (floodDomain && airDomain) {
     reasons.push({
@@ -388,8 +446,32 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   }
 
   const score = Math.min(100, floodScore + airScore + fireScore);
-  const band = bandForScore(score);
-  const level = levelForBand(band);
+  const scoredBand = bandForScore(score);
+  const scoredLevel = levelForBand(scoredBand);
+
+  // Absence of a flood feed is not evidence of a quiet river. "safe" is
+  // the dashboard telling an operator "nothing to do right now", and we
+  // cannot say that about a domain we did not measure — that is the
+  // omission half of the same error the GISTDA letter made. So a blind
+  // flood axis may never certify safe, and may only certify as far as
+  // "watch" on its own (guaranteed by floodScore = 0 for scenario flood).
+  const level = floodBlind && scoredLevel === "safe" ? "watch" : scoredLevel;
+  // Keep score/band/level coherent: never publish `score 0 · band normal ·
+  // level watch`, which reads as a contradiction rather than a caveat.
+  const band = level === scoredLevel ? scoredBand : bandForLevel(level);
+
+  if (floodBlind) {
+    // Last, so a real air or fire hazard keeps the headline.
+    reasons.push({
+      domain: "flood",
+      th: "ยังไม่มีค่าระดับน้ำจากสถานีวัดจริง — ไม่ใช่หลักฐานว่าน้ำปลอดภัย ดูค่าที่สถานีวัดในพื้นที่",
+      en: "No live river-gauge reading — this is not evidence the river is safe; read the station gauges in your area",
+      evidence: floodIsScenario
+        ? "flood_provenance=scenario"
+        : "ping_capacity_ratio=null",
+      isCaveat: true,
+    });
+  }
 
   // Pick the top reason (first non-empty) for the headline, fall back to
   // the level's action text.

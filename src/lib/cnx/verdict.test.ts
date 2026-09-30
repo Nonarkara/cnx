@@ -44,7 +44,10 @@ describe("levelForBand", () => {
 });
 
 describe("computeVerdict — safe baseline", () => {
-  it("returns safe with no signal", () => {
+  it("never certifies safe when the flood axis never spoke", () => {
+    // Every input null. The tempting answer is "safe / nothing to do now" —
+    // but we did not measure the river, and a blank layer is not evidence
+    // of a quiet one. This is the omission half of the GISTDA error.
     const empty: VerdictInputs = {
       pm25_now: null,
       pm25_fc_24h: null,
@@ -55,10 +58,36 @@ describe("computeVerdict — safe baseline", () => {
       fire_count: null,
       wind_kmh: null,
       provenance: "scenario",
+      flood_provenance: "live",
     };
     const v = computeVerdict(empty);
-    expect(v.level).toBe("safe");
+    expect(v.level).toBe("watch");
+    // Coherent wire shape: never "score 0 · band normal · level watch".
     expect(v.score).toBe(0);
+    expect(v.band).toBe("watch");
+    expect(v.checklist).toEqual(CHECKLIST.watch);
+    // …and it says why, in a form that cannot be read as an observation.
+    expect(v.reasons.at(-1)?.evidence).toBe("ping_capacity_ratio=null");
+  });
+
+  it("returns safe when a live gauge says the river is quiet", () => {
+    // The other direction, and the one that stops the rule above being
+    // gamed into permanent doom: a genuine, measured, low reading must
+    // still earn an all-clear.
+    const quiet: VerdictInputs = {
+      pm25_now: 12,
+      pm25_fc_24h: 14,
+      rain_fc_24h_mm: 0,
+      rain_now_24h_mm: 2,
+      ping_capacity_ratio: 0.3, // measured
+      reservoir_surge: false,
+      fire_count: 0,
+      wind_kmh: 10,
+      provenance: "live",
+      flood_provenance: "live",
+    };
+    const v = computeVerdict(quiet);
+    expect(v.level).toBe("safe");
     expect(v.band).toBe("normal");
     expect(v.reasons).toEqual([]);
     expect(v.checklist).toEqual(CHECKLIST.safe);
@@ -75,6 +104,7 @@ describe("computeVerdict — safe baseline", () => {
       fire_count: 3,
       wind_kmh: 8,
       provenance: "live",
+      flood_provenance: "live",
     });
     expect(v.level).toBe("safe");
     expect(v.score).toBeLessThan(25);
@@ -93,6 +123,7 @@ describe("computeVerdict — flood pressure", () => {
       fire_count: 0,
       wind_kmh: 10,
       provenance: "live",
+      flood_provenance: "live",
     });
     // Single-domain flood caps at 40 → band=watch
     expect(v.score).toBeGreaterThanOrEqual(30);
@@ -110,6 +141,7 @@ describe("computeVerdict — flood pressure", () => {
       fire_count: 0,
       wind_kmh: 5,
       provenance: "live",
+      flood_provenance: "live",
     });
     expect(v.score).toBeGreaterThanOrEqual(75);
     expect(v.level).toBe("danger");
@@ -126,6 +158,7 @@ describe("computeVerdict — flood pressure", () => {
       fire_count: null,
       wind_kmh: null,
       provenance: "scenario",
+      flood_provenance: "live",
     });
     // 0.5 ratio = 0 (below 0.6 watch threshold); surge = +15.
     expect(surgeOnly.score).toBe(15);
@@ -148,6 +181,7 @@ describe("computeVerdict — air pressure + mountain-basin trap", () => {
       fire_count: null,
       wind_kmh: 25, // breezy
       provenance: "live",
+      flood_provenance: "live",
     });
     const still = computeVerdict({
       pm25_now: 80, // 80*1.25 = 100 → unhealthy → airScore 30
@@ -159,6 +193,7 @@ describe("computeVerdict — air pressure + mountain-basin trap", () => {
       fire_count: null,
       wind_kmh: 6, // mountain-basin trap
       provenance: "live",
+      flood_provenance: "live",
     });
     expect(still.score).toBeGreaterThan(windy.score);
     expect(still.score).toBe(30);
@@ -176,6 +211,7 @@ describe("computeVerdict — air pressure + mountain-basin trap", () => {
       fire_count: 0,
       wind_kmh: 5,
       provenance: "live",
+      flood_provenance: "live",
     });
     // air 40 + flood 15 + rain 10 = 65 (band=elevated → prepare)
     // Add reservoir_surge → +15 → 75+ (danger)
@@ -197,6 +233,7 @@ describe("computeVerdict — fire pressure", () => {
       fire_count: 120, // fireScore 20
       wind_kmh: 20,
       provenance: "live",
+      flood_provenance: "live",
     });
     // 20 + 20 = 40 → band=watch
     expect(v.score).toBeGreaterThanOrEqual(40);
@@ -216,6 +253,7 @@ describe("computeVerdict — cross-domain twins join", () => {
       fire_count: 0,
       wind_kmh: 5,
       provenance: "live",
+      flood_provenance: "live",
     });
     expect(v.reasons.some((r) => r.domain === "twins" && /N95|air/i.test(r.en))).toBe(true);
   });
@@ -231,6 +269,7 @@ describe("computeVerdict — cross-domain twins join", () => {
       fire_count: 0,
       wind_kmh: 10,
       provenance: "live",
+      flood_provenance: "live",
     });
     expect(v.reasons.some((r) => r.domain === "twins" && /wash|washout/i.test(r.en))).toBe(true);
   });
@@ -248,6 +287,7 @@ describe("computeVerdict — provenance is honest", () => {
       fire_count: null,
       wind_kmh: null,
       provenance: "live",
+      flood_provenance: "live",
     });
     expect(live.data_provenance).toBe("live");
 
@@ -261,6 +301,7 @@ describe("computeVerdict — provenance is honest", () => {
       fire_count: null,
       wind_kmh: null,
       provenance: "scenario",
+      flood_provenance: "live",
     });
     expect(scenario.data_provenance).toBe("scenario");
   });
@@ -277,6 +318,7 @@ describe("computeVerdict — haze reasons", () => {
     fire_count: 0,
     wind_kmh: 20,
     provenance: "live",
+    flood_provenance: "live",
   };
 
   it("does not double-count DustBoy when it agrees with the province average", () => {
@@ -330,5 +372,98 @@ describe("CHECKLIST", () => {
         expect(item.en.length).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe("computeVerdict — a scenario flood is no signal at all", () => {
+  const scenarioFlood: VerdictInputs = {
+    pm25_now: 18,
+    pm25_fc_24h: 20,
+    rain_fc_24h_mm: 0,
+    // Deliberately catastrophic-looking numbers, exactly as the scenario
+    // module can produce. None of them may reach the operator.
+    rain_now_24h_mm: 180,
+    ping_capacity_ratio: 0.99,
+    reservoir_surge: true,
+    fire_count: 0,
+    wind_kmh: 10,
+    provenance: "mixed",
+    flood_provenance: "scenario",
+  };
+
+  it("scores zero flood points even when the scenario says the river is overflowing", () => {
+    // 0.99 ratio (40) + surge (15) + 180 mm (10) = 65 points if believed.
+    const v = computeVerdict(scenarioFlood);
+    expect(v.score).toBe(0);
+  });
+
+  it("emits no flood reason phrased as an observation", () => {
+    // The single most important assertion here: once a string like
+    // "Ping river overflowing (99% of bank capacity)" is in `reasons`, no
+    // downstream reader can tell it from a measurement.
+    const v = computeVerdict(scenarioFlood);
+    const floodReasons = v.reasons.filter((r) => r.domain === "flood");
+    expect(floodReasons).toHaveLength(1);
+    expect(floodReasons[0].evidence).toBe("flood_provenance=scenario");
+    for (const r of floodReasons) {
+      expect(r.th).not.toMatch(/% ของความจุ/);
+      expect(r.en).not.toMatch(/% of bank capacity/);
+      expect(r.en).toMatch(/not evidence the river is safe/i);
+    }
+  });
+
+  it("cannot raise the level above watch on flood grounds alone", () => {
+    const v = computeVerdict(scenarioFlood);
+    expect(v.level).not.toBe("danger");
+    expect(v.level).not.toBe("prepare");
+    expect(v.checklist).toEqual(CHECKLIST.watch);
+  });
+
+  it("does not fabricate the flood↔air twin against a real air hazard", () => {
+    const v = computeVerdict({ ...scenarioFlood, pm25_now: 120 });
+    expect(v.reasons.some((r) => r.domain === "twins")).toBe(false);
+    // Suppressing the fake must not suppress the real.
+    expect(v.reasons.some((r) => r.domain === "air")).toBe(true);
+  });
+
+  it("still lets a real air hazard own the headline", () => {
+    const v = computeVerdict({ ...scenarioFlood, pm25_now: 120 });
+    expect(v.reasons[0].domain).toBe("air");
+  });
+
+  it("flags the blind-flood line as a caveat so a busy wall still shows it", () => {
+    // The strip caps observation reasons at 3 and then appends every
+    // caveat. Without this flag the one line saying "we cannot see the
+    // river" is exactly the line that gets cut for space.
+    const v = computeVerdict({ ...scenarioFlood, pm25_now: 120 });
+    const caveats = v.reasons.filter((r) => r.isCaveat);
+    expect(caveats).toHaveLength(1);
+    expect(caveats[0].evidence).toBe("flood_provenance=scenario");
+    // Observations are never flagged as caveats.
+    for (const r of v.reasons) {
+      if (r.domain === "air") expect(r.isCaveat).toBeUndefined();
+    }
+  });
+
+  it("escalates the same numbers when the flood feed is genuinely live", () => {
+    // Control: identical inputs from a live feed still escalate. If this
+    // ever fails, the gate has swallowed a real episode. Same air reading
+    // as the twin test above, so the only difference is the provenance.
+    const v = computeVerdict({
+      ...scenarioFlood,
+      pm25_now: 120,
+      flood_provenance: "live",
+    });
+    expect(v.score).toBeGreaterThanOrEqual(75);
+    expect(v.level).toBe("danger");
+    expect(v.reasons.some((r) => r.domain === "twins")).toBe(true);
+  });
+
+  it("escalates on flood grounds alone when the feed is live", () => {
+    // 40 (ratio 0.99) + 15 (surge) + 10 (180 mm) = 65 → "prepare". Danger
+    // would need 75; we are not manufacturing the missing 10 here.
+    const v = computeVerdict({ ...scenarioFlood, flood_provenance: "live" });
+    expect(v.score).toBe(65);
+    expect(v.level).toBe("prepare");
   });
 });

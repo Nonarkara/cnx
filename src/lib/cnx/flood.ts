@@ -138,16 +138,16 @@ function buildScenario(nowIso: string): CnxFloodResponse {
       .map((g) => (g.bankFullM ? g.levelM / g.bankFullM : 0)),
   );
 
-  const office: OfficeNotice | undefined =
-    pingCapacity > 0.9
-      ? {
-          source: "Royal Irrigation Department Region 1",
-          title: "Ping basin above advisory threshold",
-          detail: `Ping river capacity at ${(pingCapacity * 100).toFixed(0)}% — stage pumps in Tha Wung district.`,
-          issuedAt: nowIso,
-          level: "alert",
-        }
-      : undefined;
+  // No `office` notice is minted here, deliberately.
+  //
+  // This builder used to emit one attributed to "Royal Irrigation
+  // Department Region 1" whenever the jittered ratio crossed 0.9. That is
+  // us putting a Thai government agency's name on a number produced by a
+  // hash function. Nothing above the payload's `provenance: "scenario"`
+  // tag protects it: a notice reads as an official communication, and the
+  // tag is one field away in a JSON object. A real notice belongs to the
+  // live path, where there is an agency to attribute it to.
+  const office: OfficeNotice | undefined = undefined;
 
   return {
     generatedAt: nowIso,

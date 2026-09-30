@@ -122,22 +122,32 @@ export async function buildCnxStory(
     fetchCnxFires(),
   ]);
 
+  // Every fallback here used to be a hardcoded plausible number — `?? 0.42`
+  // for the river, `?? 38` for PM2.5, 81/74 for the dams. A fabricated default
+  // is worse than a missing one, because `pickScenario` below *selects the
+  // narrative* on these values: invent a river ratio and you have written the
+  // story that gets published. Missing data gets 0, which selects nothing.
+  const floodLive = flood.provenance === "live";
   const bhm = flood.reservoirs.find((r) => r.damId === "BHM");
   const skt = flood.reservoirs.find((r) => r.damId === "SKT");
   const avgRain = flood.rainfall.reduce((a, r) => a + r.rainfall24hMm, 0) /
     Math.max(1, flood.rainfall.length);
 
   const inputs: StoryInputs = {
-    pm25: air.provinceAvgPm25 ?? 38,
+    pm25: air.provinceAvgPm25 ?? 0,
     fireCount: fires.provenance === "live" ? fires.totalCount : 0,
     firesLive: fires.provenance === "live",
     forestShare: fires.forestShare,
-    pingCap: flood.pingCapacityFraction ?? 0.42,
-    bhmFraction: bhm ? Math.round(bhm.fillFraction * 100) : 81,
-    sktFraction: skt ? Math.round(skt.fillFraction * 100) : 74,
-    rain24: Math.round(avgRain * 10) / 10,
+    pingCap: floodLive ? (flood.pingCapacityFraction ?? 0) : 0,
+    bhmFraction: floodLive && bhm ? Math.round(bhm.fillFraction * 100) : 0,
+    sktFraction: floodLive && skt ? Math.round(skt.fillFraction * 100) : 0,
+    rain24: floodLive ? Math.round(avgRain * 10) / 10 : 0,
     wideCount: 0, // patched in from /api/cnx/flights below; default for keystone copy
-    officeNotices: [air.office, flood.office].filter(Boolean) as OfficeNotice[],
+    // `flood.office` is generated inside buildScenario() and attributed to
+    // "Royal Irrigation Department Region 1". Never quote a government
+    // agency on the strength of a hash seed — it outranks everything else
+    // on this wall.
+    officeNotices: [air.office, floodLive ? flood.office : null].filter(Boolean) as OfficeNotice[],
   };
 
   const key = (scenarioId && SCENARIOS[scenarioId]) ? scenarioId : pickScenario(inputs);

@@ -138,12 +138,18 @@ function VerdictStrip({
       </div>
       {topReason && (
         <div className="flex flex-col gap-0.5 text-[10px]">
-          {v.reasons.slice(0, 3).map((reason) => (
+          {[
+            // Three observations, then every caveat. A blind flood axis is
+            // the reason a wall is dangerous to read at a glance, so it must
+            // never be the line that gets cut for space.
+            ...v.reasons.filter((r) => !r.isCaveat).slice(0, 3),
+            ...v.reasons.filter((r) => r.isCaveat),
+          ].map((reason) => (
             <div key={`${reason.domain}-${reason.evidence ?? reason.en}`} className="flex flex-wrap items-baseline gap-x-3">
               <span className="font-mono uppercase tracking-[0.14em] opacity-60">
                 {reason.domain === "twins" ? "FloodDash × AirDash" : reason.domain}
               </span>
-              <span>{reason.th}</span>
+              <span className={reason.isCaveat ? "italic opacity-90" : undefined}>{reason.th}</span>
               <span className="font-mono opacity-70">— {reason.en}</span>
               {reason.evidence && (
                 <span className="font-mono opacity-50">{reason.evidence}</span>
