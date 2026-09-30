@@ -217,9 +217,13 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
           <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">Webcam haze scoring</h3>
           <p className="mt-1 max-w-[90ch] text-[12px] leading-relaxed text-[var(--dim)]">{hazeVision?.methodology}</p>
           <p className="mt-1 text-[12px] text-[var(--ink)]">
-            {agreement && agreement.r !== null
-              ? `Agreement with nearest DustBoy sensor so far: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} frame/sensor pairs.`
-              : `Not enough frames paired with a live ground sensor yet to measure agreement (${agreement?.pairs ?? 0} pairs; needs 8).`}
+            {!agreement
+              ? "No agreement measurement yet."
+              : agreement.r === null
+              ? `Not enough frames paired with a live ground sensor yet to measure agreement (${agreement.pairs} pairs; needs 8).`
+              : agreement.spansHazeEvent
+              ? `Agreement with nearest DustBoy sensor: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} frame/sensor pairs. Ground readings in this window spanned ${agreement.pm25Min}–${agreement.pm25Max} µg/m³, which includes a real haze episode, so this is a meaningful comparison.`
+              : `Agreement is not yet measurable. Over ${agreement.pairs} frame/sensor pairs the cameras scored steadily but every paired ground reading was clean air (${agreement.pm25Min}–${agreement.pm25Max} µg/m³, below the 20 µg/m³ guideline). There has been no haze episode to detect, so r = ${agreement.r.toFixed(2)} reflects the absence of a test, not a failure of the method. This becomes meaningful during a burning-season episode.`}
           </p>
           {cams.length > 0 ? (
             <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">

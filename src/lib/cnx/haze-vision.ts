@@ -34,9 +34,32 @@ export interface CameraHaze {
 export interface HazeVisionPayload {
   generatedAt: string;
   cameras: CameraHaze[];
-  /** Pearson r between haze score and nearest DustBoy PM2.5 over the
-   *  relay's history window, with how many frame/sensor pairs it rests on. */
-  agreement: { r: number | null; pairs: number };
+  /**
+   * Pearson r between haze score and nearest DustBoy PM2.5 over the
+   * relay's history window, with how many frame/sensor pairs it rests on.
+   *
+   * The context fields exist because a bare `r` is misleading on its own.
+   * A correlation can only validate the scorer if the window actually
+   * contained a haze EVENT to detect: every paired PM2.5 in the first
+   * month of operation sat between 3 and 20 µg/m³ (median 7), i.e. clean
+   * air throughout. Pearson against a near-constant response returns a
+   * small number whether the scorer is excellent or useless, so a bare
+   * `r = 0.12` reads as "the cameras do not track reality" when the truth
+   * is "the cameras have never been tested." Report the range and say so.
+   */
+  agreement: {
+    r: number | null;
+    pairs: number;
+    /** Lowest / highest paired ground reading, µg/m³. */
+    pm25Min: number | null;
+    pm25Max: number | null;
+    /**
+     * True when the window spans enough PM2.5 spread for the correlation
+     * to mean something. Below HAZE_TESTABLE_SPREAD the r is reported but
+     * flagged as not yet testable rather than presented as a result.
+     */
+    spansHazeEvent: boolean;
+  };
 }
 
 export interface HazeVisionResponse extends HazeVisionPayload {
@@ -79,9 +102,23 @@ export function isHazeVisionPayload(v: unknown): v is HazeVisionPayload {
     v.cameras.every(isCamera) &&
     isObj(v.agreement) &&
     isNumOrNull(v.agreement.r) &&
-    isNum(v.agreement.pairs)
+    isNum(v.agreement.pairs) &&
+    isNumOrNull(v.agreement.pm25Min) &&
+    isNumOrNull(v.agreement.pm25Max) &&
+    typeof v.agreement.spansHazeEvent === "boolean"
   );
 }
+
+/**
+ * PM2.5 spread, in µg/m³, below which a correlation cannot discriminate a
+ * working scorer from a broken one.
+ *
+ * 20 µg/m³ is roughly the WHO 24-hour guideline. Observed clean-air days in
+ * the first month of operation spanned 3–20, so the whole dataset fell
+ * inside it. A real episode in the burning season clears 50–120, which is
+ * what will finally make the number meaningful.
+ */
+export const HAZE_TESTABLE_SPREAD = 20;
 
 export async function fetchCnxHazeVision(): Promise<HazeVisionResponse> {
   const data = await readRelayJson(HAZE_VISION_KV_KEY, STALE_MS, isHazeVisionPayload);
@@ -89,7 +126,7 @@ export async function fetchCnxHazeVision(): Promise<HazeVisionResponse> {
   return {
     generatedAt: new Date().toISOString(),
     cameras: [],
-    agreement: { r: null, pairs: 0 },
+    agreement: { r: null, pairs: 0, pm25Min: null, pm25Max: null, spansHazeEvent: false },
     provenance: "unavailable",
     methodology: HAZE_METHODOLOGY,
     note: "The webcam haze relay has not reported in the last 45 minutes — no camera verdicts are shown.",

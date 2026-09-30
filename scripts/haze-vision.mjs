@@ -9,6 +9,7 @@
 import sharp from "sharp";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { classifyFrame, computeFrameMetrics, isScorable, pearson } from "../src/lib/cnx/haze-vision-core.ts";
+import { HAZE_TESTABLE_SPREAD } from "../src/lib/cnx/haze-vision.ts";
 import { normaliseStation } from "../src/lib/cnx/dustboy.ts";
 
 const EVERY_MS = 10 * 60_000;
@@ -79,7 +80,15 @@ async function scoreSnapshot(url) {
   };
 }
 
-/** Pearson r of stored scores vs co-located PM2.5 across every camera. */
+/** Pearson r of stored scores vs co-located PM2.5 across every camera.
+ *
+ *  Also reports the ground reading's range. A bare r is not interpretable on
+ *  its own: Pearson against a near-constant response yields a small number
+ *  regardless of whether the scorer works. The first month of operation
+ *  paired only clean air (3-20 µg/m³), so `r` sat near 0.12 for want of a
+ *  haze event rather than any fault in the image statistics. Carrying
+ *  pm25Min/pm25Max/spansHazeEvent lets the panel say "not yet testable"
+ *  instead of printing a number that reads as a verdict. */
 function agreement(history) {
   const xs = [];
   const ys = [];
@@ -91,7 +100,15 @@ function agreement(history) {
       }
     }
   }
-  return { r: pearson(xs, ys), pairs: xs.length };
+  const pm25Min = ys.length ? Math.min(...ys) : null;
+  const pm25Max = ys.length ? Math.max(...ys) : null;
+  return {
+    r: pearson(xs, ys),
+    pairs: xs.length,
+    pm25Min,
+    pm25Max,
+    spansHazeEvent: pm25Min !== null && pm25Max - pm25Min >= HAZE_TESTABLE_SPREAD,
+  };
 }
 
 export async function runHazeVision({ baseUrl, secret }) {
