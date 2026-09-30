@@ -73,8 +73,16 @@ function Pill({
       ? "bg-[#f59e0b] text-black"
       : "bg-[var(--bg-raised)] text-[var(--ink)] border border-[var(--line)]";
   return (
-    <div title={title} className={`flex items-center gap-1.5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] ${colour}`}>
-      <span className="text-[8px] text-[var(--dim)]">{label}</span>
+    // These are read, not tapped, so the touch-target rule does not apply —
+    // legibility does. 9px/8px type is fine on a desk monitor and
+    // unreadable on a phone held at arm's length, which is how the governor
+    // will actually read a PM2.5 number. Step both up on small screens and
+    // let the row wrap rather than shrink.
+    <div
+      title={title}
+      className={`flex items-center gap-1.5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] min-h-8 sm:min-h-0 text-[11px] sm:text-[9px] ${colour}`}
+    >
+      <span className="text-[8px] text-[var(--dim)] sm:text-[8px] text-[9px]">{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
   );
@@ -162,7 +170,10 @@ function VerdictStrip({
         <div className="flex flex-wrap items-center gap-2 pt-0.5">
           <button
             onClick={onOpenEmergency}
-            className="border border-current px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:bg-current hover:text-[var(--bg)]"
+            // The one control that matters most when the board turns red, and
+            // it was a ~20px target (px-2 py-0.5, 9px type). 44px minimum
+            // with a slightly larger label on phones.
+            className="min-h-11 border border-current px-4 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:bg-current hover:text-[var(--bg)] sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[9px]"
           >
             Hotlines
           </button>
@@ -226,7 +237,7 @@ export default function CnxTopBar(props: TopBarProps) {
         <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
           {officeNotice && (
             <button
-              className="flex items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--danger)]"
+              className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
               title={officeNotice.title}
             >
               <Bell className="h-3 w-3" />
@@ -236,42 +247,42 @@ export default function CnxTopBar(props: TopBarProps) {
           <span className="hidden font-mono text-[9px] text-[var(--dim)] lg:inline">{now}</span>
           <button
             onClick={onOpenStory}
-            className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
           >
             <BookOpen className="h-3 w-3" />
             Story
           </button>
           <button
             onClick={onOpenManual}
-            className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
           >
             <BookOpen className="h-3 w-3" />
             Manual
           </button>
           <button
             onClick={onOpenResearch}
-            className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
           >
             <FlaskConical className="h-3 w-3" />
             Research
           </button>
           <button
             onClick={onOpenData}
-            className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
           >
             <Database className="h-3 w-3" />
             Data
           </button>
           <button
             onClick={onOpenHaze}
-            className="flex items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
           >
             <Wind className="h-3 w-3" />
             Haze
           </button>
           <button
             onClick={onOpenEmergency}
-            className="flex items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
           >
             <PhoneCall className="h-3 w-3" />
             Emergency
@@ -279,7 +290,7 @@ export default function CnxTopBar(props: TopBarProps) {
           <button
             onClick={toggleDark}
             aria-label="Toggle theme"
-            className="flex h-7 w-7 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)]"
+            className="flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)] sm:h-7 sm:w-7"
           >
             {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
           </button>

@@ -105,6 +105,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Respect the notch / status bar on phones. `viewport-fit=cover` (set in
+   layout.tsx) lets the board use the full screen including the safe areas,
+   which then puts content underneath the iPhone status bar and the Android
+   gesture bar. The masthead already reserves space for the top inset; the
+   bottom inset is left to the panels that sit at the foot of the phone. */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
 /* Mono for code, tracked labels, and the wordmark subtitle */
 .font-mono,
 code,

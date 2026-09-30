@@ -137,7 +137,13 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl overflow-hidden border border-[var(--line)] bg-white"
+        // max-h + overflow: the dialog carries a live video/snapshot plus
+        // metadata, so on a 667px-tall phone the panel was taller than the
+        // viewport with `overflow-hidden` — the close button sat below the
+        // fold and could not be reached at all. dvh tracks the dynamic
+        // viewport, so it also behaves when the mobile browser chrome
+        // collapses on scroll.
+        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden border border-[var(--line)] bg-white"
       >
         <header className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <div>
@@ -156,13 +162,19 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             type="button"
             onClick={onClose}
             autoFocus
-            className="shrink-0 border border-[var(--line)] px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink)] hover:border-[var(--ink)]"
+            // 44px minimum touch target (Apple HIG / WCAG 2.5.5). Was
+            // px-3 py-1.5, a ~28px target on the one control that has to be
+            // reachable to escape the dialog.
+            className="flex min-h-11 shrink-0 items-center border border-[var(--line)] px-4 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink)] hover:border-[var(--ink)]"
           >
             ปิด ✕
           </button>
         </header>
 
-        <div className="bg-black">
+        {/* min-h-0 lets this flex child shrink below its intrinsic
+            aspect-video height, which is what keeps the footer inside the
+            92dvh cap on a short phone screen. */}
+        <div className="min-h-0 shrink overflow-y-auto bg-black">
           {slot.hlsUrl ? (
             <HlsVideo src={slot.hlsUrl} label={slot.label} />
           ) : slot.playerUrl ? (
