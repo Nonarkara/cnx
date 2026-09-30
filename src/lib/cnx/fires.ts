@@ -14,12 +14,61 @@ import { CNX_PROVINCE } from "./config";
 import type { CnxFiresResponse, FireHotspot, SeverityLevel } from "../../types/cnx";
 
 const FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
+/** Days requested per pass — see fetchFirmsInBbox for why not 1. */
+const FIRMS_WINDOW_DAYS = 2;
 
 function severityForBrightness(b: number): SeverityLevel {
   if (b >= 360) return "critical";
   if (b >= 340) return "alert";
   if (b >= 320) return "watch";
   return "good";
+}
+
+/**
+ * FIRMS NRT reports confidence as the letter `n` / `l` / `h` (nominal /
+ * low / high), NOT the 0-100 integer that the archived 2024 CSVs used.
+ * A live /api/area/csv call therefore puts "n" in that column, and the old
+ * `+cells[idx.confidence]` produced NaN -> `confidence: null` on a field
+ * typed `number`. Every hotspot read "unknown confidence" while the panel
+ * looked otherwise healthy.
+ */
+const CONFIDENCE_MAP: Record<string, number> = { l: 30, n: 65, h: 95 };
+
+export function parseConfidence(cell: string | undefined): number {
+  if (cell === undefined) return 0;
+  const raw = cell.trim().toLowerCase();
+  const letter = CONFIDENCE_MAP[raw];
+  if (letter !== undefined) return letter;
+  const numeric = Number(raw);
+  // Archived feeds give a bare number; some give "90" as text. Anything
+  // unparseable becomes 0, which the panel already renders as unknown.
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+/**
+ * NRT rows carry a single-letter satellite code, not the full name:
+ *   S = Suomi NPP, N = NOAA-20, J = NOAA-21, T = Terra, A = Aqua
+ * The archived CSVs spell it out. The old code cast the raw letter through
+ * the FireHotspot union, so a live pass produced satellites like "N" —
+ * a value the type system claimed was impossible but which reached the
+ * UI and the trajectory weight unchanged.
+ */
+const SATELLITE_MAP: Record<string, FireHotspot["satellite"]> = {
+  s: "SUOMI-NPP",
+  "suomi-npp": "SUOMI-NPP",
+  n: "NOAA-20",
+  "noaa-20": "NOAA-20",
+  j: "NOAA-21",
+  "noaa-21": "NOAA-21",
+  t: "TERRA",
+  terra: "TERRA",
+  a: "AQUA",
+  aqua: "AQUA",
+};
+
+export function normaliseSatellite(cell: string | undefined): FireHotspot["satellite"] {
+  const raw = (cell ?? "").trim().toLowerCase();
+  return SATELLITE_MAP[raw] ?? "SUOMI-NPP";
 }
 
 export function parseFirmsCsv(
@@ -50,8 +99,8 @@ export function parseFirmsCsv(
       latitude: lat,
       longitude: lon,
       brightness,
-      confidence: +cells[idx.confidence],
-      satellite: (cells[idx.satellite] || "SUOMI-NPP") as FireHotspot["satellite"],
+      confidence: parseConfidence(cells[idx.confidence]),
+      satellite: normaliseSatellite(cells[idx.satellite]),
       detectedAt: `${cells[idx.acq]}T${String(cells[idx.acqTime]).padStart(4, "0").slice(0, 2)}:${String(
         cells[idx.acqTime],
       ).padStart(4, "0").slice(2, 4)}:00Z`,
@@ -62,9 +111,11 @@ export function parseFirmsCsv(
   }).filter((h): h is FireHotspot => h !== null);
 }
 
-/** Live VIIRS pass for an arbitrary box. `null` means no key or the
- *  upstream did not answer — never an empty illustration. `[]` is a real
- *  pass with zero detections. */
+/**
+ * Live VIIRS pass for an arbitrary box. `null` means no key or the
+ * upstream did not answer — never an empty illustration. `[]` is a real
+ * pass with zero detections.
+ */
 export async function fetchFirmsInBbox(bbox: {
   west: number;
   south: number;
@@ -73,14 +124,35 @@ export async function fetchFirmsInBbox(bbox: {
 }): Promise<FireHotspot[] | null> {
   const mapKey = process.env.FIRMS_MAP_KEY;
   if (!mapKey) return null;
+  // Ask for a two-day window ending today, not one day.
+  //
+  // FIRMS NRT is a near-real-time product with a publishing delay of a few
+  // hours, and the request is anchored to UTC while the province runs on
+  // UTC+7. Requesting /1/<today> therefore returns a valid, EMPTY body for
+  // much of the day — which this module cannot distinguish from "there are
+  // genuinely no fires". On a haze board that reads as a clean sky, which
+  // is the most dangerous failure available: it is a false all-clear
+  // produced by a clock, not by data. Two days costs one extra row and
+  // removes most of that window.
   const today = new Date().toISOString().slice(0, 10);
-  const url = `${FIRMS_BASE}/${mapKey}/VIIRS_SNPP_NRT/${bbox.west},${bbox.south},${bbox.east},${bbox.north}/1/${today}`;
+  const url = `${FIRMS_BASE}/${mapKey}/VIIRS_SNPP_NRT/${bbox.west},${bbox.south},${bbox.east},${bbox.north}/${FIRMS_WINDOW_DAYS}/${today}`;
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    // 400 with "Invalid MAP_KEY" is the single most likely first-day
+    // failure; a 429 means we are rate-limited. Both must fall back to
+    // scenario rather than render as "0 fires, live".
     if (!res.ok) return null;
     const csv = await res.text();
     if (!csv.trim() || csv.trimStart().startsWith("<")) return null;
-    return parseFirmsCsv(csv, bbox);
+    // FIRMS answers an over-quota or bad-source request with a bare
+    // string in the body and a 200, so guard the content explicitly.
+    if (csv.trimStart().startsWith("Invalid") || csv.trimStart().startsWith("-1")) return null;
+    const rows = parseFirmsCsv(csv, bbox);
+    // A header with zero data rows means the pass has not been published
+    // yet, NOT that the province is free of fire. Report "unknown" so the
+    // caller falls back rather than asserting a clean sky.
+    if (rows.length === 0 && csv.trim().split(/\r?\n/).length < 2) return null;
+    return rows;
   } catch {
     return null;
   }
