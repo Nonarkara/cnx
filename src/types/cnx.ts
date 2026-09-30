@@ -197,6 +197,8 @@ export interface CnxFiresResponse {
   /** `live` is a FIRMS pass. `scenario` is an illustration — do not score it,
    * plot it as a detection, or advect it into a smoke plume. */
   provenance: "live" | "scenario";
+  /** When provenance is scenario: why the live FIRMS request failed. */
+  liveFailure?: string;
 }
 
 // ─── Open data catalog ───────────────────────────────────────────

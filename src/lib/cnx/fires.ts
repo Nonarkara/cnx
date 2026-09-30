@@ -137,6 +137,14 @@ export function parseFirmsCsv(
  * upstream did not answer — never an empty illustration. `[]` is a real
  * pass with zero detections.
  */
+/** Why the last FIRMS request produced no answer — surfaced in the fires
+ *  response so "no live" says which failure it is (no key, rejected key,
+ *  HTTP error…) instead of one sentence covering all of them. */
+let lastFirmsFailure: string | null = null;
+export function firmsFailureReason(): string | null {
+  return lastFirmsFailure;
+}
+
 export async function fetchFirmsInBbox(bbox: {
   west: number;
   south: number;
@@ -144,7 +152,11 @@ export async function fetchFirmsInBbox(bbox: {
   north: number;
 }): Promise<FireHotspot[] | null> {
   const mapKey = process.env.FIRMS_MAP_KEY;
-  if (!mapKey) return null;
+  lastFirmsFailure = null;
+  if (!mapKey) {
+    lastFirmsFailure = "FIRMS_MAP_KEY is not visible to the Worker";
+    return null;
+  }
   // Ask for a two-day window ending today, not one day.
   //
   // FIRMS NRT is a near-real-time product with a publishing delay of a few
@@ -162,12 +174,22 @@ export async function fetchFirmsInBbox(bbox: {
     // 400 with "Invalid MAP_KEY" is the single most likely first-day
     // failure; a 429 means we are rate-limited. Both must fall back to
     // scenario rather than render as "0 fires, live".
-    if (!res.ok) return null;
+    if (!res.ok) {
+      lastFirmsFailure = `FIRMS answered HTTP ${res.status}`;
+      return null;
+    }
     const csv = await res.text();
-    if (!csv.trim() || csv.trimStart().startsWith("<")) return null;
+    if (!csv.trim() || csv.trimStart().startsWith("<")) {
+      lastFirmsFailure = csv.trim() ? "FIRMS returned an HTML page, not CSV" : "FIRMS returned an empty body";
+      return null;
+    }
     // FIRMS answers an over-quota or bad-source request with a bare
     // string in the body and a 200, so guard the content explicitly.
-    if (csv.trimStart().startsWith("Invalid") || csv.trimStart().startsWith("-1")) return null;
+    if (csv.trimStart().startsWith("Invalid") || csv.trimStart().startsWith("-1")) {
+      // FIRMS's own message ("Invalid MAP_KEY.", quota text) — no key in it.
+      lastFirmsFailure = `FIRMS rejected the request: ${csv.trim().slice(0, 80)}`;
+      return null;
+    }
     const rows = parseFirmsCsv(csv, bbox);
     // A valid CSV with zero rows is an ANSWER, not a missing pass. The
     // window is two days, so yesterday's passes are already published even
@@ -187,7 +209,8 @@ export async function fetchFirmsInBbox(bbox: {
       const t = Date.parse(h.detectedAt);
       return Number.isFinite(t) && t >= cutoff;
     });
-  } catch {
+  } catch (e) {
+    lastFirmsFailure = `FIRMS request failed: ${(e as Error).message}`;
     return null;
   }
 }
@@ -254,7 +277,7 @@ export async function fetchCnxFires(): Promise<CnxFiresResponse> {
     cache = { at: Date.now(), data: response };
     return response;
   }
-  const scenario = buildScenario(now);
+  const scenario = { ...buildScenario(now), liveFailure: firmsFailureReason() ?? undefined };
   cache = { at: Date.now(), data: scenario };
   return scenario;
 }
