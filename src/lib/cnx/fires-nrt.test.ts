@@ -243,3 +243,42 @@ describe("NRT archive rotation", () => {
     expect(await fetchFirmsInBbox(BOX2)).toEqual([]);
   });
 });
+
+describe("failure diagnostics", () => {
+  const BOX2 = { west: 98, south: 18, east: 100, north: 20 };
+  afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); process.env.FIRMS_MAP_KEY = ""; });
+
+  it("surfaces FIRMS's own wording, which is the only way to tell a bad key from a quota", async () => {
+    // NASA answers "Invalid MAP_KEY." for a 400, but its mapkey_status page
+    // reads "invalid or you have exceeded your transaction/time limit" —
+    // so the status code alone cannot separate a mistyped key from an
+    // exhausted quota. Verified 2026-09-30 with a dummy key: the body is
+    // identical for every bbox/days/date combination, so the request shape
+    // is not implicated.
+    process.env.FIRMS_MAP_KEY = "SECRETVALUE";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Invalid MAP_KEY.", { status: 400 })));
+    const { fetchFirmsInBbox: call, firmsFailureReason } = await import("./fires");
+    expect(await call(BOX2)).toBeNull();
+    expect(firmsFailureReason()).toBe("FIRMS answered HTTP 400: Invalid MAP_KEY.");
+  });
+
+  it("never echoes the key back in the diagnostic", async () => {
+    process.env.FIRMS_MAP_KEY = "SUPERSECRETVALUE";
+    // A hostile upstream that echoes the key in its error body must not be
+    // able to leak it into the operator-facing payload.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Invalid MAP_KEY. key=SUPERSECRETVALUE", { status: 400 })));
+    const { fetchFirmsInBbox: call, firmsFailureReason } = await import("./fires");
+    await call(BOX2);
+    const reason = firmsFailureReason();
+    expect(reason).toBeTruthy();
+    expect(reason).not.toContain("SUPERSECRETVALUE");
+  });
+
+  it("omits the detail suffix when the body is missing", async () => {
+    process.env.FIRMS_MAP_KEY = "K";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 429 })));
+    const { fetchFirmsInBbox: call, firmsFailureReason } = await import("./fires");
+    await call(BOX2);
+    expect(firmsFailureReason()).toBe("FIRMS answered HTTP 429");
+  });
+});

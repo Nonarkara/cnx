@@ -339,7 +339,16 @@ export default function CnxTopBar(props: TopBarProps) {
         <Pill label="RFD" value={firesRfd ? `${firesRfd.totalCount}` : "—"} level={rfdReserveCount > 5 ? "critical" : firesRfd && firesRfd.totalCount > 0 ? "watch" : undefined} />
         <Pill
           label="FIRMS"
-          title={fires?.provenance === "scenario" ? "Illustrated hotspots — not a satellite pass" : "NASA VIIRS, Chiang Mai bbox, 24 h — cloud can hide fires from the satellite"}
+          // A rejected key is a configuration fault, not a data state, and
+          // the operator should not have to guess which it is from a pill
+          // that says "illustrated". surface the upstream's own words.
+          title={
+            fires?.provenance !== "scenario"
+              ? "NASA VIIRS, Chiang Mai bbox, 24 h — cloud can hide fires from the satellite"
+              : fires.liveFailure
+              ? `Live pass unavailable: ${fires.liveFailure}. Showing illustrated hotspots.`
+              : "Illustrated hotspots — not a satellite pass"
+          }
           value={fires ? (fires.provenance === "live" ? `${fires.totalCount}` : "no live") : "—"}
           level={fires?.provenance === "live" && fires.totalCount > 30 ? "alert" : undefined}
         />

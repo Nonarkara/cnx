@@ -200,7 +200,21 @@ export async function fetchFirmsInBbox(bbox: {
       // rather than render as "0 fires, live".
       if (!res.ok) {
         if (res.status === 400 || res.status === 401 || res.status === 429) {
-          lastFirmsFailure = `FIRMS answered HTTP ${res.status}`;
+          // Include FIRMS's own wording. It is the only thing that tells a
+          // mistyped key apart from an exhausted quota — NASA answers
+          // "Invalid MAP_KEY." for a 400, but its mapkey_status page uses
+          // "invalid or you have exceeded your transaction/time limit" for
+          // both, so the status code alone cannot separate them. The body
+          // is a fixed phrase with no key material in it, so it is safe to
+          // surface verbatim.
+          let detail = "";
+          try {
+            const body = (await res.text()).trim();
+            if (body && body.length <= 120 && !body.includes(mapKey)) detail = `: ${body}`;
+          } catch {
+            // Body already consumed or unreadable; the status is enough.
+          }
+          lastFirmsFailure = `FIRMS answered HTTP ${res.status}${detail}`;
           return null;
         }
         continue; // this archive is unusable; try the next one
