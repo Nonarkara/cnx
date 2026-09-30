@@ -11,7 +11,9 @@
 // story demands Air + Fires on the same desk, so we keep them
 // one panel with three sub-views.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchJsonOrNull } from "../../lib/client-requests";
+import type { FloodHubResponse } from "../../lib/cnx/floodhub";
 import { Droplets, Wind, Flame } from "lucide-react";
 import type {
   CnxFloodResponse,
@@ -79,6 +81,55 @@ export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
   );
 }
 
+const FH_LABEL: Record<string, { text: string; cls: string }> = {
+  EXTREME: { text: "Extreme flood forecast", cls: "bg-[var(--danger)] text-white" },
+  SEVERE: { text: "Severe flood forecast", cls: "bg-[#fb923c] text-black" },
+  ABOVE_NORMAL: { text: "Above-normal water forecast", cls: "bg-[#f59e0b] text-black" },
+  NO_FLOODING: { text: "No flooding forecast", cls: "bg-[var(--line)] text-[var(--ink)]" },
+  UNKNOWN: { text: "No forecast", cls: "bg-[var(--line)] text-[var(--dim)]" },
+};
+
+/** Google Flood Hub model forecasts for the Ping at Chiang Mai. Deliberately
+ *  never green: "no flooding forecast" is not an all-clear. */
+function FloodHubStrip() {
+  const [fh, setFh] = useState<FloodHubResponse | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchJsonOrNull<FloodHubResponse>("/api/cnx/floodhub");
+      if (!cancelled && next) setFh(next);
+    };
+    void load();
+    const t = window.setInterval(() => void load(), 30 * 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, []);
+  if (!fh) return null;
+  const worst = FH_LABEL[fh.worst ?? "UNKNOWN"];
+  const rising = fh.points.filter((p) => p.trend === "RISE").length;
+  const forecastDay = fh.points.find((p) => p.forecastStart)?.forecastStart?.slice(0, 10);
+  return (
+    <div className="border-b border-[var(--line)] px-3 py-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">Google Flood Hub · Ping</span>
+        <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] ${fh.provenance === "live" ? worst.cls : FH_LABEL.UNKNOWN.cls}`}>
+          {fh.provenance === "live" ? worst.text : "Unavailable"}
+        </span>
+      </div>
+      {fh.provenance === "live" && (
+        <p className="mt-1 text-[10px] leading-relaxed text-[var(--ink)]">
+          {fh.points.length} model points within 30 km of the city (nearest {fh.points[0]?.kmFromCity} km)
+          {rising > 0 ? ` · ${rising} rising` : ""}
+          {forecastDay ? ` · forecast for ${forecastDay}` : ""}
+        </p>
+      )}
+      <p className="mt-0.5 text-[9px] leading-relaxed text-[var(--dim)]">{fh.note}</p>
+    </div>
+  );
+}
+
 function FloodTab({ data }: { data: CnxFloodResponse | null }) {
   if (!data) return <div className="p-3 text-[10px] text-[var(--dim)]">loading flood data…</div>;
   const isScenario = data.provenance === "scenario";
@@ -106,6 +157,8 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
           )}
         </div>
       )}
+
+      <FloodHubStrip />
 
       {data.reservoirs.length > 0 && (
         <div className="border-b border-[var(--line)] px-3 py-2">
