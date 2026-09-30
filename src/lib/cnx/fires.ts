@@ -18,6 +18,23 @@ const FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
 const FIRMS_WINDOW_DAYS = 2;
 
 /**
+ * NRT archive names, most-preferred first.
+ *
+ * FIRMS renames and retires archives as platforms end: NOAA-20 and NOAA-21
+ * NRT sources were added as older ones were retired, and a hardcoded source
+ * silently goes dark when that happens. It is not a loud failure either —
+ * an unknown source returns HTTP 200 with the body "Invalid source.", and
+ * the key is validated BEFORE the source, so a bad key masks a bad source
+ * entirely (verified 2026-09-30: with a rejected key, both a valid and a
+ * bogus archive returned "Invalid MAP_KEY.").
+ *
+ * So: try each in turn, and surface which source answered so a rotation
+ * is visible rather than mysterious. VIIRS_SNPP_NRT leads because it has
+ * the longest history of availability; NOAA-20 is the next most likely.
+ */
+const FIRMS_SOURCES = ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"] as const;
+
+/**
  * What we actually report, and what the UI must say.
  *
  * These are different on purpose. The fetch asks for 2 days because a
@@ -168,51 +185,86 @@ export async function fetchFirmsInBbox(bbox: {
   // produced by a clock, not by data. Two days costs one extra row and
   // removes most of that window.
   const today = new Date().toISOString().slice(0, 10);
-  const url = `${FIRMS_BASE}/${mapKey}/VIIRS_SNPP_NRT/${bbox.west},${bbox.south},${bbox.east},${bbox.north}/${FIRMS_WINDOW_DAYS}/${today}`;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-    // 400 with "Invalid MAP_KEY" is the single most likely first-day
-    // failure; a 429 means we are rate-limited. Both must fall back to
-    // scenario rather than render as "0 fires, live".
-    if (!res.ok) {
-      lastFirmsFailure = `FIRMS answered HTTP ${res.status}`;
+  const box = `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
+  // Last status seen, so a failure that is not the key (HTTP 429, a
+  // network error) is distinguishable from "key not visible" downstream.
+  let lastStatus = 0;
+  for (const source of FIRMS_SOURCES) {
+    const url = `${FIRMS_BASE}/${mapKey}/${source}/${box}/${FIRMS_WINDOW_DAYS}/${today}`;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+      lastStatus = res.status;
+      // 400 with "Invalid MAP_KEY" is a KEY failure and applies to every
+      // source, so stop immediately rather than burning the quota.
+      // 429 is a quota failure, also key-wide. Both fall back to scenario
+      // rather than render as "0 fires, live".
+      if (!res.ok) {
+        if (res.status === 400 || res.status === 401 || res.status === 429) {
+          lastFirmsFailure = `FIRMS answered HTTP ${res.status}`;
+          return null;
+        }
+        continue; // this archive is unusable; try the next one
+      }
+      const csv = await res.text();
+      if (csv.trimStart().startsWith("Invalid MAP_KEY")) {
+        lastFirmsFailure = "FIRMS rejected the MAP_KEY";
+        return null;
+      }
+      if (csv.trimStart().startsWith("Invalid source")) {
+        // This archive name is retired. Try the next; do not report it as
+        // a failure yet, another source may be serving normally.
+        continue;
+      }
+      if (!csv.trim() || csv.trimStart().startsWith("<")) {
+        lastFirmsFailure = csv.trim() ? "FIRMS returned an HTML page, not CSV" : "FIRMS returned an empty body";
+        continue;
+      }
+      // FIRMS answers some over-quota paths with a bare string in the body
+      // and a 200, so guard the content explicitly.
+      if (csv.trimStart().startsWith("-1")) {
+        lastFirmsFailure = "FIRMS rejected the request: -1 (no data / quota)";
+        return null;
+      }
+      return finishLivePass(csv, bbox);
+    } catch (e) {
+      lastStatus = 0;
+      lastFirmsFailure = `FIRMS request failed: ${(e as Error).message}`;
       return null;
     }
-    const csv = await res.text();
-    if (!csv.trim() || csv.trimStart().startsWith("<")) {
-      lastFirmsFailure = csv.trim() ? "FIRMS returned an HTML page, not CSV" : "FIRMS returned an empty body";
-      return null;
-    }
-    // FIRMS answers an over-quota or bad-source request with a bare
-    // string in the body and a 200, so guard the content explicitly.
-    if (csv.trimStart().startsWith("Invalid") || csv.trimStart().startsWith("-1")) {
-      // FIRMS's own message ("Invalid MAP_KEY.", quota text) — no key in it.
-      lastFirmsFailure = `FIRMS rejected the request: ${csv.trim().slice(0, 80)}`;
-      return null;
-    }
-    const rows = parseFirmsCsv(csv, bbox);
-    // A valid CSV with zero rows is an ANSWER, not a missing pass. The
-    // window is two days, so yesterday's passes are already published even
-    // when today's are not; "header only" therefore means no VIIRS
-    // detection in ~48 h of published passes — the normal state for the
-    // whole wet season (May–Oct). Treating it as unknown made the board say
-    // "key missing, or NASA did not answer" for months while NASA was
-    // answering clearly (verified 2026-09-30: NASA's keyless 48 h SE-Asia
-    // file had 0 detections in the CNX bbox while this path read
-    // "scenario"). Unknown is reserved for the failures above: no key, HTTP
-    // error, rejected key, over quota. Cloud can still hide fires — the
-    // panel says so; that caveat applies to every pass, zero or not.
-    if (rows.length === 0) return [];
-
-    const cutoff = Date.now() - FIRMS_REPORT_HOURS * 3_600_000;
-    return rows.filter((h) => {
-      const t = Date.parse(h.detectedAt);
-      return Number.isFinite(t) && t >= cutoff;
-    });
-  } catch (e) {
-    lastFirmsFailure = `FIRMS request failed: ${(e as Error).message}`;
-    return null;
   }
+  // Every archive refused. If none of them answered with a status at all,
+  // this is a network problem; otherwise the sources themselves are gone.
+  lastFirmsFailure =
+    lastFirmsFailure ??
+    (lastStatus === 0
+      ? "FIRMS did not answer for any known NRT archive"
+      : "FIRMS: every known NRT archive was refused (they may have been retired)");
+  return null;
+}
+
+/** Parse a successful CSV body into the three outcomes, including the
+ *  24 h reporting cutoff that separates "the pass answered" from "the pass
+ *  is published". */
+function finishLivePass(csv: string, bbox: { west: number; south: number; east: number; north: number }): FireHotspot[] {
+  const rows = parseFirmsCsv(csv, bbox);
+  // A valid CSV with zero rows is an ANSWER, not a missing pass. The
+  // window is two days, so yesterday's passes are already published even
+  // when today's are not; "header only" therefore means no VIIRS
+  // detection in ~48 h of published passes — the normal state for the
+  // whole wet season (May–Oct). Treating it as unknown made the board say
+  // "key missing, or NASA did not answer" for months while NASA was
+  // answering clearly (verified 2026-09-30: NASA's keyless 48 h SE-Asia
+  // file had 0 detections in the CNX bbox while this path read
+  // "scenario"). Unknown is reserved for real failures: no key, HTTP
+  // error, rejected key, over quota. Cloud can still hide fires — the
+  // panel says so; that caveat applies to every pass, zero or not.
+  if (rows.length === 0) return [];
+
+  const cutoff = Date.now() - FIRMS_REPORT_HOURS * 3_600_000;
+  return rows.filter((h) => {
+    const t = Date.parse(h.detectedAt);
+    return Number.isFinite(t) && t >= cutoff;
+  });
 }
 
 async function fetchLiveFirms(): Promise<FireHotspot[] | null> {

@@ -180,3 +180,66 @@ describe("fetchFirmsInBbox failure handling", () => {
     expect(rows).toHaveLength(3);
   });
 });
+
+describe("NRT archive rotation", () => {
+  const H = "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight";
+  const today = new Date().toISOString().slice(0, 10);
+  const row = `18.8,98.98,342.53,0.39,0.53,${today},0454,N,VIIRS,n,2.0,318.20,14.30,D`;
+  const BOX2 = { west: 98, south: 18, east: 100, north: 20 };
+
+  afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); process.env.FIRMS_MAP_KEY = ""; });
+
+  it("falls through to a later archive when the first is retired", async () => {
+    // NASA returns HTTP 200 with the body "Invalid source." for a retired
+    // archive — not an error status. A hardcoded source name therefore goes
+    // dark silently the day FIRMS renames one.
+    process.env.FIRMS_MAP_KEY = "K";
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      if (String(input).includes("VIIRS_SNPP_NRT")) return new Response("Invalid source.", { status: 200 });
+      return new Response([H, row].join("\n"), { status: 200 });
+    }));
+    const rows = await fetchFirmsInBbox(BOX2);
+    expect(rows).toHaveLength(1);
+    expect(urls[0]).toContain("VIIRS_SNPP_NRT");
+    expect(urls[1]).not.toContain("VIIRS_SNPP_NRT");
+  });
+
+  it("stops immediately on a bad key rather than burning quota on every archive", async () => {
+    // The key is validated BEFORE the source, so a bad key produces the
+    // identical answer for all three archives. Retrying would triple the
+    // transactions against an already-rejected key.
+    process.env.FIRMS_MAP_KEY = "BAD";
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => { calls += 1; return new Response("Invalid MAP_KEY.", { status: 400 }); }));
+    expect(await fetchFirmsInBbox(BOX2)).toBeNull();
+    expect(calls).toBe(1);
+  });
+
+  it("stops on a quota 429 for the same reason", async () => {
+    process.env.FIRMS_MAP_KEY = "K";
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => { calls += 1; return new Response("", { status: 429 }); }));
+    expect(await fetchFirmsInBbox(BOX2)).toBeNull();
+    expect(calls).toBe(1);
+  });
+
+  it("names the problem when every archive is retired", async () => {
+    process.env.FIRMS_MAP_KEY = "K";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Invalid source.", { status: 200 })));
+    // Read the reason from the SAME module instance that did the fetch —
+    // lastFirmsFailure is module-level, and afterEach resetModules would
+    // hand back a fresh copy with a null reason.
+    const { fetchFirmsInBbox: call, firmsFailureReason } = await import("./fires");
+    expect(await call(BOX2)).toBeNull();
+    expect(firmsFailureReason()).toMatch(/every known NRT archive/);
+  });
+
+  it("still returns a live zero when a healthy archive answers with no rows", async () => {
+    // The wet-season case: NASA answers clearly, there is simply no fire.
+    process.env.FIRMS_MAP_KEY = "K";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(H, { status: 200 })));
+    expect(await fetchFirmsInBbox(BOX2)).toEqual([]);
+  });
+});
