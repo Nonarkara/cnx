@@ -15,6 +15,16 @@ import { fetchCnxFlood } from "./flood";
 import { fetchCnxAirQuality } from "./air-quality";
 import { fetchCnxFires } from "./fires";
 
+// How the story is allowed to talk about the river.
+//
+// Every scenario below wants to say something about the Ping. When there
+// is no live gauge feed it must not, and it must not be faked by zeroing
+// the number either: "Ping river at 0% of bank-full" is a sentence that
+// means *calm*, produced by a missing measurement. That is the same error
+// as the fabricated value, wearing reassurance instead of alarm.
+const FLOOD_UNKNOWN =
+  "No live river-gauge reading this cycle — the river state is unverified, not calm. Read the station gauges in your area.";
+
 const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryResponse> = {
   "burning-season-peak": (now, s) => ({
     generatedAt: now,
@@ -24,7 +34,9 @@ const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryRespons
       s.firesLive
         ? `NASA FIRMS shows ${s.fireCount} hotspots inside the CNX bbox, with ${Math.round((s.forestShare ?? 0) * 100)}% of them in the protected forest ring around Doi Suthep–Pui and Doi Inthanon.`
         : "NASA FIRMS has no live pass this cycle, so no satellite hotspot count is stated.",
-      `Ping river at Nawarat Bridge is at ${(s.pingCap * 100).toFixed(0)}% of bank-full — no flood risk today, but the windless valley inversion is the story.`,
+      s.floodLive
+        ? `Ping river at Nawarat Bridge is at ${(s.pingCap * 100).toFixed(0)}% of bank-full.`
+        : FLOOD_UNKNOWN,
     ],
     bullets: [
       "N95 distribution at the Chang Phueak mobile unit 06:00–10:00 daily",
@@ -36,11 +48,19 @@ const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryRespons
   }),
   "monsoon-flood-watch": (now, s) => ({
     generatedAt: now,
-    headline: "Monsoon pulses lifting the Ping toward advisory",
+    headline: s.floodLive
+      ? "Monsoon pulses lifting the Ping toward advisory"
+      : "Monsoon active — river state unverified this cycle",
     paragraphs: [
-      `Ping river at Nawarat Bridge is at ${(s.pingCap * 100).toFixed(0)}% of bank-full; IRRI has the Tha Wung pumps staged for deployment.`,
-      `Bhumibol storage at ${s.bhmFraction}% and Sirikit at ${s.sktFraction}% — no release scheduled, but discharge watches are hourly.`,
-      `Rainfall running 24-h ${s.rain24} mm across the upper Ping; Mae Kuang and Mae Taeng gauges are the early-warning set.`,
+      s.floodLive
+        ? `Ping river at Nawarat Bridge is at ${(s.pingCap * 100).toFixed(0)}% of bank-full; IRRI has the Tha Wung pumps staged for deployment.`
+        : FLOOD_UNKNOWN,
+      s.floodLive
+        ? `Bhumibol storage at ${s.bhmFraction}% and Sirikit at ${s.sktFraction}% — no release scheduled, but discharge watches are hourly.`
+        : "No live reservoir storage feed, so no dam release is claimed or ruled out.",
+      s.floodLive
+        ? `Rainfall running 24-h ${s.rain24} mm across the upper Ping; Mae Kuang and Mae Taeng gauges are the early-warning set.`
+        : "No live rainfall feed this cycle; Mae Kuang and Mae Taeng gauges remain the early-warning set.",
     ],
     bullets: [
       "Pre-stage 1,200 sandbags at Tha Wung fire station",
@@ -68,17 +88,23 @@ const SCENARIOS: Record<string, (now: string, s: StoryInputs) => CnxStoryRespons
   }),
   "stable-winter-day": (now, s) => ({
     generatedAt: now,
-    headline: "Stable winter day — clear air, calm river",
+    headline: s.floodLive
+      ? "Stable winter day — clear air, calm river"
+      : "Stable winter day — clear air, river state unverified",
     paragraphs: [
       `Province-average PM2.5 ${s.pm25} µg/m³ — well within the comfort band.`,
-      `Ping river at ${(s.pingCap * 100).toFixed(0)}% of bank-full, all CNX dams at normal storage.`,
+      s.floodLive
+        ? `Ping river at ${(s.pingCap * 100).toFixed(0)}% of bank-full, all CNX dams at normal storage.`
+        : FLOOD_UNKNOWN,
       `${s.wideCount} widebody arrivals in the last 24 h — winter tourism at its normal weekday pace.`,
     ],
     bullets: [
       "Standard operating posture",
       "Doi Suthep summit clear, hiking trail open",
       "Walking Street Saturday & Sunday normal hours",
-      "Flood watch: dry-season normal, no advisory",
+      s.floodLive
+        ? "Flood watch: dry-season normal, no advisory"
+        : "River state unverified — no live gauge feed this cycle",
     ],
     officeNotices: s.officeNotices,
   }),
@@ -95,6 +121,8 @@ interface StoryInputs {
   rain24: number;
   wideCount: number;
   officeNotices: OfficeNotice[];
+  /** True only when the flood feed actually produced measurements. */
+  floodLive: boolean;
 }
 
 function scenarioDefaults(): StoryInputs {
@@ -103,12 +131,16 @@ function scenarioDefaults(): StoryInputs {
     fireCount: 14,
     firesLive: true,
     forestShare: 0.71,
-    pingCap: 0.42,
-    bhmFraction: 0.81,
-    sktFraction: 0.74,
-    rain24: 18,
+    // Deliberately not the old 0.42 / 0.81 / 0.74. Those were plausible
+    // numbers for a river we were not measuring, and a test fixture that
+    // carries them will eventually be copied into production code.
+    pingCap: 0,
+    bhmFraction: 0,
+    sktFraction: 0,
+    rain24: 0,
     wideCount: 6,
     officeNotices: [],
+    floodLive: false,
   };
 }
 
@@ -148,19 +180,34 @@ export async function buildCnxStory(
     // agency on the strength of a hash seed — it outranks everything else
     // on this wall.
     officeNotices: [air.office, floodLive ? flood.office : null].filter(Boolean) as OfficeNotice[],
+    floodLive,
   };
 
   const key = (scenarioId && SCENARIOS[scenarioId]) ? scenarioId : pickScenario(inputs);
-  const builder = SCENARIOS[key] ?? SCENARIOS["stable-winter-day"];
+  return buildStoryFromInputs(key, inputs, now);
+}
+
+/**
+ * Pure half of the story: pick a scenario, render it. Split out so the
+ * claim rules can be tested without three network feeds — the sentences
+ * are the contract, and they are testable without the fetches.
+ */
+export function buildStoryFromInputs(
+  scenarioId: string,
+  inputs: StoryInputs,
+  now: string = new Date().toISOString(),
+): CnxStoryResponse {
+  const builder = SCENARIOS[scenarioId] ?? SCENARIOS["stable-winter-day"];
   return builder(now, inputs);
 }
 
 function pickScenario(i: StoryInputs): keyof typeof SCENARIOS {
   if (i.pm25 >= 50) return "burning-season-peak";
-  if (i.pingCap >= 0.85 || i.rain24 >= 80) return "monsoon-flood-watch";
+  if (i.floodLive && (i.pingCap >= 0.85 || i.rain24 >= 80)) return "monsoon-flood-watch";
   return "stable-winter-day";
 }
 
 // Keep `scenarioDefaults` reachable so future callers can build a
 // story with synthetic inputs (e.g. for tests).
 export { scenarioDefaults as _scenarioDefaults };
+export type { StoryInputs };
