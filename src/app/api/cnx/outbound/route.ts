@@ -7,20 +7,22 @@ import { appendSnapshot } from "../../../../lib/cnx/snapshot-store";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// Throttles the trend-history WRITE (appendSnapshot → KV), not the answer.
+// It used to 429 the whole request with one global key, so a second viewer
+// within a minute — or a refresh — got an empty outbound panel.
 const RATE_LIMIT_KEY = "outbound_rate_limit";
 const MIN_INTERVAL_MS = 60_000;
 
-export async function GET() {
+async function shouldRecordSnapshot(): Promise<boolean> {
   const { env } = await getCloudflareContext({ async: true });
-  if (env?.CNX_FLIGHTS_KV) {
-    const lastStr = await env.CNX_FLIGHTS_KV.get(RATE_LIMIT_KEY);
-    const last = Number(lastStr);
-    if (Number.isFinite(last) && Date.now() - last < MIN_INTERVAL_MS) {
-      return NextResponse.json({ error: "rate limited" }, { status: 429 });
-    }
-    await env.CNX_FLIGHTS_KV.put(RATE_LIMIT_KEY, String(Date.now()), { expirationTtl: 120 });
-  }
+  if (!env?.CNX_FLIGHTS_KV) return true;
+  const last = Number(await env.CNX_FLIGHTS_KV.get(RATE_LIMIT_KEY));
+  if (Number.isFinite(last) && Date.now() - last < MIN_INTERVAL_MS) return false;
+  await env.CNX_FLIGHTS_KV.put(RATE_LIMIT_KEY, String(Date.now()), { expirationTtl: 120 });
+  return true;
+}
 
+export async function GET() {
   const snap = await fetchCnxSnapshot();
   const analysis = summariseOutbound(snap.airborne.concat(snap.ground));
 
@@ -36,7 +38,7 @@ export async function GET() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([country, count]) => ({ country, count }));
-  await appendSnapshot({
+  if (await shouldRecordSnapshot()) await appendSnapshot({
     ts: Date.now(),
     fetchedAt: snap.fetchedAt,
     airborne: analysis.totalAirborne,
