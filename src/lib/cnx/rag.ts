@@ -168,6 +168,16 @@ async function buildAsyncCorpus(): Promise<Document[]> {
   try {
     const social = await fetchCnxSocial();
     for (const item of social.items) {
+      // `tone: "demo"` is a cold-start placeholder — a themed headline the
+      // social module invented, carrying a real-looking government or news
+      // URL. It is badged in the social rail, and that badge is the ONLY
+      // thing keeping it honest. A RAG doc has no such badge: drop the item
+      // here and it becomes a citable source, and the answer engine will
+      // cheerfully tell a governor that "ชลประทานเชียงใหม่เฝ้าระวังระดับน้ำ
+      // แม่น้ำปิง สถานี P.1 อยู่ในเกณฑ์ปกติ" is what the irrigation
+      // department said. It is not. A placeholder headline must never
+      // become evidence.
+      if (item.tone === "demo") continue;
       docs.push({
         id: item.id,
         title: item.title,

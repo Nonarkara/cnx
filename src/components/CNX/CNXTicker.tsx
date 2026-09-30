@@ -41,7 +41,11 @@ export default function CnxTicker({
         level: air.provinceAvgAqiLevel,
       });
     }
-    if (typeof flood?.pingCapacityFraction === "number") {
+    // Same rule as the FIRMS segment below: a scenario fill is not a
+    // reading, and a ticker is read at a glance by someone deciding
+    // whether to worry. "46% bank-full" with a 🌊 is a river level we
+    // did not measure. Naming the absence costs one word.
+    if (flood && flood.provenance === "live" && typeof flood.pingCapacityFraction === "number") {
       out.push({
         key: "ping",
         icon: "🌊",
