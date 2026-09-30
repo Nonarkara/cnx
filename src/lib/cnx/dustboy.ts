@@ -46,6 +46,12 @@ export interface DustboyStation {
   latitude: number;
   /** Live PM2.5 µg/m³. null when sensor is offline or stale. */
   pm25: number | null;
+  /**
+   * True when this reading is inconsistent with its neighbours and should
+   * not drive any headline. See flagSuspects for the reasoning — a real
+   * regional episode lifts every station, a sensor fault lifts one.
+   */
+  suspect: boolean;
   /** Reading age in hours. null when unknown. */
   readingAgeHours: number | null;
   severity: SeverityLevel;
@@ -61,10 +67,19 @@ export interface DustboyResponse {
     stationCount: number;
     onlineCount: number;
     avgPm25: number | null;
+    /**
+     * Headline max, outlier-resistant: the p95 of accepted readings, NOT
+     * the raw argmax. See flagSuspects — a single faulty sensor must never
+     * set the number the governor acts on.
+     */
     maxPm25: number | null;
-    /** Worst-affected province in the basin right now. */
+    /** The literal highest reading, suspect or not. Kept for drill-down. */
+    maxPm25Raw: number | null;
+    /** How many stations were flagged suspect this cycle. */
+    suspectCount: number;
+    /** Worst-affected province in the basin right now, suspect-excluded. */
     worstProvince: string | null;
-    /** Worst-affected district in the basin right now. */
+    /** Worst-affected district in the basin right now, suspect-excluded. */
     worstDistrict: string | null;
     /** Chiang Mai province only — the number the city operator acts on.
      *  `avgPm25` above mixes in Chiang Rai, Mae Hong Son, and the rest. */
@@ -77,6 +92,15 @@ export interface DustboyResponse {
       newestReadingAgeHours: number | null;
     };
   };
+  /**
+   * Operator-facing caveat, set when any station was flagged. The panel
+   * should render this verbatim rather than silently dropping the reading —
+   * the same discipline FloodDash uses for its untrusted-ETA state.
+   */
+  caveat: {
+    th: string;
+    en: string;
+  } | null;
   /** Provenance — "live" when the public feed answered, "scenario" otherwise. */
   provenance: "live" | "needs-key" | "scenario";
   /** Honest message about why there's no live data (only set when provenance != live). */
@@ -145,10 +169,63 @@ export function normaliseStation(raw: DustboyRawStation, nowMs = Date.now()): Du
     longitude: lng,
     latitude: lat,
     pm25: pm,
+    suspect: false,
     readingAgeHours,
     severity: severityForPm25(pm),
     observedAt: Number.isFinite(observedMs) ? new Date(observedMs).toISOString() : "",
   };
+}
+
+/**
+ * Flag readings that are inconsistent with their neighbours.
+ *
+ * WHY A NEIGHBOUR TEST AND NOT A PERCENTILE
+ *
+ * The intuitive fix — clamp the headline to p95/p99 — is wrong for haze,
+ * and wrong in the dangerous direction. A real regional PM2.5 episode is
+ * a REGIONAL event: in the 2026-03 north-Chiang-Mai episode the upper
+ * north lifted together, so the 95th percentile is itself extreme and a
+ * p95 clamp hides the episode. Meanwhile the failure we actually observe
+ * is a single sensor reading 649 µg/m³ while the 221 other stations sit
+ * at a median of 6 (measured 2026-09-30, Lampang/Hang Chat, an indoor
+ * unit). A percentile rule cannot tell those two worlds apart: both look
+ * like "some stations are high".
+ *
+ * What DOES separate them is agreement between neighbours. Regional haze
+ * moves every station in the province within a factor of a few; a stuck
+ * or co-located sensor moves exactly one. So the test is:
+ *
+ *     station > SUSPECT_FACTOR × p90(province peers)
+ *
+ * with a floor so a genuinely quiet province doesn't make every reading
+ * look absurd, and a sample-size guard so a 2-station province can't
+ * self-flag into meaninglessness.
+ *
+ * Flags are reversible and visible: the station keeps its real value,
+ * gains `suspect: true`, and is excluded from aggregates only. Nothing is
+ * hidden from the drill-down.
+ */
+const SUSPECT_FACTOR = 3;
+const SUSPECT_FLOOR_UG = 60;
+const SUSPECT_MIN_PEERS = 5;
+
+export function flagSuspects(stations: DustboyStation[]): DustboyStation[] {
+  const byProvince = new Map<string, number[]>();
+  for (const s of stations) {
+    if (s.pm25 === null) continue;
+    const list = byProvince.get(s.province) ?? [];
+    list.push(s.pm25);
+    byProvince.set(s.province, list);
+  }
+  return stations.map((s) => {
+    if (s.pm25 === null) return s;
+    const peers = byProvince.get(s.province) ?? [];
+    if (peers.length < SUSPECT_MIN_PEERS) return s;
+    const sorted = [...peers].sort((a, b) => a - b);
+    const p90 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))];
+    const threshold = Math.max(SUSPECT_FLOOR_UG, p90 * SUSPECT_FACTOR);
+    return s.pm25 > threshold ? { ...s, suspect: true } : s;
+  });
 }
 
 async function fetchLiveDustboy(): Promise<DustboyStation[] | null> {
@@ -167,24 +244,46 @@ async function fetchLiveDustboy(): Promise<DustboyStation[] | null> {
   }
 }
 
+function percentile(sortedAsc: number[], p: number): number {
+  if (sortedAsc.length === 0) return NaN;
+  const idx = Math.min(sortedAsc.length - 1, Math.floor(sortedAsc.length * p));
+  return sortedAsc[idx];
+}
+
 function aggregate(stations: DustboyStation[]): {
   stationCount: number;
   onlineCount: number;
   avgPm25: number | null;
   maxPm25: number | null;
+  maxPm25Raw: number | null;
   worst: DustboyStation | null;
 } {
   const online = stations.filter((s) => s.pm25 !== null);
   if (online.length === 0) {
-    return { stationCount: stations.length, onlineCount: 0, avgPm25: null, maxPm25: null, worst: null };
+    return {
+      stationCount: stations.length,
+      onlineCount: 0,
+      avgPm25: null,
+      maxPm25: null,
+      maxPm25Raw: null,
+      worst: null,
+    };
   }
-  let avgSum = 0;
-  let maxPm = 0;
-  let worst: DustboyStation | null = null;
+  // Raw max includes suspects — it belongs in the drill-down, not the headline.
+  let maxRaw: number | null = null;
   for (const s of online) {
     if (s.pm25 === null) continue;
+    if (maxRaw === null || s.pm25 > maxRaw) maxRaw = s.pm25;
+  }
+  const accepted = online.filter((s) => !s.suspect && s.pm25 !== null);
+  const pool = accepted.length > 0 ? accepted : online;
+  let avgSum = 0;
+  let maxPm: number | null = null;
+  let worst: DustboyStation | null = null;
+  for (const s of pool) {
+    if (s.pm25 === null) continue;
     avgSum += s.pm25;
-    if (s.pm25 > maxPm) {
+    if (maxPm === null || s.pm25 > maxPm) {
       maxPm = s.pm25;
       worst = s;
     }
@@ -192,30 +291,69 @@ function aggregate(stations: DustboyStation[]): {
   return {
     stationCount: stations.length,
     onlineCount: online.length,
-    avgPm25: Math.round((avgSum / online.length) * 10) / 10,
-    maxPm25: maxPm,
+    avgPm25: Math.round((avgSum / pool.length) * 10) / 10,
+    // p95, not argmax: still responsive to a genuine regional episode
+    // (where the whole distribution lifts) but immune to one bad sensor.
+    maxPm25: maxPm === null ? null : Math.round(percentile([...pool.map((s) => s.pm25!)].sort((a, b) => a - b), 0.95) * 10) / 10,
+    maxPm25Raw: maxRaw,
     worst,
   };
 }
 
 export function summariseBasin(stations: DustboyStation[]): DustboyResponse["basin"] {
-  const all = aggregate(stations);
-  const cm = aggregate(stations.filter((s) => s.province === "เชียงใหม่"));
+  const flagged = flagSuspects(stations);
+  const all = aggregate(flagged);
+  const cm = aggregate(flagged.filter((s) => s.province === "เชียงใหม่"));
+  const suspectCount = flagged.filter((s) => s.suspect).length;
   return {
     stationCount: all.stationCount,
     onlineCount: all.onlineCount,
     avgPm25: all.avgPm25,
     maxPm25: all.maxPm25,
-    worstProvince: all.worst?.province ?? null,
-    worstDistrict: all.worst?.district ?? null,
+    maxPm25Raw: all.maxPm25Raw,
+    suspectCount,
+    worstProvince: worstProvinceByP90(flagged)?.province ?? null,
+    worstDistrict: worstProvinceByP90(flagged)?.district ?? null,
     chiangMai: {
       stationCount: cm.stationCount,
       onlineCount: cm.onlineCount,
       avgPm25: cm.avgPm25,
       maxPm25: cm.maxPm25,
-      newestReadingAgeHours: newestAge(stations.filter((s) => s.province === "เชียงใหม่")),
+      newestReadingAgeHours: newestAge(flagged.filter((s) => s.province === "เชียงใหม่")),
     },
   };
+}
+
+/**
+ * "Worst-affected province" means the province whose whole network is
+ * doing worst, not the province that happens to own the single highest
+ * station. Measuring at p90 per province is what makes the answer mean
+ * something: a single faulty unit in Lampang must not make Lampang the
+ * "worst province" while every one of its other stations reads 6, and two
+ * equally clean provinces must not be ranked by iteration order.
+ *
+ * The winning station is the p90 of that province, and `district` is its
+ * district so the operator still gets a place to send someone.
+ */
+function worstProvinceByP90(stations: DustboyStation[]): DustboyStation | null {
+  const byProvince = new Map<string, DustboyStation[]>();
+  for (const s of stations) {
+    if (s.pm25 === null || s.suspect) continue;
+    const list = byProvince.get(s.province) ?? [];
+    list.push(s);
+    byProvince.set(s.province, list);
+  }
+  let best: DustboyStation | null = null;
+  let bestP90 = -Infinity;
+  for (const list of byProvince.values()) {
+    const values = list.map((s) => s.pm25!).sort((a, b) => a - b);
+    const p90 = percentile(values, 0.9);
+    if (p90 > bestP90) {
+      bestP90 = p90;
+      best = list[Math.min(list.length - 1, Math.floor(list.length * 0.9))];
+    }
+  }
+  return best;
 }
 
 function newestAge(stations: DustboyStation[]): number | null {
@@ -232,10 +370,21 @@ const EMPTY_BASIN: DustboyResponse["basin"] = {
   onlineCount: 0,
   avgPm25: null,
   maxPm25: null,
+  maxPm25Raw: null,
+  suspectCount: 0,
   worstProvince: null,
   worstDistrict: null,
   chiangMai: { stationCount: 0, onlineCount: 0, avgPm25: null, maxPm25: null, newestReadingAgeHours: null },
 };
+
+/** Caveat shown when at least one reading was excluded from the aggregates. */
+function suspectCaveat(suspectCount: number, onlineCount: number): DustboyResponse["caveat"] {
+  if (suspectCount === 0) return null;
+  return {
+    th: `ตัดออก ${suspectCount} จาก ${onlineCount} สถานีที่ค่าสูงผิดปกติเมื่อเทียบกับสถานีอื่นในจังหวัด — ตรวจสอบเครื่องก่อนใช้ตัวเลขนี้เป็นหลักฐาน`,
+    en: `${suspectCount} of ${onlineCount} stations excluded as inconsistent with their province peers — verify the sensor before treating these numbers as evidence`,
+  };
+}
 
 let cache: { at: number; data: DustboyResponse } | null = null;
 const TTL_MS = 10 * 60_000;
@@ -245,12 +394,14 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
   const now = new Date().toISOString();
   const live = await fetchLiveDustboy();
   if (live && live.length > 0) {
+    const basin = summariseBasin(live);
     const data: DustboyResponse = {
       generatedAt: now,
       stations: live,
-      basin: summariseBasin(live),
+      basin,
       provenance: "live",
       note: null,
+      caveat: suspectCaveat(basin.suspectCount, basin.onlineCount),
     };
     cache = { at: Date.now(), data };
     return data;
@@ -261,6 +412,7 @@ export async function fetchCnxDustboy(): Promise<DustboyResponse> {
     basin: EMPTY_BASIN,
     provenance: "scenario",
     note: "CMU CCDC DustBoy feed did not answer — no ground PM2.5 readings this cycle.",
+    caveat: null,
   };
   cache = { at: Date.now(), data };
   return data;

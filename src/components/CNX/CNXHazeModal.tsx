@@ -179,6 +179,16 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
           />
         </section>
 
+        {dustboy?.caveat && (
+          <p className="mt-3 border-l-2 border-[var(--warn,#f59e0b)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] leading-relaxed text-[var(--dim)]">
+            <span className="font-semibold text-[var(--ink)]" lang="th">
+              ตรวจสอบเครื่องก่อน
+            </span>{" "}
+            <span lang="th">{dustboy.caveat.th}</span>
+            <span className="mt-1 block opacity-80">{dustboy.caveat.en}</span>
+          </p>
+        )}
+
         <section className="mt-6">
           <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
             Where the smoke is going (6 h)
