@@ -53,14 +53,27 @@ export interface HazeVisionPayload {
     /** Lowest / highest paired ground reading, µg/m³. */
     pm25Min: number | null;
     pm25Max: number | null;
+    /** Median and 95th percentile of the same readings — the robust spread. */
+    pm25Median: number | null;
+    pm25P95: number | null;
+    /** How many paired readings reached HAZE_EVENT_UG (unhealthy). */
+    eventReadings: number;
     /**
-     * True when the window spans enough PM2.5 spread for the correlation
-     * to mean something. Below HAZE_TESTABLE_SPREAD the r is reported but
-     * flagged as not yet testable rather than presented as a result.
+     * True when the window contains a real regional haze episode, not a
+     * spike. Requires both a robust spread (p95 − median ≥ 20 µg/m³) AND
+     * at least 3 unhealthy readings, because a lone faulted sensor at 149
+     * µg/m³ is not an event — it is the sensor fault we already detect in
+     * dustboy.ts. Using min/max here would let one broken unit manufacture
+     * a "testable" window and print a meaningless correlation.
      */
     spansHazeEvent: boolean;
   };
 }
+
+/** A paired PM2.5 at or above this counts toward a real haze event. */
+export const HAZE_EVENT_UG = 50;
+/** Minimum eventReadings before a window counts as an episode, not a spike. */
+export const HAZE_EVENT_MIN_READINGS = 3;
 
 export interface HazeVisionResponse extends HazeVisionPayload {
   provenance: "live" | "unavailable";
@@ -105,6 +118,9 @@ export function isHazeVisionPayload(v: unknown): v is HazeVisionPayload {
     isNum(v.agreement.pairs) &&
     isNumOrNull(v.agreement.pm25Min) &&
     isNumOrNull(v.agreement.pm25Max) &&
+    isNumOrNull(v.agreement.pm25Median) &&
+    isNumOrNull(v.agreement.pm25P95) &&
+    isNum(v.agreement.eventReadings) &&
     typeof v.agreement.spansHazeEvent === "boolean"
   );
 }
@@ -126,7 +142,7 @@ export async function fetchCnxHazeVision(): Promise<HazeVisionResponse> {
   return {
     generatedAt: new Date().toISOString(),
     cameras: [],
-    agreement: { r: null, pairs: 0, pm25Min: null, pm25Max: null, spansHazeEvent: false },
+    agreement: { r: null, pairs: 0, pm25Min: null, pm25Max: null, pm25Median: null, pm25P95: null, eventReadings: 0, spansHazeEvent: false },
     provenance: "unavailable",
     methodology: HAZE_METHODOLOGY,
     note: "The webcam haze relay has not reported in the last 45 minutes — no camera verdicts are shown.",

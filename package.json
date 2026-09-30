@@ -18,6 +18,7 @@
     "ingest:all": "npm run fetch:opendata",
     "test:flights": "tsx scripts/test-flights.mjs",
     "test": "vitest run",
+    "test:relay": "node --experimental-strip-types scripts/check-relay-imports.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

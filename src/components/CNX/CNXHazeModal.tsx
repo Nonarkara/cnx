@@ -222,8 +222,8 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
               : agreement.r === null
               ? `Not enough frames paired with a live ground sensor yet to measure agreement (${agreement.pairs} pairs; needs 8).`
               : agreement.spansHazeEvent
-              ? `Agreement with nearest DustBoy sensor: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} frame/sensor pairs. Ground readings in this window spanned ${agreement.pm25Min}–${agreement.pm25Max} µg/m³, which includes a real haze episode, so this is a meaningful comparison.`
-              : `Agreement is not yet measurable. Over ${agreement.pairs} frame/sensor pairs the cameras scored steadily but every paired ground reading was clean air (${agreement.pm25Min}–${agreement.pm25Max} µg/m³, below the 20 µg/m³ guideline). There has been no haze episode to detect, so r = ${agreement.r.toFixed(2)} reflects the absence of a test, not a failure of the method. This becomes meaningful during a burning-season episode.`}
+              ? `Agreement with nearest DustBoy sensor: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} frame/sensor pairs. Ground readings spanned a median of ${agreement.pm25Median} to p95 ${agreement.pm25P95} µg/m³ with ${agreement.eventReadings} unhealthy readings, so this window contains a real haze episode and the comparison is meaningful.`
+              : `Agreement is not yet measurable. Over ${agreement.pairs} frame/sensor pairs the cameras scored steadily, but the ground readings were clean air — median ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95}, and only ${agreement.eventReadings} at or above 50. There has been no regional haze episode to detect, so r = ${agreement.r.toFixed(2)} reflects the absence of a test rather than a failure of the method. It becomes meaningful during a burning-season episode.`}
           </p>
           {cams.length > 0 ? (
             <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">

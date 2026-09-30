@@ -9,7 +9,6 @@
 import sharp from "sharp";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { classifyFrame, computeFrameMetrics, isScorable, pearson } from "../src/lib/cnx/haze-vision-core.ts";
-import { HAZE_TESTABLE_SPREAD } from "../src/lib/cnx/haze-vision.ts";
 import { normaliseStation } from "../src/lib/cnx/dustboy.ts";
 
 const EVERY_MS = 10 * 60_000;
@@ -18,7 +17,19 @@ const HISTORY_DAYS = 30;
 const MAX_FRAME_AGE_MS = 6 * 60 * 60_000;
 const NEAREST_SENSOR_KM = 15;
 const ANALYSIS_WIDTH = 320;
-const DUSTBOY_FEED = "https://www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json";
+/**
+ * PM2.5 spread (µg/m³) below which a correlation cannot discriminate a
+ * working scorer from a broken one. Duplicated from
+ * HAZE_TESTABLE_SPREAD in src/lib/cnx/haze-vision.ts on purpose: that file
+ * uses extensionless imports ("./haze-vision-core") that only a bundler
+ * resolves, so importing it here crashed the relay under Node's native TS
+ * stripping. haze-vision-core.ts and dustboy.ts are safe to import because
+ * they are import-free. Keep the two in step — haze-vision-core.test.ts
+ * does not cover this, so it is asserted in the relay's own smoke check.
+ */
+const HAZE_TESTABLE_SPREAD = 20;
+/** A reading at or above this is an unhealthy one; an EVENT needs several. */
+const HAZE_EVENT_UG = 50;const DUSTBOY_FEED = "https://www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json";
 const CACHE_DIR = "/Volumes/Data/CNX/relay-cache";
 const HISTORY_FILE = `${CACHE_DIR}/haze-history.json`;
 
@@ -100,14 +111,29 @@ function agreement(history) {
       }
     }
   }
-  const pm25Min = ys.length ? Math.min(...ys) : null;
-  const pm25Max = ys.length ? Math.max(...ys) : null;
+  const sorted = [...ys].sort((a, b) => a - b);
+  const pct = (p) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : null);
+  const pm25Min = sorted.length ? sorted[0] : null;
+  const pm25Max = sorted.length ? sorted[sorted.length - 1] : null;
+  const median = pct(0.5);
+  const p95 = pct(0.95);
+  // A haze EVENT means readings a sensor network would call unhealthy,
+  // sustained. Haze is regional: it lifts many stations at once. One
+  // spiking station is the fault we already detect in dustboy.ts, and
+  // counting it as an "event" lets a single broken unit manufacture a
+  // testable window — which is how the first version of this metric
+  // reported r = -0.01 over "clean air 3-149 µg/m³".
+  const eventReadings = ys.filter((v) => v >= HAZE_EVENT_UG).length;
+  const robustSpread = median !== null && p95 !== null ? p95 - median : null;
   return {
     r: pearson(xs, ys),
     pairs: xs.length,
     pm25Min,
     pm25Max,
-    spansHazeEvent: pm25Min !== null && pm25Max - pm25Min >= HAZE_TESTABLE_SPREAD,
+    pm25Median: median,
+    pm25P95: p95,
+    eventReadings,
+    spansHazeEvent: robustSpread !== null && robustSpread >= HAZE_TESTABLE_SPREAD && eventReadings >= 3,
   };
 }
 
