@@ -67,6 +67,22 @@ export interface CnxReservoir {
 
 export interface CnxFloodResponse {
   generatedAt: string;
+  /**
+   * Whether these numbers are measurements or a scenario fill.
+   *
+   * This exists because the flood panel was long served entirely by
+   * `buildScenario()` — hash-seeded jitter shaped to look like a gauge
+   * trace — while the UI presented it in the same visual language as the
+   * real DustBoy and FIRMS data beside it. An operator could not tell
+   * which numbers were measured. It is now impossible to miss.
+   *
+   * "scenario" is not a placeholder to be quietly tolerated: it means the
+   * flood axis of the province verdict is NOT evidence, and the panel
+   * must not be used to judge whether water is rising.
+   */
+  provenance: "live" | "scenario";
+  /** Set when provenance !== "live": why, and what to do instead. */
+  provenanceNote: { th: string; en: string } | null;
   gauges: CnxFloodGauge[];
   rainfall: CnxRainfallStation[];
   reservoirs: CnxReservoir[];

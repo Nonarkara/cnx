@@ -151,6 +151,11 @@ function buildScenario(nowIso: string): CnxFloodResponse {
 
   return {
     generatedAt: nowIso,
+    provenance: "scenario",
+    provenanceNote: {
+      th: "ตัวเลขชุดนี้เป็นข้อมูลจำลอง ไม่ใช่ค่าที่วัดได้ — ห้ามใช้ตัดสินว่าน้ำกำลังเพิ่มหรือลด ดูค่าจริงที่สถานีวัดในพื้นที่",
+      en: "These figures are a scenario fill, not measurements — do not use them to judge whether water is rising or falling. Read the live station gauges for your area.",
+    },
     gauges,
     rainfall,
     reservoirs,
@@ -167,7 +172,9 @@ const TTL_MS = 60_000;
 export async function fetchCnxFlood(): Promise<CnxFloodResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
   const live = process.env.CNX_FLOOD_LIVE === "1" ? await fetchLive() : null;
-  const data = live ?? buildScenario(new Date().toISOString());
+  const data: CnxFloodResponse = live
+    ? { ...live, provenance: "live", provenanceNote: null }
+    : buildScenario(new Date().toISOString());
   cache = { at: Date.now(), data };
   return data;
 }

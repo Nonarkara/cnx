@@ -79,8 +79,32 @@ export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
 
 function FloodTab({ data }: { data: CnxFloodResponse | null }) {
   if (!data) return <div className="p-3 text-[10px] text-[var(--dim)]">loading flood data…</div>;
+  const isScenario = data.provenance === "scenario";
   return (
     <div>
+      {isScenario && (
+        <div className="border-b border-[#f59e0b] bg-[#f59e0b]/10 px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-sm bg-[#f59e0b] px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-black">
+              Demo
+            </span>
+            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#f59e0b]">
+              Illustrative — not measured
+            </span>
+          </div>
+          {data.provenanceNote && (
+            <>
+              <p className="mt-1 text-[10px] leading-relaxed text-[var(--ink)]" lang="th">
+                {data.provenanceNote.th}
+              </p>
+              <p className="mt-0.5 text-[9px] leading-relaxed text-[var(--dim)]">
+                {data.provenanceNote.en}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
       {data.reservoirs.length > 0 && (
         <div className="border-b border-[var(--line)] px-3 py-2">
           <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
