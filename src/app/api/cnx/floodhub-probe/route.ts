@@ -57,6 +57,17 @@ const inBox = (g: Gauge) => {
   return typeof lat === "number" && typeof lon === "number" && lat >= BOX.south && lat <= BOX.north && lon >= BOX.west && lon <= BOX.east;
 };
 
+const CITY = { latitude: 18.79, longitude: 98.99 }; // Chiang Mai, Nawarat bridge on the Ping
+
+function km(a: { latitude: number; longitude: number }, lat: number, lon: number): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const x = Math.sin(rad(lat - a.latitude) / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(lat)) * Math.sin(rad(lon - a.longitude) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(x));
+}
+
+const tally = (xs: (string | boolean | undefined)[]) =>
+  xs.reduce<Record<string, number>>((m, x) => ({ ...m, [String(x)]: (m[String(x)] ?? 0) + 1 }), {});
+
 const summarise = (g: Gauge) => ({
   id: g.gaugeId,
   lat: g.location?.latitude,
@@ -82,7 +93,19 @@ async function search(key: string, by: Record<string, unknown>) {
     if (body.error) return { status: res.status, error: body.error.message ?? "unknown error" };
     const gauges = body.gauges ?? [];
     const upperNorth = gauges.filter(inBox);
-    return { status: res.status, total: gauges.length, upperNorth: upperNorth.length, gauges: upperNorth.slice(0, 60).map(summarise) };
+    const nearest = [...upperNorth]
+      .map((g) => ({ ...summarise(g), kmFromCity: Math.round(km(CITY, g.location?.latitude ?? 0, g.location?.longitude ?? 0) * 10) / 10 }))
+      .sort((a, b) => a.kmFromCity - b.kmFromCity)
+      .slice(0, 12);
+    return {
+      status: res.status,
+      total: gauges.length,
+      upperNorth: upperNorth.length,
+      bySource: tally(upperNorth.map((g) => g.source)),
+      qualityVerified: tally(upperNorth.map((g) => g.qualityVerified)),
+      hasModel: tally(upperNorth.map((g) => g.hasModel)),
+      nearest,
+    };
   } catch (e) {
     return { error: `threw: ${(e as Error).message}` };
   }
@@ -97,9 +120,26 @@ export async function POST(request: Request): Promise<Response> {
   const key = process.env.CNX_FLOODHUB_KEY;
   if (!key) return NextResponse.json({ error: "CNX_FLOODHUB_KEY not set" }, { status: 503 });
 
-  // Two independent searches so a wrong polygon convention can't masquerade
-  // as "no gauges": the whole country by region code (filtered to the box
-  // here), and the box itself as a loop. They should agree.
+  // Thailand by region code (one page, every gauge), filtered to the box.
+  // The polygon search is kept as a cross-check; it also returns gauges in
+  // the Myanmar/Lao part of the box and pages at 500, so its count differs.
   const [byRegion, byLoop] = await Promise.all([search(key, { regionCode: "TH" }), search(key, { loop: LOOP })]);
-  return NextResponse.json({ keyPresent: true, byRegion, byLoop });
+
+  // Latest flood status for the gauges nearest the city.
+  let nearestStatus: unknown = null;
+  const ids = ("nearest" in byRegion ? (byRegion.nearest ?? []) : []).map((g) => g.id).filter(Boolean);
+  if (ids.length) {
+    try {
+      const q = ids.map((id) => `gaugeIds=${encodeURIComponent(String(id))}`).join("&");
+      const res = await fetch(`${API}/floodStatus:queryLatestFloodStatusByGaugeIds?${q}`, {
+        headers: { "X-goog-api-key": key },
+        signal: AbortSignal.timeout(30_000),
+      });
+      nearestStatus = { status: res.status, body: await res.json() };
+    } catch (e) {
+      nearestStatus = { error: `threw: ${(e as Error).message}` };
+    }
+  }
+  const loopSummary = "total" in byLoop ? { status: byLoop.status, total: byLoop.total, bySource: byLoop.bySource } : byLoop;
+  return NextResponse.json({ keyPresent: true, byRegion, byLoop: loopSummary, nearestStatus });
 }
