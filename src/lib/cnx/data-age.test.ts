@@ -13,7 +13,7 @@
 // Run: `npx vitest run src/lib/cnx/data-age.test.ts
 
 import { describe, expect, it } from "vitest";
-import { newest } from "../../components/CNX/CNXDataAge";
+import { newest, ageVerdict } from "../../components/CNX/CNXDataAge";
 
 describe("newest — an empty feed is not a fresh feed", () => {
   it("returns null for an empty list, never a now-timestamp", () => {
@@ -65,5 +65,63 @@ describe("newest — an empty feed is not a fresh feed", () => {
       { observedAt: "2026-10-01T06:00:00.000Z" },
     ];
     expect(newest(rows)).toBe("2026-10-01T06:00:00.000Z");
+  });
+});
+
+describe("ageVerdict — wording must never claim an age it does not have", () => {
+  const MS = 3_600_000;          // one hour
+  const H = 3 * MS;              // the DustBoy batch rule: 3 hours
+  const now = Date.parse("2026-10-01T12:00:00.000Z");
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+
+  it("makes no age claim at all before the clock exists", () => {
+    // The regression this pins. The first version fell through to
+    // "timestamp unreadable" whenever `now` was null — which is every
+    // server render and every pre-hydration frame. That is a lie: the
+    // timestamp parses fine, there is simply nothing to subtract it from
+    // yet, and it flashed on every hydrated panel.
+    const v = ageVerdict("2026-10-01T11:59:00.000Z", null, H);
+    expect(v.text).toBeNull();
+    expect(v.text).not.toBe("timestamp unreadable");
+  });
+
+  it("says 'no observation' when there is genuinely no reading", () => {
+    expect(ageVerdict(null, now, H).text).toBe("no observation");
+    expect(ageVerdict(undefined, now, H).text).toBe("no observation");
+    expect(ageVerdict(null, now, H, "no detection in window").text).toBe("no detection in window");
+  });
+
+  it("distinguishes a real age from a missing one", () => {
+    // Same instant, two feeds: one measured, one dark. The measured one
+    // gets an age; the dark one does not. Collapsing these is the whole
+    // failure the component exists to prevent.
+    expect(ageVerdict(ago(90 * 60_000), now, H).text).toBe("90 min ago");
+    expect(ageVerdict(null, now, H).text).toBe("no observation");
+  });
+
+  it("goes amber past the threshold and stays legible", () => {
+    const stale = ageVerdict(ago(6 * MS), now, H);
+    expect(stale.text).toBe("6 h ago");
+    expect(stale.tone).toBe("text-[#f59e0b]");
+  });
+
+  it("calls a future timestamp clock skew, not a negative age", () => {
+    const future = new Date(now + 4 * MS).toISOString();
+    const v = ageVerdict(future, now, H);
+    expect(v.text).toBe("timestamp is in the future");
+    expect(v.text).not.toMatch(/-\d/);
+    expect(v.tone).toBe("text-[#f59e0b]");
+  });
+
+  it("says 'unreadable' only for a genuinely unparseable timestamp", () => {
+    expect(ageVerdict("not-a-date", now, H).text).toBe("timestamp unreadable");
+  });
+
+  it("scales the wording with the gap", () => {
+    expect(ageVerdict(ago(30_000), now, H).text).toBe("just now");
+    // 90 min must NOT read as "1 h ago" — that would make the reading
+    // half an hour fresher than it is.
+    expect(ageVerdict(ago(90 * 60_000), now, H).text).toBe("90 min ago");
+    expect(ageVerdict(ago(72 * MS), now, H).text).toBe("3 d ago");
   });
 });

@@ -36,12 +36,52 @@ function ageMs(observedAt: string | number | null | undefined, now: number): num
 }
 
 function humanAge(ms: number): string {
-  const min = Math.floor(ms / 60_000);
+  // "Just now" is decided on the exact value, not the rounded one —
+  // otherwise 30 s rounds up to "1 min ago" and a genuinely live reading
+  // looks like it has been sitting there a minute.
+  if (ms < 60_000) return "just now";
+  const min = Math.round(ms / 60_000);
   if (min < 1) return "just now";
-  if (min < 60) return `${min} min ago`;
-  const hr = Math.floor(min / 60);
+  // Round to nearest unit, never truncate downward. Truncating 90 min to
+  // "1 h ago" makes a reading half an hour fresher than it is, which is
+  // the one direction a staleness indicator must never err in.
+  if (min < 120) return `${min} min ago`;
+  const hr = Math.round(min / 60);
   if (hr < 48) return `${hr} h ago`;
-  return `${Math.floor(hr / 24)} d ago`;
+  return `${Math.round(hr / 24)} d ago`;
+}
+
+export interface AgeVerdict {
+  /** What to say after the source name. `null` means: say nothing yet. */
+  text: string | null;
+  tone: "opacity-70" | "text-[#f59e0b]";
+}
+
+/**
+ * The wording rules, as a pure function so they can be tested without a
+ * DOM. Extracted because the first version of this lived inline in the
+ * component, which meant the one case I most wanted to pin — "no clock
+ * yet" — had no test at all, and shipped a lie to every hydrated panel.
+ */
+export function ageVerdict(
+  observedAt: string | number | null | undefined,
+  now: number | null,
+  staleAfterMs: number,
+  missing = "no observation",
+): AgeVerdict {
+  const hasObservation = observedAt !== null && observedAt !== undefined && observedAt !== "";
+
+  // No clock yet (server render, pre-hydration). We know whether an
+  // observation exists; we do not know how old it is. Make no claim.
+  if (now === null) return { text: null, tone: "opacity-70" };
+  if (!hasObservation) return { text: missing, tone: "opacity-70" };
+
+  const ms = ageMs(observedAt, now);
+  if (ms === null) return { text: "timestamp unreadable", tone: "opacity-70" };
+  // Publisher clock skew. "in 4 h" would be absurd; name the skew.
+  if (ms < 0) return { text: "timestamp is in the future", tone: "text-[#f59e0b]" };
+  if (ms > staleAfterMs) return { text: humanAge(ms), tone: "text-[#f59e0b]" };
+  return { text: humanAge(ms), tone: "opacity-70" };
 }
 
 export interface DataAgeProps {
@@ -75,30 +115,10 @@ export function DataAge({
     return () => clearInterval(t);
   }, []);
 
-  // Before mount we have no clock, so we know an observation exists or it
-  // doesn't, but not how old it is. Say only what is true.
-  const ms = now === null ? null : ageMs(observedAt, now);
-  const hasObservation = observedAt !== null && observedAt !== undefined && observedAt !== "";
+  const { text, tone } = ageVerdict(observedAt, now, staleAfterMs, missing);
 
-  let text: string;
-  let tone: string;
-  if (!hasObservation) {
-    text = missing ?? "no observation";
-    tone = "opacity-70";
-  } else if (ms === null) {
-    text = "timestamp unreadable";
-    tone = "opacity-70";
-  } else if (ms < 0) {
-    // Clock skew between us and the publisher. Saying "in 4 h" would be
-    // absurd; saying so is the honest reading of a future timestamp.
-    text = "timestamp is in the future";
-    tone = "text-[#f59e0b]";
-  } else if (ms > staleAfterMs) {
-    text = humanAge(ms);
-    tone = "text-[#f59e0b]";
-  } else {
-    text = humanAge(ms);
-    tone = "opacity-70";
+  if (text === null) {
+    return <span className={`font-mono text-[9px] tracking-[0.08em] ${tone} ${className}`.trim()}>{source}</span>;
   }
 
   return (
