@@ -18,6 +18,7 @@ import type { CameraHaze, HazeVisionResponse } from "../../lib/cnx/haze-vision";
 import { MIN_BASELINE_SAMPLES, type HazeLabel } from "../../lib/cnx/haze-vision-core";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import type { AirQualityResponse } from "../../types/cnx";
+import { DataAge, newest } from "./CNXDataAge";
 
 interface Props {
   isOpen: boolean;
@@ -48,12 +49,13 @@ function ago(iso: string | undefined | null): string {
   return `${Math.round(min / 1440)} d ago`;
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+function Stat({ label, value, sub, extra }: { label: string; value: string; sub: string; extra?: React.ReactNode }) {
   return (
     <div className="border border-[var(--line)] bg-[var(--bg-surface)] p-3">
       <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">{label}</div>
       <div className="mt-1 text-[22px] font-bold tabular-nums text-[var(--ink)]">{value}</div>
       <div className="mt-0.5 text-[11px] leading-snug text-[var(--dim)]">{sub}</div>
+      {extra}
     </div>
   );
 }
@@ -155,6 +157,18 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
               dustboy?.provenance === "live" && dustboy.basin.chiangMai.onlineCount > 0
                 ? `µg/m³ · Chiang Mai ${dustboy.basin.chiangMai.onlineCount} online · upper north ${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`
                 : `${dustboy?.basin.stationCount ?? 0} sensors, none with a Chiang Mai reading < 3 h old`
+            }
+            // The batch is hourly and the rule is 3 h, so say which
+            // reading is behind the number rather than leaving the reader
+            // to assume it is current.
+            extra={
+              <DataAge
+                className="mt-0.5 block"
+                source="CMU batch"
+                observedAt={newest(dustboy?.stations)}
+                staleAfterMs={3 * 3_600_000}
+                missing="no reading"
+              />
             }
           />
           <Stat

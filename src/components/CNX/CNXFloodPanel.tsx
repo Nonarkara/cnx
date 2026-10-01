@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { FloodHubResponse } from "../../lib/cnx/floodhub";
+import { DataAge, newest } from "./CNXDataAge";
 import { Droplets, Wind, Flame } from "lucide-react";
 import type {
   CnxFloodResponse,
@@ -117,6 +118,14 @@ function FloodHubStrip() {
         <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] ${fh.provenance === "live" ? worst.cls : FH_LABEL.UNKNOWN.cls}`}>
           {fh.provenance === "live" ? worst.text : "Unavailable"}
         </span>
+        {/* A daily model run. Age it from the newest issuance, not from
+            the 30-minute poll that fetched it. */}
+        <DataAge
+          source="issued"
+          observedAt={newest(fh.points, "issuedTime")}
+          staleAfterMs={30 * 3_600_000}
+          missing="no forecast issued"
+        />
       </div>
       {fh.provenance === "live" && (
         <p className="mt-1 text-[10px] leading-relaxed text-[var(--ink)]">
@@ -293,6 +302,15 @@ function FiresTab({ data }: { data: CnxFiresResponse | null }) {
         <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
           FIRMS Hotspots (24 h)
         </span>
+        {/* Age of the newest detection, not of our response. Zero
+            detections is a real answer and gets "no detection in window",
+            never a silent number. */}
+        <DataAge
+          source="VIIRS"
+          observedAt={newest(data.hotspots)}
+          staleAfterMs={6 * 3_600_000}
+          missing="no detection in window"
+        />
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{data.totalCount}</div>
           <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
