@@ -2,11 +2,14 @@
 
 // CNX Open Data panel — data.go.th catalog reader.
 //
-// The 311 datasets matching "เชียงใหม่" on data.go.th are listed
-// here, grouped by publisher. Click a row to open the source resource;
-// mirror files in /data/cnx/open-data/ are clickable too (smaller
-// CSVs we cached). The panel defaults to the first publisher; the
-// "open full catalog" button opens the data.go.th search directly.
+// The datasets matching "เชียงใหม่" on data.go.th are listed here,
+// grouped by publisher. That is a dated snapshot of one filtered
+// search (311 when baked 2026-09-15, 316 on 2026-10-01) out of 44,207
+// in the catalogue — not a population count. Click a row to open the
+// source resource; mirror files in /data/cnx/open-data/ are clickable
+// too (smaller CSVs we cached). The panel defaults to the first
+// publisher; the "open full catalog" button opens the data.go.th
+// search directly.
 
 import { useEffect, useMemo, useState } from "react";
 import { Database, ExternalLink, Search } from "lucide-react";

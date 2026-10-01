@@ -1,9 +1,12 @@
 // CNX Open Data — typed catalog reader.
 //
 // data.go.th publishes a CKAN-style catalogue. The CNX search at
-// https://data.go.th/dataset/?q=เชียงใหม่ returns ~311 results in
-// the typical snapshot; the fetcher
-// (`scripts/fetch-datagoth-cnx.mjs`) downloads them to
+// https://data.go.th/dataset/?q=เชียงใหม่ returned 311 datasets when
+// baked on 2026-09-15 and 316 when re-queried on 2026-10-01 — one
+// filtered Thai-language query, out of 44,207 in the whole catalogue
+// (the English "Chiang Mai" query returns 493). Treat it as a dated
+// snapshot of a filtered search, never as a population count. The
+// fetcher (`scripts/fetch-datagoth-cnx.mjs`) downloads them to
 // `public/data/cnx/open-data/`. This reader is the runtime view of
 // that directory.
 
@@ -126,9 +129,18 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
     cache = { at: Date.now(), index: normalized };
     return normalized;
   } catch {
+    // Every field here is the honest zero. This used to hardcode
+    // `totalDatasets: 311`, which the panel header renders as `0/311`
+    // (CNXOpenData.tsx) directly above an empty list — a live claim that
+    // 311 datasets exist while showing none of them. The bake is a
+    // snapshot of ONE Thai-language query ("เชียงใหม่") on a single day;
+    // it was 311 on 2026-09-15 and 316 when re-queried on 2026-10-01, out
+    // of 44,207 in the whole catalogue. It is not a population count and
+    // must never be rendered as one. If we cannot read the bake, we know
+    // of zero datasets, not 311.
     const empty: OpenDataIndex = {
       generatedAt: new Date().toISOString(),
-      totalDatasets: 311,
+      totalDatasets: 0,
       fetched: 0,
       failed: 0,
       datasets: [],

@@ -55,8 +55,41 @@ describe("fetchCnxOpenDataIndex", () => {
     fetchMock.mockRejectedValue(new Error("network down"));
     const { fetchCnxOpenDataIndex } = await import("./open-data-th");
     const idx = await fetchCnxOpenDataIndex();
-    expect(idx.totalDatasets).toBe(311);
+    // The panel header renders `${fetched}/${totalDatasets}` directly above
+    // the list (CNXOpenData.tsx), so these three fields are exactly what the
+    // reader sees. This used to hardcode `totalDatasets: 311`, printing
+    // "0/311" above an empty list — asserting that 311 datasets exist while
+    // showing none of them. The bake is a dated snapshot of ONE filtered
+    // query (311 on 2026-09-15, 316 on 2026-10-01, out of 44,207 in the
+    // catalogue); it is not a population count. When we cannot read the
+    // bake we know of zero datasets, not 311.
     expect(idx.datasets).toEqual([]);
+    expect(idx.fetched).toBe(0);
+    expect(idx.totalDatasets).toBe(0);
+  });
+
+  it("never reports a non-zero total alongside an empty dataset list", async () => {
+    // The general rule behind the fix above, asserted across every path
+    // that can yield an empty list. A blank layer must not render as a
+    // populated one: absence from a layer is never evidence of content.
+    for (const mode of ["fetch throws", "non-OK status", "malformed body", "empty bake"] as const) {
+      vi.resetModules();
+      fetchMock.mockReset();
+      if (mode === "fetch throws") fetchMock.mockRejectedValue(new Error("network down"));
+      else if (mode === "non-OK status") fetchMock.mockResolvedValue(fakeJson({ oops: true }, 503));
+      else if (mode === "malformed body") fetchMock.mockResolvedValue(fakeText("<html>502</html>"));
+      else
+        fetchMock
+          .mockResolvedValueOnce(fakeJson({ generatedAt: "2026-01-01T00:00:00.000Z", datasets: [] }))
+          .mockResolvedValue(fakeJson({ datasets: [] }));
+
+      const { fetchCnxOpenDataIndex } = await import("./open-data-th");
+      const idx = await fetchCnxOpenDataIndex();
+      if (idx.datasets.length === 0) {
+        expect(idx.fetched, mode).toBe(0);
+        expect(idx.totalDatasets, mode).toBe(0);
+      }
+    }
   });
 });
 
