@@ -98,6 +98,16 @@ asset declares its own sentinel: `dn.nodata = 65535`, `slope = 1e-4`
 and read a hazy 0.8 as a pristine 0.08). Gaps are **spatial** — 65535 pixels
 where the swath saw cloud — not missing days; every date since 2018 resolves.
 
+**The licence gate does not block deploying the resolver.** Access is what
+generates the access log, so a module nothing calls generates nothing.
+As of `25244db` only four files in the repo mention JAXA at all —
+`jaxa-aot.ts`, its test, and two documents — and no route, component or lib
+module imports it. `bf01aac` added the module and its tests and nothing
+else, so it ships as unreferenced code and no request to Wasabi can be made
+from a request path. **The gate applies to *wiring it to a route*, which is
+a separate commit and still needs the operator's decision.** Do not hold
+unrelated work behind it.
+
 ---
 
 ## 4. Flights and ground transport
