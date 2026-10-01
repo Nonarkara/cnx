@@ -113,7 +113,7 @@ function FloodHubStrip() {
   return (
     <div className="border-b border-[var(--line)] px-3 py-2">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">Google Flood Hub · Ping</span>
+        <a href="https://sites.research.google/floodforecasting/" target="_blank" rel="noopener noreferrer" title="Google Flood Hub — data licensed CC BY 4.0" className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)] underline decoration-dotted underline-offset-2 hover:text-[var(--ink)]">Google Flood Hub · Ping</a>
         <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] ${fh.provenance === "live" ? worst.cls : FH_LABEL.UNKNOWN.cls}`}>
           {fh.provenance === "live" ? worst.text : "Unavailable"}
         </span>

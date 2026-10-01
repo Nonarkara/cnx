@@ -111,6 +111,19 @@ export default function CNXAboutContent() {
             <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
               Taken from the live feeds at 01:07 ICT on 29 September 2026. This is not peak burning season. The sources disagreed, and the disagreement is the finding.
             </p>
+            <div className="mt-3 border-l-2 border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
+              <div className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
+                Archived snapshot &middot; not the current state
+              </div>
+              <p className="mt-1 text-[12px] leading-[1.6] text-[var(--dim)]" lang="th">
+                ตารางนี้เป็นบันทึกของคืนเดียว ไม่ใช่สถานะปัจจุบัน — ค่าของกระดานตอนนี้อยู่ที่หน้าหลัก
+              </p>
+              <p className="mt-0.5 text-[12px] leading-[1.6] text-[var(--dim)]">
+                Every row below is a record of one night. Several describe a configuration that has since
+                changed — a map key now exists, and the smoke-trajectory feed and the verdict are live.
+                For what the board says right now, read the wall itself.
+              </p>
+            </div>
           </div>
           <div className="mt-4 overflow-x-auto border border-[var(--line)]">
             <table className="w-full min-w-[640px] text-left text-[13px]">
@@ -154,12 +167,12 @@ export default function CNXAboutContent() {
                 </tr>
                 <tr>
                   <td className="px-3 py-2 font-semibold">NASA FIRMS</td>
-                  <td className="px-3 py-2">No map key on this machine. The old fallback is 14 illustrated points.</td>
-                  <td className="px-3 py-2">Those 14 are not drawn, not scored, and not advected into a plume. The pill says &quot;no live&quot;. The verdict fire count is empty.</td>
+                  <td className="px-3 py-2">No map key that night, so the fallback was 14 illustrated points.</td>
+                  <td className="px-3 py-2">Those 14 were not drawn, not scored, and not advected into a plume — the pill read &quot;no live&quot; and the verdict fire count was empty. A key is configured now; the live pass reports its own zero-detections case rather than falling back.</td>
                 </tr>
                 <tr>
                   <td className="px-3 py-2 font-semibold">Smoke trajectory</td>
-                  <td className="px-3 py-2">provenance unavailable. Segments: 0.</td>
+                  <td className="px-3 py-2">Provenance unavailable that night. Segments: 0.</td>
                   <td className="px-3 py-2">A 6-hour plume is only drawn from a live VIIRS pass inside 350 km (the window that reaches Shan State). Straight-line wind, not a forecast.</td>
                 </tr>
                 <tr>
@@ -169,7 +182,7 @@ export default function CNXAboutContent() {
                 </tr>
                 <tr>
                   <td className="px-3 py-2 font-semibold">Verdict</td>
-                  <td className="px-3 py-2">Score 0, level safe, provenance mixed.</td>
+                  <td className="px-3 py-2">Score 0, level safe, provenance mixed — a state the board no longer reports, because a blind flood axis cannot certify safe.</td>
                   <td className="px-3 py-2">Mixed because the model answered and the satellite fire pass did not. Safe is not &quot;the air was measured clean on the ground.&quot;</td>
                 </tr>
               </tbody>
@@ -220,7 +233,7 @@ export default function CNXAboutContent() {
           </h2>
           <div className="mt-3 max-w-[70ch] space-y-3 text-[15px] leading-[1.75]">
             <p lang="th">
-              ระบบไม่สร้างข้อมูลเอง — มันไปรับข้อมูลจากหน่วยงานที่วัดจริง แล้วนำมาเรียงให้อ่านง่าย: กรมป่าไม้ (จุดความร้อน 25 อำเภอ พร้อมแยกประเภทเขตป่าสงวน/อุทยาน/พื้นที่ราษฎร์), GISTDA ให้ค่า PM2.5 รายอำเภอและภาพดาวเทียม AOD, NASA FIRMS ให้จุดไฟ MODIS/VIIRS, NASA GIBS ให้ชั้นภาพถ่ายดาวเทียม (รวมฮิมาวาริ-9 อินฟราเรดและ AOD), RainViewer ให้เรดาร์ฝนสด, Open-Meteo CAMS ให้ค่า AQI ทั่วโลก, OpenSky Network และ adsb.lol ให้เที่ยวบินเข้า-ออกสนามบิน CNX แบบ ADS-B, Google News RSS และ GDELT 2.0 ให้ข่าว 8 ภาษา (จีน/ญี่ปุ่น/เกาหลี/รัสเซีย/เยอรมัน/ฝรั่งเศส/อินเดีย/ออสเตรเลีย), OSM Overpass ให้เส้นทางรถเมล์/สายน้ำ/อาคาร 3 มิติ 59,344 หลัง / กำแพงเมือง 14 ชิ้น / วัด 474 วัด, มหาวิทยาลัยเชียงใหม่ (SCMC) ให้ตำแหน่งรถรับส่งภายในมหาวิทยาลัยแบบ GPS สด, ThaiWater v3 (สสน.) ให้ระดับน้ำและฝนรายสถานี, Longdo ให้กล้องสาธารณะ, และ data.go.th ให้ชุดข้อมูลราชการของจังหวัดทั้งหมด 311 ชุด
+              ระบบไม่สร้างข้อมูลเอง — มันไปรับข้อมูลจากหน่วยงานที่วัดจริง แล้วนำมาเรียงให้อ่านง่าย: กรมป่าไม้ (จุดความร้อน 25 อำเภอ พร้อมแยกประเภทเขตป่าสงวน/อุทยาน/พื้นที่ราษฎร์), GISTDA ให้ค่า PM2.5 รายอำเภอและภาพดาวเทียม AOD, NASA FIRMS ให้จุดไฟ MODIS/VIIRS, Google Flood Hub ให้การพยากรณ์น้ำท่วมแบบจำลองที่จุดวัดเสมือน (virtual gauge) บนแม่น้ำปิง (CC BY 4.0), NASA GIBS ให้ชั้นภาพถ่ายดาวเทียม (รวมฮิมาวาริ-9 อินฟราเรดและ AOD), RainViewer ให้เรดาร์ฝนสด, Open-Meteo CAMS ให้ค่า AQI ทั่วโลก, OpenSky Network และ adsb.lol ให้เที่ยวบินเข้า-ออกสนามบิน CNX แบบ ADS-B, Google News RSS และ GDELT 2.0 ให้ข่าว 8 ภาษา (จีน/ญี่ปุ่น/เกาหลี/รัสเซีย/เยอรมัน/ฝรั่งเศส/อินเดีย/ออสเตรเลีย), OSM Overpass ให้เส้นทางรถเมล์/สายน้ำ/อาคาร 3 มิติ 59,344 หลัง / กำแพงเมือง 14 ชิ้น / วัด 474 วัด, มหาวิทยาลัยเชียงใหม่ (SCMC) ให้ตำแหน่งรถรับส่งภายในมหาวิทยาลัยแบบ GPS สด, ThaiWater v3 (สสน.) ให้ระดับน้ำและฝนรายสถานี, Longdo ให้กล้องสาธารณะ, และ data.go.th ให้ชุดข้อมูลราชการของจังหวัดทั้งหมด 311 ชุด
             </p>
             <p lang="th">
               ทุกแผงบนหน้าจอมีป้ายบอกแหล่งที่มากำกับเสมอ — กดดูรายละเอียดได้ทุกจุด รายการเต็มอยู่ในเอกสารดาวน์โหลดท้ายหน้านี้
@@ -229,7 +242,7 @@ export default function CNXAboutContent() {
               เมืองสามมิติบนแผนที่สร้างจากข้อมูล OpenStreetMap — อาคาร 59,344 หลัง (แยกเป็น <code>buildings-core.geojson</code> ย่านเมืองเก่า/ดอยสุเทพ และ <code>buildings-wide.geojson</code> เขตเมืองรอบนอก), กำแพงเมืองเก่า 14 ชิ้น, และวัด 474 แห่ง ถูกแยกเป็นไฟล์ต่างหากตามระดับซูม — MapLibre จึงสลับชั้นตามระยะซูมแทนที่จะโหลดทั้งหมดทีเดียว
             </p>
             <p className="text-[13px] leading-[1.7] text-[var(--dim)]">
-              The system measures nothing itself — it relays the agencies that do: Royal Forest Department (25-amphoe hotspots, forest-tenure classified), GISTDA (per-amphoe PM2.5 + AOD satellite tiles), NASA FIRMS (MODIS + VIIRS), NASA GIBS (Himawari-9 infrared and MODIS AOD tiles), RainViewer (live precipitation radar), Open-Meteo CAMS (global AQI), OpenSky Network and adsb.lol (ADS-B flights), Google News RSS + GDELT 2.0 (news in 8 languages, auto-driven by inbound flight origins), OSM Overpass (bus routes, waterways, 3D buildings), Chiang Mai University&rsquo;s Smart Campus Management Center (live shuttle GPS over MQTT), ThaiWater v3 / HII (water + rain telemetry), Longdo (CCTV), and the province&rsquo;s 311-record open-data catalog on data.go.th. Every panel carries its attribution.
+              The system measures nothing itself — it relays the agencies that do: Royal Forest Department (25-amphoe hotspots, forest-tenure classified), GISTDA (per-amphoe PM2.5 + AOD satellite tiles), NASA FIRMS (MODIS + VIIRS), Google Flood Hub (riverine model forecasts at virtual HYBAS gauges on the Ping, CC BY 4.0), NASA GIBS (Himawari-9 infrared and MODIS AOD tiles), RainViewer (live precipitation radar), Open-Meteo CAMS (global AQI), OpenSky Network and adsb.lol (ADS-B flights), Google News RSS + GDELT 2.0 (news in 8 languages, auto-driven by inbound flight origins), OSM Overpass (bus routes, waterways, 3D buildings), Chiang Mai University&rsquo;s Smart Campus Management Center (live shuttle GPS over MQTT), ThaiWater v3 / HII (water + rain telemetry), Longdo (CCTV), and the province&rsquo;s 311-record open-data catalog on data.go.th. Every panel carries its attribution.
             </p>
           </div>
         </section>
