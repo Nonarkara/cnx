@@ -116,7 +116,7 @@ where the swath saw cloud — not missing days; every date since 2018 resolves.
 
 | Source | Endpoint | Gives | Failure mode |
 |---|---|---|---|
-| **data.go.th** | `data.go.th` (CKAN) | A **dated snapshot of one filtered Thai-language search** — 311 datasets when baked 2026-09-15, 316 on 2026-10-01, out of 44,207 in the catalogue (English "Chiang Mai" alone: 493) | Baked at build time, so it drifts. **It is not a population count and must never be rendered as one.** The empty-fallback path previously hardcoded `totalDatasets: 311`, which the panel header printed as `0/311` above an empty list; it now reports 0. Personal data must be redacted before publishing — withhold names, home addresses and mobile numbers; office landlines are fine |
+| **data.go.th** | `data.go.th` (CKAN) | A **dated snapshot of one filtered Thai-language search** — 311 datasets when baked 2026-09-15, 316 on 2026-10-01, out of 44,207 in the catalogue (English "Chiang Mai" alone: 493) | Baked by a **manual** script (`npm run fetch:opendata`, no cron), so it drifts silently — the panel header now carries a `DataAge` stamp off the bake's own `generatedAt`, amber past 14 days. **It is not a population count and must never be rendered as one.** The empty-fallback path previously hardcoded `totalDatasets: 311`, which the panel header printed as `0/311` above an empty list; it now reports 0. Personal data must be redacted before publishing — withhold names, home addresses and mobile numbers; office landlines are fine |
 | **GDELT + Google News RSS** | `api.gdeltproject.org`, `news.google.com` | Multi-language news | `tone: "demo"` cold-start placeholders exist and are badged — and are **excluded from the RAG corpus**, because a badged headline quoted as a citation launders a fabrication into a source |
 | **Citizen / local media** | Reddit + news, geocoded to an OSM gazetteer | Place-pinned haze mentions | Precision radius is carried: a district-level mention is never drawn as a street address |
 | **Haze-vision (CCTV)** | 4 cameras | Camera-derived haze estimate | Agreement is gated on a robust spread (`p95 − median ≥ 20`) **and** ≥3 unhealthy readings. Pearson against a near-constant response is uninformative, not a failed method |
@@ -142,7 +142,7 @@ this pass — it is not a claim that no API exists anywhere.
 | Source | Probe | Key | Verdict |
 |---|---|---|---|
 | **data.go.th** | CKAN `package_search` 200 | none | **Already wired** (baked). `count: 44,207` catalogue-wide |
-| **gdcatalog.go.th** | CKAN `package_search` 200, `count: 25,022` | none | **New, live, keyless.** Best untapped source — see below |
+| **gdcatalog.go.th** | CKAN `package_search` 200, `count: 25,022` | none | **New, live, keyless.** Best untapped source — see below. API host `gdcatalog.go.th`; **not** `data.gdcatalog.go.th`, which is NXDOMAIN |
 | **World Bank** | `api.worldbank.org/v2` 200 | none | Live, keyless. **Annual and national** (THA 2025 population 71,619,863, `lastupdated 2026-07-13`). A national denominator, not a Chiang Mai one |
 | **HDX** | CKAN 200, `q=Thailand` → 161 | none | Live, keyless, but humanitarian relief. Nothing Thai hazard-related of operational value |
 | **OSM Overpass** | `api/status` 200, then a live query | none | **Already wired** — `waterways.ts`, `bus-routes.ts`. 5,323 waterways baked, 39 named Ping segments. Requires an identifying `User-Agent` |
@@ -201,6 +201,26 @@ so none of this closes the blind flood axis.
 `gdpublish-69-162`, published by **จังหวัดเชียงใหม่** (Chiang Mai
 Province), licence **Open Data Common**, `metadata_modified 2026-09-22`,
 one CSV, 20 rows in long format (`year, h_census, value, unit, source`).
+
+Working hosts — the only two, and the addresses a reader needs to reproduce
+any of this. `data.gdcatalog.go.th` is **NXDOMAIN**; do not construct it
+from the portal's name:
+
+```
+gdcatalog.go.th         A 164.115.45.96          CKAN API
+chiangmai.gdcatalog.go.th  CNAME -> assix.gdcatalog.go.th   file host
+```
+
+```bash
+# 1. resolve the dataset id from the portal (pass the THAI title, not the id)
+curl -sG https://gdcatalog.go.th/api/3/action/package_search \
+  --data-urlencode 'q=สถิติการใช้บริการท่าอากาศยานเชียงใหม่' --data-urlencode rows=1
+#    -> name: gdpublish-69-162
+
+# 2. the CSV lives on the per-region host, not the portal
+curl -sSL 'https://chiangmai.gdcatalog.go.th/dataset/31589d3f-bb1b-4eee-909d-b4b1b205e2ca/resource/3314ba55-e3c3-4049-b59d-9f19e6d6240a/download/untitled.csv'
+#    -> 200, 4105 bytes
+```
 
 | BE year | CE year | Passengers | Flights |
 |---|---|---|---|

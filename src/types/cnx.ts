@@ -224,8 +224,15 @@ export interface OpenDataDataset {
 }
 
 export interface OpenDataIndex {
+  /** When the fetcher last pulled data.go.th. This is the OBSERVATION
+   *  time, not the response time — the panel re-fetches every 30 min and
+   *  passes this value through untouched, so it is what the DataAge stamp
+   *  must be built from. */
   generatedAt: string;
-  /** Total datasets on data.go.th matching "เชียงใหม่" / Chiang Mai. */
+  /** Datasets in the bake, which is a dated snapshot of ONE filtered
+   *  Thai-language search ("เชียงใหม่") — 311 on 2026-09-15, 316 on
+   *  2026-10-01, out of 44,207 in the catalogue. Not a population count:
+   *  when the bake cannot be read this is 0, not the old snapshot size. */
   totalDatasets: number;
   fetched: number;
   failed: number;

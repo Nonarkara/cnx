@@ -68,6 +68,45 @@ describe("fetchCnxOpenDataIndex", () => {
     expect(idx.totalDatasets).toBe(0);
   });
 
+  it("never claims a generatedAt of 'now' when there is no observation", async () => {
+    // The panel's DataAge stamp is built from this field. If a bake with no
+    // generatedAt fell back to `new Date()`, the header would read "just
+    // now" over a catalogue of unknown age — an unknown converted into a
+    // reassurance, which is the one thing the stamp exists to prevent.
+    const cases: Array<[string, () => void, unknown]> = [
+      [
+        "bake present but dateless",
+        () =>
+          fetchMock
+            .mockResolvedValueOnce(fakeJson({ datasets: [{ id: "abc", nameEn: "X" }] }))
+            .mockResolvedValue(fakeJson({ datasets: [] })),
+        { datasets: [{ id: "abc", nameEn: "X" }] },
+      ],
+      ["fetch fails", () => fetchMock.mockRejectedValue(new Error("network down")), null],
+    ];
+
+    for (const [label, arrange] of cases) {
+      vi.resetModules();
+      fetchMock.mockReset();
+      arrange();
+      const before = Date.now();
+      const { fetchCnxOpenDataIndex } = await import("./open-data-th");
+      const idx = await fetchCnxOpenDataIndex();
+      const after = Date.now();
+
+      // Either a real timestamp from the bake, or the empty string that
+      // renders as "no bake". Never a synthetic "now".
+      expect(idx.generatedAt, label).not.toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      const asNum = Date.parse(idx.generatedAt);
+      if (Number.isFinite(asNum)) {
+        expect(asNum, `${label} must not be current time`).toBeLessThan(before);
+        expect(asNum, `${label} must not be future`).toBeLessThanOrEqual(after);
+      } else {
+        expect(idx.generatedAt, label).toBe("");
+      }
+    }
+  });
+
   it("never reports a non-zero total alongside an empty dataset list", async () => {
     // The general rule behind the fix above, asserted across every path
     // that can yield an empty list. A blank layer must not render as a

@@ -69,7 +69,13 @@ async function loadFromDisk(): Promise<OpenDataIndex | null> {
     };
     if (Array.isArray(parsed.datasets) && parsed.datasets.length > 0) {
       return {
-        generatedAt: parsed.generatedAt || new Date().toISOString(),
+        // NOT `|| new Date().toISOString()`. A bake with no generatedAt has
+        // no observation time, and substituting "now" would make the
+        // panel's DataAge stamp read "just now" over a catalogue of
+        // unknown age — the exact conversion of an unknown into a
+        // reassurance that the stamp exists to prevent. An empty string is
+        // a complete answer: the panel renders "no bake".
+        generatedAt: parsed.generatedAt || "",
         totalDatasets: parsed.totalDatasets ?? parsed.datasets.length,
         // Trust the array we're actually returning over the baked
         // metadata field — a stale bake can (and did) ship
@@ -118,7 +124,9 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
       }
     }
     const normalized: OpenDataIndex = {
-      generatedAt: idx.generatedAt || new Date().toISOString(),
+      // Same rule as the disk path above: no generatedAt means no
+      // observation, and "now" would be a lie about the catalogue's age.
+      generatedAt: idx.generatedAt || "",
       totalDatasets: idx.totalDatasets ?? datasets.length,
       // Trust the array being returned, not the (possibly stale) baked
       // metadata field — see the loadFromDisk comment above.
@@ -139,7 +147,9 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
     // must never be rendered as one. If we cannot read the bake, we know
     // of zero datasets, not 311.
     const empty: OpenDataIndex = {
-      generatedAt: new Date().toISOString(),
+      // No bake was read, so there is no observation to age. "" renders as
+      // "no bake" rather than a fresh-looking "just now".
+      generatedAt: "",
       totalDatasets: 0,
       fetched: 0,
       failed: 0,

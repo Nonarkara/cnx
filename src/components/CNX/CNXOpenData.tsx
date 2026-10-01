@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Database, ExternalLink, Search } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import { groupDatasets, summariseDataset } from "../../lib/cnx/open-data-format";
+import { DataAge } from "./CNXDataAge";
 import type { OpenDataIndex, OpenDataDataset } from "../../types/cnx";
 
 function PublisherGroups({ datasets }: { datasets: OpenDataDataset[] }) {
@@ -117,9 +118,30 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
             Open Data · data.go.th
           </span>
         </div>
-        <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
-          {data ? `${data.fetched}/${data.totalDatasets}` : "loading…"}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
+            {data ? `${data.fetched}/${data.totalDatasets}` : "loading…"}
+          </span>
+          {/* Age the BAKE, not the poll. The panel re-fetches every 30 min
+              and the response is always fresh, so a `generatedAt` from the
+              response would print "just now" over a catalogue that had not
+              changed since 2026-09-15. Here `generatedAt` genuinely IS the
+              observation time — it is written by the fetcher when it last
+              pulled data.go.th, and is passed through untouched by both the
+              disk and ASSETS paths — so this is the one place the rule cuts
+              the other way and a stamp on it is correct.
+              14 d, not the default 3 h: `npm run fetch:opendata` is a
+              manual script with no cron, so a fortnight is the honest point
+              at which "someone should re-bake this" rather than "this is
+              broken". The current bake reads amber, which is correct — it
+              is 16 days old and the catalogue has drifted 311 -> 316. */}
+          <DataAge
+            observedAt={data?.generatedAt}
+            source="catalogue"
+            staleAfterMs={14 * 24 * 3_600_000}
+            missing="no bake"
+          />
+        </div>
       </header>
       <div className="flex shrink-0 items-center gap-1.5 border-b border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
         <Search className="h-3 w-3 text-[var(--dim)]" />
