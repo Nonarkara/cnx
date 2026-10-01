@@ -29,12 +29,32 @@ const HEADER =
   "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight";
 
 /** Exactly what /api/area/csv/<KEY>/VIIRS_SNPP_NRT/... returns. */
-const NRT_CSV = [
-  HEADER,
-  "18.8000,98.9800,342.53,0.39,0.53,2026-09-30,0454,N,VIIRS,n,2.0,318.20,14.30,D",
-  "19.1500,99.4000,325.10,0.40,0.60,2026-09-30,0454,N,VIIRS,h,2.0,301.00,4.10,D",
-  "18.4000,98.5000,331.00,0.38,0.55,2026-09-30,0512,S,VIIRS,l,2.0,305.00,9.90,D",
-].join("\n");
+/**
+ * Acquisition times are generated relative to now, not hardcoded.
+ *
+ * `fetchFirmsInBbox` applies a wall-clock cutoff of 24 h to the rows it
+ * returns, so a fixture pinned to a literal date silently ages out of its
+ * own window. The hardcoded 2026-09-30 rows passed on 30 September, went
+ * green in CI, and then failed the suite 29 hours later with no code
+ * change at all — a test that reports a defect in the product when the
+ * defect is in the fixture. Generating from `now` makes it true forever.
+ */
+function nrtRows(hoursAgo: number[]): string[] {
+  return hoursAgo.map((h, i) => {
+    const d = new Date(Date.now() - h * 3_600_000);
+    const date = d.toISOString().slice(0, 10);
+    const time = d.toISOString().slice(11, 13) + d.toISOString().slice(14, 16);
+    const bright = [342.53, 325.1, 331.0][i];
+    const conf = ["n", "h", "l"][i];
+    const sat = ["N", "N", "S"][i];
+    const frp = [14.3, 4.1, 9.9][i];
+    const lat = ["18.8000", "19.1500", "18.4000"][i];
+    const lon = ["98.9800", "99.4000", "98.5000"][i];
+    return `${lat},${lon},${bright},0.39,0.53,${date},${time},${sat},VIIRS,${conf},2.0,${bright - 20},${frp},D`;
+  });
+}
+
+const NRT_CSV = [HEADER, ...nrtRows([2, 3, 5])].join("\n");
 
 const BOX = { west: 98, south: 18, east: 100, north: 20 };
 

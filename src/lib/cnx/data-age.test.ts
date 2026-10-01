@@ -125,3 +125,32 @@ describe("ageVerdict — wording must never claim an age it does not have", () =
     expect(ageVerdict(ago(72 * MS), now, H).text).toBe("3 d ago");
   });
 });
+
+describe("the FIRMS stamp reads the field FIRMS actually uses", () => {
+  it("finds detections by detectedAt, and misses them by default", () => {
+    // Regression, and the one that mattered. `newest()` defaults to
+    // "observedAt"; `FireHotspot` has no such field — it has
+    // `detectedAt`. Passing the default produced a stamp reading "no
+    // detection in window" directly beside a non-zero totalCount: the
+    // panel denying its own count. It stayed hidden only because CNX
+    // genuinely had zero fires that day; the first real detection would
+    // have shipped it.
+    const hotspots = [
+      { detectedAt: "2026-10-01T04:00:00.000Z", brightness: 342.5 },
+      { detectedAt: "2026-10-01T03:00:00.000Z", brightness: 325.1 },
+    ];
+    expect(newest(hotspots, "detectedAt")).toBe("2026-10-01T04:00:00.000Z");
+    // The default must return null for this shape — that is the trap, and
+    // it is why the call site has to name the field out loud.
+    expect(newest(hotspots)).toBeNull();
+  });
+
+  it("picks the newest detection, not the first row", () => {
+    const rows = [
+      { detectedAt: "2026-10-01T02:00:00.000Z" },
+      { detectedAt: "2026-10-01T06:30:00.000Z" },
+      { detectedAt: "2026-10-01T01:00:00.000Z" },
+    ];
+    expect(newest(rows, "detectedAt")).toBe("2026-10-01T06:30:00.000Z");
+  });
+});

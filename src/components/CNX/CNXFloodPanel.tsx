@@ -307,7 +307,7 @@ function FiresTab({ data }: { data: CnxFiresResponse | null }) {
             never a silent number. */}
         <DataAge
           source="VIIRS"
-          observedAt={newest(data.hotspots)}
+          observedAt={newest(data.hotspots, "detectedAt")}
           staleAfterMs={6 * 3_600_000}
           missing="no detection in window"
         />
