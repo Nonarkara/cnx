@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { FLIGHTS_KV_KEY, isFetchResult } from "../../../../../lib/cnx/flights-kv";
+import { relaySecretMatches } from "../../../../../lib/cnx/relay-kv";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -25,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!secret) {
     return NextResponse.json({ error: "relay ingest not configured" }, { status: 503 });
   }
-  if (request.headers.get("x-relay-secret") !== secret) {
+  if (!relaySecretMatches(request.headers.get("x-relay-secret"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

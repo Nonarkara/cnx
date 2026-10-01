@@ -164,6 +164,7 @@ this pass — it is not a claim that no API exists anywhere.
 | **oss-local.info** | 200 HTML, 759 KB, Thai-language | — | Local media site, not a data source |
 | **WAQI** | 200 — **and wrong** | demo | **Trap. Do not wire.** See below |
 | **Air4Thai / DustBoy / Open-Meteo / GISTDA** | 200 | none | **Already wired** (§1) |
+| **RID telemetry** (`telemetry.rid.go.th`) | no connection — `000` on `/`, `/rfw`, `/rfw/today.xml`, `/api`, http **and** https; `hydro-1.rid.go.th` same; `www.rid.go.th` 301 only; `tiwrm.hii.or.th` 200 (65 B) | — | **Unreachable at probe (2 October 2026).** The classic RID river-gauge telemetry host answers nothing from this network right now, so the live river-level feed that would close the blind flood axis (§3) stays unwired until a reachable endpoint is verified against its real response shape. §7's RID row covers the static flood-prone-area shapefiles — a hazard map, not a gauge feed |
 
 ### WAQI returns the wrong city
 

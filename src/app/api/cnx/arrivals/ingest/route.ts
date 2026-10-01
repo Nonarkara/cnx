@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { buildArrivalsResponse } from "../../../../../lib/cnx/arrivals";
 import { ARRIVALS_KV_KEY, isArrivalsIngestPayload } from "../../../../../lib/cnx/arrivals-kv";
+import { relaySecretMatches } from "../../../../../lib/cnx/relay-kv";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +20,7 @@ const MAX_BODY_BYTES = 1_048_576; // 1 MB ceiling for arrival payloads
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
   if (!secret) return NextResponse.json({ error: "relay ingest not configured" }, { status: 503 });
-  if (request.headers.get("x-relay-secret") !== secret) {
+  if (!relaySecretMatches(request.headers.get("x-relay-secret"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

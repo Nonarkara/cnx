@@ -149,7 +149,6 @@ async function fetchForecastPm25(): Promise<number | null> {
     const nowMs = Date.now();
     let pmSum = 0;
     let pmCount = 0;
-    let rainSum = 0;
     for (let i = 0; i < j.hourly.time.length; i += 1) {
       const t = Date.parse(j.hourly.time[i] ?? "");
       const diffH = (t - nowMs) / 3_600_000;
@@ -159,8 +158,6 @@ async function fetchForecastPm25(): Promise<number | null> {
           pmSum += pm;
           pmCount += 1;
         }
-        const rain = j.hourly.precipitation?.[i];
-        if (typeof rain === "number") rainSum += rain;
       }
     }
     if (pmCount === 0) return null;

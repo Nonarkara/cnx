@@ -6,7 +6,16 @@ const { version } = JSON.parse(readFileSync(new URL("./package.json", import.met
 const nextConfig = {
   reactStrictMode: true,
   // Shown next to the title (top-left) so every deploy is identifiable.
-  env: { NEXT_PUBLIC_APP_VERSION: version },
+  // The build metadata goes through the env config rather than bare
+  // NEXT_PUBLIC_* shell exports: the env block is inlined into both the
+  // server bundle and the client/prerender pass, so the badge shows the
+  // same SHA the /api/cnx/build route reports.
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version,
+    NEXT_PUBLIC_GIT_SHA: process.env.NEXT_PUBLIC_GIT_SHA ?? "",
+    NEXT_PUBLIC_GIT_BRANCH: process.env.NEXT_PUBLIC_GIT_BRANCH ?? "",
+    NEXT_PUBLIC_BUILD_TIME: process.env.NEXT_PUBLIC_BUILD_TIME ?? "",
+  },
   serverExternalPackages: ["maplibre-gl"],
   // ESLint runs at build time. CI fails the build on lint errors —
   // prettier to fail early than ship a warning.

@@ -4,7 +4,7 @@ const compat = new FlatCompat({
   baseDirectory: import.meta.dirname,
 });
 
-export default [
+const config = [
   {
     // Build output and dependencies are not source. Without this, `eslint`
     // walked .next/ and .open-next/ and reported ~2,500 errors from
@@ -25,3 +25,5 @@ export default [
     },
   },
 ];
+
+export default config;

@@ -107,6 +107,11 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                 >
                   <div className="relative aspect-video w-full overflow-hidden bg-black">
                     {s.posterUrl ? (
+                      // Live CCTV snapshots rotate on a _ts cache-buster —
+                      // next/image would re-optimize a new frame each refresh.
+                      // Image optimization is deliberately off
+                      // (NEXT_DISABLE_IMAGE_OPTIMIZATION=1).
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={`${s.posterUrl}${sep}_ts=${ts}`}
                         alt={s.label}

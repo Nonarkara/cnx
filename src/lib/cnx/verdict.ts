@@ -22,8 +22,6 @@
 // bilingual joint reason so the operator sees "the air is also
 // hazardous if you must move" before they order an evacuation.
 
-import type { SeverityLevel } from "../../types/cnx";
-
 export type VerdictLevel = "safe" | "watch" | "prepare" | "danger";
 export type VerdictBand = "normal" | "watch" | "elevated" | "high";
 

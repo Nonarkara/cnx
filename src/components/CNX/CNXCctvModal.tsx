@@ -104,6 +104,10 @@ function SnapshotView({ slot }: { slot: CctvSlot }) {
   }, [refreshMs, slot.id]);
   const sep = (slot.posterUrl ?? "").includes("?") ? "&" : "?";
   return (
+    // Live CCTV snapshots rotate on a _ts cache-buster, so next/image's
+    // optimizer would re-fetch and re-optimize a new frame every refresh —
+    // image optimization is deliberately off (NEXT_DISABLE_IMAGE_OPTIMIZATION=1).
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`${slot.posterUrl}${sep}_ts=${ts}`}
       alt={`ภาพล่าสุด: ${slot.label}`}

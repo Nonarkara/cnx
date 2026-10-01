@@ -28,7 +28,7 @@ import { createWriteStream, existsSync } from "node:fs";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { inflateRawSync } from "node:zlib";
-import { dirname, join, extname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -289,7 +289,14 @@ function rowsFromJson(value) {
   if (flat.some((x) => x === null)) return null;
   const cols = [];
   const seen = new Set();
-  for (const o of flat.slice(0, 200)) for (const k of Object.keys(o)) if (!seen.has(k)) (seen.add(k), cols.push(k));
+  for (const o of flat.slice(0, 200)) {
+    for (const k of Object.keys(o)) {
+      if (!seen.has(k)) {
+        seen.add(k);
+        cols.push(k);
+      }
+    }
+  }
   return [cols, ...flat.map((o) => cols.map((c) => o[c] ?? ""))];
 }
 

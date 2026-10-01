@@ -11,8 +11,8 @@
 //   2. Sets a few headers so the deploy registers CNAME + Worker
 //      cleanly with nonarkara.org's zone.
 
-export default {
-  async fetch(request, env, ctx) {
+const handler = {
+  async fetch(request, env, _ctx) {
     const url = new URL(request.url);
     const html = `<!doctype html>
 <html lang="en">
@@ -51,3 +51,5 @@ note:   ${env.PROVINCE ?? "cnx"} · reserve stub at cnx-dashboard-reserve
     });
   },
 };
+
+export default handler;

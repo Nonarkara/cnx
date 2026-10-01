@@ -7,6 +7,25 @@ import { NextResponse } from "next/server";
 
 const MAX_BODY_BYTES = 1_048_576;
 
+/**
+ * Constant-time secret check. workerd provides crypto.subtle.timingSafeEqual;
+ * Node's webcrypto (tests) does not, so there is a byte-fold fallback. The
+ * length check leaks only the length, which is not the secret.
+ */
+export function relaySecretMatches(headerValue: string | null, secret: string): boolean {
+  if (!headerValue) return false;
+  const a = new TextEncoder().encode(headerValue);
+  const b = new TextEncoder().encode(secret);
+  if (a.byteLength !== b.byteLength) return false;
+  const subtle = globalThis.crypto?.subtle as SubtleCrypto & {
+    timingSafeEqual?: (l: ArrayBufferView, r: ArrayBufferView) => boolean;
+  };
+  if (typeof subtle?.timingSafeEqual === "function") return subtle.timingSafeEqual(a, b);
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  return diff === 0;
+}
+
 type Guard<T> = (v: unknown) => v is T;
 
 async function kv() {
@@ -19,7 +38,7 @@ async function kv() {
 export async function ingestRelayJson<T>(request: Request, key: string, isValid: Guard<T>, ttlSeconds: number): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
   if (!secret) return NextResponse.json({ error: "relay ingest not configured" }, { status: 503 });
-  if (request.headers.get("x-relay-secret") !== secret) {
+  if (!relaySecretMatches(request.headers.get("x-relay-secret"), secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const bytes = await request.arrayBuffer();

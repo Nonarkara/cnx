@@ -1,7 +1,7 @@
 {
   "name": "cnx-dashboard",
   "main": ".open-next/worker.js",
-  "compatibility_date": "2024-12-01",
+  "compatibility_date": "2026-09-11",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".open-next/assets",
@@ -10,6 +10,9 @@
   "observability": {
     "enabled": true
   },
+  "kv_namespaces": [
+    { "binding": "CNX_FLIGHTS_KV", "id": "069c48737c89469cb8c9265bead428a2" }
+  ],
   "vars": {
     "PROVINCE": "cnx",
     "SITE_URL": "https://cnx.nonarkara.org",
