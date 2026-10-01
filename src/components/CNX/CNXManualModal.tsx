@@ -79,7 +79,7 @@ export default function CnxManualModal({ isOpen, onClose }: Props) {
             </h3>
             <ul className="space-y-1.5">
               <li><strong>Social listening</strong> · Google News RSS (TH+EN) + GDELT 2.0</li>
-              <li><strong>Flood</strong> · ThaiWater / HII (Ping basin) — scenario fallback when offline</li>
+              <li><strong>Flood</strong> · Google Flood Hub (riverine model at virtual gauges) — labelled scenario values when the model is unavailable; <strong>no physical gauge</strong></li>
               <li><strong>Air quality</strong> · Open-Meteo CAMS (Copernicus)</li>
               <li><strong>Fires</strong> · NASA FIRMS (VIIRS SNPP / NOAA-20)</li>
               <li><strong>CCTV</strong> · Longdo Map + iTIC Thailand</li>

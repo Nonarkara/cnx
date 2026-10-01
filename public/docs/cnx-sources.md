@@ -4,28 +4,54 @@
 > with endpoint, auth, and what it drives. Filename mirrors the
 > Lopburi dashboard's `/docs/lopburi-sources.md` so the two
 > provinces' documentation sets look like siblings.
+>
+> This page is the **public** list: what is connected, and what is
+> deliberately not. The deeper engineering inventory — per-source
+> failure modes, provenance rules, and the operator decisions still
+> open — is maintained in-repo at `docs/SOURCES.md` and is not
+> published, because it contains unreleased licence and gating
+> decisions rather than user-facing facts.
 
 ## Live operational sources (already wired)
 
 | Source | Used by | Endpoint | Auth |
 |---|---|---|---|
 | Royal Forest Department (RFD) | Fire safety panel, hotspot pills | `wildfire.forest.go.th/firemap/getdb.php` | none |
+| PCD Air4Thai | Official provincial AQI stations | `air4thai.pcd.go.th/services/getNewAQI_JSON.php` | none |
+| CMU CCDC DustBoy | ~236 low-cost PM2.5 sensors, per-station `observedAt` | `open-api.cmuccdc.org` | none |
+| NASA AERONET | Ground photometer Ångström exponent + daily AOD | `aeronet.gsfc.nasa.gov` | none |
 | GISTDA PM2.5 by location | Air-quality panel, AQI per district | `map.longdo.com/ws/etc/gistda_pm25_by_location` | none |
 | GISTDA AOD tiles | Aerosol overlay | `disaster.gistda.or.th` (auth-walled for full tile range) | public PM2.5 is open; full AOD needs session |
 | NASA FIRMS (MODIS / VIIRS) | Fires panel, map markers | `firms.modaps.eosdis.nasa.gov` | Map key (`FIRMS_MAP_KEY` env) |
 | NASA GIBS | Satellite base layer | `gibs.earthdata.nasa.gov` | none |
+| Google Flood Hub | Riverine flood forecast at virtual gauges on the Ping | `floodforecasting.googleapis.com` | `CNX_FLOODHUB_KEY` |
 | Open-Meteo CAMS | AQI fallback, AOD model | `air-quality-api.open-meteo.com` | none |
-| ThaiWater v3 (HII) | Flood panel, Mae Ngat storage | `api-v3.thaiwater.net/api/v1/thaiwater30/` (province=50) | key TBD |
-| Longdo CCTV | CCTV strip | `longdo.com/services/cctv` | key TBD |
-| iTIC | CCTV strip | `itic.traffic.rid.go.th` | key TBD |
-| OpenSky Network | Flight panel | `opensky-network.org/api/states/all` | anonymous (rate-limited) |
+| RainViewer | Live precipitation radar tiles | `api.rainviewer.com` / `tilecache.rainviewer.com` | none |
+| OpenSky Network | Flight panel | `opensky-network.org` | **OAuth2 client-credentials** (`OPENSKY_CLIENT_ID` / `_SECRET`) |
+| adsb.lol | ADS-B backup, used when OpenSky is unavailable | `api.adsb.lol` | none |
 | Google News RSS | Social sidebar | `news.google.com/rss` | none |
 | GDELT 2.0 | Social sidebar | `api.gdeltproject.org` | none |
-| data.go.th (CKAN) | Open Data panel (411 datasets) | `data.go.th/api/3/action/package_search` | none |
-| OSM Overpass | Bus routes, waterways, 3D city (buildings / temples / walls) | `overpass-api.de` | none |
+| data.go.th (CKAN) | Open Data panel | `data.go.th/api/3/action/package_search` | none |
+| OSM Overpass | Bus routes, waterways, 3D city (buildings / temples / walls) | `overpass-api.de` | identifying `User-Agent` required |
 | OSM Standard tiles | Map base | `tile.openstreetmap.org` | none |
 | **Arnis (arnismc.com)** | Minecraft world of Chiang Mai Old City (Java Edition, ~106 MB) | `/Users/axiom/.local/bin/arnis` (local CLI) | none |
 | Overture Maps (via Arnis) | 3D building footprints Arnis uses for the Minecraft world | `overturemaps.org` (Arnis fetches) | none |
+
+### About the data.go.th count
+
+The Open Data panel shows a **dated snapshot of one filtered Thai-language
+search**, not a catalogue total: **311 datasets when baked 2026-09-15, 316
+when re-queried 2026-10-01**, out of 44,207 in the whole catalogue (the
+English "Chiang Mai" query alone returns 493). The bake is refreshed by a
+manual script, so the number drifts and the panel carries its own age
+stamp. Any figure quoted here is a snapshot, never a population count.
+
+### Not wired, despite appearing in layer contracts
+
+| Source | Status |
+|---|---|
+| **ThaiWater v3 / HII** | **Not wired.** No module fetches `api-v3.thaiwater.net`. The flood layer serves Google Flood Hub virtual gauges and, failing that, an explicitly-labelled scenario. A `layer-contract.ts` entry and some UI copy name ThaiWater, but nothing calls it — see the note below |
+| Longdo CCTV / iTIC | Partially reachable; only a subset of cameras answer |
 
 ## Province code reference
 
@@ -68,7 +94,7 @@ in eight languages based on the top inbound origin countries from
   - All four are valid GeoJSON (`[lon, lat]` arrays). The earlier `buildings.geojson` had Overpass-native `{lat, lon}` objects — the 3D layer rendered nothing for that reason. The new scripts fix it.
 - OSM waterways / Ping basin — `scripts/waterways` (cached 7 d)
 - OSM bus routes — `scripts/bus-routes`
-- 411 data.go.th datasets — `scripts/fetch-datagoth-cnx.mjs`
+- 311 data.go.th datasets (baked 2026-09-15, a filtered snapshot — see the note above) — `scripts/fetch-datagoth-cnx.mjs`
 - 12 heritage POIs (Wat Phra Singh, Doi Suthep, Nimman, etc.)
 
 ## Arnis Minecraft world
@@ -94,5 +120,6 @@ Requires Arnis installed locally (`brew install louis-e/arnis/arnis` on macOS) a
 ## Auth-walled / deferred (documented honestly)
 
 - **GISTDA disaster portal** (`https://disaster.gistda.or.th`) — full AOD tile range needs session; we use the public PM2.5 endpoint instead.
-- **JAXA Sharaku GSMaP** — client-side SPA, tile URLs not in HTML; deferred.
-- **OpenSky anonymous tier** — rate-limited; snapshot-store mitigates the empty-array failure mode.
+- **JAXA GCOM-C SGLI AOT** — resolved from a static STAC COG catalog, but deliberately **not wired to the UI**: the dataset declares `license: proprietary` and access generates a text access log. The resolver ships in the codebase but no request path calls it.
+- **OpenSky** — OAuth2 client-credentials via `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET`; `api.adsb.lol` is the fallback when that is unavailable.
+- **ThaiWater v3 / HII** — no live gauge feed. Until one exists the board reports **no measured river level** and refuses to certify the flood axis as safe; a flood-prone-area raster would be a static hazard map, not a measurement.
