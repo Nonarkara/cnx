@@ -49,8 +49,39 @@ const RANK: Record<FloodHubSeverity, number> = { UNKNOWN: 0, NO_FLOODING: 1, ABO
 const SEVERITIES = Object.keys(RANK) as FloodHubSeverity[];
 const TRENDS = ["RISE", "FALL", "NO_CHANGE"] as const;
 
-export const FLOODHUB_NOTE =
-  "Google Flood Hub model forecasts at virtual gauges (points on Google's river model, not physical stations; most are not quality-verified). A forecast of flooding is a reason to prepare; no forecast of flooding is not an all-clear. Not for use as the sole source in an emergency.";
+/**
+ * Built from the points actually shown, not written as a fixed string.
+ *
+ * "most are not quality-verified" was true of the basin and false of the
+ * screen: the twelve nearest are all HYBAS virtual points, none verified.
+ * A hedge that is wrong in the direction of comfort is worse than no
+ * hedge, so the count is computed here and states "none of" when that is
+ * what the data says. If Google later validates a Ping point, this line
+ * changes on its own.
+ *
+ * The scope sentence is the one that matters most and was missing:
+ * FloodHub forecasts *riverine* flooding only. It does not cover urban
+ * or flash flooding. Chiang Mai's acute city flood mode is urban, so a
+ * clean riverine forecast is silent about the failure that actually
+ * floods streets — the same omission half of the error everywhere else.
+ */
+export function floodHubNote(points: Array<{ qualityVerified: boolean }>): string {
+  const verified = points.filter((p) => p.qualityVerified).length;
+  const total = points.length;
+  const verification =
+    total === 0
+      ? "no forecast points available"
+      : verified === 0
+      ? `none of the ${total} points shown are quality-verified — these are points on Google's river model, not physical river stations, so no reading here has been checked against a real gauge`
+      : verified === total
+      ? `all ${total} points shown are quality-verified`
+      : `only ${verified} of the ${total} points shown are quality-verified; the rest are points on Google's river model, not physical river stations`;
+  return (
+    `Google Flood Hub model forecast, ${verification}. ` +
+    "It forecasts river flooding only — it does not cover urban or flash flooding, so it is silent about street-level and drainage flooding in the city. " +
+    "A forecast of flooding is a reason to prepare; no forecast of flooding is not an all-clear. Not for use as the sole source in an emergency."
+  );
+}
 
 function km(lat: number, lon: number): number {
   const rad = (d: number) => (d * Math.PI) / 180;
@@ -111,7 +142,7 @@ export function summariseFloodHub(
   const known = points.filter((p) => p.severity !== "UNKNOWN");
   const worst = known.length ? known.reduce((a, b) => (RANK[b.severity] > RANK[a.severity] ? b : a)).severity : null;
   const outlook = worst === null ? "unknown" : RANK[worst] >= RANK.ABOVE_NORMAL ? "flooding" : "none-forecast";
-  return { generatedAt: now, provenance: points.length ? "live" : "unavailable", points, outlook, worst, note: FLOODHUB_NOTE };
+  return { generatedAt: now, provenance: points.length ? "live" : "unavailable", points, outlook, worst, note: floodHubNote(points) };
 }
 
 let gaugeCache: { at: number; gauges: ReturnType<typeof nearestGauges> } | null = null;
@@ -124,7 +155,7 @@ function unavailable(reason: string): FloodHubResponse {
     points: [],
     outlook: "unknown",
     worst: null,
-    note: `${reason} ${FLOODHUB_NOTE}`,
+    note: `${reason} ${floodHubNote([])}`,
   };
 }
 

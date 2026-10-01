@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nearestGauges, summariseFloodHub } from "./floodhub";
+import { nearestGauges, summariseFloodHub, floodHubNote } from "./floodhub";
 
 const gauge = (id: string, lat: number, lon: number) => ({ gaugeId: id, location: { latitude: lat, longitude: lon }, qualityVerified: false });
 
@@ -41,5 +41,44 @@ describe("summariseFloodHub", () => {
 
   it("treats unrecognised severity strings as unknown", () => {
     expect(summariseFloodHub(gauges, [{ gaugeId: "a", severity: "WHATEVER" }]).points[0].severity).toBe("UNKNOWN");
+  });
+});
+
+describe("floodHubNote — the caveat must describe the points actually shown", () => {
+  const unverified = (n: number) => Array.from({ length: n }, () => ({ qualityVerified: false }));
+  const verified = (n: number) => Array.from({ length: n }, () => ({ qualityVerified: true }));
+
+  it("says 'none of' when nothing on screen is verified", () => {
+    // The live case: twelve HYBAS virtual points, zero verified. The old
+    // fixed string said "most are not quality-verified", which reads as
+    // "some are" and is false of this screen.
+    const note = floodHubNote(unverified(12));
+    expect(note).toMatch(/none of the 12 points shown are quality-verified/);
+    expect(note).not.toMatch(/\bmost are not\b/);
+  });
+
+  it("states the verified count when Google validates some of them", () => {
+    const note = floodHubNote([...verified(2), ...unverified(10)]);
+    expect(note).toMatch(/only 2 of the 12 points shown are quality-verified/);
+  });
+
+  it("says all when every point is verified", () => {
+    expect(floodHubNote(verified(3))).toMatch(/all 3 points shown are quality-verified/);
+  });
+
+  it("always names the flood types it does not cover", () => {
+    // FloodHub forecasts riverine flooding only. Chiang Mai's acute city
+    // flood mode is urban, so a clean riverine forecast is silent about
+    // the thing that floods streets.
+    for (const note of [floodHubNote(unverified(12)), floodHubNote(verified(2)), floodHubNote([])]) {
+      expect(note).toMatch(/river flooding only/i);
+      expect(note).toMatch(/does not cover urban or flash flooding/i);
+    }
+  });
+
+  it("keeps the two rules that were already right", () => {
+    const note = floodHubNote(unverified(12));
+    expect(note).toMatch(/is a reason to prepare/);
+    expect(note).toMatch(/is not an all-clear/);
   });
 });
