@@ -114,16 +114,18 @@ export function DataAge({
  *  `key` exists because feeds disagree on the field name: gauge rows
  *  carry `observedAt`, Google's status feed carries `issuedTime`. Guessing
  *  one name for both would silently render "no observation" on a panel
- *  that has one. */
+ *  that has one. Typed as a plain string rather than `keyof T`, because a
+ *  caller legitimately asks for a field the element type doesn't declare
+ *  — and that is precisely the case worth returning `null` for. */
 export function newest<T>(
   items: T[] | undefined | null,
-  key: keyof T & string = "observedAt",
+  key: string = "observedAt",
 ): string | number | null {
   if (!items || items.length === 0) return null;
   let best: number | null = null;
   let raw: string | number | null = null;
   for (const it of items) {
-    const t = it?.[key] as string | number | null | undefined;
+    const t = it == null ? undefined : ((it as Record<string, unknown>)[key] as string | number | null | undefined);
     if (t === null || t === undefined || t === "") continue;
     const ms = typeof t === "number" ? t : Date.parse(t);
     if (!Number.isFinite(ms)) continue;
