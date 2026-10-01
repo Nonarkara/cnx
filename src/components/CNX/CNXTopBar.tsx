@@ -97,7 +97,7 @@ function Pill({
  * FloodDash / AirDash /api/twin verdict surface — see the sibling
  * repos and docs/TWIN-API.md for the contract.
  */
-function VerdictStrip({
+export function VerdictStrip({
   twin,
   onOpenEmergency,
 }: {
@@ -186,6 +186,44 @@ function VerdictStrip({
   );
 }
 
+/**
+ * The bar's one-line verdict. The full reasoning moved onto the map as a
+ * floating card (see CNXApp) so the map gets the height back, but the
+ * province level must never leave the bar — it is the single number an
+ * operator reads from across the room. Colour and word, nothing more.
+ */
+export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
+  const v = twin.verdict;
+  const level = v.level;
+  const colour =
+    level === "danger"
+      ? "border-[var(--danger)] bg-[var(--danger)] text-white"
+      : level === "prepare"
+      ? "border-[#fb923c] bg-[#fb923c] text-black"
+      : level === "watch"
+      ? "border-[#f59e0b] bg-[#f59e0b] text-black"
+      : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
+  const chipLabel =
+    level === "danger"
+      ? "DANGER"
+      : level === "prepare"
+        ? "PREPARE"
+        : level === "watch"
+          ? "WATCH"
+          : "SAFE";
+  return (
+    <div
+      className={`flex h-7 shrink-0 items-center gap-1.5 border px-2 ${colour}`}
+      title={v.head_th || v.head_en || chipLabel}
+    >
+      <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em]">{chipLabel}</span>
+      <span className="hidden max-w-[22ch] truncate font-mono text-[9px] uppercase tracking-[0.1em] opacity-80 sm:inline">
+        {v.head_th || v.head_en || ""}
+      </span>
+    </div>
+  );
+}
+
 export default function CnxTopBar(props: TopBarProps) {
   const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
@@ -204,35 +242,35 @@ export default function CnxTopBar(props: TopBarProps) {
     : 0;
 
   return (
-    <header className="relative z-30 flex shrink-0 flex-col gap-1.5 border-b border-[var(--line)] bg-[var(--bg-raised)] px-4 py-2">
-      <div className="flex items-center gap-2">
-        <span
-          className="bg-[var(--ink)] px-2 py-0.5 font-mono text-[13px] font-bold tracking-[0.16em] text-[var(--bg)]"
-          title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"}`}
-        >
-          v{process.env.NEXT_PUBLIC_APP_VERSION}
-        </span>
-        {process.env.NEXT_PUBLIC_GIT_SHA && (
-          <span className="font-mono text-[10px] tracking-[0.08em] text-[var(--dim)]">
-            {process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center bg-[var(--cool)] text-[14px] font-black text-white">
+    // The bar is chrome, not content. It used to run ~180 px: a version
+    // row of its own, a 19 px wordmark, a pill row that wrapped onto three
+    // lines, and the full verdict block with every reason spelled out. On
+    // a war-room display that is most of the vertical budget spent on
+    // furniture while the map — the thing that carries the geography — got
+    // the remainder. The bar is now one 32 px row plus a single-line pill
+    // strip, and the verdict reasoning floats over the map instead.
+    <header className="relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1.5">
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center bg-[var(--cool)] text-[11px] font-black text-white">
             CNX
           </div>
-          <div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--cool)]">
-              Chiang Mai Province War Room
-            </div>
-            <div className="font-display text-[19px] font-bold leading-tight text-[var(--ink)]">
-              เชียงใหม่ · ห้องบัญชาการ
+          <div className="min-w-0 leading-none">
+            <div className="font-display text-[13px] font-bold text-[var(--ink)]">
+              เชียงใหม่ · <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--cool)]">War Room</span>
             </div>
           </div>
-          <CNXLogoRow size={22} />
+          <CNXLogoRow size={16} />
+          <span
+            className="shrink-0 bg-[var(--ink)] px-1 py-0.5 font-mono text-[9px] font-bold tracking-[0.12em] text-[var(--bg)]"
+            title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"}`}
+          >
+            v{process.env.NEXT_PUBLIC_APP_VERSION}
+            {process.env.NEXT_PUBLIC_GIT_SHA ? `·${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}
+          </span>
         </div>
+
+        {twin && <VerdictChip twin={twin} />}
 
         <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
           {officeNotice && (
@@ -297,7 +335,7 @@ export default function CnxTopBar(props: TopBarProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Pill label="PM2.5" value={air?.provinceAvgPm25 ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
         <Pill
           label="Ping"
@@ -409,10 +447,6 @@ export default function CnxTopBar(props: TopBarProps) {
         <Pill label="CCTV" value={cctv ? `${cctv.reachableCount}/${cctv.totalCount}` : "—"} />
         <Pill label="News" value={social ? `${social.items.length}` : "—"} />
       </div>
-
-      {twin && (
-        <VerdictStrip twin={twin} onOpenEmergency={onOpenEmergency} />
-      )}
 
       <CnxTimezoneStrip topOrigins={topOrigins} />
     </header>

@@ -50,7 +50,7 @@ import CnxVisitorPanel, { type VisitorAnalytics } from "./CNXVisitorPanel";
 import CnxAskChat from "./CNXAskChat";
 import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
-import CnxTopBar from "./CNXTopBar";
+import CnxTopBar, { VerdictStrip } from "./CNXTopBar";
 import CnxTicker from "./CNXTicker";
 import CNXMap, { type WallFeature } from "./CNXMap";
 import CnxStoryModal from "./CNXStoryModal";
@@ -439,6 +439,21 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxCctvStrip feed={cctv} />
 
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] xl:flex-1">
+        {/* The verdict reasoning lives here, floating over the map, not in
+            the bar. It is the most important text on the board and it must
+            stay fully spelled out — the caveats ("no live gauge, this is
+            not evidence the river is safe") are the whole point — but it
+            does not need to push the map down the screen to say it. A
+            colour + word chip in the bar carries the level; this card
+            carries the reasoning, where it overlays geography instead of
+            displacing it. */}
+        {twin && (
+          <div className="pointer-events-none absolute left-2 top-2 z-20 hidden w-[min(30rem,42%)] lg:block">
+            <div className="pointer-events-auto">
+              <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
+            </div>
+          </div>
+        )}
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
             from xl onwards on desktop with full width. */}
         <aside

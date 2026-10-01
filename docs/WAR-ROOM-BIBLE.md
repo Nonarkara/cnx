@@ -33,8 +33,8 @@ If you read only one paragraph:
 | **Fire safety (RFD)** | Active forest fires in CNX province, Thai forest-tenure class (DNP / NRF / ALOW / CMF / FIO) | [wildfire.forest.go.th/firemap/getdb.php](https://wildfire.forest.go.th/firemap/) | 30 min |
 | **Fire safety (FIRMS)** | Global VIIRS/MODIS hotspots — independent confirmation | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov) | 10 min |
 | **Aerosol / AOD** | Province-average 550 nm aerosol optical depth (burning-season haze proxy) | Open-Meteo CAMS | 30 min |
-| **Flood (Ping)** | Ping river gauges + rainfall + Bhumibol / Sirikit / Mae Kuang storage | ThaiWater / HII (scenario fallback) | 1 min |
-| **Air quality** | PM2.5 / PM10 / O3 / NO2 — province + per-station | Open-Meteo CAMS + PCD | 5 min |
+| **Flood (Ping)** | Google Flood Hub riverine forecast at virtual HYBAS gauges on the Ping. **No physical gauge** — see §3 | [floodforecasting.googleapis.com](https://developers.google.com/flood-forecasting) | 10 min |
+| **Air quality** | PM2.5 / PM10 / O3 / NO2 — province + per-station | Open-Meteo CAMS + PCD Air4Thai + CMU CCDC DustBoy | 5 min |
 | **CCTV** | 12 corridor cameras + reachable/live count | Longdo / iTIC / TAT / YouTube | 1 min |
 | **Flights** | Real-time airspace count over the CNX bbox, plane size buckets | [OpenSky Network](https://opensky-network.org) | 30 s |
 | **Heritage** | 12 curated temples / parks / waterfalls / gates | static (curated) | 24 h |
@@ -82,14 +82,63 @@ single number — it is a layer cake:
 
 ## 3. The flood desk
 
-The Ping basin floods seasonally (May–October). Six gauges in the
-province feed into the dashboard; Bhumibol + Sirikit dams are the
-national-scale storage buffer; Mae Kuang is the local reservoir.
+> **This section was wrong until 2026-10-01 and has been corrected.** It
+> previously read: *"The Ping river at Nawarat Bridge is the keystone
+> number. Bank-full is 3.5 m; below 60% capacity = normal; above 70% =
+> watch; above 85% = alert."* That described the **scenario** module —
+> hash-seeded numbers from public monthly reports — as though it were a
+> measured gauge. It is not a gauge, and it is not measured. An operator
+> reading that section would have believed the board knew the river.
 
-The Ping river at Nawarat Bridge is the keystone number. Bank-full is
-3.5 m; below 60% capacity = normal; above 70% = watch; above 85% = alert.
+The Ping basin floods seasonally (May–October). What the board actually
+has is **Google Flood Hub**: a 7-day riverine *model* forecast at virtual
+HYBAS gauges. There is **no physical gauge anywhere in CNX** — no ThaiWater
+feed is wired, and nothing fetches `api-v3.thaiwater.net`.
 
-(Full Ping dashboard exists in `src/components/CNX/CNXFloodPanel.tsx`.)
+Three consequences, all enforced in code:
+
+- A blind flood axis **scores 0** and emits no observation-shaped reason.
+- A blind flood axis **cannot certify "safe."** The level caps at `watch`
+  and the reason reads *"No live river-gauge reading — this is not evidence
+  the river is safe."* Absence from a layer is never evidence of safety.
+- FloodHub is **escalate-only.** A forecast raises the alert; its absence
+  is never an all-clear. It covers **riverine flooding only** — not the
+  street-level flash flooding that actually closes a Thai city.
+
+The scenario module still exists as a last-resort fallback, always behind
+`provenance: "scenario"`, and is barred from the RAG corpus, the keystone
+story, and the flood↔air correlation.
+
+(Full Ping dashboard in `src/components/CNX/CNXFloodPanel.tsx`.)
+
+## 3b. The map — why the mountains are 3D
+
+Four basemaps (`src/services/basemap-styles.ts`), all keyless:
+
+| Basemap | Raster | Terrain 3D | Hillshade |
+|---|---|---|---|
+| **Topography** (default) | OpenTopoMap | **yes** | **yes** |
+| Satellite | Esri World Imagery | yes | yes |
+| Vegetation | Esri World Imagery | yes | yes |
+| Street | OpenFreeMap vector (remote style) | no | no |
+
+Elevation comes from **AWS Terrain Tiles (Terrarium)**, a keyless DEM
+MapLibre reads natively. Measured directly from the tiles: **1,536 m at
+Doi Suthep against 340 m on the Old City floor** — roughly 1,200 m of
+relief inside the operating area.
+
+This is not decoration. Chiang Mai is a basin ringed by mountains, and
+the same topography drives the two things the board is for:
+
+- **Haze.** Cold-air pooling in a valley is why PM2.5 concentrates in
+  the city while the ridge stays clear. A flat map cannot show that; a
+  pitched one makes the basin legible at a glance.
+- **Flood.** Water follows the valley floor. Knowing which ridges the
+  Ping can *not* reach tells the operator where to send a detour.
+
+Terrain was satellite-only until 2026-10-01, so the **default** basemap
+had neither 3D nor hillshade — the mountains were the reason to pick a
+topographic map, and they were the one thing it did not show.
 
 ---
 

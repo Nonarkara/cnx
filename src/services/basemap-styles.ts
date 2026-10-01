@@ -99,7 +99,13 @@ export function basemapStyle(id: BasemapId): string | MaplibreRasterStyle {
         { tileSize: 256, maxzoom: 19, terrain: true },
       );
     case "topography":
-      // OpenTopoMap — community-maintained, free.
+      // OpenTopoMap — community-maintained, free. Terrain on: this is the
+      // DEFAULT basemap, and Doi Suthep / Doi Inthanon are the reason an
+      // operator reaches for a topographic map in the first place. Flat
+      // contours answered a question about where the water goes; the
+      // relief answers where it *pools* — and a haze basin is the same
+      // question in the air. Terrain was previously satellite-only, so
+      // the default view had no 3D and no hillshade at all.
       return singleRaster(
         "topography",
         [
@@ -108,18 +114,16 @@ export function basemapStyle(id: BasemapId): string | MaplibreRasterStyle {
           "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
         ],
         "Map data © OpenStreetMap contributors, SRTM | OpenTopoMap",
-        { tileSize: 256, maxzoom: 17 },
+        { tileSize: 256, maxzoom: 17, terrain: true },
       );
     case "vegetation":
-      // Esri World Imagery, then a hillshade overlay would go on top in
-      // a richer build. For the first cut, vegetation == satellite.
       return singleRaster(
         "vegetation",
         [
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         ],
         "Imagery © Esri, Maxar, Earthstar Geographics",
-        { tileSize: 256, maxzoom: 19 },
+        { tileSize: 256, maxzoom: 19, terrain: true },
       );
   }
 }
