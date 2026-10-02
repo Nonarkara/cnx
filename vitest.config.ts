@@ -11,6 +11,7 @@ import { defineConfig } from "vitest/config";
 //      tolerates the same failure modes the live worker hits.
 
 export default defineConfig({
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     globals: false,

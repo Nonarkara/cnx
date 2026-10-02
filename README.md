@@ -21,12 +21,10 @@ Lanna-navy civic, Doi Suthep-gold temples), with the historic
 city-wall gates (Suan Dok, Chaeng Siphum, Chaeng Ku Hueang, Chaeng
 Hua Lin, Chaeng Katam) traced in gold.
 
-> **Honesty rules**: every number on the dashboard is labelled
-> `live / scenario / model`. Demo CCTV footage wears an amber DEMO
-> badge. The social rail's 19 CNX-themed baseline items are clearly
-> scenario placeholders (not invented news) until real feeds come
-> online. Missing data reads as "ข้อมูลไม่พอ" — never as a false
-> green.
+> **Honesty rules**: measured, modeled and illustrative evidence stay distinct.
+> Normal news contains retrieved articles with publisher links and source dates;
+> outages leave the list empty. Unavailable district air readings are null, never
+> invented clean-air values. Missing data is not an all-clear.
 
 ---
 
@@ -163,7 +161,7 @@ Browser (cnx.nonarkara.org/cnx):
 
 Honesty layers (per data module):
 - **Live**: `live/scenario/model` label on every number
-- **Scenario**: placeholders in the social rail marked `tone: "demo"` with an amber DEMO badge in the UI
+- **Scenario**: illustrative flood values are labeled and excluded from measured-risk evidence
 - **Honest miss**: any missing feed reads as "ข้อมูลไม่พอ", never as a fake success
 
 ## 8. Data sources

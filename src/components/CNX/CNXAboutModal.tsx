@@ -35,7 +35,7 @@ export default function CnxAboutModal({ isOpen, onClose }: Props) {
         <button
           onClick={onClose}
           aria-label="Close research"
-          className="fixed right-6 top-6 z-10 rounded-full border border-[var(--line)] bg-[var(--bg-raised)] p-1.5 text-[var(--dim)] shadow hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
+          className="fixed right-6 top-6 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] shadow hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>

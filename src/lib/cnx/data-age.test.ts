@@ -99,9 +99,9 @@ describe("ageVerdict — wording must never claim an age it does not have", () =
     expect(ageVerdict(null, now, H).text).toBe("no observation");
   });
 
-  it("goes amber past the threshold and stays legible", () => {
+  it("names staleness in text as well as amber past the threshold", () => {
     const stale = ageVerdict(ago(6 * MS), now, H);
-    expect(stale.text).toBe("6 h ago");
+    expect(stale.text).toBe("stale · 6 h ago");
     expect(stale.tone).toBe("text-[#f59e0b]");
   });
 
@@ -122,7 +122,7 @@ describe("ageVerdict — wording must never claim an age it does not have", () =
     // 90 min must NOT read as "1 h ago" — that would make the reading
     // half an hour fresher than it is.
     expect(ageVerdict(ago(90 * 60_000), now, H).text).toBe("90 min ago");
-    expect(ageVerdict(ago(72 * MS), now, H).text).toBe("3 d ago");
+    expect(ageVerdict(ago(72 * MS), now, H).text).toBe("stale · 3 d ago");
   });
 });
 

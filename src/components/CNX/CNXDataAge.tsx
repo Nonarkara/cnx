@@ -80,7 +80,7 @@ export function ageVerdict(
   if (ms === null) return { text: "timestamp unreadable", tone: "opacity-70" };
   // Publisher clock skew. "in 4 h" would be absurd; name the skew.
   if (ms < 0) return { text: "timestamp is in the future", tone: "text-[#f59e0b]" };
-  if (ms > staleAfterMs) return { text: humanAge(ms), tone: "text-[#f59e0b]" };
+  if (ms > staleAfterMs) return { text: `stale · ${humanAge(ms)}`, tone: "text-[#f59e0b]" };
   return { text: humanAge(ms), tone: "opacity-70" };
 }
 

@@ -19,9 +19,9 @@
 // So: import every relay module the way Node will, and fail loudly if any
 // of them cannot load. Run via `npm run test:relay`.
 
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { checkRelayGraph } from "./relay-import-graph.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -46,38 +46,14 @@ for (const m of importable) {
   }
 }
 
-// Walk relay-flights.mjs's relative imports without executing it.
-const seen = new Set();
-const queue = [resolve(HERE, parseOnly)];
-const fromSpecifiers = [];
-
-while (queue.length) {
-  const file = queue.pop();
-  if (seen.has(file)) continue;
-  seen.add(file);
-  let source;
-  try {
-    source = readFileSync(file, "utf8");
-  } catch (e) {
-    failed = true;
-    console.error(`FAIL  cannot read ${file}\n      ${e.message}`);
-    continue;
-  }
-  // Extensionless relative specifiers are the exact hazard: bundlers
-  // resolve them, plain Node does not.
-  for (const m of source.matchAll(/(?:^|\n)\s*(?:import|export)[\s\S]*?from\s+["'](\.[^"']+)["']/g)) {
-    fromSpecifiers.push(m[1]);
-    const base = resolve(file, "..", m[1]);
-    const candidates = [`${base}.ts`, `${base}.mjs`, `${base}.js`, base];
-    if (candidates.some((c) => { try { readFileSync(c); return true; } catch { return false; } })) {
-      if (m[1].endsWith(".ts")) queue.push(candidates[0]);
-    } else {
-      failed = true;
-      console.error(`FAIL  ${file.replace(HERE + "/", "")} imports "${m[1]}" which Node cannot resolve`);
-    }
-  }
+// Check syntax and exact relative paths throughout the graph, without
+// executing the relay's interval or sending an upstream request.
+const graph = checkRelayGraph(resolve(HERE, parseOnly));
+for (const problem of graph.problems) {
+  failed = true;
+  console.error(`FAIL  ${problem}`);
 }
-console.log(`ok    ${parseOnly} (parsed; ${seen.size - 1} relative imports resolved, ${fromSpecifiers.length} specifiers)`);
+if (!graph.problems.length) console.log(`ok    ${parseOnly} (syntax checked; ${graph.modules} modules, ${graph.specifiers} relative specifiers)`);
 
 if (failed) {
   console.error(

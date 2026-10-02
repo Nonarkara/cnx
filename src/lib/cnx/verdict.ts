@@ -76,8 +76,8 @@ export const HOTLINES = {
 
 export const ACTIONS_TH_EN: Record<VerdictLevel, { th: string; en: string }> = {
   safe: {
-    th: "ไม่ต้องทำอะไตอนนี้ — เปิดลิงก์จังหวัดเชียกอีกครั้งพรุ่งนี้",
-    en: "Nothing to do right now — check Chiang Mai again tomorrow",
+    th: "ติดตามค่าปัจจุบันและประกาศในพื้นที่ต่อไป — ยังไม่ใช่การยืนยันว่าปลอดภัย",
+    en: "Continue monitoring current readings and local official notices — this is not an all-clear",
   },
   watch: {
     th: "ติดตามฝนสะสมและระดับน้ำสถานีใกล้บ้านวันละ 2 ครั้ง — เตรียม N95 ไว้สำหรับช่วงเผาป่า",
@@ -123,6 +123,13 @@ export const CHECKLIST: Record<VerdictLevel, ChecklistItem[]> = {
     { th: "สายด่วน: ปภ. 1784 · แพทย์ฉุกเฉิน 1669 · สนง.จังหวัด 053-111-555", en: "Hotlines: DDPM 1784 · EMS 1669 · Provincial Hall 053-111-555" },
   ],
 };
+
+/** General checks remain useful without asserting a specific flood response. */
+export const GENERAL_CHECKLIST: ChecklistItem[] = [
+  { th: "ยืนยันค่าปัจจุบัน เวลาเก็บข้อมูล และประกาศทางการในพื้นที่", en: "Verify current readings, observation times and local official notices" },
+  { th: "ยืนยันผู้รับผิดชอบเวรและช่องทางติดต่อหน่วยงานที่รับผิดชอบ", en: "Confirm the duty officer and the responsible authority contact" },
+  { th: "แจ้งพื้นที่ที่ได้รับผลกระทบ เวลาเก็บข้อมูล และข้อมูลที่ยังขาดให้ชัดเจน", en: "Communicate the affected location, observation time and evidence gaps" },
+];
 
 // ─── Threshold tables (deliberate, auditable) ───────────────────
 
@@ -298,7 +305,7 @@ const EMPTY_CARD: VerdictCard = {
   head_th: ACTIONS_TH_EN.safe.th,
   head_en: ACTIONS_TH_EN.safe.en,
   reasons: [],
-  checklist: CHECKLIST.safe,
+  checklist: GENERAL_CHECKLIST,
   data_provenance: "scenario",
   computedAt: "",
 };
@@ -617,7 +624,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
     head_th: top ? top.th : ACTIONS_TH_EN[level].th,
     head_en: top ? top.en : ACTIONS_TH_EN[level].en,
     reasons,
-    checklist: CHECKLIST[level],
+    checklist: floodScore > 0 && reasons.some((r) => !r.isCaveat && (r.domain === "flood" || r.domain === "twins")) ? CHECKLIST[level] : GENERAL_CHECKLIST,
     data_provenance: input.provenance,
     computedAt: new Date().toISOString(),
   };

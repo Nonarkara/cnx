@@ -100,7 +100,7 @@ export interface SocialItem {
   url: string;
   publishedAt: string;
   sentiment?: "positive" | "neutral" | "negative";
-  /** "demo" marks scenario/baseline items that are not live news — the
+  /** "demo" is reserved for explicitly illustrative items, not default news — the
    *  sidebar renders these with an amber DEMO badge. */
   tone?: "info" | "alert" | "rumor" | "demo";
   topics?: string[];

@@ -38,11 +38,11 @@ export default function CnxStoryModal({ story, isOpen, onClose }: Props) {
         <button
           onClick={onClose}
           aria-label="Close story"
-          className="absolute right-3 top-3 rounded-full border border-[var(--line)] p-1 text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>
-        <div className="mb-3 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--cool)]">
+        <div className="mb-3 flex items-center gap-2 pr-12 font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--cool)]">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--sun)]" />
           Keystone Narrative
         </div>

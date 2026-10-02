@@ -33,11 +33,11 @@ export default function CnxManualModal({ isOpen, onClose }: Props) {
         <button
           onClick={onClose}
           aria-label="Close manual"
-          className="absolute right-3 top-3 rounded-full border border-[var(--line)] p-1 text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>
-        <h2 id="cnx-manual-heading" className="mb-1 text-[20px] font-bold text-[var(--ink)]">
+        <h2 id="cnx-manual-heading" className="mb-1 pr-12 text-[20px] font-bold text-[var(--ink)]">
           CNX Dashboard Manual
         </h2>
         <p className="mb-5 text-[12px] text-[var(--dim)]">
@@ -107,7 +107,6 @@ export default function CnxManualModal({ isOpen, onClose }: Props) {
             <ul className="grid grid-cols-2 gap-1 text-[11px] text-[var(--ink)] md:grid-cols-4">
               <li><code className="rounded bg-[var(--bg)] px-1 py-0.5 text-[10px]">S</code> · story modal</li>
               <li><code className="rounded bg-[var(--bg)] px-1 py-0.5 text-[10px]">M</code> · this manual</li>
-              <li><code className="rounded bg-[var(--bg)] px-1 py-0.5 text-[10px]">/</code> · keystone brief</li>
               <li><code className="rounded bg-[var(--bg)] px-1 py-0.5 text-[10px]">Esc</code> · close modal</li>
             </ul>
           </div>

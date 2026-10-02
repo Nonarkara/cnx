@@ -123,65 +123,89 @@ export function VerdictStrip({
       ? "PREPARE"
       : level === "watch"
       ? "WATCH"
-      : "SAFE";
+      : "NO ELEVATED SIGNAL";
   const topReason = v.reasons[0];
+  const caveats = v.reasons.filter((r) => r.isCaveat);
+  const evidenceLabel = v.data_provenance === "live" ? "Current measured / modeled evidence" : v.data_provenance === "mixed" ? "Mixed evidence — check limitations" : "Current evidence incomplete";
+  const action = level === "danger"
+    ? "Follow official instructions for the affected area now. Verify the listed evidence gaps alongside response preparations."
+    : level === "prepare"
+    ? "Check official local instructions and prepare the relevant response; confirm any missing readings."
+    : caveats.length > 0
+    ? "Verify missing or old readings and check local official notices before deciding."
+    : level === "safe"
+    ? "Continue monitoring local gauges and official notices; this board is not an all-clear."
+    : level === "watch"
+    ? "Monitor the reported hazard and confirm conditions at the affected location."
+    : "Check official instructions for the affected area and prepare the relevant response.";
+  const actionTh = level === "danger"
+    ? "ปฏิบัติตามคำสั่งทางการในพื้นที่ทันที และตรวจสอบข้อมูลที่ขาดควบคู่กัน"
+    : level === "prepare"
+    ? "ตรวจสอบประกาศในพื้นที่และเตรียมการรับมือ พร้อมยืนยันค่าที่ขาด"
+    : caveats.length > 0
+    ? "ยืนยันค่าที่ขาดหรือเก่าและตรวจสอบประกาศทางการก่อนตัดสินใจ"
+    : level === "safe"
+    ? "ติดตามสถานีวัดและประกาศในพื้นที่ต่อไป — ยังไม่ใช่การยืนยันว่าปลอดภัย"
+    : "ติดตามความเสี่ยงที่รายงานและยืนยันสภาพจริงในพื้นที่";
   return (
     <div className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]">
           {chipLabel}
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-[0.14em] opacity-70">
-          score {v.score}/100 · band {v.band} · data {v.data_provenance}
+        <span className="text-[11px] leading-relaxed opacity-80">
+          {evidenceLabel}
         </span>
         <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.14em] opacity-70">
           {twin.province_en} · ปภ. {HOTLINES.ddpm} · EMS {HOTLINES.ems}
         </span>
       </div>
-      <div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-3">
+      <div className="flex flex-col gap-1">
         <div className="font-display text-[15px] font-bold leading-tight">{v.head_th}</div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.12em] opacity-80">
+        <div className="text-[12px] leading-relaxed opacity-90">
           {v.head_en}
         </div>
       </div>
       {topReason && (
-        <div className="flex flex-col gap-0.5 text-[10px]">
+        <div className="flex flex-col gap-1 text-[12px] leading-relaxed">
           {[
             // Three observations, then every caveat. A blind flood axis is
             // the reason a wall is dangerous to read at a glance, so it must
             // never be the line that gets cut for space.
-            ...v.reasons.filter((r) => !r.isCaveat).slice(0, 3),
+            ...v.reasons.filter((r) => !r.isCaveat && r !== topReason).slice(0, 2),
             ...v.reasons.filter((r) => r.isCaveat),
           ].map((reason) => (
             <div key={`${reason.domain}-${reason.evidence ?? reason.en}`} className="flex flex-wrap items-baseline gap-x-3">
               <span className="font-mono uppercase tracking-[0.14em] opacity-60">
-                {reason.domain === "twins" ? "FloodDash × AirDash" : reason.domain}
+                {reason.isCaveat ? "Evidence gap" : reason.domain === "twins" ? "Combined hazards" : reason.domain}
               </span>
               <span className={reason.isCaveat ? "italic opacity-90" : undefined}>{reason.th}</span>
               <span className="font-mono opacity-70">— {reason.en}</span>
-              {reason.evidence && (
-                <span className="font-mono opacity-50">{reason.evidence}</span>
-              )}
             </div>
           ))}
         </div>
       )}
-      {v.level !== "safe" && (
-        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-          <button
-            onClick={onOpenEmergency}
-            // The one control that matters most when the board turns red, and
-            // it was a ~20px target (px-2 py-0.5, 9px type). 44px minimum
-            // with a slightly larger label on phones.
-            className="min-h-11 border border-current px-4 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:bg-current hover:text-[var(--bg)] sm:min-h-0 sm:px-2 sm:py-0.5 sm:text-[9px]"
-          >
-            Hotlines
-          </button>
-          <span className="font-mono text-[9px] uppercase tracking-[0.12em] opacity-70">
-            Checklist: {v.checklist.length} items — open Story for the full list
-          </span>
-        </div>
-      )}
+      <p className="pt-1 text-[12px] font-semibold leading-relaxed">
+        ขั้นตอนต่อไป: {actionTh}<br /><span className="font-normal opacity-90">Next step: {action}</span>
+      </p>
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <button
+          type="button"
+          onClick={onOpenEmergency}
+          className="min-h-11 border border-current px-4 py-1 text-[12px] font-bold hover:bg-[var(--bg-raised)]"
+        >
+          Official hotlines
+        </button>
+        <details className="min-w-0 flex-1 text-[12px]">
+          <summary className="min-h-11 cursor-pointer py-3 font-semibold">Planning checklist &amp; evidence details</summary>
+          <p className="mb-2 opacity-80">Suggested planning checks; actions and evacuation orders must follow the responsible authority.</p>
+          <ul className="list-disc space-y-2 pl-5 leading-relaxed">
+            {v.checklist.map((item) => <li key={item.en}>{item.th}<br /><span className="opacity-80">{item.en}</span></li>)}
+          </ul>
+          <p className="mt-3 text-[11px] opacity-70">Dashboard heuristic score {v.score}/100; {v.band} band. This is not an event probability or an official warning.</p>
+          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[10px] opacity-70">{reason.domain}: {reason.evidence}</p>)}
+        </details>
+      </div>
     </div>
   );
 }
@@ -210,7 +234,7 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
         ? "PREPARE"
         : level === "watch"
           ? "WATCH"
-          : "SAFE";
+          : "NO ELEVATED SIGNAL";
   return (
     <div
       className={`flex h-7 shrink-0 items-center gap-1.5 border px-2 ${colour}`}

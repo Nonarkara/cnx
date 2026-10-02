@@ -92,13 +92,13 @@ export default function CnxEmergencyModal({ isOpen, onClose }: Props) {
         <button
           onClick={onClose}
           aria-label="Close emergency numbers"
-          className="absolute right-3 top-3 rounded-full border border-[var(--line)] p-1 text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>
         <div className="mb-1 flex items-center gap-2">
           <PhoneCall className="h-4 w-4 text-[var(--danger)]" />
-          <h2 id="cnx-emergency-heading" className="text-[20px] font-bold text-[var(--ink)]">
+          <h2 id="cnx-emergency-heading" className="pr-12 text-[20px] font-bold text-[var(--ink)]">
             Emergency Hotlines — Chiang Mai
           </h2>
         </div>

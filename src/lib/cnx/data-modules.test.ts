@@ -218,25 +218,22 @@ describe("fetchCnxSocial", () => {
     expect(out.counts.th).toBeGreaterThanOrEqual(2);
   });
 
-  it("returns the 3-item scenario fallback when every feed is down", async () => {
+  it("returns no invented news when every feed is down", async () => {
     fetchMock.mockRejectedValue(new Error("network"));
     const { fetchCnxSocial } = await import("./social");
     const out = await fetchCnxSocial();
-    expect(out.items.length).toBeGreaterThanOrEqual(1);
+    expect(out.items).toEqual([]);
+    expect(out.counts).toEqual({ th: 0, en: 0 });
   });
 });
 
 describe("fetchCnxSocialMultilingual", () => {
-  it("subscribes to feeds for matching countries + merges baseline", async () => {
-    // Empty response from every feed; baseline still produces ≥ 1 item.
-    fetchMock.mockResolvedValue(fakeText(`<?xml version="1.0"?><rss><channel><title>X</title></channel></rss>`));
+  it("does not invent headlines when selected country feeds return no news", async () => {
     fetchMock.mockResolvedValue(fakeJson({ articles: [] }));
     const { fetchCnxSocialMultilingual } = await import("./social");
     const out = await fetchCnxSocialMultilingual(["China", "Japan"]);
-    // Baseline is the safety net — even with zero RSS success the rail is populated.
-    expect(out.items.length).toBeGreaterThanOrEqual(1);
-    // Every baseline item carries `tone: "demo"` so the sidebar can badge it.
-    expect(out.items.every((i) => i.tone === "demo" || i.tone === "info" || i.tone === "alert")).toBe(true);
+    expect(out.items).toEqual([]);
+    expect(out.counts).toEqual({ th: 0, en: 0 });
   });
 });
 

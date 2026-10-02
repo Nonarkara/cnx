@@ -11,6 +11,7 @@ import {
   levelForBand,
   computeVerdict,
   CHECKLIST,
+  GENERAL_CHECKLIST,
   HOTLINES,
   type VerdictInputs,
 } from "./verdict";
@@ -65,7 +66,7 @@ describe("computeVerdict — safe baseline", () => {
     // Coherent wire shape: never "score 0 · band normal · level watch".
     expect(v.score).toBe(0);
     expect(v.band).toBe("watch");
-    expect(v.checklist).toEqual(CHECKLIST.watch);
+    expect(v.checklist).toEqual(GENERAL_CHECKLIST);
     // …and it says why, in a form that cannot be read as an observation.
     expect(v.reasons.at(-1)?.evidence).toBe("ping_capacity_ratio=null");
   });
@@ -90,7 +91,7 @@ describe("computeVerdict — safe baseline", () => {
     expect(v.level).toBe("safe");
     expect(v.band).toBe("normal");
     expect(v.reasons).toEqual([]);
-    expect(v.checklist).toEqual(CHECKLIST.safe);
+    expect(v.checklist).toEqual(GENERAL_CHECKLIST);
   });
 
   it("stays safe with low PM2.5 + calm flood + no fires", () => {
@@ -416,7 +417,7 @@ describe("computeVerdict — a scenario flood is no signal at all", () => {
     const v = computeVerdict(scenarioFlood);
     expect(v.level).not.toBe("danger");
     expect(v.level).not.toBe("prepare");
-    expect(v.checklist).toEqual(CHECKLIST.watch);
+    expect(v.checklist).toEqual(GENERAL_CHECKLIST);
   });
 
   it("does not fabricate the flood↔air twin against a real air hazard", () => {
@@ -474,5 +475,37 @@ describe("unobserved air", () => {
     const v = computeVerdict({ pm25_now: null, pm25_fc_24h: null, rain_fc_24h_mm: null, rain_now_24h_mm: 0, ping_capacity_ratio: 0.3, reservoir_surge: false, fire_count: 0, wind_kmh: null, provenance: "mixed", flood_provenance: "live" });
     expect(v.level).toBe("watch");
     expect(v.reasons.some((r) => r.domain === "air" && r.isCaveat)).toBe(true);
+  });
+});
+
+
+describe("checklists follow the observed hazard", () => {
+  const quiet: VerdictInputs = { pm25_now: 10, pm25_fc_24h: null, rain_fc_24h_mm: null, rain_now_24h_mm: null, ping_capacity_ratio: 0.3, reservoir_surge: false, fire_count: 0, wind_kmh: null, provenance: "live", flood_provenance: "live" };
+  it("uses general checks for air-only hazards instead of flood response tasks", () => {
+    const v = computeVerdict({ ...quiet, pm25_now: 180, fire_count: 100 });
+    expect(v.level).toBe("prepare");
+    expect(v.checklist).toEqual(GENERAL_CHECKLIST);
+    expect(v.checklist.map((i) => i.en).join(" ")).not.toMatch(/evacuat|power|pump|sandbag/i);
+  });
+  it("retains the level-specific response checklist for an active measured flood", () => {
+    const v = computeVerdict({ ...quiet, pm25_now: 180, fire_count: 100, ping_capacity_ratio: 1 });
+    expect(v.level).toBe("danger");
+    expect(v.checklist).toEqual(CHECKLIST.danger);
+  });
+  it("uses general verification checks for missing data even when a scenario looks flooded", () => {
+    const v = computeVerdict({ ...quiet, pm25_now: null, ping_capacity_ratio: 1, flood_provenance: "scenario" });
+    expect(v.checklist).toEqual(GENERAL_CHECKLIST);
+    expect(v.checklist.map((i) => i.en).join(" ")).not.toMatch(/evacuat|power|pump/i);
+  });
+  it("does not turn air washout speculation into flood response tasks", () => {
+    const v = computeVerdict({ ...quiet, pm25_now: 100, rain_fc_24h_mm: 20 });
+    expect(v.reasons.some((r) => r.domain === "twins")).toBe(true);
+    expect(v.checklist).toEqual(GENERAL_CHECKLIST);
+  });
+  it("replaces the quiet-state do-nothing fallback with monitoring and no all-clear", () => {
+    const v = computeVerdict(quiet);
+    expect(v.head_en).toMatch(/Continue monitoring/);
+    expect(v.head_en).toMatch(/not an all-clear/);
+    expect(v.head_en).not.toMatch(/Nothing to do|tomorrow/);
   });
 });

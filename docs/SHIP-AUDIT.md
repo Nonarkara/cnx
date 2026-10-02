@@ -179,3 +179,35 @@ better, cleaner, more efficient or more effective.
 - [Dark-channel prior, He/Sun/Tang 2009](https://people.csail.mit.edu/kaiming/publications/cvpr09.pdf)
 - Dependency advisory details are provided by `npm audit`; applicability above comes
   from local imports, call sites and runtime configuration, not package severity alone.
+
+
+## Shipability, professional presentation and human use — follow-up
+
+The follow-up starts from published and deployed `69125e9` (1.3.2), not the
+unpushed baseline described above. Candidate version: **1.3.3**. This section
+records the additional defects; the earlier audit remains a historical record.
+
+| Priority | Reproduced issue | Candidate behavior |
+| --- | --- | --- |
+| High | Failed GISTDA request manufactured 11 µg/m³, AQI 49 and two freshly dated districts | Null readings, unknown severity, explicit unavailable provenance; no invented coverage; source observation time only when its timezone is known |
+| High | Normal news padded actual results with 19 invented headlines and authoritative homepage links | Retrieved news only; empty list on failure; missing, malformed and future article dates excluded |
+| High | Air-only alerts offered flood evacuation, power and pump tasks | Flood-specific checks require an active flood contribution; other states show verification, duty contact and location/time communication checks |
+| Medium | Tourism led the desk; scenario water figures preceded measured gauges on phones | River measurements lead the desk and flood tab; mobile measurement shortcut; air tab opens first |
+| Medium | Dense bilingual columns, SAFE label and raw score/evidence dominated the narrow summary | Stacked readable headline, no elevated signal wording, bilingual next step, explicit limitations, real expandable checklist and heuristic details |
+| Medium | Signed bank deltas and negative headroom obscured threshold meaning; stale gauges looked current | Above/below bank and official critical levels stated separately; historical rows neutral and excluded from current grading; current actionable gauges first |
+| Medium | Failed air/data refreshes stayed loading or silently retained results; no-match search displayed everything | Explicit failure/previous-reading states, retry, named search inputs and real no-match results |
+| Medium | Ticker metrics were clipped by an undefined animation class, duplicated and inaccessible | One copy of each metric, keyboard-focusable horizontal scrolling; reachable snapshots labeled separately from live video |
+| Medium | Missing focus indicators, small modal close targets and motion preferences | Visible keyboard focus, 44 px close controls and global reduced-motion support |
+| Medium | Relay guard guessed missing extensions and did not actually syntax-check the relay entry | Exact native-Node import paths, syntax checks without execution, fixture regressions for nested/static/dynamic imports and distinct timeout errors |
+
+Acceptance requires passing the integrated suite, lint, types, plain-Node relay
+graph, production packaging and release identity gate. Browser checks cover
+1280 px desktop and 390 px phone layouts, source/failure wording and reachable
+controls. Physical Android/iPhone, assistive-technology user studies, Thai copy
+review by local operators, labeled vision accuracy and measured interaction
+performance remain unverified. The dependency and operational limits above
+still apply. This is a scoped, improved release; no competitor superiority or
+unconditional safety certification is claimed.
+
+Follow-up local verification: **485 tests in 51 files passed**; full TypeScript,
+full lint, diff whitespace check and plain-Node relay imports passed.

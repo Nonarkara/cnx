@@ -166,3 +166,18 @@ samp {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .cnx-brand-mono { filter: invert(1); }
 }
+
+/* Motion preferences apply to status pulses and loading placeholders too. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Keep keyboard position visible, including inputs with outline-none. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}

@@ -134,7 +134,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
         <button
           onClick={onClose}
           aria-label="Close haze watch"
-          className="absolute right-4 top-4 rounded-full border border-[var(--line)] bg-[var(--bg-raised)] p-1.5 text-[var(--dim)] hover:text-[var(--ink)]"
+          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>

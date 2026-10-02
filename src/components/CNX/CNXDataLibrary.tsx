@@ -46,6 +46,7 @@ function StatusBadge({ d }: { d: LibraryDatasetSummary }) {
 
 export default function CNXDataLibrary() {
   const [index, setIndex] = useState<LibraryIndex | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<LibraryTab>("ready");
   const [chip, setChip] = useState<LibraryChip>("all");
@@ -55,16 +56,16 @@ export default function CNXDataLibrary() {
   const [limit, setLimit] = useState(60);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetchJsonOrNull<LibraryIndex>("/data/cnx/data-library/index.json").then((d) => {
-      if (cancelled) return;
+    const controller = new AbortController();
+    void fetchJsonOrNull<LibraryIndex>("/data/cnx/data-library/index.json", { signal: controller.signal }).then((d) => {
+      if (controller.signal.aborted) return;
       if (d) setIndex(d);
       else setFailed(true);
     });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, []);
+  }, [attempt]);
 
   const labels = useMemo(() => Object.fromEntries((index?.domains ?? []).map((d) => [d.key, `${d.th} ${d.en}`])), [index]);
   const domainByKey = useMemo(() => new Map((index?.domains ?? []).map((d) => [d.key, d])), [index]);
@@ -79,7 +80,7 @@ export default function CNXDataLibrary() {
 
   useEffect(() => setLimit(60), [tab, chip, domain, query]);
 
-  if (failed) return <p className="p-8 text-[14px] text-[var(--danger)]">Could not load the data catalog.</p>;
+  if (failed) return <div role="status" className="p-8 text-[14px] text-[var(--dim)]"><p>Could not load the data catalogue. No records are available.</p><button type="button" onClick={() => { setFailed(false); setAttempt((value) => value + 1); }} className="mt-3 min-h-11 border border-[var(--line)] px-3 text-[var(--cool)]">Retry · ลองอีกครั้ง</button></div>;
   if (!index) return <p className="p-8 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">Loading the data workbench…</p>;
 
   const s = index.stats;
@@ -232,6 +233,7 @@ export default function CNXDataLibrary() {
         <label className="mt-3 flex items-center gap-2 border border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2.5">
           <Search className="h-4 w-4 text-[var(--dim)]" />
           <input
+            aria-label="Search datasets, publishers or file formats · ค้นหาชุดข้อมูล"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

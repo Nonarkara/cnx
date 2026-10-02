@@ -52,14 +52,17 @@ export interface GistdaPm25Response {
   generatedAt: string;
   location: { lat: number; lon: number };
   locName: { th: string; en: string; ap_th: string; ap_en: string };
-  pm25: number;
-  pm25Avg24hrs: number;
-  pm25Aqi: number;
+  provenance: "live" | "unavailable";
+  provenanceNote: string | null;
+  observedAt: string | null;
+  pm25: number | null;
+  pm25Avg24hrs: number | null;
+  pm25Aqi: number | null;
   severity: SeverityLevel;
   history24h: CnPm25HistoryPoint[];
   amphoe: CnAmphoe[];
-  provinceAveragePm25: number;
-  worstAmphoe: CnAmphoe;
+  provinceAveragePm25: number | null;
+  worstAmphoe: CnAmphoe | null;
 }
 
 interface RawData {
@@ -83,12 +86,23 @@ interface RawResponse {
   data?: RawData;
 }
 
-export async function fetchCnxGistdaPm25(): Promise<GistdaPm25Response> {
+function validPm(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+// An unzoned publisher timestamp is not enough to infer an observation age.
+function observationTime(value: unknown): string | null {
+  if (typeof value !== "string" || !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)) return null;
+  const at = Date.parse(value);
+  return Number.isFinite(at) && at <= Date.now() + 5 * 60_000 ? new Date(at).toISOString() : null;
+}
+
+export async function fetchCnxGistdaPm25(fetchImpl: typeof fetch = fetch): Promise<GistdaPm25Response> {
   // Anchor the lookup at Chiang Mai old-city center (Phra Singh).
   const lat = CNX_PROVINCE.center.latitude;
   const lon = CNX_PROVINCE.center.longitude;
   try {
-    const res = await fetch(`${GISTDA_BASE}?lat=${lat}&lng=${lon}`, {
+    const res = await fetchImpl(`${GISTDA_BASE}?lat=${lat}&lng=${lon}`, {
       headers: { Accept: "application/json", "User-Agent": "cnx-dashboard/1.0 (cnx.nonarkara.org)" },
       signal: AbortSignal.timeout(12_000),
     });
@@ -98,8 +112,13 @@ export async function fetchCnxGistdaPm25(): Promise<GistdaPm25Response> {
       throw new Error(`gistda status ${json.status}`);
     }
     const d = json.data;
+    if (!validPm(d.pm25) || !d.loc) throw new Error("GISTDA reading missing or invalid");
+    const history24h = (d.graphHistory24hrs ?? [])
+      .filter(([pm]) => validPm(pm))
+      .map(([pm25, ts]) => ({ pm25, ts }));
+    const observationTimes = history24h.map((p) => observationTime(p.ts)).filter((t): t is string => t !== null).sort();
     const amphoe: CnAmphoe[] = (d.pm25_amphoe ?? [])
-      .filter((a) => a.ap_idn >= 5001 && a.ap_idn <= 5025)
+      .filter((a) => a.ap_idn >= 5001 && a.ap_idn <= 5025 && validPm(a.pm25) && validPm(a.pm25Avg24hr))
       .map((a) => ({
         ap_tn: a.ap_tn,
         ap_en: a.ap_en,
@@ -121,33 +140,34 @@ export async function fetchCnxGistdaPm25(): Promise<GistdaPm25Response> {
         ap_th: d.loc.ap_tn,
         ap_en: d.loc.ap_en,
       },
+      provenance: "live",
+      provenanceNote: null,
+      observedAt: observationTimes.at(-1) ?? null,
       pm25: d.pm25,
-      pm25Avg24hrs: d.pm25Avg24hrs,
-      pm25Aqi: d.pm25_aqi,
+      pm25Avg24hrs: validPm(d.pm25Avg24hrs) ? d.pm25Avg24hrs : null,
+      pm25Aqi: validPm(d.pm25_aqi) ? d.pm25_aqi : null,
       severity: severityForPm25(d.pm25),
-      history24h: (d.graphHistory24hrs ?? []).map(([pm, ts]) => ({ pm25: pm, ts })),
+      history24h,
       amphoe,
-      provinceAveragePm25: Math.round(provinceAvg * 10) / 10,
-      worstAmphoe: amphoe[0],
+      provinceAveragePm25: amphoe.length ? Math.round(provinceAvg * 10) / 10 : null,
+      worstAmphoe: amphoe[0] ?? null,
     };
   } catch {
-    // Scenario fallback — north-east monsoon / burning-season-leaning values.
-    const amphoe: CnAmphoe[] = [
-      { ap_tn: "แม่ริม", ap_en: "Mae Rim", ap_idn: 5007, pm25: 13, pm25Avg24hr: 17, dt: new Date().toISOString(), severity: "good" },
-      { ap_tn: "เมืองเชียงใหม่", ap_en: "Mueang Chiang Mai", ap_idn: 5001, pm25: 11, pm25Avg24hr: 15, dt: new Date().toISOString(), severity: "good" },
-    ];
     return {
       generatedAt: new Date().toISOString(),
       location: { lat, lon },
       locName: { th: "เชียงใหม่", en: "Chiang Mai", ap_th: "เมืองเชียงใหม่", ap_en: "Mueang Chiang Mai" },
-      pm25: 11,
-      pm25Avg24hrs: 15,
-      pm25Aqi: 49,
-      severity: "good",
+      provenance: "unavailable",
+      provenanceNote: "GISTDA district air readings are unavailable. Check the current DustBoy sensors or Air4Thai; missing readings are not an all-clear.",
+      observedAt: null,
+      pm25: null,
+      pm25Avg24hrs: null,
+      pm25Aqi: null,
+      severity: "unknown",
       history24h: [],
-      amphoe,
-      provinceAveragePm25: 12,
-      worstAmphoe: amphoe[0],
+      amphoe: [],
+      provinceAveragePm25: null,
+      worstAmphoe: null,
     };
   }
 }
@@ -166,7 +186,7 @@ export async function fetchCnxCnAqi(): Promise<{
   url.searchParams.set("minlon", String(CNX_PROVINCE.bbox.west));
   url.searchParams.set("maxlon", String(CNX_PROVINCE.bbox.east));
   try {
-    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    const res = await fetch(url.toString(), { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
     if (!res.ok) return { center: { lat: CNX_PROVINCE.center.latitude, lon: CNX_PROVINCE.center.longitude }, bbox: [] };
     const json = (await res.json()) as { result?: { id: string; location: { lat: string; lon: string }; aqi_value?: string; pm25?: string }[] };
     const points = (json.result ?? []).map((r) => ({

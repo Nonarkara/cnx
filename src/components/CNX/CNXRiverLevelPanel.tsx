@@ -25,6 +25,7 @@
 import { useEffect, useState } from "react";
 import { Waves, Scale, ExternalLink } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
+import { isCurrentGaugeReading } from "../../lib/cnx/verdict";
 import { DataAge } from "./CNXDataAge";
 import type { RiverLevelResponse, RiverGauge, RiverSeverity } from "../../lib/cnx/river-level";
 
@@ -40,47 +41,43 @@ function gaugeLabel(g: RiverGauge): string {
   return g.nameTh || g.code || "(unnamed station)";
 }
 
-function GaugeRow({ g, rank }: { g: RiverGauge; rank: number }) {
-  const bank = g.belowBankM;
-  const over = bank !== null && bank <= 0;
+/** Keep bank overtopping separate from an agency's critical threshold. */
+export function gaugeEvidence(g: RiverGauge, now: number | null): { current: boolean; bank: string; critical: string | null } {
+  const current = now !== null && isCurrentGaugeReading(g.observedAt, now);
+  const bank = g.belowBankM === null
+    ? "Bank relation unknown"
+    : g.belowBankM === 0
+    ? "At published bank level"
+    : `${Math.abs(g.belowBankM).toFixed(2)} m ${g.belowBankM < 0 ? "above" : "below"} bank`;
+  const critical = g.headroomM === null
+    ? g.criticalLevelMsl === null ? null : "Critical threshold relation unknown"
+    : g.headroomM === 0
+    ? "At official critical level"
+    : `${Math.abs(g.headroomM).toFixed(2)} m ${g.headroomM < 0 ? "above" : "below"} official critical level`;
+  return { current, bank, critical };
+}
 
+function GaugeRow({ g, rank, now }: { g: RiverGauge; rank: number; now: number | null }) {
+  const evidence = gaugeEvidence(g, now);
+  const colour = evidence.current ? SEV_CLS[g.severity] : "text-[var(--dim)]";
   return (
-    <li className="flex items-start gap-2 border-b border-[var(--line)] py-1.5 last:border-b-0">
-      <span className={`mt-0.5 shrink-0 font-mono text-[9px] tabular-nums ${SEV_CLS[g.severity]}`}>
-        {bank === null ? "—" : over ? `+${Math.abs(bank).toFixed(2)}` : `−${bank.toFixed(2)}`}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[10px] font-semibold text-[var(--ink)]">
+    <li className="border-b border-[var(--line)] py-2.5 last:border-b-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 text-[12px] font-semibold text-[var(--ink)]">
           {rank}. {gaugeLabel(g)}
-          {g.code && <span className="ml-1 font-mono text-[8px] text-[var(--dim)]">{g.code}</span>}
+          {g.code && <span className="ml-1 font-mono text-[10px] text-[var(--dim)]">{g.code}</span>}
         </div>
-        <div className="font-mono text-[8px] text-[var(--dim)]">
-          {g.levelMsl.toFixed(2)} m MSL
-          {g.bankLevelMsl !== null && ` · bank ${g.bankLevelMsl.toFixed(2)}`}
-          {g.dischargeM3s !== null && ` · ${g.dischargeM3s.toFixed(1)} m³/s`}
-          {` · ${g.agency}`}
-        </div>
-        {g.criticalLevelMsl !== null && (
-          <div className="mt-0.5 text-[9px] text-[#f97316]">
-            official critical level {g.criticalLevelMsl.toFixed(2)} m — {g.headroomM!.toFixed(2)} m of headroom
-          </div>
-        )}
-        {bank === null && (
-          <div className="mt-0.5 text-[9px] italic text-[var(--sun)]">
-            ไม่มีระดับตลิ่งที่ประกาศไว้ — ประเมินความสูงน้ำจากค่านี้ไม่ได้ (no published bank level — this reading cannot be graded)
-          </div>
-        )}
+        <DataAge observedAt={g.observedAt} source="observed" staleAfterMs={3 * 3600_000} missing="undated" />
       </div>
-      <span className="shrink-0 text-right">
-        {/* Each row ages its own observation. The panel-level DataAge
-            below is the envelope; this is the instrument. */}
-        <DataAge
-          observedAt={g.observedAt}
-          source="gauge"
-          staleAfterMs={3 * 3600_000}
-          missing="undated"
-        />
-      </span>
+      <div className={`mt-1 text-[13px] font-bold ${colour}`}>{evidence.bank}</div>
+      {now !== null && !evidence.current && <p className="mt-1 text-[11px] font-semibold text-[var(--sun)]">Historical / timestamp unverified — excluded from current verdict</p>}
+      {evidence.critical && <p className={`mt-1 text-[11px] ${colour}`}>{evidence.critical}. A critical threshold does not itself confirm overtopping.</p>}
+      <details className="mt-1 text-[11px] text-[var(--dim)]">
+        <summary className="cursor-pointer py-1">Gauge measurements &amp; source</summary>
+        <p className="mt-1">Water {g.levelMsl.toFixed(2)} m above mean sea level{g.bankLevelMsl !== null && `; bank ${g.bankLevelMsl.toFixed(2)} m`}{g.criticalLevelMsl !== null && `; critical ${g.criticalLevelMsl.toFixed(2)} m`}{g.dischargeM3s !== null && `; discharge ${g.dischargeM3s.toFixed(1)} m³/s`}. Source: {g.agency}.</p>
+        <p className="mt-1">Observation: {g.observedAt || "undated"}</p>
+        {g.belowBankM === null && <p className="mt-1">No published bank relation — bank overtopping cannot be assessed from this reading.</p>}
+      </details>
     </li>
   );
 }
@@ -88,12 +85,22 @@ function GaugeRow({ g, rank }: { g: RiverGauge; rank: number }) {
 export default function CnxRiverLevelPanel() {
   const [data, setData] = useState<RiverLevelResponse | null>(null);
   const [onlyMainstem, setOnlyMainstem] = useState(false);
+  const [now, setNow] = useState<number | null>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       const next = await fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level");
-      if (!cancelled && next) setData(next);
+      if (!cancelled) {
+        setRefreshFailed(next === null);
+        if (next) setData(next);
+      }
     };
     void load();
     // 10 min matches the module TTL and the upstream's own publish rate.
@@ -105,22 +112,26 @@ export default function CnxRiverLevelPanel() {
   }, []);
 
   const down = data?.provenance === "unavailable";
-  const rows = (data?.gauges ?? []).filter((g) => (onlyMainstem ? g.riverTh === "แม่น้ำปิง" : true));
+  const severityRank: Record<RiverSeverity, number> = { critical: 0, alert: 1, watch: 2, good: 3 };
+  const rows = (data?.gauges ?? [])
+    .filter((g) => (onlyMainstem ? g.riverTh === "แม่น้ำปิง" : true))
+    .sort((a, b) => Number(gaugeEvidence(b, now).current) - Number(gaugeEvidence(a, now).current) || severityRank[a.severity] - severityRank[b.severity] || (a.belowBankM ?? Infinity) - (b.belowBankM ?? Infinity));
+  const currentCount = rows.filter((g) => gaugeEvidence(g, now).current).length;
   const mainstem = data?.pingMainstemCount ?? 0;
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)]">
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-1.5">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-1.5">
         <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
           <Waves className="h-3.5 w-3.5 text-[#38bdf8]" />
-          Ping River — measured
+          Ping basin — gauge evidence
         </span>
-        <span className="flex items-center gap-2">
+        <span className="flex flex-wrap items-center gap-2">
           {data && (
             <button
               type="button"
               onClick={() => setOnlyMainstem((v) => !v)}
-              className={`font-mono text-[8px] uppercase tracking-[0.12em] ${
+              className={`min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.12em] ${
                 onlyMainstem ? "text-[#38bdf8]" : "text-[var(--dim)] hover:text-[var(--ink)]"
               }`}
             >
@@ -128,7 +139,7 @@ export default function CnxRiverLevelPanel() {
             </button>
           )}
           <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
-            {data ? `${data.gaugeCount} reporting` : "loading…"}
+            {data ? `${data.gaugeCount} observations` : "loading…"}
           </span>
           <DataAge
             observedAt={data?.observedAt}
@@ -140,7 +151,10 @@ export default function CnxRiverLevelPanel() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        {data && <p className="mb-2 text-[10px] leading-[1.5] text-[var(--dim)]">{data.note}</p>}
+        <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">Read the nearest relevant gauge and check official local notices. A river gauge cannot establish street or drainage flooding.</p>
+        {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sun)]">Unable to refresh gauge data. {data ? "Showing the last received observations; check each timestamp." : "Current river conditions are unknown. The next poll will retry."}</p>}
+        {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{currentCount} current observations shown (within 3 hours); older or invalid timestamps are retained as history.</p>}
+        {data && <details className="mb-2 text-[11px] leading-relaxed text-[var(--dim)]"><summary className="cursor-pointer py-2">Basin coverage &amp; methodology</summary><p>{data.note}</p></details>}
 
         {down && data && (
           <div className="mb-2 border border-[#ef4444]/40 bg-[#ef4444]/10 px-2 py-1.5 text-[10px] leading-[1.5] text-[#ef4444]">
@@ -163,7 +177,7 @@ export default function CnxRiverLevelPanel() {
           <>
             <ul>
               {rows.map((g, i) => (
-                <GaugeRow key={g.id} g={g} rank={i + 1} />
+                <GaugeRow key={g.id} g={g} rank={i + 1} now={now} />
               ))}
             </ul>
             {/* Context, not a denominator. The province catalogue is
@@ -185,9 +199,9 @@ export default function CnxRiverLevelPanel() {
           </>
         ) : data ? (
           <p className="text-[10px] italic text-[var(--dim)]">
-            No Ping-basin gauge reported. That is an absence of measurement, not a measurement of a safe river.
+            {onlyMainstem ? "No Ping mainstem observation is available in this response." : "No Ping-basin gauge observation is available."} Current river conditions are unverified.
           </p>
-        ) : (
+        ) : refreshFailed ? null : (
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-8 animate-pulse bg-[var(--line)]/30" />

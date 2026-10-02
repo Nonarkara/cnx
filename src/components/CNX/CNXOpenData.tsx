@@ -2,104 +2,42 @@
 
 // CNX Open Data panel — data.go.th catalog reader.
 //
-// The datasets matching "เชียงใหม่" on data.go.th are listed here,
-// grouped by publisher. That is a dated snapshot of one filtered
-// search (311 when baked 2026-09-15, 316 on 2026-10-01) out of 44,207
-// in the catalogue — not a population count. Click a row to open the
-// source resource; mirror files in /data/cnx/open-data/ are clickable
-// too (smaller CSVs we cached). The panel defaults to the first
-// publisher; the "open full catalog" button opens the data.go.th
-// search directly.
+// A dated snapshot of the data.go.th Chiang Mai search, searchable by
+// title, publisher and tags. Source counts and bake time come from the
+// response; search misses remain empty rather than showing unrelated records.
 
 import { useEffect, useMemo, useState } from "react";
 import { Database, ExternalLink, Search } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
-import { groupDatasets, summariseDataset } from "../../lib/cnx/open-data-format";
 import { DataAge } from "./CNXDataAge";
-import type { OpenDataIndex, OpenDataDataset } from "../../types/cnx";
-
-function PublisherGroups({ datasets }: { datasets: OpenDataDataset[] }) {
-  const grouped = useMemo(() => groupDatasets(datasets), [datasets]);
-  const publishers = Object.keys(grouped).sort((a, b) => grouped[b].length - grouped[a].length);
-  const [active, setActive] = useState<string>(publishers[0] ?? "");
-  useEffect(() => {
-    if (!active && publishers[0]) setActive(publishers[0]);
-  }, [active, publishers]);
-  const list = grouped[active] ?? [];
-  return (
-    <div className="flex h-full flex-col">
-      <div className="shrink-0 overflow-x-auto border-b border-[var(--line)] bg-[var(--bg)]">
-        <div className="flex">
-          {publishers.slice(0, 6).map((p, i) => (
-            <button
-              key={p}
-              onClick={() => setActive(p)}
-              className={`flex min-h-[28px] shrink-0 items-center gap-1 border-r border-[var(--line)] px-2 text-[8px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
-                i === 0 ? "" : ""
-              } ${active === p ? "bg-[var(--bg-raised)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
-              title={p}
-            >
-              {p.slice(0, 24)}
-              <span className="font-mono text-[8px] tabular-nums text-[var(--dim)]">{grouped[p].length}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {list.slice(0, 30).map((d) => {
-          const href = d.url && /^https?:\/\//i.test(d.url) ? d.url : null;
-          return (
-            <a
-              key={d.id}
-              href={href ?? "#"}
-              target={href ? "_blank" : undefined}
-              rel="noreferrer"
-              className="flex flex-col border-b border-[var(--line)] px-3 py-1.5 hover:bg-[var(--sun-dim)]"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[10px] font-semibold text-[var(--ink)]">
-                  {d.titleEn ?? d.titleTh ?? d.id}
-                </span>
-                <ExternalLink className="h-2.5 w-2.5 shrink-0 text-[var(--dim)]" />
-              </div>
-              <div className="flex items-center gap-2 font-mono text-[8px] text-[var(--dim)]">
-                <span>{d.format}</span>
-                {d.byteSize && <span>{(d.byteSize / 1024).toFixed(0)} KB</span>}
-                {d.tags.slice(0, 2).map((t, i) => (
-                  <span key={i}>#{t}</span>
-                ))}
-              </div>
-              <div className="mt-0.5 truncate text-[9px] text-[var(--dim)]">{summariseDataset(d)}</div>
-            </a>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+import type { OpenDataIndex } from "../../types/cnx";
 
 export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () => void } = {}) {
   const [data, setData] = useState<OpenDataIndex | null>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     const load = async () => {
-      const next = await fetchJsonOrNull<OpenDataIndex>("/api/cnx/open-data");
-      if (!cancelled && next) setData(next);
+      const next = await fetchJsonOrNull<OpenDataIndex>("/api/cnx/open-data", { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setRefreshFailed(!next);
+      if (next) setData(next);
     };
     void load();
     const interval = window.setInterval(() => void load(), 30 * 60_000);
     return () => {
-      cancelled = true;
+      controller.abort();
       window.clearInterval(interval);
     };
-  }, []);
+  }, [attempt]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
     if (!query.trim()) return data.datasets;
-    const q = query.toLowerCase();
+    const q = query.trim().toLowerCase();
     return data.datasets.filter(
       (d) =>
         (d.titleEn ?? "").toLowerCase().includes(q) ||
@@ -146,6 +84,8 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
       <div className="flex shrink-0 items-center gap-1.5 border-b border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
         <Search className="h-3 w-3 text-[var(--dim)]" />
         <input
+          aria-label="Filter Chiang Mai datasets"
+          type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="filter datasets…"
@@ -184,16 +124,15 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
         </div>
         <ExternalLink className="h-3 w-3 shrink-0 text-[var(--dim)]" />
       </a>
-      {!data ? (
+      {refreshFailed && <div role="status" className="p-3 text-[12px] text-[var(--dim)]">{data ? "Catalogue refresh failed; showing the saved response." : "Catalogue unavailable; no records loaded."} <button type="button" onClick={() => { setRefreshFailed(false); setAttempt((value) => value + 1); }} className="min-h-11 border border-[var(--line)] px-3 text-[var(--cool)]">Retry · ลองอีกครั้ง</button></div>}
+      {!data && refreshFailed ? null : !data ? (
         <div className="flex-1 space-y-2 p-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-12 animate-pulse bg-[var(--line)]/30" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex-1 overflow-hidden">
-          <PublisherGroups datasets={data.datasets} />
-        </div>
+        <p role="status" className="p-3 text-[12px] text-[var(--dim)]">{query.trim() ? "No datasets match this search · ไม่พบชุดข้อมูลที่ตรงกับคำค้น" : "No datasets are available in this catalogue."}</p>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
           {filtered.slice(0, 60).map((d) => {

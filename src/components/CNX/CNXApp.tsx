@@ -1,21 +1,9 @@
 "use client";
 
-// CNX war room shell — TopBar, CctvStrip, SocialSidebar, CNXMap,
-// FloodPanel, AirQualityPanel, OpenData, AskChat, Ticker, StoryModal,
-// ManualModal, MobileDrawers.
-//
-// Layout breakpoints:
-//
-//   <  md (smartphone)         Stack: bar / cctv / map / panels / ticker.
-//                                 Side rails collapse into a bottom "Panels" drawer.
-//   md–lg (tablet portrait,    Same as mobile BUT side rails also visible
-//           iPad)               (narrow). Map sizes up to fill the centre.
-//   xl+    (desktop,           Full war-room: social sidebar left, map centre,
-//           ≥1280px)            ops desk right (fire / flood / air / open / ask).
-//
-// All rail widths are clamped so iPad portrait (≈ 768 px) gets a clean
-// 3-column layout. Mobile uses the same `MobileDrawers` component,
-// which renders one tab at a time for the panels.
+// Responsive operations board: measurements lead the desktop desk.
+// Phones and tablets use a map plus selectable hazard/data panels; the
+// measurement shortcut lets readers reach those panels without traversing
+// the map. The social rail appears at 1024 px; the full desk at 1280 px.
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -429,7 +417,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   // Mobile + tablet panel tab state
   const [mobileTab, setMobileTab] = useState<
     "fire" | "air" | "flood" | "visitors" | "social" | "data" | "ask"
-  >("fire");
+  >("air");
 
   return (
     <main
@@ -467,6 +455,10 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       {twin && <div className="border-t border-[var(--line)] p-2 lg:hidden">
         <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
       </div>}
+
+      <a href="#hazard-panels" className="flex min-h-[44px] items-center justify-center border-y border-[var(--line)] px-3 text-sm font-semibold text-[var(--cool)] xl:hidden">
+        ดูค่าที่วัดได้ · View air, river &amp; fire readings ↓
+      </a>
 
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] xl:flex-1">
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
@@ -519,32 +511,24 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           aria-label="Operations desk"
           className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-y-auto 2xl:w-[380px]"
         >
-          <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxVisitorPanel onData={setVisitorAnalytics} />
+          {/* Measurements lead the desk; scenario context and tourism follow. */}
+          <div className="h-[42%] min-h-[340px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxRiverLevelPanel />
           </div>
-          <div className="shrink-0 border-b border-[var(--line)]"><CnxArrivalsPanel /></div>
-          {outbound && <div className="shrink-0 border-b border-[var(--line)]"><CnxOutboundPanel snapshot={outbound} /></div>}
+          <div className="min-h-[260px] shrink-0 border-b border-[var(--line)]">
+            <CnxAirQualityPanel />
+          </div>
           <div className="h-[28%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
           </div>
           <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodPanel flood={flood} air={air} fires={fires} />
           </div>
-          {/* Measured river levels. Sits directly under the flood panel
-              because it is that panel's real evidence: until this was
-              wired, the flood axis of this board was a scenario and this
-              row is where a measurement replaces it. Fixed height so it
-              cannot squeeze the flex-1 flood panel above it. */}
-          <div className="h-[30%] min-h-[240px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxRiverLevelPanel />
+          <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxVisitorPanel onData={setVisitorAnalytics} />
           </div>
-          <div className="h-[36%] min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxAirQualityPanel />
-          </div>
-          {/* Public cameras — sits under the air desk because its working
-              use is the same question by road: is the corridor visible, or
-              is it in haze / under water. Placed after (not above) the
-              flood panel, which is flex-1 and must keep its height. */}
+          <div className="shrink-0 border-b border-[var(--line)]"><CnxArrivalsPanel /></div>
+          {outbound && <div className="shrink-0 border-b border-[var(--line)]"><CnxOutboundPanel snapshot={outbound} /></div>}
           <div className="min-h-[210px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodCamerasPanel />
           </div>
@@ -559,6 +543,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
       {/* Mobile / tablet panels stay available until the desktop desk appears. */}
       <section
+        id="hazard-panels"
+        tabIndex={-1}
         aria-label="Mobile panels"
         className="flex h-[64dvh] min-h-[440px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] xl:hidden"
       >
@@ -569,9 +555,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         >
           {(
             [
-              { id: "fire", label: "Fire", icon: "🔥" },
               { id: "air", label: "Air", icon: "🌫" },
               { id: "flood", label: "Flood", icon: "🌊" },
+              { id: "fire", label: "Fire", icon: "🔥" },
               { id: "visitors", label: "Visitors", icon: "✈" },
               { id: "social", label: "Social", icon: "📰" },
               { id: "data", label: "Open Data", icon: "🗂" },
@@ -596,8 +582,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
           {mobileTab === "flood" && <>
+            <div className="h-[400px]"><CnxRiverLevelPanel /></div>
             <div className="h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} /></div>
-            <div className="h-[300px]"><CnxRiverLevelPanel /></div>
             <div className="h-[300px]"><CnxFloodCamerasPanel /></div>
           </>}
           {mobileTab === "visitors" && <>
