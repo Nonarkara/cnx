@@ -41,11 +41,18 @@ export async function GET(): Promise<Response> {
 
   const hourlyFromHistory = aggregateHourlyFromHistory(recent, ts);
 
+  // Per-country origins from every snapshot stored today, so the
+  // day-scoped "where are people flying in from" answer survives the
+  // hours when nothing is airborne. Without this the list is empty from
+  // roughly 00:00 until the first morning arrival.
+  const historyOrigins = recent.map((r) => r.analytics?.topOrigins ?? []);
+
   const analytics: VisitorAnalytics = summariseVisitors(
     [...snapshot.airborne, ...snapshot.ground],
     {
       ts,
       hourly: hourlyFromHistory,
+      historyOrigins,
     },
   );
 

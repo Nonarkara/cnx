@@ -132,7 +132,32 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">{data?.items.length ? "No mentions matching this filter." : "No verified news retrieved. Sources may be unavailable; this does not mean no events occurred."}</p>
+          <div className="px-3 py-6 text-center">
+            <p className="text-[11px] text-[var(--dim)]">
+              {data.items.length
+                ? "No mentions matching this filter."
+                : data.provenance === "unavailable"
+                  ? // The important case. A refused or timed-out feed is
+                    // not a quiet news day, and the operator is looking at
+                    // this rail precisely when they need to know which.
+                    "ข่าวไม่สามารถดึงได้ — ไม่ใช่การไม่มีข่าว"
+                  : "No verified news retrieved."}
+            </p>
+            {data.provenance === "unavailable" ? (
+              <>
+                <p className="mt-1 text-[10px] italic text-[#f59e0b]">
+                  Could not read the news feeds. This rail is blind, not empty.
+                </p>
+                {data.unavailableReason && (
+                  <p className="mt-1.5 font-mono text-[9px] leading-[1.5] text-[var(--dim)]">{data.unavailableReason}</p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-[10px] italic text-[var(--dim)]">
+                Sources may be unavailable; this does not mean no events occurred.
+              </p>
+            )}
+          </div>
         ) : (
           items.map((item) => {
             const badge = sourceBadge(item);

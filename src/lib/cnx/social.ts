@@ -10,7 +10,7 @@
 // 3 min. GDELT allows 250 req/min on its public API — well within
 // budget for 3-min polling from a single wall display.
 
-import type { SocialItem, SocialListeningResponse } from "../../types/cnx";
+import type { SocialItem, SocialListeningResponse, FeedOutcome } from "../../types/cnx";
 
 const GOOGLE_NEWS_TH = "https://news.google.com/rss/search?q=%E0%B9%80%E0%B8%8A%E0%B8%B5%E0%B8%A2%E0%B8%87%E0%B9%83%E0%B8%AB%E0%B8%A1%E0%B9%88&hl=th";
 const GOOGLE_NEWS_EN = "https://news.google.com/rss/search?q=Chiang+Mai+OR+%22Chiang+Mai%22&hl=en&gl=US";
@@ -118,23 +118,42 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
     const [rssResults, gdelt] = await Promise.all([
       Promise.allSettled(
         feeds.map((f) =>
-          fetch(f.url, {
-            headers: { Accept: "application/rss+xml", "User-Agent": "cnx-dashboard/1.0" },
-            signal: AbortSignal.timeout(4000),
-          })
+          fetchRssFeed(f.url).then((r) => {
+            if (r.text === null) throw new Error(r.outcome.state === "failed" ? r.outcome.detail : "empty");
+            return r.text;
+          }),
         )
       ),
       fetchGdelt(),
     ]);
 
     const items: SocialItem[] = [];
+    // Start optimistic, then let each feed write its own outcome. A feed
+    // that is blocked or times out overwrites its entry with the reason;
+    // a feed that answers records how many items it actually had, so a
+    // feed that returns 200 with nothing is distinguishable from one that
+    // was never reached.
+    const sources: SocialListeningResponse["sources"] = {
+      googleNewsTh: { state: "ok", itemCount: 0 },
+      googleNewsEn: { state: "ok", itemCount: 0 },
+      gdelt: { state: "ok", itemCount: 0 },
+    };
     for (let i = 0; i < feeds.length; i++) {
       const settled = rssResults[i];
       const meta = feeds[i];
-      if (!settled || settled.status !== "fulfilled" || !settled.value.ok) continue;
+      if (!settled || settled.status !== "fulfilled") {
+        // Name the refusal. Three different things can happen here and
+        // the rail must not render all of them as "no news".
+        const why = settled && settled.status === "rejected" ? String(settled.reason?.message ?? settled.reason) : "no response";
+        const failed: FeedOutcome = { state: "failed", detail: why };
+        if (meta.lang === "th") sources.googleNewsTh = failed;
+        else if (meta.lang === "en") sources.googleNewsEn = failed;
+        continue;
+      }
       try {
-        const text = await settled.value.text();
-        const parsed = parseRss(text).slice(0, 8);
+        const parsed = parseRss(settled.value).slice(0, 8);
+        if (meta.lang === "th") sources.googleNewsTh = { state: "ok", itemCount: parsed.length };
+        else if (meta.lang === "en") sources.googleNewsEn = { state: "ok", itemCount: parsed.length };
         for (const r of parsed) {
           items.push({
             id: `gn-${meta.lang}-${i}-${r.link.slice(-12)}`,
@@ -165,6 +184,8 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
     }
 
     items.sort((a, b) => (b.publishedAt > a.publishedAt ? 1 : -1));
+    sources.gdelt = { state: "ok", itemCount: gdelt.length };
+    const unavailableReason = socialUnavailableReason(sources);
     const response: SocialListeningResponse = {
       generatedAt: now,
       items: items.slice(0, 80),
@@ -172,17 +193,79 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
         th: items.filter((i) => i.lang === "th").length,
         en: items.filter((i) => i.lang !== "th").length,
       },
+      provenance: items.length === 0 && unavailableReason ? "unavailable" : "live",
+      unavailableReason,
+      sources,
     };
     multilingualCache.set(key, { at: Date.now(), data: response });
     return response;
-  } catch {
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    const failed: FeedOutcome = { state: "failed", detail };
     const response: SocialListeningResponse = {
       generatedAt: now,
       items: [],
       counts: { th: 0, en: 0 },
+      provenance: "unavailable",
+      unavailableReason: `Could not read the news feeds — ${detail}. This is a read failure, not an absence of news.`,
+      sources: { googleNewsTh: failed, googleNewsEn: failed, gdelt: failed },
     };
+    multilingualCache.set(key, { at: Date.now(), data: response });
     return response;
   }
+}
+
+/**
+ * Fetch one Google News feed, and REPORT why it failed.
+ *
+ * The previous version collapsed every outcome to a string: a 503 became
+ * `""`, a timeout became `""`, and a genuinely empty feed also became
+ * `""`. Those three facts are different and the caller could not tell
+ * them apart, which is how a total upstream block rendered on the board
+ * as an ordinary empty rail.
+ */
+async function fetchRssFeed(url: string, timeoutMs = 6_000): Promise<{ text: string | null; outcome: FeedOutcome }> {
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: "application/rss+xml", "User-Agent": "cnx-dashboard/1.0" },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) {
+      // Google answers Cloudflare's egress with its bot-block page: a
+      // 503 carrying text/html "Sorry...". Naming the status is the
+      // difference between "the feed is quiet" and "we were refused".
+      return {
+        text: null,
+        outcome: { state: "failed", detail: `HTTP ${res.status} from Google News` },
+      };
+    }
+    const text = await res.text();
+    return { text, outcome: { state: "ok", itemCount: (text.match(/<item>/g) ?? []).length } };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "Error";
+    return {
+      text: null,
+      outcome: {
+        state: "failed",
+        detail: name === "TimeoutError" || name === "AbortError" ? `timed out after ${timeoutMs} ms` : String(e),
+      },
+    };
+  }
+}
+
+/** Turn per-source outcomes into the operator-facing reason. */
+function socialUnavailableReason(sources: SocialListeningResponse["sources"]): string | null {
+  const failed = Object.entries(sources).filter(([, o]) => o.state === "failed");
+  if (failed.length === 0) return null;
+  const names: Record<string, string> = {
+    googleNewsTh: "Google News (Thai)",
+    googleNewsEn: "Google News (English)",
+    gdelt: "GDELT",
+  };
+  const detail = failed
+    .map(([k, o]) => `${names[k] ?? k}: ${o.state === "failed" ? o.detail : "?"}`)
+    .join("; ");
+  return `Could not read the news feeds — ${detail}. This is a read failure, not an absence of news.`;
 }
 
 export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
@@ -190,18 +273,14 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
   const now = new Date().toISOString();
 
   try {
-    const [thSettled, enSettled, gdelt] = await Promise.all([
-      fetch(GOOGLE_NEWS_TH, { headers: { Accept: "application/rss+xml", "User-Agent": "cnx-dashboard/1.0" }, signal: AbortSignal.timeout(4000) })
-        .then((r) => (r.ok ? r.text() : ""))
-        .catch(() => ""),
-      fetch(GOOGLE_NEWS_EN, { headers: { Accept: "application/rss+xml", "User-Agent": "cnx-dashboard/1.0" }, signal: AbortSignal.timeout(4000) })
-        .then((r) => (r.ok ? r.text() : ""))
-        .catch(() => ""),
+    const [thFeed, enFeed, gdelt] = await Promise.all([
+      fetchRssFeed(GOOGLE_NEWS_TH),
+      fetchRssFeed(GOOGLE_NEWS_EN),
       fetchGdelt(),
     ]);
 
-    const th = thSettled ? parseRss(thSettled).slice(0, 12) : [];
-    const en = enSettled ? parseRss(enSettled).slice(0, 12) : [];
+    const th = thFeed.text ? parseRss(thFeed.text).slice(0, 12) : [];
+    const en = enFeed.text ? parseRss(enFeed.text).slice(0, 12) : [];
     const gdeltItems: SocialItem[] = gdelt
       .filter((a) => a.title && a.url && /^https?:\/\//i.test(a.url) && isoFromGdelt(a.seendate))
       .map((a, i) => ({
@@ -239,6 +318,12 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
     ];
 
     items.sort((a, b) => (b.publishedAt > a.publishedAt ? 1 : -1));
+    const sources: SocialListeningResponse["sources"] = {
+      googleNewsTh: thFeed.outcome,
+      googleNewsEn: enFeed.outcome,
+      gdelt: { state: "ok", itemCount: gdeltItems.length },
+    };
+    const unavailableReason = socialUnavailableReason(sources);
     const response: SocialListeningResponse = {
       generatedAt: now,
       items: items.slice(0, 60),
@@ -246,15 +331,30 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
         th: items.filter((i) => i.lang === "th").length,
         en: items.filter((i) => i.lang !== "th").length,
       },
+      // A total failure is "unavailable", not a live read that found
+      // nothing. Every source down and zero items is exactly the case
+      // that used to render as a quiet news day.
+      provenance: items.length === 0 && unavailableReason ? "unavailable" : "live",
+      unavailableReason,
+      sources,
     };
     cache = { at: Date.now(), data: response };
     return response;
-  } catch {
+  } catch (e) {
+    // The outer catch is a last resort — `fetchRssFeed` no longer throws,
+    // so reaching here means something unexpected, not an upstream
+    // refusal. Say which, rather than reporting an empty news day.
+    const detail = e instanceof Error ? e.message : String(e);
+    const failed: FeedOutcome = { state: "failed", detail };
     const response: SocialListeningResponse = {
       generatedAt: now,
       items: [],
       counts: { th: 0, en: 0 },
+      provenance: "unavailable",
+      unavailableReason: `Could not read the news feeds — ${detail}. This is a read failure, not an absence of news.`,
+      sources: { googleNewsTh: failed, googleNewsEn: failed, gdelt: failed },
     };
+    cache = { at: Date.now(), data: response };
     return response;
   }
 }

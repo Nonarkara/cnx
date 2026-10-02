@@ -110,7 +110,35 @@ export interface SocialListeningResponse {
   generatedAt: string;
   items: SocialItem[];
   counts: { th: number; en: number };
+  /**
+   * Whether this is a live read or a failed one.
+   *
+   * This field exists because the response used to be indistinguishable
+   * from a failure: both the success path and the `catch` returned
+   * `items: []` with `counts: {th: 0, en: 0}` and no other information.
+   * Google News began answering Cloudflare's egress with an HTTP 503 bot
+   * block (measured 2026-10-03; the same URL returns 302→200 with 100
+   * items from a laptop), and the result on the board was an empty rail
+   * that read exactly like a quiet news day.
+   *
+   * An operator must be able to tell "nothing is being reported" from
+   * "we could not reach the source". Only the first is news.
+   */
+  provenance: "live" | "unavailable";
+  /** Set when provenance is "unavailable": which sources failed and how. */
+  unavailableReason: string | null;
+  /** Per-source outcome, so a partial outage is visible rather than hidden. */
+  sources: {
+    googleNewsTh: FeedOutcome;
+    googleNewsEn: FeedOutcome;
+    gdelt: FeedOutcome;
+  };
 }
+
+/** What actually happened when we asked one source for news. */
+export type FeedOutcome =
+  | { state: "ok"; itemCount: number }
+  | { state: "failed"; detail: string };
 
 // ─── CCTV ────────────────────────────────────────────────────────
 

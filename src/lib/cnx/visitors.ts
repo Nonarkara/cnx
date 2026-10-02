@@ -216,6 +216,21 @@ export interface VisitorAnalytics {
   /** Aircraft currently on the ground at CNX (rough "departures staging"). */
   groundOps: number;
   topOrigins: VisitorOrigin[];
+  /**
+   * Day-to-date origins, accumulated from every snapshot recorded today.
+   *
+   * `topOrigins` describes ONE INSTANT — it is empty whenever nothing is
+   * airborne toward the airport, which is most of the night in Chiang
+   * Mai. That is honest but it is not the answer to "how many people are
+   * flying in from where", which is a question about the day.
+   *
+   * These are summed across today's stored snapshots, so they persist
+   * after the last flight lands. Two cautions the UI must keep: a
+   * registration country is NOT passenger nationality and not a departure
+   * airport, and an aircraft is counted once per snapshot it appears in,
+   * so these are upper bounds on distinct flights.
+   */
+  topOriginsToday: VisitorOrigin[];
   recommendedLanguages: string[];
   /** Hourly bucket — last 24 h, bucketed by hour-of-day (local time). */
   visitorsByHour: { hour: number; visitors: number; inbound: number; outgoing: number }[];
@@ -232,8 +247,20 @@ export interface VisitorAnalytics {
  */
 export function summariseVisitors(
   states: FlightState[],
-  options: { ts?: number; hourly?: { hour: number; visitors: number; inbound: number; outgoing: number }[] } = {},
+  options: {
+    ts?: number;
+    hourly?: { hour: number; visitors: number; inbound: number; outgoing: number }[];
+    /**
+     * Per-country origins from every snapshot stored for today. Used only
+     * to build `topOriginsToday`, so the day-scoped answer survives the
+     * hours when nothing is airborne. Omit it and that field is empty,
+     * which is why the panel falls back to the instant list rather than
+     * showing a blank.
+     */
+    historyOrigins?: VisitorOrigin[][];
+  } = {},
 ): VisitorAnalytics {
+  const historyOrigins = options.historyOrigins ?? [];
   const ts = options.ts ?? Date.now();
   const hourlyIn = new Map<number, { visitors: number; inbound: number; outgoing: number }>();
   for (let h = 0; h < 24; h += 1) hourlyIn.set(h, { visitors: 0, inbound: 0, outgoing: 0 });
@@ -299,10 +326,39 @@ export function summariseVisitors(
       languages: COUNTRY_TO_LANGS[country] ?? ["en"],
     }));
 
-  // Compute the union of recommended languages for the social rail.
-  // This drives fetchCnxSocialMultilingual — the top-N origin countries
-  // automatically expand the language fan-out.
-  const recommendedLanguages = [...new Set(topOrigins.flatMap((o) => o.languages))].sort();
+  // Day-to-date origins, accumulated from the stored snapshots for today.
+  //
+  // `topOrigins` above is one instant, and goes empty every night when
+  // nothing is airborne. "How many people are flying in from where" is a
+  // question about the DAY, so it gets a day-scoped answer that survives
+  // the last landing.
+  //
+  // The union is taken over every stored snapshot's top origins, and the
+  // MAXIMUM per country is kept rather than the sum: the same aircraft
+  // appears in many consecutive snapshots, so summing would multiply one
+  // flight by however often it was seen. Taking the max gives the largest
+  // coherent single-snapshot count, which is a real observation rather
+  // than an invented aggregate. The UI says exactly that.
+  const todayAcc = new Map<string, VisitorOrigin>();
+  for (const prev of historyOrigins) {
+    for (const o of prev) {
+      const existing = todayAcc.get(o.country);
+      if (!existing || o.visitors > existing.visitors) {
+        const airlines = [...new Set([...(existing?.airlines ?? []), ...o.airlines])].sort();
+        todayAcc.set(o.country, { ...o, airlines });
+      }
+    }
+  }
+  const topOriginsToday: VisitorOrigin[] = [...todayAcc.values()]
+    .sort((a, b) => b.visitors - a.visitors)
+    .slice(0, 8);
+
+  // Compute the union of recommended languages for the social rail. This
+  // drives fetchCnxSocialMultilingual — the top-N origin countries
+  // automatically expand the language fan-out. Prefer the day-to-date
+  // list: at 02:00 the instant list is empty and would silently collapse
+  // the rail to English-only.
+  const recommendedLanguages = [...new Set((topOriginsToday.length ? topOriginsToday : topOrigins).flatMap((o) => o.languages))].sort();
   // Always include English as a baseline.
   if (!recommendedLanguages.includes("en")) recommendedLanguages.push("en");
 
@@ -317,6 +373,7 @@ export function summariseVisitors(
     inboundFlights,
     groundOps,
     topOrigins,
+    topOriginsToday,
     recommendedLanguages,
     visitorsByHour: [...hourlyIn.entries()]
       .sort((a, b) => a[0] - b[0])

@@ -158,23 +158,40 @@ export default function CNXVisitorPanel({
         <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
           Carrier / registration countries
         </div>
-        {topOrigins.length === 0 ? (
-          <p className="mt-1 font-mono text-[10px] text-[var(--dim)]">
-            No aircraft heading toward the airport in this snapshot.
-          </p>
-        ) : (
-          <ul className="mt-1 space-y-1">
-            {topOrigins.slice(0, 5).map((o) => (
-              <li key={o.country} className="flex items-baseline justify-between gap-2 text-[10px]">
-                <span className="truncate font-medium text-[var(--ink)]">{o.country}</span>
-                <span className="font-mono tabular-nums text-[var(--dim)]">
-                  {o.visitors.toLocaleString()} · {o.flights}×{" "}
-                  {o.airlines.slice(0, 2).join(" / ") || "—"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* Prefer the day-scoped list. The instant list is empty overnight
+            — honest, but it does not answer "where are people flying in
+            from", which is a question about the day. */}
+        {(() => {
+          const dayList = data?.topOriginsToday ?? [];
+          const useDay = dayList.length > 0;
+          const list = useDay ? dayList : topOrigins;
+          if (list.length === 0) {
+            return (
+              <p className="mt-1 font-mono text-[10px] text-[var(--dim)]">
+                No aircraft heading toward the airport so far today.
+              </p>
+            );
+          }
+          return (
+            <>
+              <p className="mt-0.5 font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
+                {useDay ? "Today so far" : "In this snapshot"} — registration country, not passenger nationality.
+                {useDay ? " Largest single poll per country, not a distinct-flight count." : ""}
+              </p>
+              <ul className="mt-1 space-y-1">
+                {list.slice(0, 5).map((o) => (
+                  <li key={o.country} className="flex items-baseline justify-between gap-2 text-[10px]">
+                    <span className="truncate font-medium text-[var(--ink)]">{o.country}</span>
+                    <span className="font-mono tabular-nums text-[var(--dim)]">
+                      {o.visitors.toLocaleString()} · {o.flights}×{" "}
+                      {o.airlines.slice(0, 2).join(" / ") || "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          );
+        })()}
       </div>
 
       <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
