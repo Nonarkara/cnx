@@ -155,7 +155,7 @@ async function buildAsyncCorpus(): Promise<Document[]> {
       docs.push({
         id: s.stationId,
         title: s.name,
-        body: `PM2.5 ${s.pm25?.toFixed(0) ?? "?"} µg/m³ · PM10 ${s.pm10?.toFixed(0) ?? "?"} · O₃ ${s.o3?.toFixed(0) ?? "?"} · AQI ${s.aqiLevel}`,
+        body: `${s.source === "open-meteo" ? "CAMS model estimate (not a ground monitor)" : "Ground monitor"}; observed ${s.observedAt}. PM2.5 ${s.pm25?.toFixed(0) ?? "?"} µg/m³ · PM10 ${s.pm10?.toFixed(0) ?? "?"} · O₃ ${s.o3?.toFixed(0) ?? "?"} · AQI ${s.aqiLevel}`,
         tags: ["air", "pm25", "station"],
         terms: tokenize(`${s.name} air pm25 station`),
         source: "air",

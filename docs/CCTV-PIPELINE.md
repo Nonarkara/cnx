@@ -57,3 +57,46 @@ MediaMTX + ffmpeg are both free, static binaries, no accounts, no keys.
   operator always knows whose footage they are looking at.
 
 — Owner: CNX dashboard team. Last verified: 2026-09-19.
+
+## Camera haze vision
+
+The off-Cloudflare relay runs `scripts/haze-vision.mjs` every ten minutes.
+Downloads stop at 12 MiB, including streamed responses with an incorrect
+Content-Length. Image decoding accepts at most 24 million input pixels.
+It decodes snapshots as sRGB and scores the lower three quarters of the
+frame with dark-channel and luminance-contrast statistics. These features
+are normalized by mean luminance to cancel uniform, unclipped exposure
+changes. The dark-channel difference is projected back to the baseline’s
+median exposure to preserve the existing intensity threshold.
+
+The baseline needs 12 usable daylight colour frames. It retains the raw
+image statistics from the preceding 30 days, including existing history,
+and excludes dark and colourless frames. SHA-256 of the resized pixels
+prevents an identical image from adding samples even if the CDN updates
+`Last-Modified`. A repeated image retains its first known observation time.
+Capture time comes from the snapshot’s `Last-Modified`, falling back to the
+roster’s `capturedAt`; download time is never presented as capture time.
+Unknown timestamps, frames over six hours old, and timestamps over five
+minutes in the future are rejected.
+
+Ground comparisons use a non-suspect DustBoy reading within 15 km and
+90 minutes of the image. An hourly sensor observation counts once across
+all paired frames and cameras; their visual scores are averaged for the
+comparison. Old-method scores are excluded from agreement while their
+usable raw metrics remain available for calibration. Agreement rebuilds
+from new observations after a scoring-version change. Offline cameras’
+history is also pruned to the 30-day window.
+
+A low visual-haze score does not mean measured clean air. This is a
+relative image heuristic, not a trained detector, a PM2.5 measurement, or
+an established accuracy figure. Rain, fog, lens dirt, camera movement,
+clipped highlights, and changing shadows can still affect it. Correlation
+with ground readings is an association, not labeled-image validation.
+
+Reference: [He, Sun and Tang, CVPR 2009](https://people.csail.mit.edu/kaiming/publications/cvpr09.pdf).
+The exposure normalization and temporal sampling are local engineering
+changes; they are not claims of reproducing the paper’s dehazing model.
+
+Verify changes with `npm test`, `npm run type-check`, `npm run lint`, and
+`npm run test:relay`. Restarting the live launchd relay is a separate
+operational step: an existing process keeps its imported scoring code.

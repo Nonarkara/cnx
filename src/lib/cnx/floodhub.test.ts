@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { nearestGauges, summariseFloodHub, floodHubNote } from "./floodhub";
 
+const statusTime = () => ({ issuedTime: new Date(Date.now() - 3_600_000).toISOString(), forecastTimeRange: { start: new Date(Date.now() - 3_600_000).toISOString(), end: new Date(Date.now() + 24 * 3_600_000).toISOString() } });
 const gauge = (id: string, lat: number, lon: number) => ({ gaugeId: id, location: { latitude: lat, longitude: lon }, qualityVerified: false });
 
 describe("nearestGauges", () => {
@@ -16,8 +17,8 @@ describe("summariseFloodHub", () => {
 
   it("reports 'none forecast', never 'safe', when every point says no flooding", () => {
     const s = summariseFloodHub(gauges, [
-      { gaugeId: "a", severity: "NO_FLOODING", forecastTrend: "FALL" },
-      { gaugeId: "b", severity: "NO_FLOODING", forecastTrend: "RISE" },
+      { ...statusTime(), gaugeId: "a", severity: "NO_FLOODING", forecastTrend: "FALL" },
+      { ...statusTime(), gaugeId: "b", severity: "NO_FLOODING", forecastTrend: "RISE" },
     ]);
     expect(s.outlook).toBe("none-forecast");
     expect(s.worst).toBe("NO_FLOODING");
@@ -26,8 +27,8 @@ describe("summariseFloodHub", () => {
 
   it("escalates when any single point forecasts flooding", () => {
     const s = summariseFloodHub(gauges, [
-      { gaugeId: "a", severity: "NO_FLOODING" },
-      { gaugeId: "b", severity: "SEVERE", forecastTrend: "RISE" },
+      { ...statusTime(), gaugeId: "a", severity: "NO_FLOODING" },
+      { ...statusTime(), gaugeId: "b", severity: "SEVERE", forecastTrend: "RISE" },
     ]);
     expect(s.outlook).toBe("flooding");
     expect(s.worst).toBe("SEVERE");
@@ -39,8 +40,15 @@ describe("summariseFloodHub", () => {
     expect(s.points.every((p) => p.severity === "UNKNOWN")).toBe(true);
   });
 
+  it("does not treat expired or undated no-flood forecasts as current", () => {
+    const expired = { ...statusTime(), gaugeId: "a", severity: "NO_FLOODING", forecastTimeRange: { start: "2020-01-01T00:00:00Z", end: "2020-01-02T00:00:00Z" } };
+    const s = summariseFloodHub(gauges, [expired, { gaugeId: "b", severity: "NO_FLOODING" }]);
+    expect(s.outlook).toBe("unknown");
+    expect(s.provenance).toBe("unavailable");
+  });
+
   it("treats unrecognised severity strings as unknown", () => {
-    expect(summariseFloodHub(gauges, [{ gaugeId: "a", severity: "WHATEVER" }]).points[0].severity).toBe("UNKNOWN");
+    expect(summariseFloodHub(gauges, [{ ...statusTime(), gaugeId: "a", severity: "WHATEVER" }]).points[0].severity).toBe("UNKNOWN");
   });
 });
 

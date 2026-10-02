@@ -57,7 +57,8 @@ export async function readArrivalsFromKv(): Promise<ArrivalsResponse | null> {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ArrivalsResponse;
     if (!Array.isArray(parsed.days) || typeof parsed.generatedAt !== "string") return null;
-    if (Date.now() - Date.parse(parsed.generatedAt) > ARRIVALS_KV_STALE_MS) return null;
+    const age = Date.now() - Date.parse(parsed.generatedAt);
+    if (!Number.isFinite(age) || age < -5 * 60_000 || age > ARRIVALS_KV_STALE_MS) return null;
     return parsed;
   } catch {
     return null;

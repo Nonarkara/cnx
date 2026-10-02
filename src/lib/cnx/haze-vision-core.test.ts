@@ -93,6 +93,24 @@ describe("classifyFrame", () => {
     expect(hazy.score).toBeGreaterThanOrEqual(0.5);
   });
 
+  it("does not interpret a uniform exposure change as haze", () => {
+    const clear: FrameMetrics = { meanLuminance: 0.5, darkChannel: 0.2, contrast: 0.15, saturation: 0.3 };
+    const baseline = Array.from({ length: MIN_BASELINE_SAMPLES }, () => clear);
+    for (const gain of [0.5, 1, 1.8]) {
+      const exposed = { ...clear, meanLuminance: clear.meanLuminance * gain, darkChannel: clear.darkChannel * gain, contrast: clear.contrast * gain };
+      expect(classifyFrame(exposed, baseline)).toEqual({ label: "clear", score: 0 });
+    }
+  });
+
+  it("preserves the haze signal across exposure changes", () => {
+    const baseline = Array.from({ length: MIN_BASELINE_SAMPLES }, () => metrics(0.05));
+    const bright = classifyFrame(metrics(0.7), baseline);
+    const dim = classifyFrame(metrics(0.7, 0.6), baseline);
+    expect(bright.label).toBe("haze-likely");
+    expect(dim.label).toBe(bright.label);
+    expect(Math.abs(dim.score! - bright.score!)).toBeLessThanOrEqual(0.02);
+  });
+
   it("builds the baseline from daylight frames only", () => {
     const withNights = [...history, ...Array.from({ length: 20 }, () => metrics(0, 0.05))];
     expect(baselineFrom(withNights)?.samples).toBe(MIN_BASELINE_SAMPLES);

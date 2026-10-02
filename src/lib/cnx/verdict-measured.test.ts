@@ -7,7 +7,7 @@
 // fresh one.
 
 import { describe, it, expect } from "vitest";
-import { computeVerdict, type VerdictInputs, type PingMeasured } from "./verdict";
+import { computeVerdict, isCurrentGaugeReading, type VerdictInputs, type PingMeasured } from "./verdict";
 
 /** A real P.1 reading as observed on 2026-10-02: 2.42 m of headroom. */
 function measured(over: Partial<PingMeasured> = {}): PingMeasured {
@@ -48,13 +48,18 @@ describe("a measured gauge unblinds the flood axis", () => {
     expect(floodReasons(v).some((r) => r.isCaveat)).toBe(false);
   });
 
-  it("may now certify safe on a real reading, where the blind axis could not", () => {
-    // The whole point of closing the gap. A gauge 2.42 m below its bank
-    // IS evidence, so it may support the level the blind axis was
-    // forbidden from certifying.
-    const v = computeVerdict({ ...silent, ping_measured: measured() });
+  it("may support safe when both river and current air have readings", () => {
+    // A quiet measured river supports the flood axis; it cannot fill in
+    // missing air evidence. Both domains must have a current reading.
+    const v = computeVerdict({ ...silent, pm25_now: 10, ping_measured: measured() });
     expect(v.score).toBe(0);
     expect(v.level).toBe("safe");
+  });
+
+  it("a quiet river cannot certify safe when current air is missing", () => {
+    const v = computeVerdict({ ...silent, ping_measured: measured() });
+    expect(v.level).toBe("watch");
+    expect(v.reasons.some((r) => r.domain === "air" && r.isCaveat)).toBe(true);
   });
 
   it("still refuses safe when there is no gauge at all", () => {
@@ -72,7 +77,7 @@ describe("a measured gauge unblinds the flood axis", () => {
   });
 
   it("ages the observation in the sentence, so a stale gauge cannot read as fresh", () => {
-    const old = new Date(Date.now() - 3 * 3600_000).toISOString();
+    const old = new Date(Date.now() - (3 * 3600_000 - 60_000)).toISOString();
     const v = computeVerdict({ ...silent, ping_measured: measured({ observedAt: old }) });
     expect(floodReasons(v)[0].en).toMatch(/observed 3 h ago/);
   });
@@ -88,14 +93,15 @@ describe("a measured gauge unblinds the flood axis", () => {
       ...silent,
       ping_measured: measured({ observedAt: new Date(Date.now() - 3 * 86_400_000).toISOString() }),
     });
-    expect(floodReasons(days)[0].en).toMatch(/observed 3 d ago/);
+    expect(floodReasons(days)[0].en).toMatch(/not current/);
+    expect(floodReasons(days)[0].isCaveat).toBe(true);
   });
 
-  it("omits the age clause rather than inventing one when the stamp is unusable", () => {
+  it("does not grade a reading when its observation stamp is unusable", () => {
     const v = computeVerdict({ ...silent, ping_measured: measured({ observedAt: "not-a-date" }) });
     const en = floodReasons(v)[0].en;
-    expect(en).toMatch(/below its bank level$/);
-    expect(en).not.toMatch(/observed/);
+    expect(en).toMatch(/not current/);
+    expect(floodReasons(v)[0].isCaveat).toBe(true);
   });
 });
 
@@ -201,5 +207,27 @@ describe("a measured gauge never launders the scenario numbers", () => {
     // air, not reassured by the gauge.
     expect(v.level).not.toBe("safe");
     expect(v.reasons[0].domain).not.toBe("flood");
+  });
+});
+
+
+describe("gauge observation freshness", () => {
+  it("applies exact three-hour and five-minute boundaries before display rounding", () => {
+    const now = Date.parse("2026-10-02T12:00:00Z");
+    expect(isCurrentGaugeReading("2026-10-02T09:00:00Z", now)).toBe(true);
+    expect(isCurrentGaugeReading("2026-10-02T08:59:59Z", now)).toBe(false);
+    expect(isCurrentGaugeReading("2026-10-02T12:05:00Z", now)).toBe(true);
+    expect(isCurrentGaugeReading("2026-10-02T12:05:01Z", now)).toBe(false);
+  });
+  it.each(["not-a-date", new Date(Date.now() - 13 * 3_600_000).toISOString(), new Date(Date.now() + 30 * 60_000).toISOString()])("cannot certify safe from %s", (observedAt) => {
+    const v = computeVerdict({ ...silent, pm25_now: 10, ping_measured: measured({ observedAt }) });
+    expect(v.level).toBe("watch");
+    expect(v.score).toBe(0);
+    expect(floodReasons(v).some((r) => r.isCaveat)).toBe(true);
+  });
+  it("does not escalate an old high gauge as a current flood", () => {
+    const v = computeVerdict({ ...silent, pm25_now: 10, ping_measured: measured({ observedAt: new Date(Date.now() - 13 * 3_600_000).toISOString(), headroomM: -1, belowBankM: -1 }) });
+    expect(v.score).toBe(0);
+    expect(v.reasons.some((r) => r.en.includes("at or above"))).toBe(false);
   });
 });

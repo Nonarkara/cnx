@@ -23,6 +23,7 @@ export interface AeronetResponse {
 }
 
 const val = (s: string | undefined): number | null => {
+  if (s === undefined || !s.trim()) return null;
   const n = Number(s);
   return Number.isFinite(n) && n > -999 ? n : null;
 };
@@ -41,7 +42,7 @@ export function parseAeronetDaily(text: string): AeronetDay[] {
     const cols = line.split(",");
     const aod = val(cols[iAod]);
     const [d, m, y] = (cols[iDate] ?? "").split(":");
-    if (aod === null || !y) continue;
+    if (aod === null || aod < 0 || !y) continue;
     days.push({ date: `${y}-${m}-${d}`, aod500: Math.round(aod * 1000) / 1000, angstrom440_870: iAng >= 0 ? val(cols[iAng]) : null });
   }
   return days;

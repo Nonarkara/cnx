@@ -48,6 +48,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
   initialData?: SocialListeningResponse | null;
 }) {
   const [data, setData] = useState<SocialListeningResponse | null>(initialData);
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const multilingualCountriesKey = multilingualCountries.join(",");
 
@@ -61,11 +62,12 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
     let cancelled = false;
     const load = async () => {
       const url = multilingualCountriesKey
-        ? `/api/cnx/social?multilingual=1&countries=${encodeURIComponent(multilingualCountriesKey)}`
+        ? buildScenarioUrl(`/api/cnx/social?multilingual=1&countries=${encodeURIComponent(multilingualCountriesKey)}`, scenarioId)
         : buildScenarioUrl("/api/cnx/social", scenarioId);
       const next = await fetchJsonOrNull<SocialListeningResponse>(url);
       if (cancelled) return;
-      if (next && next.items?.length) setData(next);
+      setRefreshFailed(!next);
+      if (next) setData(next);
     };
     void load();
     const interval = window.setInterval(() => void load(), 3 * 60_000);
@@ -94,8 +96,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
           </span>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--danger)]">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--danger)]" />
-          LIVE
+          {refreshFailed ? "REFRESH FAILED" : data?.items.some((item) => item.tone === "demo") ? "SCENARIO" : "NEWS"}
         </span>
       </header>
 
@@ -122,7 +123,9 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {!data ? (
+        {!data && refreshFailed ? (
+          <p role="status" className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">News feed unavailable. Retrying on the next refresh.</p>
+        ) : !data ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-14 animate-pulse bg-[var(--line)]/30" />
@@ -178,7 +181,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
 
       <footer className="flex shrink-0 items-center justify-between border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">
-          {data ? `${data.items.length} items • ${relative(data.generatedAt)}` : "loading…"}
+          {data ? `${data.items.length} items • ${relative(data.generatedAt)}${refreshFailed ? " · cached" : ""}` : "loading…"}
         </span>
         <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">3-min poll</span>
       </footer>

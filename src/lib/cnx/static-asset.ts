@@ -31,5 +31,5 @@ export async function fetchStaticAsset(path: string): Promise<Response> {
   }
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const url = siteUrl ? `${siteUrl}${path}` : path;
-  return fetch(url, { cache: "no-store" });
+  return fetch(url, { cache: "no-store", signal: AbortSignal.timeout(10_000) });
 }

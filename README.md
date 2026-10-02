@@ -6,15 +6,16 @@ Real-time operational dashboard for Chiang Mai province, deployed at
 and [BKKx atlas](https://atlas.nonarkara.org) dashboards — same
 founder, same war-room pattern, province-specific data and palette.
 
-Live streams (per a 1- or 3-min poll): Ping river gauges, Mae Ngat dam
-storage, GISTDA PM2.5 per district (25 amphoes), NASA FIRMS hotspots,
+Observed and modeled feeds (cadence varies by source): measured Ping river gauges,
+scenario-only reservoir/rainfall summaries, GISTDA PM2.5 per district (25 amphoes), NASA FIRMS hotspots,
 Royal Forest Department (จุดความร้อน) fire detections, real-time CNX
 airport flights (OpenSky ADS-B), multilingual social listening
 (Google News RSS, GDELT 2.0, 8 languages auto-driven by inbound
-flight origins), and 311 data.go.th datasets with a Thai TF-IDF
+carrier/registration countries, not passenger origins), and a dated
+data.go.th catalogue snapshot with keyword retrieval
 chatbot.
 
-A live 3D city shows every OSM building in the Old City + Doi Suthep
+A dated 3D city extract shows OSM buildings in the Old City + Doi Suthep
 area as a fill-extrusion layer (template: warm beige residential,
 Lanna-navy civic, Doi Suthep-gold temples), with the historic
 city-wall gates (Suan Dok, Chaeng Siphum, Chaeng Ku Hueang, Chaeng

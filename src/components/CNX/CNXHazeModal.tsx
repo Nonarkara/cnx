@@ -2,12 +2,13 @@
 
 // Haze Watch — one screen that puts every haze signal side by side, each
 // with its source, age and limits: ground monitors (PCD Air4Thai, CMU
-// DustBoy), model (Open-Meteo CAMS), satellite (MODIS AOD) and ground
+// DustBoy), model (Open-Meteo CAMS), model column aerosol (CAMS AOD) and ground
 // photometer (NASA AERONET), webcam haze scoring, and citizen / local-news
 // reports. Nothing here is fused into one number — disagreements between
 // sources are information the operator should see.
 
 import { useEffect, useState } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { ExternalLink, X } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { AeronetResponse } from "../../lib/cnx/aeronet";
@@ -34,9 +35,9 @@ interface Props {
 const VERDICT: Record<HazeLabel, { th: string; en: string; cls: string }> = {
   "haze-likely": { th: "น่าจะมีหมอกควัน", en: "Haze likely", cls: "border-[var(--danger)] text-[var(--danger)]" },
   "some-haze": { th: "มีหมอกควันบ้าง", en: "Some haze", cls: "border-[var(--sun)] text-[var(--ink)]" },
-  clear: { th: "ฟ้าใส", en: "Clear", cls: "border-[var(--cool)] text-[var(--cool)]" },
+  clear: { th: "หมอกควันในภาพต่ำ", en: "Low visual haze", cls: "border-[var(--cool)] text-[var(--cool)]" },
   "too-dark": { th: "มืดเกินประเมิน", en: "Too dark to judge", cls: "border-[var(--line)] text-[var(--dim)]" },
-  "no-colour": { th: "ภาพขาวดำ (กล้องกลางคืน)", en: "Monochrome IR — not scored", cls: "border-[var(--line)] text-[var(--dim)]" },
+  "no-colour": { th: "ภาพไม่มีสี — ไม่ประเมิน", en: "No colour — not scored", cls: "border-[var(--line)] text-[var(--dim)]" },
   calibrating: { th: "กำลังเรียนรู้ภาพฟ้าใส", en: "Calibrating", cls: "border-[var(--line)] text-[var(--dim)]" },
 };
 
@@ -81,7 +82,7 @@ function CameraCard({ cam }: { cam: CameraHaze }) {
         <div className="text-[var(--dim)]">
           {cam.nearestPm25
             ? `nearest DustBoy ${cam.nearestPm25.distanceKm} km: PM2.5 ${cam.nearestPm25.pm25} µg/m³`
-            : "no DustBoy sensor reporting within 15 km"}
+            : "no matching DustBoy reading within 15 km and 90 min of the frame"}
         </div>
       </figcaption>
     </figure>
@@ -89,17 +90,17 @@ function CameraCard({ cam }: { cam: CameraHaze }) {
 }
 
 export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, hazeVision, citizen, smoke }: Props) {
+  const dialogRef = useModalDialog(isOpen, onClose);
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    if (!aeronet) void fetchJsonOrNull<AeronetResponse>("/api/cnx/aeronet").then(setAeronet);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose, aeronet]);
+    const controller = new AbortController();
+    if (!aeronet) void fetchJsonOrNull<AeronetResponse>("/api/cnx/aeronet", { signal: controller.signal }).then((next) => {
+      if (!controller.signal.aborted) setAeronet(next);
+    });
+    return () => controller.abort();
+  }, [isOpen, aeronet]);
 
   if (!isOpen) return null;
 
@@ -118,6 +119,8 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Haze watch"
@@ -177,9 +180,9 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
             sub={`µg/m³ · forecast model, ${model.length} grid points — not a measurement`}
           />
           <Stat
-            label="Satellite AOD (MODIS)"
-            value={aerosol ? aerosol.aod550.toFixed(2) : "—"}
-            sub="aerosol optical depth, 550 nm · >0.5 = heavy smoke"
+            label="Model column AOD (CAMS)"
+            value={aerosol?.aod550?.toFixed(2) ?? "—"}
+            sub="Model grid · column aerosol optical depth at 550 nm, not ground PM2.5"
           />
           <Stat
             label="Ground AOD (AERONET)"
@@ -234,10 +237,12 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
             {!agreement
               ? "No agreement measurement yet."
               : agreement.r === null
-              ? `Not enough frames paired with a live ground sensor yet to measure agreement (${agreement.pairs} pairs; needs 8).`
+              ? agreement.pairs < 8
+                ? `Not enough distinct ground readings paired with camera frames yet (${agreement.pairs}; needs 8).`
+                : "The camera scores or paired ground readings did not vary enough to calculate a correlation."
               : agreement.spansHazeEvent
-              ? `Agreement with nearest DustBoy sensor: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} frame/sensor pairs. Ground readings spanned a median of ${agreement.pm25Median} to p95 ${agreement.pm25P95} µg/m³ with ${agreement.eventReadings} unhealthy readings, so this window contains a real haze episode and the comparison is meaningful.`
-              : `Agreement is not yet measurable. Over ${agreement.pairs} frame/sensor pairs the cameras scored steadily, but the ground readings were clean air — median ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95}, and only ${agreement.eventReadings} at or above 50. There has been no regional haze episode to detect, so r = ${agreement.r.toFixed(2)} reflects the absence of a test rather than a failure of the method. It becomes meaningful during a burning-season episode.`}
+              ? `Association with time-matched DustBoy readings: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} distinct ground observations. Each sensor reading counts once, using the average of its paired camera scores. Ground readings spanned a median of ${agreement.pm25Median} to p95 ${agreement.pm25P95} µg/m³ with ${agreement.eventReadings} unhealthy readings. This is an observed association, not a measurement of detection accuracy.`
+              : `Detection accuracy is not yet established against a varied haze episode. ${agreement.pairs} distinct ground observations: median ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95}, and ${agreement.eventReadings} at or above 50. Correlation r = ${agreement.r.toFixed(2)} on this limited window cannot establish how reliably the cameras detect haze.`}
           </p>
           {cams.length > 0 ? (
             <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">

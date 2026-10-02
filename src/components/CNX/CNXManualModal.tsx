@@ -4,7 +4,7 @@
 // walkthrough of the dashboard's streams and the data source behind
 // each one. Diagrams over text, per the user's preference.
 
-import { useEffect } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { X } from "lucide-react";
 
 interface Props {
@@ -13,18 +13,13 @@ interface Props {
 }
 
 export default function CnxManualModal({ isOpen, onClose }: Props) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  const dialogRef = useModalDialog(isOpen, onClose);
 
   if (!isOpen) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="cnx-manual-heading"
@@ -58,8 +53,8 @@ export default function CnxManualModal({ isOpen, onClose }: Props) {
             <pre className="overflow-x-auto text-[10px] leading-relaxed text-[var(--ink)]">
 {`┌─────────────── CNX Dashboard ───────────────┐
 │                                              │
-│  Top bar   (province identity + LIVE pills)  │
-│  CCTV strip (12 cameras, reachable/live)     │
+│  Top bar   (identity + source/status pills)  │
+│  CCTV strip (snapshots / available streams)     │
 │  ┌─────────┬───────────────┬────────────┐    │
 │  │ Social  │  Map + planes │ Flood /    │    │
 │  │ listen. │  + heritage   │ Air /Fire  │    │
@@ -68,7 +63,7 @@ export default function CnxManualModal({ isOpen, onClose }: Props) {
 │  │         │               ├ Open data  │    │
 │  │         │               │  (right)   │    │
 │  └─────────┴───────────────┴────────────┘    │
-│  Ticker  (Live · fires · flights · news)     │
+│  Ticker  (feeds · fires · flights · news)     │
 └──────────────────────────────────────────────┘`}
             </pre>
           </div>
@@ -79,12 +74,13 @@ export default function CnxManualModal({ isOpen, onClose }: Props) {
             </h3>
             <ul className="space-y-1.5">
               <li><strong>Social listening</strong> · Google News RSS (TH+EN) + GDELT 2.0</li>
-              <li><strong>Flood</strong> · Google Flood Hub (riverine model at virtual gauges) — labelled scenario values when the model is unavailable; <strong>no physical gauge</strong></li>
-              <li><strong>Air quality</strong> · Open-Meteo CAMS (Copernicus)</li>
+              <li><strong>Flood</strong> · Google Flood Hub (riverine model at virtual gauges) — labelled scenario values when the model is unavailable; <strong>separate from measured river levels</strong></li>
+              <li><strong>Measured river levels</strong> · ThaiWater Ping-basin physical gauges, observation times and published critical levels where available; bank-level distance is a separate field</li>
+              <li><strong>Air quality</strong> · PCD official monitors + Open-Meteo CAMS model grids (Copernicus), labeled separately</li>
               <li><strong>Fires</strong> · NASA FIRMS (VIIRS SNPP / NOAA-20)</li>
-              <li><strong>CCTV</strong> · Longdo Map + iTIC Thailand</li>
+              <li><strong>CCTV</strong> · Windy webcam snapshots + available Longdo/iTIC feeds; public road/flood camera catalogues credit each operating agency</li>
               <li><strong>Heritage</strong> · curated (Wat Phra Singh, Doi Suthep, …)</li>
-              <li><strong>Open Data</strong> · data.go.th CKAN search "เชียงใหม่" → ~311 datasets</li>
+              <li><strong>Open Data</strong> · data.go.th CKAN catalogue for Chiang Mai; current available records are listed in the Data workbench</li>
               <li><strong>Flights</strong> · OpenSky Network /states/all bbox 17.5–20.5°N / 97.5–100.5°E</li>
             </ul>
           </div>

@@ -1,12 +1,7 @@
 "use client";
 
-// CNX timezone strip — "what time is it right now, for the countries
-// today's inbound flights are actually coming from?" Sorted earliest
-// local time → latest. The country contributing the most visitors
-// today gets a highlighted box with the running tourist count
-// underneath — that's the timezone the governor's office should be
-// thinking about first (it's whoever's morning/night governs when
-// tomorrow's inbound wave lands).
+// Local clocks for carrier/registration countries in the current
+// aircraft snapshot. Estimated seats do not establish passenger origins.
 
 import { useEffect, useState } from "react";
 import { clocksForCountries } from "../../lib/cnx/country-timezones";
@@ -36,7 +31,7 @@ export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneO
   return (
     <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--bg)] px-2 py-1">
       <span className="mr-1 shrink-0 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-        Visitor clocks
+        Carrier clocks
       </span>
       {clocks.map((c) => {
         const isBusiest = c.country === busiest.country;
@@ -56,7 +51,7 @@ export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneO
             <span className="truncate text-[9px] text-[var(--dim)]">{c.country}</span>
             {isBusiest && (
               <span className="ml-0.5 font-mono text-[8px] font-bold text-[var(--sun)]">
-                · {busiest.visitors.toLocaleString()} so far
+                · {busiest.visitors.toLocaleString()} est. seats
               </span>
             )}
           </div>

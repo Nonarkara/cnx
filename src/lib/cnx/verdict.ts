@@ -235,6 +235,12 @@ export interface PingMeasured {
   observedAt: string;
 }
 
+/** A current gauge needs a usable observation time, not a fresh fetch time. */
+export function isCurrentGaugeReading(observedAt: string, nowMs = Date.now()): boolean {
+  const elapsed = nowMs - Date.parse(observedAt);
+  return Number.isFinite(elapsed) && elapsed >= -5 * 60_000 && elapsed <= 3 * 3_600_000;
+}
+
 export interface VerdictInputs {
   /** Worst live PM2.5 µg/m³ in CNX province. null = no signal. */
   pm25_now: number | null;
@@ -330,7 +336,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   // is still unable to say where the water stands, which is the same
   // position as having no gauge at all.
   const measuredGraded =
-    measured !== null && (measured.headroomM !== null || measured.belowBankM !== null);
+    measured !== null && isCurrentGaugeReading(measured.observedAt) && (measured.headroomM !== null || measured.belowBankM !== null);
   // "Blind" covers both ways the flood axis can fail to speak, because
   // neither is evidence of a quiet river: a scenario fill, and a live feed
   // whose gauge reading simply did not come through tonight.
@@ -380,8 +386,8 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
         floodScore = 40;
         reasons.push({
           domain: "flood",
-          th: `สถานี ${at} วัดได้เลยระดับวิกฤตที่ประกาศไว้ — น้ำล้นตลิ่ง${ageTxt}`,
-          en: `Gauge ${at} is at or above its published critical level — the river is over its bank${ageTxt}`,
+          th: `สถานี ${at} วัดได้ถึงหรือเลยระดับวิกฤตที่ประกาศไว้ — ตรวจสอบน้ำท่วมในพื้นที่${ageTxt}`,
+          en: `Gauge ${at} is at or above its published critical level — verify local inundation${ageTxt}`,
           evidence: `gauge_headroom=${head.toFixed(2)}m`,
         });
       } else if (bank !== null && bank <= 1) {
@@ -578,17 +584,22 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   // omission half of the same error the GISTDA letter made. So a blind
   // flood axis may never certify safe, and may only certify as far as
   // "watch" on its own (guaranteed by floodScore = 0 for scenario flood).
-  const level = floodBlind && scoredLevel === "safe" ? "watch" : scoredLevel;
+  const airBlind = input.pm25_now === null && typeof input.dustboy_pm25 !== "number";
+  const level = (floodBlind || airBlind) && scoredLevel === "safe" ? "watch" : scoredLevel;
   // Keep score/band/level coherent: never publish `score 0 · band normal ·
   // level watch`, which reads as a contradiction rather than a caveat.
   const band = level === scoredLevel ? scoredBand : bandForLevel(level);
+
+  if (airBlind) {
+    reasons.push({ domain: "air", th: "ไม่มีค่าฝุ่น PM2.5 ปัจจุบัน — ไม่ใช่หลักฐานว่าอากาศปลอดภัย", en: "No current PM2.5 reading — air quality is unverified, not safe", evidence: "pm25_now=null", isCaveat: true });
+  }
 
   if (floodBlind) {
     // Last, so a real air or fire hazard keeps the headline.
     reasons.push({
       domain: "flood",
-      th: "ยังไม่มีค่าระดับน้ำจากสถานีวัดจริง — ไม่ใช่หลักฐานว่าน้ำปลอดภัย ดูค่าที่สถานีวัดในพื้นที่",
-      en: "No live river-gauge reading — this is not evidence the river is safe; read the station gauges in your area",
+      th: measured && !isCurrentGaugeReading(measured.observedAt) ? "ค่าระดับน้ำล่าสุดเก่าหรือเวลาไม่ถูกต้อง — ยังยืนยันสภาพน้ำปัจจุบันไม่ได้" : "ยังไม่มีค่าระดับน้ำจากสถานีวัดจริง — ไม่ใช่หลักฐานว่าน้ำปลอดภัย ดูค่าที่สถานีวัดในพื้นที่",
+      en: measured && !isCurrentGaugeReading(measured.observedAt) ? `Supplied river-gauge reading is not current (stale, future or undated; stamp ${measured.observedAt}) — current river conditions are unverified` : "No live river-gauge reading — this is not evidence the river is safe; read the station gauges in your area",
       evidence: floodIsScenario
         ? "flood_provenance=scenario"
         : "ping_capacity_ratio=null",

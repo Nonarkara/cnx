@@ -13,7 +13,8 @@
 //   - "datasets about water quality"
 //   - "Wat Phra Singh" → heritage reference
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { fetchJsonOrNull } from "../../lib/client-requests";
 import { Search, Send, ExternalLink } from "lucide-react";
 
 interface Reference {
@@ -35,24 +36,32 @@ const SUGGESTIONS = [
 ];
 
 export default function CnxAskChat() {
+  const controllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<{ answer: string; references: Reference[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(q: string) {
-    if (q.trim().length < 2) return;
+    if (q.trim().length < 2 || controllerRef.current) return;
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setBusy(true);
     setError(null);
+    setAnswer(null);
     try {
-      const res = await fetch(`/api/cnx/ask?q=${encodeURIComponent(q)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as { answer: string; references: Reference[] };
+      const json = await fetchJsonOrNull<{ answer: string; references: Reference[] }>(
+        `/api/cnx/ask?q=${encodeURIComponent(q.trim())}`, { signal: controller.signal },
+      );
+      if (controller.signal.aborted) return;
+      if (!json) throw new Error("Search is unavailable. Please try again.");
       setAnswer(json);
     } catch (e) {
-      setError((e as Error).message);
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Search failed. Please try again.");
     } finally {
-      setBusy(false);
+      controllerRef.current = null;
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
 
@@ -64,7 +73,7 @@ export default function CnxAskChat() {
           ถามเชียงใหม่ · Ask
         </span>
         <span className="ml-auto font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
-          RAG · live corpus
+          RAG · source corpus
         </span>
       </header>
       <form
@@ -76,6 +85,7 @@ export default function CnxAskChat() {
         }}
       >
         <input
+          aria-label="Ask about Chiang Mai"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Ask: 'Mae On จุดความร้อน' / 'Wat Phra Singh' / 'PM2.5 today'"
@@ -83,6 +93,7 @@ export default function CnxAskChat() {
           disabled={busy}
         />
         <button
+          aria-label="Search Chiang Mai data"
           type="submit"
           disabled={busy}
           className="flex h-6 w-6 items-center justify-center border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--cool)] hover:bg-[var(--cool-dim)] disabled:opacity-40"
@@ -94,6 +105,7 @@ export default function CnxAskChat() {
         {SUGGESTIONS.map((s) => (
           <button
             key={s}
+            disabled={busy}
             onClick={() => { void submit(s); }}
             className="rounded-sm border border-[var(--line)] bg-[var(--bg)] px-2 py-0.5 font-mono text-[9px] text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
           >
@@ -101,13 +113,15 @@ export default function CnxAskChat() {
           </button>
         ))}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 text-[11px] text-[var(--ink)]">
-        {error && <p className="text-[var(--danger)]">{error}</p>}
-        {!answer && !error && (
+      <div aria-live="polite" aria-busy={busy} className="min-h-0 flex-1 overflow-y-auto px-3 py-2 text-[11px] text-[var(--ink)]">
+        {error && <p role="alert" className="text-[var(--danger)]">{error}</p>}
+        {busy && <p className="text-[var(--dim)]">Searching…</p>}
+        {!busy && !answer && !error && (
           <p className="text-[var(--dim)]">
             Try a question in Thai or English. The bot searches across
-            the open-data catalog (311 datasets), live fire / flood /
-            air / flight data, and the curated heritage list. Top-5
+            the available open-data catalogue, fire / flood /
+            air / flight evidence, and curated heritage references. Source labels
+            distinguish measurements, models and scenarios. Top-5
             documents are returned as a bulleted answer.
           </p>
         )}

@@ -67,7 +67,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
   }, [feed?.generatedAt]);
 
   return (
-    <section aria-label="CNX CCTV — กล้องจริงทั้งหมด" className="shrink-0 border-b border-[var(--line)] bg-white">
+    <section aria-label="CNX CCTV — กล้องจริงทั้งหมด" className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
       <div className="flex items-stretch">
         <div className="flex w-[132px] shrink-0 flex-col justify-center border-r border-[var(--line)] px-3 py-2">
           <div className="flex items-center gap-1.5">

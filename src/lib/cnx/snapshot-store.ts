@@ -6,7 +6,7 @@
 //
 //   { ts, fetchedAt, airborne, ground, byQuadrant, topOrigins }
 //
-// 8 TB of trend data per year comes from this file. The aggregator
+// These are compact poll summaries; no measured annual volume is claimed. The aggregator
 // (./trend-aggregator.ts, Phase 6) reads back the NDJSON files to
 // answer questions like "where were the widebodies flying to last
 // March?" or "which day did we see 50+ Chinese widebodies in one
@@ -62,6 +62,7 @@ export async function appendSnapshot(snap: FlightSnapshot): Promise<void> {
     list.splice(0, list.length - MAX_IN_MEMORY_SNAPSHOTS_PER_DAY);
   }
   edgeStore.set(key, list);
+  for (const old of [...edgeStore.keys()].sort().slice(0, -7)) edgeStore.delete(old);
 }
 
 /** Read back snapshots for a single day. Useful for the Phase 6

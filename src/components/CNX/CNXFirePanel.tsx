@@ -68,9 +68,9 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
         </div>
         {aerosol && (
           <span
-            className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] ${SEVERITY_CLASSES[aerosol.level]}`}
+            className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}
           >
-            AOD {aerosol.aod550}
+            AOD {aerosol.aod550 ?? "—"}
           </span>
         )}
       </header>
@@ -78,7 +78,7 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
       <div className="flex shrink-0 border-b border-[var(--line)]">
         {(
           [
-            { id: "rfd", label: "RFD", count: rfd?.totalCount },
+            { id: "rfd", label: "RFD", count: rfd?.provenance === "live" ? rfd.totalCount : undefined },
             { id: "firms", label: "FIRMS", count: firms?.provenance === "live" ? firms.totalCount : undefined },
             { id: "aerosol", label: "AOD", count: undefined },
           ] as const
@@ -119,6 +119,7 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
       .map(([type, count]) => ({ type, count }));
   }, [rfd]);
   if (!rfd) return <div className="p-3 text-[10px] text-[var(--dim)]">loading RFD hotspots…</div>;
+  if (rfd.provenance === "unavailable") return <div className="p-3 text-[11px] text-[var(--dim)]">RFD hotspot count: —. {rfd.note ?? "Feed unavailable; this does not establish zero hotspots."}</div>;
   return (
     <div>
       <div className="border-b border-[var(--line)] px-3 py-2">
@@ -213,7 +214,7 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{firms.totalCount}</div>
           <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
-            forest {((firms.forestShare ?? 0) * 100).toFixed(0)}%
+            forest tenure {firms.forestShare === undefined ? "unknown" : `${(firms.forestShare * 100).toFixed(0)}%`}
           </div>
         </div>
       </div>
@@ -251,26 +252,26 @@ function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
       <div className="mb-3 border-b border-[var(--line)] pb-2">
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-            Province AOD (550 nm)
+            CAMS model AOD (550 nm)
           </span>
-          <span className={`rounded-sm px-2 py-0.5 font-mono text-[10px] ${SEVERITY_CLASSES[aerosol.level]}`}>
-            {severityLabel(aerosol.level)}
+          <span className={`rounded-sm px-2 py-0.5 font-mono text-[10px] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}>
+            {aerosol.level ? severityLabel(aerosol.level) : "unavailable"}
           </span>
         </div>
         <div className="mt-1 flex items-baseline gap-2">
           <span className="font-mono text-[22px] font-bold tabular-nums text-[var(--ink)]">
-            {aerosol.aod550.toFixed(3)}
+            {aerosol.aod550?.toFixed(3) ?? "—"}
           </span>
           <span className="font-mono text-[9px] text-[var(--dim)]">
-            range {aerosol.aodMin.toFixed(3)}–{aerosol.aodMax.toFixed(3)}
+            range {aerosol.aodMin?.toFixed(3) ?? "—"}–{aerosol.aodMax?.toFixed(3) ?? "—"}
           </span>
         </div>
       </div>
       <p className="mb-2 text-[10px] text-[var(--dim)]">
         Aerosol Optical Depth at 550 nm from Copernicus Atmosphere
-        Monitoring Service (CAMS) on Open-Meteo. 0–0.10 = clear,
-        0.10–0.25 = elevated (burning-season watch), 0.25–0.40 = haze,
-        0.40+ = dense.
+        Monitoring Service (CAMS) on Open-Meteo: sampled model grid points,
+        not a measured province average. Display bands describe column
+        aerosol only; they do not establish surface PM2.5 or health risk.
       </p>
       <a
         href="https://air-quality-api.open-meteo.com/"

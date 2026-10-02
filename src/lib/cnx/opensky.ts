@@ -292,7 +292,8 @@ async function fetchFromRelayKv(): Promise<FetchResult | null> {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (!isFetchResult(parsed)) return null;
-    if (Date.now() - parsed.fetchedAt > FLIGHTS_KV_STALE_MS) return null;
+    const age = Date.now() - parsed.fetchedAt;
+    if (!Number.isFinite(age) || age < -5 * 60_000 || age > FLIGHTS_KV_STALE_MS) return null;
     return { ...parsed, source: parsed.source ?? "relay" };
   } catch {
     return null;

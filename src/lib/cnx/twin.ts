@@ -23,7 +23,7 @@ import { fetchCnxFires } from "./fires";
 import { fetchCnxDustboy } from "./dustboy";
 import { fetchSmokeTrajectory } from "./smoke-feed";
 import { fetchRiverLevel, isPingMainstem, type RiverGauge } from "./river-level";
-import { computeVerdict, type VerdictCard, type VerdictInputs, type PingMeasured } from "./verdict";
+import { computeVerdict, isCurrentGaugeReading, type VerdictCard, type VerdictInputs, type PingMeasured } from "./verdict";
 
 export interface CnxTwinResponse {
   system: "cnx";
@@ -76,8 +76,8 @@ export interface CnxTwinResponse {
       pm25_fc_24h: number | null;
       rain_fc_24h_mm: number | null;
       washout_band: "none" | "light" | "moderate" | "strong";
-      washout_expected_pct: number;
-      danger_score: number;
+      washout_expected_pct: number | null;
+      danger_score: number | null;
       wind_kmh: number | null;
     };
     fire: {
@@ -105,15 +105,15 @@ const LICENCE =
 /** Wind-based washout band — how much PM2.5 relief rain is expected to bring. */
 function washoutBand(rain_fc_24h_mm: number | null): {
   band: "none" | "light" | "moderate" | "strong";
-  expected_pct: number;
+  expected_pct: number | null;
 } {
   if (rain_fc_24h_mm === null || rain_fc_24h_mm < 2)
-    return { band: "none", expected_pct: 0 };
+    return { band: "none", expected_pct: null };
   if (rain_fc_24h_mm < 10)
-    return { band: "light", expected_pct: 15 };
+    return { band: "light", expected_pct: null };
   if (rain_fc_24h_mm < 25)
-    return { band: "moderate", expected_pct: 35 };
-  return { band: "strong", expected_pct: 60 };
+    return { band: "moderate", expected_pct: null };
+  return { band: "strong", expected_pct: null };
 }
 
 /** Composite Danger Score — AirDash's "right now" score. */
@@ -122,8 +122,8 @@ function dangerScore(args: {
   wind_kmh: number | null;
   rain_fc_24h_mm: number | null;
   fire_count: number | null;
-}): number {
-  if (args.pm25_now === null) return 0;
+}): number | null {
+  if (args.pm25_now === null) return null;
   // Base: PM2.5 / 2 capped at 75
   const base = Math.min(75, args.pm25_now / 2);
   // Wind-basin amplification: low wind = smoke doesn't disperse
@@ -144,12 +144,12 @@ const TTL_MS = 60_000;
 async function fetchWindKmh(): Promise<number | null> {
   try {
     const url =
-      "https://api.open-meteo.com/v1/forecast?latitude=18.788&longitude=98.985&current=wind_speed_10m&timezone=Asia%2FBangkok";
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
+      "https://api.open-meteo.com/v1/forecast?latitude=18.788&longitude=98.985&current=wind_speed_10m&wind_speed_unit=kmh&timezone=Asia%2FBangkok";
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
     if (!res.ok) return null;
     const j = (await res.json()) as { current?: { wind_speed_10m?: number } };
-    const mps = j.current?.wind_speed_10m;
-    return typeof mps === "number" ? Math.round(mps * 3.6) : null;
+    const kmh = j.current?.wind_speed_10m;
+    return typeof kmh === "number" && Number.isFinite(kmh) && kmh >= 0 ? kmh : null;
   } catch {
     return null;
   }
@@ -160,22 +160,22 @@ async function fetchWindKmh(): Promise<number | null> {
 async function fetchForecastPm25(): Promise<number | null> {
   try {
     const url =
-      "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=18.788&longitude=98.985&hourly=pm2_5,precipitation&forecast_days=2&timezone=Asia%2FBangkok";
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
+      "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=18.788&longitude=98.985&hourly=pm2_5&forecast_days=2&timezone=UTC&timeformat=unixtime";
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
     if (!res.ok) return null;
     const j = (await res.json()) as {
-      hourly?: { time?: string[]; pm2_5?: number[]; precipitation?: number[] };
+      hourly?: { time?: number[]; pm2_5?: number[] };
     };
     if (!j.hourly?.time?.length) return null;
     const nowMs = Date.now();
     let pmSum = 0;
     let pmCount = 0;
     for (let i = 0; i < j.hourly.time.length; i += 1) {
-      const t = Date.parse(j.hourly.time[i] ?? "");
+      const t = j.hourly.time[i] * 1000;
       const diffH = (t - nowMs) / 3_600_000;
       if (diffH > 0 && diffH <= 24) {
         const pm = j.hourly.pm2_5?.[i];
-        if (typeof pm === "number") {
+        if (typeof pm === "number" && Number.isFinite(pm) && pm >= 0) {
           pmSum += pm;
           pmCount += 1;
         }
@@ -188,6 +188,19 @@ async function fetchForecastPm25(): Promise<number | null> {
   }
 }
 
+/** Sum the next 24 hourly precipitation intervals, not either calendar day. */
+async function fetchRainNext24h(): Promise<number | null> {
+  try {
+    const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=18.788&longitude=98.985&hourly=precipitation&forecast_days=2&timezone=UTC&timeformat=unixtime", { signal: AbortSignal.timeout(12_000) });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { hourly?: { time?: number[]; precipitation?: (number | null)[] } };
+    const now = Date.now();
+    const values = (j.hourly?.time ?? []).flatMap((t, i) => t * 1000 > now && t * 1000 <= now + 24 * 3_600_000 ? [j.hourly?.precipitation?.[i]] : []);
+    if (values.length !== 24 || values.some((v) => typeof v !== "number" || !Number.isFinite(v) || v < 0)) return null;
+    return Math.round(values.reduce<number>((sum, v) => sum + (v as number), 0) * 10) / 10;
+  } catch { return null; }
+}
+
 export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
 
@@ -198,25 +211,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     fetchCnxFires(),
     fetchWindKmh(),
     fetchForecastPm25(),
-    fetchForecastPm25().then(async () => {
-      // Try to also pull rain forecast from the same call (already requested
-      // pm2_5_24h, but we re-pull here to keep types clean). If the dual-pull
-      // is too costly we can refactor fetchForecastPm25 to return both.
-      try {
-        const url =
-          "https://api.open-meteo.com/v1/forecast?latitude=18.788&longitude=98.985&daily=precipitation_sum&forecast_days=2&timezone=Asia%2FBangkok";
-        const res = await fetch(url, { headers: { Accept: "application/json" } });
-        if (!res.ok) return null;
-        const j = (await res.json()) as { daily?: { precipitation_sum?: number[] } };
-        const arr = j.daily?.precipitation_sum;
-        if (!arr || arr.length < 2) return null;
-        // arr[0] is today, arr[1] is tomorrow — pick the bigger of the two
-        // so an evening-today rain is reflected honestly.
-        return Math.max(arr[0] ?? 0, arr[1] ?? 0);
-      } catch {
-        return null;
-      }
-    }),
+    fetchRainNext24h(),
     fetchCnxDustboy(),
     fetchSmokeTrajectory(),
     fetchRiverLevel(),
@@ -261,7 +256,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   // Ties break toward the station with the newer observation, so a stale
   // gauge does not represent a fresher one standing beside it.
   const usableGauges: RiverGauge[] =
-    river.provenance === "live" ? river.gauges.filter(isPingMainstem) : [];
+    river.provenance === "live" ? river.gauges.filter((g) => isPingMainstem(g) && isCurrentGaugeReading(g.observedAt)) : [];
 
   const pickGauge = (g: RiverGauge): number => {
     // hasThreshold first, then tightness, then freshness.

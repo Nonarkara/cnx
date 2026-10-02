@@ -30,6 +30,9 @@ export async function GET(request: Request): Promise<Response> {
   if (codes.length > MAX_ICAO_BATCH) {
     return NextResponse.json({ error: `icao24 batch exceeds ${MAX_ICAO_BATCH}` }, { status: 400 });
   }
+  if (codes.some((code) => !/^[0-9a-f]{6}$/i.test(code))) {
+    return NextResponse.json({ error: "icao24 codes must contain exactly 6 hexadecimal characters" }, { status: 400 });
+  }
   try {
     const aircraft = await fetchAircraftMetadata(codes);
     return NextResponse.json(

@@ -12,7 +12,8 @@
 //   - Province-average AOD number on the right rail (CAMS)
 //
 // Open-Meteo CAMS returns AOD at 550 nm; we map 0–1 to "good → critical"
-// using the WHO interim target (≤ 0.15 / 24 h mean is the boundary).
+// with dashboard display bands, not health thresholds. AOD is a column
+// optical quantity and cannot establish surface PM2.5 or health risk.
 
 import type { SeverityLevel } from "../../types/cnx";
 
@@ -21,11 +22,12 @@ const OPEN_METEO_CAMS = "https://air-quality-api.open-meteo.com/v1/air-quality";
 export interface AerosolResponse {
   generatedAt: string;
   /** AOD at 550 nm — province average. */
-  aod550: number;
+  aod550: number | null;
   /** Range across stations. */
-  aodMin: number;
-  aodMax: number;
-  level: SeverityLevel;
+  aodMin: number | null;
+  aodMax: number | null;
+  level: SeverityLevel | null;
+  provenance: "model" | "unavailable";
   /** Tile URL template (for the map overlay). */
   tileUrl: string;
 }
@@ -69,26 +71,33 @@ export async function fetchCnxAerosol(): Promise<AerosolResponse> {
   try {
     const vals = await Promise.all(
       probes.map(async (p) => {
-        const u = `${OPEN_METEO_CAMS}?latitude=${p.lat}&longitude=${p.lon}&hourly=aerosol_optical_depth&forecast_days=1&timezone=Asia%2FBangkok`;
+        const u = `${OPEN_METEO_CAMS}?latitude=${p.lat}&longitude=${p.lon}&hourly=aerosol_optical_depth&forecast_days=1&timezone=UTC&timeformat=unixtime`;
         const res = await fetch(u, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
         if (!res.ok) return null;
-        const j = (await res.json()) as { hourly?: { aerosol_optical_depth?: number[]; time?: string[] } };
-        const last = j.hourly?.aerosol_optical_depth?.length ? j.hourly.aerosol_optical_depth[j.hourly.aerosol_optical_depth.length - 1] : null;
-        return last ?? null;
+        const j = (await res.json()) as { hourly?: { aerosol_optical_depth?: (number | null)[]; time?: number[] } };
+        const times = j.hourly?.time ?? [];
+        let idx = -1;
+        for (let i = 0; i < times.length; i += 1) {
+          const t = times[i] * 1000;
+          if (Number.isFinite(t) && t <= Date.now() && Date.now() - t <= 3 * 3_600_000 && (idx < 0 || times[i] > times[idx])) idx = i;
+        }
+        const value = idx < 0 ? null : j.hourly?.aerosol_optical_depth?.[idx];
+        return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
       }),
     );
-    const live = vals.filter((v): v is number => v !== null && v > 0);
-    const aod = live.length ? live.reduce((a, b) => a + b, 0) / live.length : 0.18;
-    const aodMin = live.length ? Math.min(...live) : aod * 0.6;
-    const aodMax = live.length ? Math.max(...live) : aod * 1.4;
+    const live = vals.filter((v): v is number => v !== null);
+    const aod = live.length ? live.reduce((a, b) => a + b, 0) / live.length : null;
+    const aodMin = live.length ? Math.min(...live) : null;
+    const aodMax = live.length ? Math.max(...live) : null;
     const day = gibsDateAod(1);
     const tileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol_Optical_Depth/default/${day}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
     const response: AerosolResponse = {
       generatedAt: now,
-      aod550: Math.round(aod * 1000) / 1000,
-      aodMin: Math.round(aodMin * 1000) / 1000,
-      aodMax: Math.round(aodMax * 1000) / 1000,
-      level: severityForAod(aod),
+      aod550: aod === null ? null : Math.round(aod * 1000) / 1000,
+      aodMin: aodMin === null ? null : Math.round(aodMin * 1000) / 1000,
+      aodMax: aodMax === null ? null : Math.round(aodMax * 1000) / 1000,
+      level: aod === null ? null : severityForAod(aod),
+      provenance: aod === null ? "unavailable" : "model",
       tileUrl,
     };
     cache = { at: Date.now(), data: response };
@@ -96,10 +105,11 @@ export async function fetchCnxAerosol(): Promise<AerosolResponse> {
   } catch {
     const fallback: AerosolResponse = {
       generatedAt: now,
-      aod550: 0.18,
-      aodMin: 0.1,
-      aodMax: 0.3,
-      level: "watch",
+      aod550: null,
+      aodMin: null,
+      aodMax: null,
+      level: null,
+      provenance: "unavailable",
       tileUrl: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol_Optical_Depth/default/${gibsDateAod(1)}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`,
     };
     return fallback;

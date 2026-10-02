@@ -48,7 +48,7 @@ interface GdeltArticle {
 
 async function fetchGdelt(): Promise<GdeltArticle[]> {
   try {
-    const res = await fetch(GDELT, { headers: { Accept: "application/json" } });
+    const res = await fetch(GDELT, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(4000) });
     if (!res.ok) return [];
     const json = (await res.json()) as { articles?: GdeltArticle[] };
     return json.articles ?? [];
@@ -77,6 +77,8 @@ function isoFromGdelt(s: string | undefined): string {
 }
 
 let cache: { at: number; data: SocialListeningResponse } | null = null;
+// Only the eight configured countries participate in keys: at most 256 subsets.
+const multilingualCache = new Map<string, { at: number; data: SocialListeningResponse }>();
 const TTL_MS = 3 * 60_000;
 
 /** Per-language Google News feeds, keyed by tourist-origin country. The
@@ -138,21 +140,20 @@ function buildBaselineItems(nowIso: string): SocialItem[] {
  *  for the given top-N countries. Used when the flight desk's top
  *  origin countries include CN / JP / KR / RU / DE / FR / IN / AU. */
 export async function fetchCnxSocialMultilingual(countries: string[] = []): Promise<SocialListeningResponse> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
+  const wanted = new Set(countries.map((c) => c.trim().toLowerCase()));
+  const selected = MULTILINGUAL_FEEDS.filter((f) => countries.length === 0 || wanted.has(f.country.toLowerCase()));
+  const key = selected.map((f) => f.country).sort().join(",");
+  const cached = multilingualCache.get(key);
+  if (cached && Date.now() - cached.at < TTL_MS) return cached.data;
   const now = new Date().toISOString();
   const baseline = buildBaselineItems(now);
 
   try {
-    const wanted = new Set(countries.map((c) => c.toLowerCase()));
     const feeds: { url: string; lang: SocialItem["lang"] }[] = [
       { url: GOOGLE_NEWS_TH, lang: "th" },
       { url: GOOGLE_NEWS_EN, lang: "en" },
     ];
-    for (const f of MULTILINGUAL_FEEDS) {
-      if (wanted.size === 0 || wanted.has(f.country.toLowerCase())) {
-        feeds.push({ url: f.url, lang: f.lang });
-      }
-    }
+    for (const f of selected) feeds.push({ url: f.url, lang: f.lang });
 
     const [rssResults, gdelt] = await Promise.all([
       Promise.allSettled(
@@ -220,7 +221,7 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
         en: items.filter((i) => i.lang !== "th").length,
       },
     };
-    cache = { at: Date.now(), data: response };
+    multilingualCache.set(key, { at: Date.now(), data: response });
     return response;
   } catch {
     const response: SocialListeningResponse = {

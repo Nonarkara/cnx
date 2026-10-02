@@ -10,6 +10,8 @@
 //     patches have some pixel near zero in at least one colour channel;
 //     airlight from haze lifts that minimum. Mean dark channel ≈ haze.
 //   - RMS contrast of luminance: haze flattens the scene.
+// Dark channel and contrast are divided by mean luminance before comparison,
+// so an unclipped uniform exposure gain cancels rather than looking like haze.
 //   - Mean saturation: haze greys colours out.
 // Each camera is compared with the clearest frames IT has produced over the
 // history window, because absolute values depend on the scene. The top
@@ -32,8 +34,12 @@ export interface FrameMetrics {
 }
 
 export interface Baseline {
+  /** Dark channel / mean luminance, cancelling uniform exposure changes. */
   darkChannel: number;
+  /** RMS contrast / mean luminance (coefficient of variation). */
   contrast: number;
+  /** Median exposure used to keep the dark-channel threshold in pixel units. */
+  meanLuminance: number;
   samples: number;
 }
 
@@ -50,6 +56,8 @@ export interface HazeVerdict {
 export const MIN_DAYLIGHT_LUMINANCE = 0.14;
 /** Daylight frames needed before a camera's baseline is trusted. */
 export const MIN_BASELINE_SAMPLES = 12;
+/** Stored agreement pairs must use the same scoring method. */
+export const HAZE_SCORER_VERSION = 2;
 /** A frame with no measurable colour is not a daylight RGB scene.
  *
  *  Several Windy cameras switch to monochrome infrared after dusk: the
@@ -144,8 +152,9 @@ export function baselineFrom(history: FrameMetrics[]): Baseline | null {
   const day = history.filter(isScorable);
   if (day.length < MIN_BASELINE_SAMPLES) return null;
   return {
-    darkChannel: percentile(day.map((m) => m.darkChannel), 0.2),
-    contrast: percentile(day.map((m) => m.contrast), 0.8),
+    darkChannel: percentile(day.map((m) => m.darkChannel / m.meanLuminance), 0.2),
+    contrast: percentile(day.map((m) => m.contrast / m.meanLuminance), 0.8),
+    meanLuminance: percentile(day.map((m) => m.meanLuminance), 0.5),
     samples: day.length,
   };
 }
@@ -154,8 +163,11 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** 0–1: how far this frame has moved from the camera's clear baseline. */
 export function hazeScore(m: FrameMetrics, base: Baseline): number {
-  const dcRise = clamp01((m.darkChannel - base.darkChannel) / 0.25);
-  const contrastDrop = base.contrast > 0 ? clamp01((base.contrast - m.contrast) / (base.contrast * 0.6)) : 0;
+  const luminance = Math.max(m.meanLuminance, MIN_DAYLIGHT_LUMINANCE);
+  // Compare at the baseline's exposure, preserving the original 0.25
+  // intensity threshold rather than making dim cameras more sensitive.
+  const dcRise = clamp01(((m.darkChannel / luminance - base.darkChannel) * base.meanLuminance) / 0.25);
+  const contrastDrop = base.contrast > 0 ? clamp01((base.contrast - m.contrast / luminance) / (base.contrast * 0.6)) : 0;
   return Math.round((0.6 * dcRise + 0.4 * contrastDrop) * 100) / 100;
 }
 
@@ -187,4 +199,4 @@ export function pearson(xs: number[], ys: number[]): number | null {
 }
 
 export const HAZE_METHODOLOGY =
-  "Classical image statistics on public webcam snapshots (dark-channel prior, He et al. 2009; luminance contrast; saturation), each camera compared with its own clearest daylight frames. Not a trained model and not a PM2.5 measurement: rain, fog, low cloud and a dirty lens also read as haze; night frames are skipped, as are monochrome infrared frames from cameras that switch to night vision after dusk; a camera that has only seen hazy days under-reports. The agreement figure compares scores with the nearest DustBoy ground sensor.";
+  "Classical image statistics on public webcam snapshots (dark-channel prior, He et al. 2009; exposure-normalized dark channel and luminance contrast; saturation), each camera compared with its own clearest daylight frames. Only snapshots with a known capture time are scored; identical images do not add calibration samples. Not a trained model and not a PM2.5 measurement: rain, fog, low cloud and a dirty lens also read as haze; night frames are skipped, as are monochrome infrared frames from cameras that switch to night vision after dusk; a camera that has only seen hazy days under-reports. Uniform exposure changes are normalized; clipping, camera movement and changing shadows can still affect the score. The agreement figure uses this scoring version only, paired with a non-suspect DustBoy ground reading within 15 km and 90 minutes of the frame.";

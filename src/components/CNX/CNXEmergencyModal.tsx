@@ -13,7 +13,7 @@
 // Every entry keeps its source so a stale number can be traced back
 // and re-verified rather than silently trusted forever.
 
-import { useEffect } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { X, PhoneCall } from "lucide-react";
 
 interface Props {
@@ -72,18 +72,13 @@ const GROUPS: HotlineGroup[] = [
 ];
 
 export default function CnxEmergencyModal({ isOpen, onClose }: Props) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  const dialogRef = useModalDialog(isOpen, onClose);
 
   if (!isOpen) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="cnx-emergency-heading"
@@ -125,7 +120,7 @@ export default function CnxEmergencyModal({ isOpen, onClose }: Props) {
                   <li key={e.label} className="flex items-center justify-between gap-3 px-3 py-1.5">
                     <span className="text-[12px] text-[var(--ink)]">{e.label}</span>
                     <a
-                      href={`tel:${e.phone.replace(/[^\d+]/g, "").split("/")[0]}`}
+                      href={`tel:${e.phone.split("/")[0].replace(/[^\d+]/g, "")}`}
                       className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-[var(--danger)] hover:underline"
                     >
                       {e.phone}

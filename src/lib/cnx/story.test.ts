@@ -91,7 +91,7 @@ describe("story — a live river is described normally", () => {
       buildStoryFromInputs("stable-winter-day", inputsWith({ floodLive: true, pingCap: 0.46 })),
     );
     expect(text).toMatch(/46% of bank-full/);
-    expect(text).toMatch(/calm river/i);
+    expect(text).not.toMatch(/calm river/i);
   });
 
   it("reports a high ratio without softening it", () => {
@@ -110,5 +110,22 @@ describe("story — test fixtures carry no plausible river numbers", () => {
     expect(d.bhmFraction).toBe(0);
     expect(d.sktFraction).toBe(0);
     expect(d.rain24).toBe(0);
+  });
+});
+
+
+describe("story — operational assertions require evidence", () => {
+  it("does not turn missing air and flight data into reassurance or arrivals", () => {
+    for (const id of SCENARIO_IDS) {
+      const text = allText(buildStoryFromInputs(id, inputsWith()));
+      expect(text).toMatch(/air quality is unverified/);
+      expect(text).not.toMatch(/PM2\.5 0|clear air|comfort band|22 widebodies|35–45k|arrivals in the last/);
+    }
+  });
+  it("never invents government orders, deployment schedules, or fire causes", () => {
+    const text = allText(buildStoryFromInputs("burning-season-peak", inputsWith({ pm25: 180, firesLive: true, fireCount: 40, forestShare: 0.9 })));
+    expect(text).toMatch(/40 hotspots/);
+    expect(text).toMatch(/Suggested action/);
+    expect(text).not.toMatch(/PCD declared|activities suspended|distribution at|trail open|protected forest ring|1,200 sandbags/);
   });
 });

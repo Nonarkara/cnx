@@ -35,12 +35,13 @@ export interface HazeVisionPayload {
   generatedAt: string;
   cameras: CameraHaze[];
   /**
-   * Pearson r between haze score and nearest DustBoy PM2.5 over the
-   * relay's history window, with how many frame/sensor pairs it rests on.
+   * Pearson r between mean camera score and time-matched DustBoy PM2.5
+   * over the relay's history window. Each station/timestamp is counted
+   * once, even if several frames or cameras pair with that reading.
    *
    * The context fields exist because a bare `r` is misleading on its own.
-   * A correlation can only validate the scorer if the window actually
-   * contained a haze EVENT to detect: every paired PM2.5 in the first
+   * An association needs a varied window to be informative; it does not
+   * establish detection accuracy. The first window had no haze event: every paired PM2.5 in the first
    * month of operation sat between 3 and 20 µg/m³ (median 7), i.e. clean
    * air throughout. Pearson against a near-constant response returns a
    * small number whether the scorer is excellent or useless, so a bare

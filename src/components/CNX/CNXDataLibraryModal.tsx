@@ -4,7 +4,7 @@
 // the Research pop-up. The standalone /cnx/data page renders the same
 // component for direct links.
 
-import { useEffect } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { X } from "lucide-react";
 import CNXDataLibrary from "./CNXDataLibrary";
 
@@ -14,18 +14,13 @@ interface Props {
 }
 
 export default function CnxDataLibraryModal({ isOpen, onClose }: Props) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  const dialogRef = useModalDialog(isOpen, onClose);
 
   if (!isOpen) return null;
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-label="Data workbench — Chiang Mai open data"

@@ -7,16 +7,21 @@
 // /api/cnx/haze-vision/ingest.
 
 import sharp from "sharp";
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { classifyFrame, computeFrameMetrics, isScorable, pearson } from "../src/lib/cnx/haze-vision-core.ts";
-import { normaliseStation } from "../src/lib/cnx/dustboy.ts";
+import { classifyFrame, computeFrameMetrics, HAZE_SCORER_VERSION, isScorable, pearson } from "../src/lib/cnx/haze-vision-core.ts";
+import { flagSuspects, normaliseStation } from "../src/lib/cnx/dustboy.ts";
 
 const EVERY_MS = 10 * 60_000;
 const HISTORY_DAYS = 30;
 /** Windy previews refresh a few times a day (some cameras are dead for days); older frames are not scored. */
 const MAX_FRAME_AGE_MS = 6 * 60 * 60_000;
 const NEAREST_SENSOR_KM = 15;
+const MAX_SENSOR_TIME_DELTA_MS = 90 * 60_000;
+const CLOCK_SKEW_MS = 5 * 60_000;
 const ANALYSIS_WIDTH = 320;
+const MAX_SNAPSHOT_BYTES = 12 * 1024 * 1024;
+const MAX_SNAPSHOT_PIXELS = 24_000_000;
 /**
  * PM2.5 spread (µg/m³) below which a correlation cannot discriminate a
  * working scorer from a broken one. Duplicated from
@@ -29,8 +34,9 @@ const ANALYSIS_WIDTH = 320;
  */
 const HAZE_TESTABLE_SPREAD = 20;
 /** A reading at or above this is an unhealthy one; an EVENT needs several. */
-const HAZE_EVENT_UG = 50;const DUSTBOY_FEED = "https://www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json";
-const CACHE_DIR = "/Volumes/Data/CNX/relay-cache";
+const HAZE_EVENT_UG = 50;
+const DUSTBOY_FEED = "https://www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json";
+const CACHE_DIR = process.env.CNX_RELAY_CACHE_DIR ?? "/Volumes/Data/CNX/relay-cache";
 const HISTORY_FILE = `${CACHE_DIR}/haze-history.json`;
 
 let lastRunAt = 0;
@@ -59,35 +65,71 @@ async function fetchDustboyOnline() {
     const res = await fetch(DUSTBOY_FEED, { signal: AbortSignal.timeout(20_000) });
     if (!res.ok) return [];
     const raw = await res.json();
-    return raw.map((r) => normaliseStation(r)).filter((s) => s && s.pm25 !== null);
+    return flagSuspects(raw.map((r) => normaliseStation(r)).filter((s) => s !== null))
+      .filter((s) => s.pm25 !== null && !s.suspect);
   } catch {
     return [];
   }
 }
 
-function nearestPm25(cam, sensors) {
+function nearestPm25(cam, sensors, observedAt) {
   let best = null;
   for (const s of sensors) {
+    const sensorTime = Date.parse(s.observedAt);
+    if (!Number.isFinite(sensorTime) || sensorTime > Date.now() + CLOCK_SKEW_MS ||
+        Math.abs(sensorTime - observedAt) > MAX_SENSOR_TIME_DELTA_MS) continue;
     const d = distanceKm(cam.latitude, cam.longitude, s.latitude, s.longitude);
     if (d <= NEAREST_SENSOR_KM && (!best || d < best.distanceKm)) {
-      best = { stationName: s.nameTh || s.stationId, pm25: s.pm25, distanceKm: Math.round(d * 10) / 10, observedAt: s.observedAt };
+      best = { stationId: s.stationId, stationName: s.nameTh || s.stationId, pm25: s.pm25, distanceKm: Math.round(d * 10) / 10, observedAt: s.observedAt };
     }
   }
   return best;
 }
 
-async function scoreSnapshot(url) {
+async function readSnapshotBytes(res) {
+  if (Number(res.headers.get("content-length")) > MAX_SNAPSHOT_BYTES) {
+    await res.body?.cancel();
+    throw new Error("snapshot exceeds 12 MiB — not scored");
+  }
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("snapshot body is missing — not scored");
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_SNAPSHOT_BYTES) {
+        await reader.cancel();
+        throw new Error("snapshot exceeds 12 MiB — not scored");
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks, size);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function scoreSnapshot(url, capturedAt) {
   const res = await fetch(url, { signal: AbortSignal.timeout(20_000), headers: { "User-Agent": "cnx-dashboard haze relay" } });
   if (!res.ok) throw new Error(`snapshot ${res.status}`);
-  const modified = Date.parse(res.headers.get("last-modified") ?? "");
-  const { data, info } = await sharp(Buffer.from(await res.arrayBuffer()))
+  const headerTime = Date.parse(res.headers.get("last-modified") ?? "");
+  const observedAt = Number.isFinite(headerTime) ? headerTime : Date.parse(capturedAt ?? "");
+  if (!Number.isFinite(observedAt)) throw new Error("snapshot capture time is unknown — not scored");
+  if (observedAt > Date.now() + CLOCK_SKEW_MS) throw new Error("snapshot capture time is in the future — not scored");
+  if (Date.now() - observedAt > MAX_FRAME_AGE_MS) throw new Error("snapshot is older than 6 hours — not scored");
+  const { data, info } = await sharp(await readSnapshotBytes(res), { limitInputPixels: MAX_SNAPSHOT_PIXELS })
     .resize({ width: ANALYSIS_WIDTH, withoutEnlargement: true })
+    .toColourspace("srgb")
     .removeAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
   return {
     metrics: computeFrameMetrics(data, info.width, info.height, info.channels),
-    observedAt: Number.isFinite(modified) ? modified : Date.now(),
+    observedAt,
+    fingerprint: createHash("sha256").update(`${info.width}:${info.height}:${info.channels}:`).update(data).digest("hex"),
   };
 }
 
@@ -101,16 +143,19 @@ async function scoreSnapshot(url) {
  *  pm25Min/pm25Max/spansHazeEvent lets the panel say "not yet testable"
  *  instead of printing a number that reads as a verdict. */
 function agreement(history) {
-  const xs = [];
-  const ys = [];
+  // One hourly ground observation is one validation sample, even when
+  // multiple frames/cameras pair with it. Average their visual scores.
+  const paired = new Map();
   for (const entries of Object.values(history)) {
     for (const e of entries) {
-      if (typeof e.score === "number" && typeof e.pm25 === "number") {
-        xs.push(e.score);
-        ys.push(e.pm25);
-      }
+      if (e.scorerVersion !== HAZE_SCORER_VERSION || typeof e.pmPairKey !== "string" ||
+          typeof e.score !== "number" || typeof e.pm25 !== "number") continue;
+      const group = paired.get(e.pmPairKey) ?? { sum: 0, count: 0, pm25: e.pm25 };
+      paired.set(e.pmPairKey, { sum: group.sum + e.score, count: group.count + 1, pm25: group.pm25 });
     }
   }
+  const xs = [...paired.values()].map((p) => p.sum / p.count);
+  const ys = [...paired.values()].map((p) => p.pm25);
   const sorted = [...ys].sort((a, b) => a - b);
   const pct = (p) => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] : null);
   const pm25Min = sorted.length ? sorted[0] : null;
@@ -154,22 +199,31 @@ export async function runHazeVision({ baseUrl, secret }) {
     const history = loadHistory();
     const cutoff = Date.now() - HISTORY_DAYS * 86_400_000;
     const cameras = [];
+    for (const [id, entries] of Object.entries(history)) {
+      history[id] = entries.filter((e) => e.t >= cutoff && isScorable(e.m));
+    }
 
     for (const cam of cams) {
       try {
-        const { metrics, observedAt } = await scoreSnapshot(cam.posterUrl);
+        const snapshot = await scoreSnapshot(cam.posterUrl, cam.capturedAt);
+        const { metrics, fingerprint } = snapshot;
+        const past = history[cam.id] ?? [];
+        // A CDN may update Last-Modified without changing the pixels. Keep the
+        // original observation time so a frozen scene cannot look newly captured.
+        const previous = past.find((e) => e.fingerprint === fingerprint);
+        const observedAt = previous?.t ?? snapshot.observedAt;
         if (Date.now() - observedAt > MAX_FRAME_AGE_MS) {
-          console.warn(`[haze] ${cam.id}: snapshot is ${Math.round((Date.now() - observedAt) / 3_600_000)} h old, skipped`);
+          history[cam.id] = past;
+          console.warn(`[haze] ${cam.id}: unchanged snapshot is older than 6 hours — not scored`);
           continue;
         }
-        const past = (history[cam.id] ?? []).filter((e) => e.t >= cutoff);
         const verdict = classifyFrame(metrics, past.map((e) => e.m));
-        const pm = nearestPm25(cam, sensors);
+        const pm = nearestPm25(cam, sensors, observedAt);
         // Same frame as last run (Windy refreshes slower than we poll) — don't double-count it.
         // isScorable (not just isDaylight) so monochrome IR night-vision frames
         // never enter the baseline or the stored history.
-        if (past.at(-1)?.t !== observedAt && isScorable(metrics)) {
-          past.push({ t: observedAt, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null });
+        if (!previous && !past.some((e) => e.t === observedAt) && isScorable(metrics)) {
+          past.push({ t: observedAt, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null, pmPairKey: pm ? `${pm.stationId}:${pm.observedAt}` : null, fingerprint, scorerVersion: HAZE_SCORER_VERSION });
         }
         history[cam.id] = past;
         cameras.push({

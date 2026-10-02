@@ -10,16 +10,16 @@ const raw = {
   dustboy_lon: "98.9996602",
   pm25: 42,
   province_code: "50",
-  log_datetime: "2026-09-28 13:00:00",
+  log_datetime: "2026-09-28 07:00:00",
 };
 
 describe("DustBoy normaliseStation", () => {
   it("parses the public feed row, reading the timestamp as UTC", () => {
     const s = normaliseStation(raw, NOW);
     expect(s).toMatchObject({ stationId: "nightbazaar", province: "เชียงใหม่", district: "เมือง", pm25: 42, severity: "watch" });
-    // 13:00 UTC = 20:00 Bangkok. The feed stamps in UTC — see parseLogDatetime.
-    expect(s?.observedAt).toBe("2026-09-28T13:00:00.000Z");
-    expect(s?.readingAgeHours).toBe(0);
+    // 07:00 UTC = 14:00 Bangkok. The feed stamps in UTC.
+    expect(s?.observedAt).toBe("2026-09-28T07:00:00.000Z");
+    expect(s?.readingAgeHours).toBe(1);
   });
 
   it("treats the feed's UTC stamp as UTC, not Bangkok local (regression)", () => {
@@ -44,6 +44,12 @@ describe("DustBoy normaliseStation", () => {
     expect(summariseBasin(online.filter((s) => s !== null)).onlineCount).toBe(197);
   });
 
+  it("rejects future and over-three-hour readings before rounding the display age", () => {
+    expect(normaliseStation({ ...raw, log_datetime: "2026-09-28 08:00:00" }, NOW)?.pm25).toBeNull();
+    expect(normaliseStation({ ...raw, log_datetime: "2026-09-28 04:01:00" }, NOW)?.pm25).toBeNull();
+    expect(normaliseStation({ ...raw, log_datetime: "2026-09-28 04:30:00" }, NOW)?.pm25).toBe(42);
+  });
+
   it("drops stations outside the upper-north basin", () => {
     expect(normaliseStation({ ...raw, province_code: "10" }, NOW)).toBeNull();
   });
@@ -62,7 +68,7 @@ describe("DustBoy normaliseStation", () => {
         province_code: "52",
         pm25: 180,
         dustboy_name: "ทดสอบ อ.เมือง จ.ลำปาง",
-        log_datetime: "2026-09-28 14:00:00",
+        log_datetime: "2026-09-28 07:00:00",
       },
       NOW,
     );
@@ -70,7 +76,7 @@ describe("DustBoy normaliseStation", () => {
     const basin = summariseBasin([cm!, lampang!]);
     expect(basin.chiangMai.avgPm25).toBe(42);
     expect(basin.chiangMai.onlineCount).toBe(1);
-    expect(basin.chiangMai.newestReadingAgeHours).toBe(0);
+    expect(basin.chiangMai.newestReadingAgeHours).toBe(1);
     expect(basin.avgPm25).toBeGreaterThan(42);
     expect(basin.onlineCount).toBe(2);
   });

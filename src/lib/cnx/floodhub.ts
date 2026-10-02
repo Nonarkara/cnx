@@ -128,8 +128,13 @@ export function summariseFloodHub(
   const byId = new Map(statuses.map((s) => [s.gaugeId, s]));
   const points: FloodHubPoint[] = gauges.map((g) => {
     const s = byId.get(g.gaugeId);
-    const severity = SEVERITIES.includes(s?.severity as FloodHubSeverity) ? (s?.severity as FloodHubSeverity) : "UNKNOWN";
-    const trend = TRENDS.includes(s?.forecastTrend as (typeof TRENDS)[number]) ? (s?.forecastTrend as FloodHubPoint["trend"]) : "UNKNOWN";
+    const issued = Date.parse(s?.issuedTime ?? "");
+    const end = Date.parse(s?.forecastTimeRange?.end ?? "");
+    const start = Date.parse(s?.forecastTimeRange?.start ?? "");
+    const nowMs = Date.parse(now);
+    const usable = Number.isFinite(issued) && issued <= nowMs + 5 * 60_000 && nowMs - issued <= 24 * 3_600_000 && Number.isFinite(start) && Number.isFinite(end) && start <= nowMs && end > nowMs;
+    const severity = usable && SEVERITIES.includes(s?.severity as FloodHubSeverity) ? (s?.severity as FloodHubSeverity) : "UNKNOWN";
+    const trend = usable && TRENDS.includes(s?.forecastTrend as (typeof TRENDS)[number]) ? (s?.forecastTrend as FloodHubPoint["trend"]) : "UNKNOWN";
     return {
       ...g,
       severity,
@@ -142,7 +147,7 @@ export function summariseFloodHub(
   const known = points.filter((p) => p.severity !== "UNKNOWN");
   const worst = known.length ? known.reduce((a, b) => (RANK[b.severity] > RANK[a.severity] ? b : a)).severity : null;
   const outlook = worst === null ? "unknown" : RANK[worst] >= RANK.ABOVE_NORMAL ? "flooding" : "none-forecast";
-  return { generatedAt: now, provenance: points.length ? "live" : "unavailable", points, outlook, worst, note: floodHubNote(points) };
+  return { generatedAt: now, provenance: known.length ? "live" : "unavailable", points, outlook, worst, note: floodHubNote(points) };
 }
 
 let gaugeCache: { at: number; gauges: ReturnType<typeof nearestGauges> } | null = null;

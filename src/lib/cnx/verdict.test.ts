@@ -467,3 +467,12 @@ describe("computeVerdict — a scenario flood is no signal at all", () => {
     expect(v.level).toBe("prepare");
   });
 });
+
+
+describe("unobserved air", () => {
+  it("does not clear the board when a quiet river is measured but PM2.5 is missing", () => {
+    const v = computeVerdict({ pm25_now: null, pm25_fc_24h: null, rain_fc_24h_mm: null, rain_now_24h_mm: 0, ping_capacity_ratio: 0.3, reservoir_surge: false, fire_count: 0, wind_kmh: null, provenance: "mixed", flood_provenance: "live" });
+    expect(v.level).toBe("watch");
+    expect(v.reasons.some((r) => r.domain === "air" && r.isCaveat)).toBe(true);
+  });
+});

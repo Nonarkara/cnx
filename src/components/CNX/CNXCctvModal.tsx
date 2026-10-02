@@ -13,6 +13,7 @@
 // upstream attribution link-out on every view.
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import type { CctvSlot } from "../../types/cnx";
 
 interface Props {
@@ -39,18 +40,13 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
     setFailed(false);
     const video = videoRef.current;
     if (!video) return;
-let hls: {
-      destroy: () => void;
-      onError?: ((data: { fatal: boolean }) => void) | undefined;
-      loadSource: (src: string) => void;
-      attachMedia: (video: HTMLVideoElement) => void;
-    } | null = null;
+    let hls: import("hls.js").default | null = null;
     let cancelled = false;
     // Safari (and some mobile browsers) play HLS natively.
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
       video.play().catch(() => {});
-      return;
+      return () => { video.pause(); video.removeAttribute("src"); video.load(); };
     }
     void import("hls.js").then((m) => {
       if (cancelled || !videoRef.current) return;
@@ -59,10 +55,10 @@ let hls: {
         setFailed(true);
         return;
       }
-hls = new Hls({ maxBufferLength: 30 });
-      hls.onError = () => {
-        if (!cancelled) setFailed(true);
-      };
+      hls = new Hls({ maxBufferLength: 30 });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (!cancelled && data.fatal) setFailed(true);
+      });
       hls.loadSource(src);
       hls.attachMedia(videoRef.current!);
       videoRef.current!.play().catch(() => {});
@@ -119,13 +115,7 @@ function SnapshotView({ slot }: { slot: CctvSlot }) {
 
 export default function CnxCctvModal({ slot, onClose }: Props) {
   const titleId = useId();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dialogRef = useModalDialog(slot !== null, onClose);
 
   if (!slot) return null;
   const sourceLabel = SOURCE_LABEL[slot.source] ?? slot.source;
@@ -137,6 +127,8 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
       role="presentation"
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -147,7 +139,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
         // fold and could not be reached at all. dvh tracks the dynamic
         // viewport, so it also behaves when the mobile browser chrome
         // collapses on scroll.
-        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden border border-[var(--line)] bg-white"
+        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden border border-[var(--line)] bg-[var(--bg)]"
       >
         <header className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <div>
@@ -165,7 +157,6 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            autoFocus
             // 44px minimum touch target (Apple HIG / WCAG 2.5.5). Was
             // px-3 py-1.5, a ~28px target on the one control that has to be
             // reachable to escape the dialog.

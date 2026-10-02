@@ -8,7 +8,9 @@
     "binding": "ASSETS"
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 },
+    "redact_query_string": true
   },
   "kv_namespaces": [
     { "binding": "CNX_FLIGHTS_KV", "id": "069c48737c89469cb8c9265bead428a2" }

@@ -158,8 +158,9 @@ export function normaliseStation(raw: DustboyRawStation, nowMs = Date.now()): Du
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !raw.dustboy_uri) return null;
   const observedMs = raw.log_datetime ? parseLogDatetime(raw.log_datetime) : NaN;
   const readingAgeHours = Number.isFinite(observedMs) ? Math.max(0, Math.round((nowMs - observedMs) / 3_600_000)) : null;
-  const fresh = readingAgeHours !== null && readingAgeHours <= STALE_HOURS;
-  const pm = fresh && typeof raw.pm25 === "number" && Number.isFinite(raw.pm25) ? raw.pm25 : null;
+  const elapsedMs = nowMs - observedMs;
+  const fresh = Number.isFinite(elapsedMs) && elapsedMs >= -5 * 60_000 && elapsedMs <= STALE_HOURS * 3_600_000;
+  const pm = fresh && typeof raw.pm25 === "number" && Number.isFinite(raw.pm25) && raw.pm25 >= 0 ? raw.pm25 : null;
   const name = raw.dustboy_name ?? "";
   return {
     stationId: raw.dustboy_uri,

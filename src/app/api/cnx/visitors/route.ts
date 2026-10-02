@@ -36,7 +36,7 @@ export const revalidate = 0;
 export async function GET(): Promise<Response> {
   const ts = Date.now();
   const snapshot = await fetchCnxSnapshot();
-  const today = new Date(ts).toISOString().slice(0, 10);
+  const today = new Date(ts + 7 * 3_600_000).toISOString().slice(0, 10);
   const recent = await readVisitorSnapshotsForDay(today);
 
   const hourlyFromHistory = aggregateHourlyFromHistory(recent, ts);
@@ -49,8 +49,8 @@ export async function GET(): Promise<Response> {
     },
   );
 
-  // Fire-and-forget — persistence shouldn't block the response.
-  void appendVisitorSnapshot(analytics).catch((e) =>
+  // Complete persistence before the edge request ends.
+  await appendVisitorSnapshot(analytics).catch((e) =>
     console.warn(`[visitors] snapshot append failed: ${(e as Error).message}`),
   );
 
@@ -85,7 +85,7 @@ function aggregateHourlyFromHistory(
   const cutoff = now - 24 * 60 * 60_000;
   for (const row of rows) {
     if (row.recordedAt < cutoff) continue;
-    const hour = new Date(row.recordedAt).getHours();
+    const hour = new Date(row.recordedAt + 7 * 3_600_000).getUTCHours();
     const own = row.analytics.visitorsByHour.find((b) => b.hour === hour);
     if (!own) continue;
     const existing = buckets.get(hour);

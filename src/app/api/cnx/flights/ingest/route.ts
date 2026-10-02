@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { FLIGHTS_KV_KEY, isFetchResult } from "../../../../../lib/cnx/flights-kv";
-import { relaySecretMatches } from "../../../../../lib/cnx/relay-kv";
+import { readBoundedJson, relaySecretMatches } from "../../../../../lib/cnx/relay-kv";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +19,6 @@ export const revalidate = 0;
  * can no longer fetch flight data itself — a process on a normal
  * (non-Cloudflare) IP has to fetch it and push it in.
  */
-const MAX_BODY_BYTES = 1_048_576; // 1 MB ceiling for flight snapshots
 
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
@@ -30,16 +29,9 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const bytes = await request.arrayBuffer();
-  if (bytes.byteLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "payload exceeds 1 MB" }, { status: 413 });
-  }
-  let body: unknown;
-  try {
-    body = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
-  }
+  const parsed = await readBoundedJson(request);
+  if ("response" in parsed) return parsed.response;
+  const body = parsed.body;
   if (!isFetchResult(body)) {
     return NextResponse.json({ error: "payload does not match FetchResult shape" }, { status: 422 });
   }

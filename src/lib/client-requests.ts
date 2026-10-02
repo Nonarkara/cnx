@@ -26,12 +26,17 @@ export async function fetchJsonOrNull<T>(
 ): Promise<T | null> {
   const { timeoutMs = 12_000, ...rest } = init;
   const controller = new AbortController();
+  const abort = () => controller.abort(rest.signal?.reason);
+  if (rest.signal?.aborted) abort();
+  else rest.signal?.addEventListener("abort", abort, { once: true });
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const headers = new Headers(rest.headers);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
   try {
     const res = await fetch(url, {
       ...rest,
       signal: controller.signal,
-      headers: { Accept: "application/json", ...(rest.headers ?? {}) },
+      headers,
     });
     if (!res.ok) return null;
     return (await res.json()) as T;
@@ -40,5 +45,6 @@ export async function fetchJsonOrNull<T>(
     return null;
   } finally {
     window.clearTimeout(timeoutId);
+    rest.signal?.removeEventListener("abort", abort);
   }
 }

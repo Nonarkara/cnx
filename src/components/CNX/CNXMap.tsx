@@ -56,6 +56,8 @@ const Map = dynamic(() => import("react-map-gl/maplibre").then((m) => m.default)
   ssr: false,
 });
 
+const AttributionControl = dynamic(() => import("react-map-gl/maplibre").then((m) => m.AttributionControl), { ssr: false });
+
 // Inline triangle icon (points north) for the plane IconLayer — avoids
 // depending on an external sprite sheet just for one glyph. `mask: true`
 // lets deck.gl tint the white triangle with each plane's getColor.
@@ -133,7 +135,7 @@ function templeColorExpr(): DataDrivenPropertyValueSpecification<string> {
  *  layer bar (3D City / Transit / Weather & Air / Range Rings). */
 function ToggleGroupLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
   return (
-    <div className={`px-1 text-[8px] font-bold uppercase tracking-[0.18em] text-[#8a8578] ${first ? "" : "mt-1.5"}`}>
+    <div className={`px-1 text-[8px] font-bold uppercase tracking-[0.18em] bg-[var(--bg-raised)] text-[var(--dim)] ${first ? "" : "mt-1.5"}`}>
       {children}
     </div>
   );
@@ -166,10 +168,10 @@ function MapToggleButton({
       title={title}
       className={`border px-2 py-1 text-left text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
         disabled
-          ? "cursor-not-allowed border-[#e5e1d6] bg-white/70 text-[#b8b3a6]"
+          ? "cursor-not-allowed border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] opacity-70"
           : pressed
           ? activeClassName
-          : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b] hover:border-[#1d2951]"
+          : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)] hover:border-[var(--cool)]"
       }`}
     >
       {children}
@@ -394,7 +396,7 @@ export default function CNXMap({
   // basemap toggle stays available — operators can swap to Street /
   // Satellite / Vegetation for street-level or imagery-heavy work.
   const [basemap, setBasemap] = useState<BasemapId>("topography");
-  const [buildingsOn, setBuildingsOn] = useState(true);
+  const [buildingsOn, setBuildingsOn] = useState(false);
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
   const [waterwaysOn, setWaterwaysOn] = useState(true);
@@ -427,9 +429,18 @@ export default function CNXMap({
     longitude: CNX_CENTER[0],
     latitude: CNX_CENTER[1],
     zoom: CITY_ZOOM,
-    pitch: 55,
-    bearing: -15,
+    pitch: 0,
+    bearing: 0,
   });
+
+  // Phone startup avoids the heavy city meshes. Desktop retains the
+  // 3D overview; phone operators can explicitly enable it.
+  useEffect(() => {
+    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+    setBuildingsOn(true);
+    setViewState((view) => ({ ...view, pitch: 55, bearing: -15 }));
+  }, []);
+  const wideBuildings = (viewState.zoom ?? CITY_ZOOM) < 13;
 
   const handleToggle3D = () => {
     setBuildingsOn((prev) => {
@@ -453,6 +464,7 @@ export default function CNXMap({
     });
   };
   const mlMapRef = useRef<MaplibreMap | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Expose the live MapLibre handle to the dev console for debugging.
   useEffect(() => {
@@ -907,6 +919,7 @@ export default function CNXMap({
     const map = mlMapRef.current;
     if (!map) return;
     let cancelled = false;
+    let removeListeners = () => {};
 
     const setup = async () => {
       try {
@@ -917,55 +930,58 @@ export default function CNXMap({
         }
         if (cancelled) return;
 
-        // ─── buildings-core (Old City + Doi Suthep, deep) ─────────
-        if (!map.getSource(BUILDINGS_CORE_SOURCE)) {
-          map.addSource(BUILDINGS_CORE_SOURCE, {
-            type: "geojson",
-            data: "/data/cnx/buildings-core.geojson",
-            promoteId: "id",
-          });
+        if (buildingsOn && !wideBuildings) {
+          // ─── buildings-core (Old City + Doi Suthep, deep) ─────────
+          if (!map.getSource(BUILDINGS_CORE_SOURCE)) {
+            map.addSource(BUILDINGS_CORE_SOURCE, {
+              type: "geojson",
+              data: "/data/cnx/buildings-core.geojson",
+              promoteId: "id",
+            });
+          }
+          if (!map.getLayer(BUILDINGS_CORE_LAYER)) {
+            map.addLayer({
+              id: BUILDINGS_CORE_LAYER,
+              type: "fill-extrusion",
+              source: BUILDINGS_CORE_SOURCE,
+              minzoom: 13,
+              paint: {
+                "fill-extrusion-color": buildingColorExpr(),
+                "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+                "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
+                "fill-extrusion-opacity": 0.85,
+                "fill-extrusion-vertical-gradient": false,
+              },
+            });
+          }
         }
-        if (!map.getLayer(BUILDINGS_CORE_LAYER)) {
-          map.addLayer({
-            id: BUILDINGS_CORE_LAYER,
-            type: "fill-extrusion",
-            source: BUILDINGS_CORE_SOURCE,
-            minzoom: 13,
-            paint: {
-              "fill-extrusion-color": buildingColorExpr(),
-              "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
-              "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
-              "fill-extrusion-opacity": 0.85,
-              "fill-extrusion-vertical-gradient": false,
-            },
-          });
+        if (buildingsOn && wideBuildings) {
+          // ─── buildings-wide (urban fringe, light) ─────────────────
+          if (!map.getSource(BUILDINGS_WIDE_SOURCE)) {
+            map.addSource(BUILDINGS_WIDE_SOURCE, {
+              type: "geojson",
+              data: "/data/cnx/buildings-wide.geojson",
+              promoteId: "id",
+            });
+          }
+          if (!map.getLayer(BUILDINGS_WIDE_LAYER)) {
+            map.addLayer({
+              id: BUILDINGS_WIDE_LAYER,
+              type: "fill-extrusion",
+              source: BUILDINGS_WIDE_SOURCE,
+              maxzoom: 13,
+              paint: {
+                "fill-extrusion-color": buildingColorExpr(),
+                "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+                "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
+                "fill-extrusion-opacity": 0.7,
+                "fill-extrusion-vertical-gradient": false,
+              },
+            });
+          }
         }
-        map.setLayoutProperty(BUILDINGS_CORE_LAYER, "visibility", buildingsOn ? "visible" : "none");
-
-        // ─── buildings-wide (urban fringe, light) ─────────────────
-        if (!map.getSource(BUILDINGS_WIDE_SOURCE)) {
-          map.addSource(BUILDINGS_WIDE_SOURCE, {
-            type: "geojson",
-            data: "/data/cnx/buildings-wide.geojson",
-            promoteId: "id",
-          });
-        }
-        if (!map.getLayer(BUILDINGS_WIDE_LAYER)) {
-          map.addLayer({
-            id: BUILDINGS_WIDE_LAYER,
-            type: "fill-extrusion",
-            source: BUILDINGS_WIDE_SOURCE,
-            maxzoom: 13,
-            paint: {
-              "fill-extrusion-color": buildingColorExpr(),
-              "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
-              "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
-              "fill-extrusion-opacity": 0.7,
-              "fill-extrusion-vertical-gradient": false,
-            },
-          });
-        }
-        map.setLayoutProperty(BUILDINGS_WIDE_LAYER, "visibility", buildingsOn ? "visible" : "none");
+        if (map.getLayer(BUILDINGS_CORE_LAYER)) map.setLayoutProperty(BUILDINGS_CORE_LAYER, "visibility", buildingsOn && !wideBuildings ? "visible" : "none");
+        if (map.getLayer(BUILDINGS_WIDE_LAYER)) map.setLayoutProperty(BUILDINGS_WIDE_LAYER, "visibility", buildingsOn && wideBuildings ? "visible" : "none");
 
         // ─── temples (place_of_worship) ───────────────────────────
         if (!map.getSource(TEMPLES_SOURCE)) {
@@ -1019,13 +1035,16 @@ export default function CNXMap({
           map.getCanvas().style.cursor = "";
         };
 
-        [BUILDINGS_CORE_LAYER, BUILDINGS_WIDE_LAYER, TEMPLES_LAYER].forEach((lid) => {
-          map.off("click", lid, onLayerClick);
-          map.off("mouseenter", lid, onMouseEnter);
-          map.off("mouseleave", lid, onMouseLeave);
+        const interactiveLayers = [BUILDINGS_CORE_LAYER, BUILDINGS_WIDE_LAYER, TEMPLES_LAYER].filter((id) => map.getLayer(id));
+        interactiveLayers.forEach((lid) => {
           map.on("click", lid, onLayerClick);
           map.on("mouseenter", lid, onMouseEnter);
           map.on("mouseleave", lid, onMouseLeave);
+        });
+        removeListeners = () => interactiveLayers.forEach((lid) => {
+          map.off("click", lid, onLayerClick);
+          map.off("mouseenter", lid, onMouseEnter);
+          map.off("mouseleave", lid, onMouseLeave);
         });
       } catch (e) {
         // Most commonly: a source file isn't on disk yet (first deploy
@@ -1037,8 +1056,9 @@ export default function CNXMap({
     void setup();
     return () => {
       cancelled = true;
+      removeListeners();
     };
-  }, [basemap, buildingsOn, templesOn]);
+  }, [basemap, buildingsOn, templesOn, wideBuildings, mapReady]);
 
   // Weather overlays — rain radar, Himawari infrared, MODIS aerosol.
   // Tile URL templates come from /api/cnx/weather-layers (server-side
@@ -1088,10 +1108,10 @@ export default function CNXMap({
     return () => {
       cancelled = true;
     };
-  }, [basemap, weatherLayers, rainRadarOn, himawariOn, aerosolLayerOn]);
+  }, [basemap, weatherLayers, rainRadarOn, himawariOn, aerosolLayerOn, mapReady]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden [&_.maplibregl-ctrl-attrib]:text-[#111] [&_.maplibregl-ctrl-attrib_a]:text-[#111]">
       <DeckGL
         viewState={viewState}
         controller={true}
@@ -1189,12 +1209,15 @@ export default function CNXMap({
             // MapLibre instance when using the maplibre adapter. Direct
             // assignment — no cast needed.
             mlMapRef.current = e.target;
+            setMapReady(true);
           }}
-        />
+        >
+          <AttributionControl compact position="bottom-left" />
+        </Map>
       </DeckGL>
 
       {/* Basemap toggle, bottom-right */}
-      <div className="absolute bottom-2 right-2 z-10 flex gap-1 bg-white/95 px-1.5 py-1">
+      <div className="absolute bottom-2 right-2 z-10 flex gap-1 bg-[var(--bg-raised)] px-1.5 py-1">
         {BASEMAP_OPTIONS.map((b) => (
           <button
             key={b.id}
@@ -1203,8 +1226,8 @@ export default function CNXMap({
             aria-pressed={basemap === b.id}
             className={`border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${
               basemap === b.id
-                ? "border-[#1d2951] text-[#1d2951]"
-                : "border-[#d8d2c4] text-[#6b6b6b]"
+                ? "border-[var(--cool)] text-[var(--cool)]"
+                : "border-[var(--line)] text-[var(--dim)]"
             }`}
           >
             {b.label}
@@ -1337,7 +1360,7 @@ export default function CNXMap({
                 }
                 aria-pressed={on}
                 className={`flex-1 border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
-                  on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[#d8d2c4] bg-white/95 text-[#6b6b6b]"
+                  on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
                 }`}
               >
                 {km} km
@@ -1348,12 +1371,12 @@ export default function CNXMap({
       </div>
 
       {/* Flight count badge, top-right */}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5 bg-white/95 px-2 py-1">
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5 bg-[var(--bg-raised)] px-2 py-1">
         <span
           aria-hidden="true"
           className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#b8860b]"
         />
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#1d2951]">
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--cool)]">
           {flights.length} {flights.length === 1 ? "flight" : "flights"}
         </span>
       </div>

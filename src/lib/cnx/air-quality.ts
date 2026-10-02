@@ -13,16 +13,8 @@ import { CNX_PROVINCE } from "./config";
 
 const OPEN_METEO_AQ = "https://air-quality-api.open-meteo.com/v1/air-quality";
 
-// CNX-relevant air-quality stations
-const STATIONS = [
-  { stationId: "cm-city", name: "Chiang Mai City", longitude: 98.985, latitude: 18.788 },
-  { stationId: "cm-nimman", name: "Nimmanhaemin", longitude: 98.967, latitude: 18.801 },
-  { stationId: "cm-hangdong", name: "Hang Dong", longitude: 98.921, latitude: 18.687 },
-  { stationId: "cm-doitung", name: "Doi Suthep Summit", longitude: 98.9215, latitude: 18.8048 },
-  { stationId: "cm-maerim", name: "Mae Rim", longitude: 98.9611, latitude: 18.9101 },
-  { stationId: "cm-doiluang", name: "Doi Luang NP", longitude: 99.27, latitude: 19.13 },
-  { stationId: "cm-obkhan", name: "Ob Khan NP", longitude: 98.86, latitude: 18.84 },
-];
+// One model grid point at the city centre; it is not a monitoring station.
+const MODEL_POINT = { stationId: "cm-city", name: "Chiang Mai city — CAMS model grid", longitude: 98.985, latitude: 18.788 };
 
 function severityForPm25(pm: number): SeverityLevel {
   if (pm < 25) return "good";
@@ -33,41 +25,28 @@ function severityForPm25(pm: number): SeverityLevel {
 
 async function fetchOpenMeteo(): Promise<AirStation[] | null> {
   try {
-    // Pick the first station's coords — Open-Meteo returns one location per request
-    const s = STATIONS[0];
-    const url = `${OPEN_METEO_AQ}?latitude=${s.latitude}&longitude=${s.longitude}&hourly=pm10,pm2_5,ozone,nitrogen_dioxide&forecast_days=1&timezone=Asia%2FBangkok`;
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    const s = MODEL_POINT;
+    const url = `${OPEN_METEO_AQ}?latitude=${s.latitude}&longitude=${s.longitude}&hourly=pm10,pm2_5,ozone,nitrogen_dioxide&forecast_days=1&timezone=UTC&timeformat=unixtime`;
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
     if (!res.ok) return null;
     const json = (await res.json()) as {
-      hourly?: {
-        time?: string[];
-        pm2_5?: number[];
-        pm10?: number[];
-        ozone?: number[];
-        nitrogen_dioxide?: number[];
-      };
+      hourly?: { time?: number[]; pm2_5?: (number | null)[]; pm10?: (number | null)[]; ozone?: (number | null)[]; nitrogen_dioxide?: (number | null)[] };
     };
-    if (!json.hourly?.time?.length) return null;
-    const lastIdx = json.hourly.time.length - 1;
-    const observedAt = json.hourly.time[lastIdx];
-    const basePm25 = json.hourly.pm2_5?.[lastIdx] ?? 18;
-    const offset = [0.7, 0.85, 0.6, 0.5, 0.7, 0.45, 0.5];
-    return STATIONS.map((st, i) => {
-      const pm = i === 0 ? basePm25 : Math.max(0, basePm25 * offset[i]);
-      return {
-        stationId: st.stationId,
-        name: st.name,
-        longitude: st.longitude,
-        latitude: st.latitude,
-        pm25: pm,
-        pm10: json.hourly?.pm10?.[lastIdx],
-        o3: json.hourly?.ozone?.[lastIdx],
-        no2: json.hourly?.nitrogen_dioxide?.[lastIdx],
-        source: "open-meteo" as const,
-        observedAt,
-        aqiLevel: severityForPm25(pm),
-      };
-    });
+    const hourly = json.hourly;
+    if (!hourly?.time?.length) return null;
+    const now = Date.now();
+    // Forecast arrays include future hours: only the latest current/past hour
+    // can stand in for current conditions, and only for three hours.
+    let index = -1;
+    for (let i = 0; i < hourly.time.length; i += 1) {
+      const t = hourly.time[i] * 1000;
+      if (Number.isFinite(t) && t <= now && now - t <= AIR4THAI_STALE_MS && (index < 0 || t > hourly.time[index] * 1000)) index = i;
+    }
+    if (index < 0) return null;
+    const valid = (v: number | null | undefined): number | undefined => typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined;
+    const pm25 = valid(hourly.pm2_5?.[index]);
+    if (pm25 === undefined) return null;
+    return [{ ...s, pm25, pm10: valid(hourly.pm10?.[index]), o3: valid(hourly.ozone?.[index]), no2: valid(hourly.nitrogen_dioxide?.[index]), source: "open-meteo", observedAt: new Date(hourly.time[index] * 1000).toISOString(), aqiLevel: severityForPm25(pm25) }];
   } catch {
     return null;
   }
@@ -88,6 +67,7 @@ interface Air4ThaiStation {
 }
 
 const reading = (v: string | undefined): number | undefined => {
+  if (v === undefined || v.trim() === "") return undefined;
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 };
@@ -101,8 +81,8 @@ export function parseAir4Thai(json: { stations?: Air4ThaiStation[] }, nowMs = Da
       const lon = Number(s.long);
       const last = s.AQILast;
       const observedMs = last?.date && last.time ? Date.parse(`${last.date}T${last.time}:00+07:00`) : NaN;
-      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(observedMs)) return [];
-      if (nowMs - observedMs > AIR4THAI_STALE_MS) return [];
+      if (!s.lat?.trim() || !s.long?.trim() || !Number.isFinite(lat) || !Number.isFinite(lon) || !inCnxBbox(lat, lon) || !Number.isFinite(observedMs)) return [];
+      if (nowMs - observedMs > AIR4THAI_STALE_MS || observedMs > nowMs + 5 * 60_000) return [];
       const pm25 = reading(last?.PM25?.value);
       if (pm25 === undefined) return [];
       return [

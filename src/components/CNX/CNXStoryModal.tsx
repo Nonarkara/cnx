@@ -6,7 +6,7 @@
 // the keystone headline + paragraphs + keystone bullets. Closes on
 // ESC / backdrop click.
 
-import { useEffect } from "react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { X } from "lucide-react";
 import type { CnxStoryResponse } from "../../types/cnx";
 
@@ -17,19 +17,14 @@ interface Props {
 }
 
 export default function CnxStoryModal({ story, isOpen, onClose }: Props) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  const dialogRef = useModalDialog(isOpen, onClose);
 
   if (!isOpen) return null;
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal="true"
       aria-labelledby="cnx-story-heading"

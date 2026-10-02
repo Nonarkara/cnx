@@ -248,7 +248,7 @@ export default function CnxTopBar(props: TopBarProps) {
     // a war-room display that is most of the vertical budget spent on
     // furniture while the map — the thing that carries the geography — got
     // the remainder. The bar is now one 32 px row plus a single-line pill
-    // strip, and the verdict reasoning floats over the map instead.
+    // strip; full verdict reasoning sits above the news rail or mobile map.
     <header className="relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1.5">
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -341,11 +341,12 @@ export default function CnxTopBar(props: TopBarProps) {
       </a>
 
       <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Pill label="PM2.5" value={air?.provinceAvgPm25 ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
+        <Pill label="PM2.5" value={air?.provinceAvgPm25 != null ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
         <Pill
-          label="Ping"
+          label={flood?.provenance === "scenario" ? "Scenario Ping" : "Ping model"}
           value={typeof flood?.pingCapacityFraction === "number" ? `${((flood?.pingCapacityFraction ?? 0) * 100).toFixed(0)}%` : "—"}
-          level={(flood?.pingCapacityFraction ?? 0) > 0.85 ? "critical" : (flood?.pingCapacityFraction ?? 0) > 0.7 ? "alert" : undefined}
+          title="Flood-model/scenario context; measured river levels are listed separately"
+          level={flood?.provenance === "live" ? (flood.pingCapacityFraction ?? 0) > 0.85 ? "critical" : (flood.pingCapacityFraction ?? 0) > 0.7 ? "alert" : undefined : undefined}
         />
         <Pill
           label="DustBoy"
@@ -379,7 +380,7 @@ export default function CnxTopBar(props: TopBarProps) {
               : undefined
           }
         />
-        <Pill label="RFD" value={firesRfd ? `${firesRfd.totalCount}` : "—"} level={rfdReserveCount > 5 ? "critical" : firesRfd && firesRfd.totalCount > 0 ? "watch" : undefined} />
+        <Pill label="RFD" value={firesRfd?.provenance === "live" ? `${firesRfd.totalCount}` : "—"} title={firesRfd?.note ?? undefined} level={firesRfd?.provenance === "live" ? rfdReserveCount > 5 ? "critical" : firesRfd.totalCount > 0 ? "watch" : undefined : undefined} />
         <Pill
           label="FIRMS"
           // A rejected key is a configuration fault, not a data state, and
@@ -446,7 +447,7 @@ export default function CnxTopBar(props: TopBarProps) {
               : undefined
           }
         />}
-        <Pill label="AOD" value={aerosol ? aerosol.aod550.toFixed(2) : "—"} level={aerosol?.level} />
+        <Pill label="AOD" value={aerosol?.aod550?.toFixed(2) ?? "—"} level={aerosol?.level ?? undefined} title="Model grid · column aerosol optical depth, not ground PM2.5" />
         <Pill label="Aircraft" value={flights ? `${flights.airborne.length + flights.ground.length}` : "—"} />
         <Pill label="Widebody" value={flights ? `${widebodyCount}` : "—"} />
         <Pill label="CCTV" value={cctv ? `${cctv.reachableCount}/${cctv.totalCount}` : "—"} />

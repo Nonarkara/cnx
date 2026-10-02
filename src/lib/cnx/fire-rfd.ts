@@ -94,7 +94,7 @@ interface RawResponse {
   }>;
 }
 
-export async function fetchRfdHotspots(opts: { dateStart?: Date; dateEnd?: Date } = {}): Promise<RfdHotspot[]> {
+export async function fetchRfdHotspots(opts: { dateStart?: Date; dateEnd?: Date } = {}): Promise<RfdHotspot[] | null> {
   const end = opts.dateEnd ?? new Date();
   const start = opts.dateStart ?? new Date(end.getTime() - 6 * 24 * 60 * 60 * 1000); // last 7 days
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
@@ -114,8 +114,9 @@ export async function fetchRfdHotspots(opts: { dateStart?: Date; dateEnd?: Date 
       headers: { Accept: "application/json", "User-Agent": "cnx-dashboard/1.0 (cnx.nonarkara.org)" },
       signal: AbortSignal.timeout(15_000),
     });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const json = (await res.json()) as RawResponse;
+    if (!Array.isArray(json.hotspot)) return null;
     const b = CNX_PROVINCE.bbox;
     return (json.hotspot ?? [])
       .filter((h) => {
@@ -142,7 +143,7 @@ export async function fetchRfdHotspots(opts: { dateStart?: Date; dateEnd?: Date 
         };
       });
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -150,6 +151,8 @@ export async function fetchRfdHotspots(opts: { dateStart?: Date; dateEnd?: Date 
  *  separable in the panel UI. */
 export interface RfdFiresResponse {
   generatedAt: string;
+  provenance: "live" | "unavailable";
+  note: string | null;
   hotspots: RfdHotspot[];
   totalCount: number;
   byType: Record<string, number>;
@@ -162,7 +165,8 @@ const TTL_MS = 30 * 60_000;
 export async function fetchCnxRfdFires(): Promise<RfdFiresResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
   const now = new Date().toISOString();
-  const hotspots = await fetchRfdHotspots();
+  const result = await fetchRfdHotspots();
+  const hotspots = result ?? [];
   const byType: Record<string, number> = {};
   let forestCount = 0;
   const FOREST_TYPES = new Set(["DNP", "NRF", "ALOW", "CMF", "FIO"]);
@@ -172,6 +176,8 @@ export async function fetchCnxRfdFires(): Promise<RfdFiresResponse> {
   }
   const response: RfdFiresResponse = {
     generatedAt: now,
+    provenance: result === null ? "unavailable" : "live",
+    note: result === null ? "RFD hotspot feed could not be read — no detection count is available. This is not evidence of no fires." : "RFD detections over the last 7 days; absence of satellite detections is not proof of no fires.",
     hotspots,
     totalCount: hotspots.length,
     byType,

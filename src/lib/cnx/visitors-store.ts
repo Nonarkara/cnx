@@ -23,7 +23,7 @@ export interface VisitorSnapshotRow {
 const edgeStore: Map<string, VisitorSnapshotRow[]> = new Map();
 
 function dayKey(ts: number): string {
-  return new Date(ts).toISOString().slice(0, 10);
+  return new Date(ts + 7 * 3_600_000).toISOString().slice(0, 10);
 }
 
 export async function appendVisitorSnapshot(analytics: VisitorAnalytics): Promise<void> {
@@ -42,6 +42,7 @@ export async function appendVisitorSnapshot(analytics: VisitorAnalytics): Promis
   list.push(row);
   if (list.length > MAX_IN_MEMORY_PER_DAY) list.splice(0, list.length - MAX_IN_MEMORY_PER_DAY);
   edgeStore.set(key, list);
+  for (const old of [...edgeStore.keys()].sort().slice(0, -7)) edgeStore.delete(old);
 }
 
 /** Read back every recorded row for a single day. */

@@ -1,13 +1,12 @@
-// CNX visitor analytics — turns the OpenSky state vectors into
-// "X visitors today, Y from China/Japan/Korea, Z outbound" numbers
-// that the governor can read on the wall.
+// CNX aircraft seat-capacity estimates from OpenSky state vectors.
+// Counts describe the current snapshot, not unique passengers or arrivals.
 //
 // The pipeline:
 //
 //   1. Pull live flights within the CNX bbox via /api/cnx/flights.
 //   2. For each flight, classify:
 //        - Airline (from 3-letter callsign prefix)
-//        - Country of operator (proxy for visitor origin)
+//        - Carrier/registration country (not passenger origin)
 //        - Aircraft size bucket (from operator's typical fleet —
 //          OpenSky anonymous tier does NOT expose the airframe
 //          typecode, so we use the airline's well-known fleet mix
@@ -15,16 +14,13 @@
 //   3. Aggregate per hour + per country.
 //   4. Persist hourly snapshots to disk for trend aggregation.
 //
-// The "today's visitors" number is the rolling 24-h sum of estimated
-// seats for flights classified as inbound (heading toward VTCC) — see
-// classifyInboundOutbound().
+// The legacy visitorsToday field estimates seats on currently observed
+// aircraft heading toward VTCC. Each hourly bucket keeps the latest poll.
 //
 // For accuracy, the callsign/airline lookup is the part most likely
 // to drift. When a new airline starts flying to CNX, add an entry to
-// AIRLINE_BY_CALLSIGN_PREFIX. The country it maps to is the visitor
-// origin, NOT the airline's hub country (most CNX visitors fly point-
-// to-point from their country, and the airline tends to be registered
-// either at the origin or the destination).
+// AIRLINE_BY_CALLSIGN_PREFIX. Its country identifies the carrier;
+// it does not identify the departure airport or passenger nationality.
 
 import type { FlightState } from "./opensky";
 import { lookupAircraft } from "./aircraft";
@@ -203,7 +199,7 @@ function classifyFlight(state: FlightState, ts: number): ClassifiedFlight | null
 
 export interface VisitorOrigin {
   country: string;
-  /** Estimated inbound visitors today from this country. */
+  /** Estimated seats in the current toward-airport snapshot, grouped by carrier/registration country. */
   visitors: number;
   flights: number;
   airlines: string[];
@@ -249,13 +245,17 @@ export function summariseVisitors(
     for (const row of options.hourly) hourlyIn.set(row.hour, { ...row });
   }
 
-  const currentHour = new Date(ts).getHours();
+  const currentHour = new Date(ts + 7 * 3_600_000).getUTCHours();
   const byCountry = new Map<string, { visitors: number; flights: number; airlines: Set<string> }>();
   const byAirline = new Map<string, { country: string; flights: number; visitors: number }>();
   let inboundFlights = 0;
   let groundOps = 0;
   let visitorsToday = 0;
-  const currentBucket = hourlyIn.get(currentHour)!;
+  // Each poll is a snapshot of seats presently observed, not new arrivals.
+  // Replace this hour: adding it to a persisted poll repeatedly counts the
+  // same aircraft and makes the history grow without a new flight.
+  const currentBucket = { visitors: 0, inbound: 0, outgoing: 0 };
+  hourlyIn.set(currentHour, currentBucket);
 
   for (const s of states) {
     const classified = classifyFlight(s, ts);
@@ -324,7 +324,9 @@ export function summariseVisitors(
     airlineMix,
     methodology:
       "Seats estimated from airline's typical fleet (regional 78 / narrow 165 / wide 305 / heavy 410). " +
-      "Inbound = heading within 60° of VTCC. Hourly buckets are local time.",
+      "Inbound = heading within 60° of VTCC; this may include overflights and does not confirm landing. " +
+      "Country means airline/aircraft registration, not departure airport or passenger nationality. " +
+      "Totals describe estimated seat capacity in this snapshot, not visitors or a deduplicated daily arrival count. Hourly buckets are Bangkok time.",
   };
 }
 

@@ -49,7 +49,7 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
         <div className="flex items-center gap-1.5">
           <Plane className="h-3 w-3 text-[var(--cool)]" />
           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
-            Outbound — Where are they flying back?
+            Aircraft headings — route unconfirmed
           </span>
         </div>
         {trend && (
@@ -82,7 +82,7 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
         <div className="border border-[var(--line)] bg-[var(--bg)] p-2">
           <div className="mb-1 flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
             <Globe2 className="h-2.5 w-2.5" />
-            Top origins
+            Registration countries
           </div>
           <div className="space-y-0.5">
             {snapshot.byQuadrant
@@ -105,7 +105,7 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
       </div>
       <div className="mt-2 flex items-center gap-1.5 border-t border-[var(--line)] pt-2 font-mono text-[9px] text-[var(--dim)]">
         <MapPin className="h-3 w-3 text-[var(--sun)]" />
-        Inferred top destination: <span className="ml-1 font-bold text-[var(--ink)]">{snapshot.inferredTopDestination}</span>
+        Heading-based guess (not a flight plan): <span className="ml-1 font-bold text-[var(--ink)]">{snapshot.inferredTopDestination}</span>
       </div>
     </div>
   );

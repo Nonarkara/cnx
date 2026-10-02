@@ -11,6 +11,11 @@
 //   2. Sets a few headers so the deploy registers CNAME + Worker
 //      cleanly with nonarkara.org's zone.
 
+// All diagnostics are text inside <pre>, including user-controlled headers.
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+})[character]);
+
 const handler = {
   async fetch(request, env, _ctx) {
     const url = new URL(request.url);
@@ -31,12 +36,12 @@ const handler = {
 <body>
   <h1>CNX · Chiang Mai Operations War Room</h1>
   <p><span class="pill">RESERVED</span> Hostname is registered. Full dashboard deploy pending Node 20 build env.</p>
-  <pre>path:    ${url.pathname}
-query:   ${url.search}
-method:  ${request.method}
-ua:     ${request.headers.get("user-agent") ?? "—"}
+  <pre>path:    ${escapeHtml(url.pathname)}
+query:   ${escapeHtml(url.search)}
+method:  ${escapeHtml(request.method)}
+ua:     ${escapeHtml(request.headers.get("user-agent") ?? "—")}
 date:   ${new Date().toISOString()}
-note:   ${env.PROVINCE ?? "cnx"} · reserve stub at cnx-dashboard-reserve
+note:   ${escapeHtml(env.PROVINCE ?? "cnx")} · reserve stub at cnx-dashboard-reserve
         The production OpenNext worker (cnx-dashboard) will replace this.</pre>
 </body>
 </html>`;

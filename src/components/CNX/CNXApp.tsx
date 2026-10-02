@@ -63,7 +63,6 @@ import CnxAboutModal from "./CNXAboutModal";
 import CnxDataLibraryModal from "./CNXDataLibraryModal";
 import CnxHazeModal from "./CNXHazeModal";
 import CnxEmergencyModal from "./CNXEmergencyModal";
-import FlightPanel from "./FlightPanel";
 import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
 
 export default function CnxApp() {
@@ -89,6 +88,19 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
+  const [layout, setLayout] = useState({ desktop: false, socialRail: false });
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const socialRail = window.matchMedia("(min-width: 1024px)");
+    const update = () => setLayout({ desktop: desktop.matches, socialRail: socialRail.matches });
+    update();
+    desktop.addEventListener("change", update);
+    socialRail.addEventListener("change", update);
+    return () => {
+      desktop.removeEventListener("change", update);
+      socialRail.removeEventListener("change", update);
+    };
+  }, []);
   const [flood, setFlood] = useState<CnxFloodResponse | null>(null);
   const [social, setSocial] = useState<SocialListeningResponse | null>(null);
   const [cctv, setCctv] = useState<CctvFeedResponse | null>(null);
@@ -174,13 +186,6 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     void fetchJsonOrNull<{ cameras?: FloodCamera[] }>("/api/cnx/flood-cameras").then((d) => {
       if (!cancelled && d?.cameras) setFloodCameras(d.cameras);
     });
-    // Measured Ping-basin gauges. The response carries its own
-    // provenance, so a failed read leaves the state empty and the map
-    // layer simply draws nothing — it never falls back to the scenario
-    // flood gauges, which are a different thing entirely.
-    void fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level").then((d) => {
-      if (!cancelled && d?.gauges) setRiverGauges(d.gauges);
-    });
     void fetchJsonOrNull<{ sites?: CnxHeritageSite[] }>("/api/cnx/heritage").then((d) => {
       if (!cancelled && d?.sites) setHeritage(d.sites);
     });
@@ -231,13 +236,14 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       const controller = new AbortController();
       controllerRef.current = controller;
       try {
-        const [nextFlood, nextCctv, nextAir, nextFires, nextFiresRfd, nextAerosol] = await Promise.all([
+        const [nextFlood, nextCctv, nextAir, nextFires, nextFiresRfd, nextAerosol, nextRiver] = await Promise.all([
           fetchJsonOrNull<CnxFloodResponse>(buildScenarioUrl("/api/cnx/flood", scenarioId), { signal: controller.signal }),
           fetchJsonOrNull<CctvFeedResponse>("/api/cnx/cctv", { signal: controller.signal }),
           fetchJsonOrNull<AirQualityResponse>("/api/cnx/air-quality", { signal: controller.signal }),
           fetchJsonOrNull<CnxFiresResponse>("/api/cnx/fires", { signal: controller.signal }),
           fetchJsonOrNull<RfdFiresResponse>("/api/cnx/fires-rfd", { signal: controller.signal }),
           fetchJsonOrNull<AerosolResponse>("/api/cnx/aerosol", { signal: controller.signal }),
+          fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level", { signal: controller.signal }),
         ]);
         if (controller.signal.aborted || id !== requestIdRef.current) return;
         if (nextFlood) setFlood(nextFlood);
@@ -246,6 +252,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         if (nextFires) setFires(nextFires);
         if (nextFiresRfd) setFiresRfd(nextFiresRfd);
         if (nextAerosol) setAerosol(nextAerosol);
+        if (nextRiver) setRiverGauges(nextRiver.gauges);
       } catch { /* abort-safe */ }
       void fetchJsonOrNull<OutboundAnalysis>("/api/cnx/outbound").then((o) => {
         if (o && id === requestIdRef.current) setOutbound(o);
@@ -382,7 +389,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest('[role="dialog"]'))) return;
       if (e.key.toLowerCase() === "s" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         setIsStoryOpen(true);
@@ -457,36 +464,32 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
       <CnxCctvStrip feed={cctv} />
 
+      {twin && <div className="border-t border-[var(--line)] p-2 lg:hidden">
+        <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
+      </div>}
+
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] xl:flex-1">
-        {/* The verdict reasoning lives here, floating over the map, not in
-            the bar. It is the most important text on the board and it must
-            stay fully spelled out — the caveats ("no live gauge, this is
-            not evidence the river is safe") are the whole point — but it
-            does not need to push the map down the screen to say it. A
-            colour + word chip in the bar carries the level; this card
-            carries the reasoning, where it overlays geography instead of
-            displacing it. */}
-        {twin && (
-          <div className="pointer-events-none absolute left-2 top-2 z-20 hidden w-[min(30rem,42%)] lg:block">
-            <div className="pointer-events-auto">
-              <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
-            </div>
-          </div>
-        )}
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
             from xl onwards on desktop with full width. */}
-        <aside
+        {layout.socialRail && <aside
           aria-label="Social listening stream"
-          className="hidden w-[260px] shrink-0 border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[280px] 2xl:w-[300px]"
+          className="hidden min-h-0 w-[260px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[280px] 2xl:w-[300px]"
         >
-          <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={multilingualCountries} initialData={social} />
-        </aside>
+          {twin && <div className="shrink-0 border-b border-[var(--line)] p-2">
+            <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
+          </div>}
+          <div className="min-h-0 flex-1">
+            <div className="h-full min-h-[240px]">
+              <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={multilingualCountries} initialData={social} />
+            </div>
+          </div>
+        </aside>}
 
         {/* Centre — map. Always visible; height is dynamic on mobile,
             fills the section on desktop. */}
         <section
           aria-label="Operational map"
-          className="relative h-[55dvh] min-h-[340px] min-w-0 flex-none overflow-hidden border-r-0 sm:h-[60dvh] lg:h-auto lg:min-h-0 lg:flex-1"
+          className="relative h-[55dvh] min-h-[340px] min-w-0 flex-none overflow-hidden border-r-0 sm:h-[60dvh] w-full lg:w-auto xl:h-auto xl:min-h-0 lg:flex-1"
         >
           <CNXMap
             flights={flightStates}
@@ -509,23 +512,22 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             dustboyStations={dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.pm25 !== null) : []}
             smokeSegments={smoke?.provenance === "live" ? smoke.segments : []}
           />
-          {flights && <FlightPanel snapshot={flights} />}
-          {outbound && <CnxOutboundPanel snapshot={outbound} />}
-          <CnxArrivalsPanel />
         </section>
 
         {/* Right rail — operations desk. Visible from xl onwards. */}
-        <aside
+        {layout.desktop && <aside
           aria-label="Operations desk"
-          className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-hidden 2xl:w-[380px]"
+          className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-y-auto 2xl:w-[380px]"
         >
           <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxVisitorPanel onData={setVisitorAnalytics} />
           </div>
+          <div className="shrink-0 border-b border-[var(--line)]"><CnxArrivalsPanel /></div>
+          {outbound && <div className="shrink-0 border-b border-[var(--line)]"><CnxOutboundPanel snapshot={outbound} /></div>}
           <div className="h-[28%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden border-b border-[var(--line)]">
+          <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodPanel flood={flood} air={air} fires={fires} />
           </div>
           {/* Measured river levels. Sits directly under the flood panel
@@ -552,16 +554,16 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           <div className="min-h-[180px] flex-1 overflow-hidden border-t border-[var(--line)]">
             <CnxAskChat />
           </div>
-        </aside>
+        </aside>}
       </section>
 
-      {/* Mobile / tablet collapsed panels — visible below lg. */}
+      {/* Mobile / tablet panels stay available until the desktop desk appears. */}
       <section
         aria-label="Mobile panels"
-        className="flex h-[64dvh] min-h-[440px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] lg:hidden xl:hidden"
+        className="flex h-[64dvh] min-h-[440px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] xl:hidden"
       >
         <div
-          role="tablist"
+          role="group"
           aria-label="Switch panel"
           className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)] overflow-x-auto"
         >
@@ -578,23 +580,33 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           ).map((t) => (
             <button
               key={t.id}
+              aria-label={t.label}
+              aria-pressed={mobileTab === t.id}
               onClick={() => setMobileTab(t.id)}
               className={`flex min-h-[44px] min-w-[64px] flex-1 items-center justify-center gap-1 border-r border-[var(--line)] px-2 text-[11px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
                 mobileTab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)]"
               }`}
             >
               <span aria-hidden="true">{t.icon}</span>
-              <span className="hidden xs:inline sm:inline">{t.label}</span>
+              <span>{t.label}</span>
             </button>
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--bg-raised)]">
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
-          {mobileTab === "flood" && <CnxFloodPanel flood={flood} air={air} fires={fires} />}
-          {mobileTab === "visitors" && <CnxVisitorPanel onData={setVisitorAnalytics} />}
+          {mobileTab === "flood" && <>
+            <div className="h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} /></div>
+            <div className="h-[300px]"><CnxRiverLevelPanel /></div>
+            <div className="h-[300px]"><CnxFloodCamerasPanel /></div>
+          </>}
+          {mobileTab === "visitors" && <>
+            <div className="h-[320px]"><CnxVisitorPanel onData={setVisitorAnalytics} /></div>
+            <CnxArrivalsPanel />
+            {outbound && <CnxOutboundPanel snapshot={outbound} />}
+          </>}
           {mobileTab === "social" && (
-            <CnxSocialSidebar scenarioId={null} multilingualCountries={multilingualCountries} initialData={social} />
+            <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={multilingualCountries} initialData={social} />
           )}
           {mobileTab === "data" && <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />}
           {mobileTab === "ask" && <CnxAskChat />}

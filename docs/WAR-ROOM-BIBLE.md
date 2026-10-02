@@ -20,7 +20,8 @@
 If you read only one paragraph:
 
 > The CNX dashboard is a **map-first, scenario-aware** war room. Every
-> number on it is live; every dataset has a written owner; every panel
+> number must distinguish measured, modeled, scenario and unavailable data;
+> every dataset has a written owner; every panel
 > corresponds to a single decision the governor or a deputy might make
 > in the next 24 hours.
 
@@ -32,14 +33,14 @@ If you read only one paragraph:
 |---|---|---|---|
 | **Fire safety (RFD)** | Active forest fires in CNX province, Thai forest-tenure class (DNP / NRF / ALOW / CMF / FIO) | [wildfire.forest.go.th/firemap/getdb.php](https://wildfire.forest.go.th/firemap/) | 30 min |
 | **Fire safety (FIRMS)** | Global VIIRS/MODIS hotspots — independent confirmation | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov) | 10 min |
-| **Aerosol / AOD** | Province-average 550 nm aerosol optical depth (burning-season haze proxy) | Open-Meteo CAMS | 30 min |
+| **Aerosol / AOD** | Sampled CAMS grid-point 550 nm column AOD (model; not surface PM2.5) | Open-Meteo CAMS | 30 min |
 | **Flood (Ping)** | **Measured** gauge levels (ThaiWater v3) + Google Flood Hub riverine forecast at virtual HYBAS gauges — see §3 | `api-v3.thaiwater.net` (keyless) + [floodforecasting.googleapis.com](https://developers.google.com/flood-forecasting) | 10 min |
 | **Air quality** | PM2.5 / PM10 / O3 / NO2 — province + per-station | Open-Meteo CAMS + PCD Air4Thai + CMU CCDC DustBoy | 5 min |
-| **CCTV** | 12 corridor cameras + reachable/live count | Longdo / iTIC / TAT / YouTube | 1 min |
+| **CCTV** | Dynamic camera catalogue + independently reported availability | Longdo / iTIC / TAT / YouTube | 1 min |
 | **Flights** | Real-time airspace count over the CNX bbox, plane size buckets | [OpenSky Network](https://opensky-network.org) | 30 s |
 | **Heritage** | 12 curated temples / parks / waterfalls / gates | static (curated) | 24 h |
 | **Weather overlays** | Live rain radar + Himawari-9 IR + MODIS AOD raster tiles on the map | RainViewer + NASA GIBS | 3 min |
-| **Open Data** | 311 datasets on data.go.th matching `เชียงใหม่` / `Chiang Mai` | [data.go.th CKAN](https://data.go.th) | on-demand (`npm run fetch:opendata`) |
+| **Open Data** | Dated catalogue snapshot on data.go.th matching `เชียงใหม่` / `Chiang Mai` | [data.go.th CKAN](https://data.go.th) | on-demand (`npm run fetch:opendata`) |
 | **Social listening** | Thai + English + GDELT mentions of Chiang Mai | Google News RSS + GDELT 2.0 | 3 min |
 | **Story** | Keystone narrative + actionable bullets, computed from live state | derived | 3 min |
 | **Ticker** | One-line marquee of every stream's headline number | derived | 1 s |
@@ -57,11 +58,10 @@ single number — it is a layer cake:
 1. **Where is it burning?** — RFD hotspots from the Royal Forest Department
    with the Thai forest-tenure class. This is what tells you whether
    the fire is on a DNP conservation boundary or on agricultural land.
-2. **How is the air?** — AOD (aerosol optical depth) at 550 nm. PM2.5 is
-   the ground-truth for "is the city breathing?" but AOD is the satellite
-   proxy that fires 24 h ahead. When AOD rises above 0.25, burning is
-   active somewhere in the province; when above 0.4, the city will
-   suffocate by morning.
+2. **How is the air?** — Fresh PCD and DustBoy ground readings describe
+   surface PM2.5. CAMS model AOD describes aerosol through an atmospheric
+   column; it does not establish surface health risk, a fire cause, or
+   what will happen by morning. Missing values remain unavailable.
 3. **What is the global satellite saying?** — NASA FIRMS as an independent
    check. If FIRMS and RFD disagree, the forest officers should be paged.
 
@@ -74,9 +74,9 @@ single number — it is a layer cake:
 | ALOW (ป่าส่วนราชการ) | alert | Stand up the Chiang Mai fire task force |
 | CMF (ป่าชุมชน) | alert | Notify the village head |
 | FIO (อ.อ.ป.) | watch | Notify the FIO regional office |
-| AOD ≥ 0.4 | critical | PCD mobile units at Chang Phueak / Tha Phae gates |
-| AOD ≥ 0.25 | alert | N95 distribution at public hospitals |
-| AOD < 0.10 | good | Normal posture |
+| AOD ≥ 0.4 | high model-column aerosol | Cross-check ground PM2.5; no official deployment inferred |
+| AOD ≥ 0.25 | elevated model-column aerosol | Cross-check ground readings and official health guidance |
+| AOD < 0.10 | low model-column aerosol | Does not establish clean surface air |
 
 ---
 
@@ -178,16 +178,16 @@ topographic map, and they were the one thing it did not show.
 
 ## 4. The flight desk
 
-OpenSky Network's anonymous tier gives 400 credits/day. A 30-second
-poll costs ~4 credits per call. One wall display = one poll = ~28k
-credits per day = well within budget. The plane-size breakdown
-(ATR / A320 / B777 / A380) drives the **tourist origin / plane size**
-analysis that the governor wanted.
+Flight availability and quota depend on the selected upstream and its
+current account limits; per-display requests must not be assumed to fit a
+free allowance. ADS-B provides observed aircraft, not passenger nationality
+or confirmed airport arrivals. Aircraft seats are capacity estimates.
+Carrier or registration country is not the departure airport.
 
-A future expansion (Phase 6) snapshots every flight into
-`/Volumes/Data/CNX/flight-snapshots/YYYY-MM-DD.ndjson.gz` — about 8 TB
-of trend data per year, which becomes the corpus for predicting
-tourism surges, viral-outbreak movements, and pandemic inflows.
+The snapshot writer stores small poll summaries in uncompressed
+`/Volumes/Data/CNX/flight-snapshots/YYYY-MM-DD.ndjson`; the edge fallback is
+process memory, not durable history. No measured 8 TB/year figure or
+validated tourism/pandemic prediction is claimed.
 
 ---
 
@@ -294,7 +294,7 @@ Re-read it every time you touch a new city.
 | Stories | 3 scenarios | 4 scenarios (burning / monsoon / Songkran / winter) |
 | Multilingual social | Thai + EN | Thai + EN + (Phase 6: flight-origin languages) |
 | Bus routes | no | yes (Phase 6) |
-| 8 TB flight snapshots | no | yes (Phase 6) |
+| Durable raw-flight history | no | requires a separate archive |
 | RAG chatbot | no | yes (Phase 6) |
 
 The "what's different" column is where the design decisions for the

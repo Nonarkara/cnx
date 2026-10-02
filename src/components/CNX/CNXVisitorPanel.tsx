@@ -94,7 +94,7 @@ export default function CNXVisitorPanel({
         <header className="flex items-center gap-1.5 border-b border-[var(--line)] px-3 py-1.5">
           <Plane className="h-3.5 w-3.5 text-[var(--cool)]" />
           <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
-            นักท่องเที่ยว · Visitors
+            ที่นั่งโดยประมาณ · Seat capacity
           </h2>
         </header>
         <div className="flex items-center gap-2 px-3 py-3 text-[11px] text-[var(--dim)]">
@@ -122,7 +122,7 @@ export default function CNXVisitorPanel({
         <div className="flex items-center gap-1.5">
           <Plane className="h-3.5 w-3.5 text-[var(--cool)]" />
           <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
-            นักท่องเที่ยว · Visitors
+            ที่นั่งโดยประมาณ · Seat capacity
           </h2>
         </div>
         {isEstimate && (
@@ -138,13 +138,13 @@ export default function CNXVisitorPanel({
       <div className="grid shrink-0 grid-cols-3 border-b border-[var(--line)] bg-[var(--bg)]">
         <Stat
           icon={<Users className="h-3 w-3 text-[var(--cool)]" />}
-          label="Visitors (24 h)"
+          label="Seats in view"
           value={visitors.toLocaleString()}
           sub={isEstimate ? "estimate" : undefined}
         />
         <Stat
           icon={<Plane className="h-3 w-3 text-[var(--cool)]" />}
-          label="Inbound flights"
+          label="Toward airport"
           value={flights.toLocaleString()}
         />
         <Stat
@@ -156,11 +156,11 @@ export default function CNXVisitorPanel({
 
       <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
         <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-          Top origins
+          Carrier / registration countries
         </div>
         {topOrigins.length === 0 ? (
           <p className="mt-1 font-mono text-[10px] text-[var(--dim)]">
-            No inbound flights right now.
+            No aircraft heading toward the airport in this snapshot.
           </p>
         ) : (
           <ul className="mt-1 space-y-1">
