@@ -29,3 +29,8 @@ scripts/relay-flights.env
 
 # typescript
 *.tsbuildinfo
+
+# local Worker secrets and development snapshots
+.dev.vars
+.dev.vars.*
+.data/

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" role="img" aria-labelledby="title desc">
+<title id="title">CNX: from Chiang Mai observations to an operations view</title>
+<desc id="desc">Live public feeds pass through server-side data adapters and API routes. Baked geography is served separately. Both reach the Next.js dashboard. Local Node development and Cloudflare Workers deployment use different storage and environment configuration. Missing data must remain labelled.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 6 3 0 6" fill="none" stroke="#182e46" stroke-width="1.5"/></marker></defs>
+<rect width="1200" height="660" fill="#f4f1ea"/>
+<rect width="1200" height="14" fill="#182e46"/>
+<g font-family="Arial, Helvetica, sans-serif" fill="#182e46">
+<text x="48" y="69" font-size="16" letter-spacing="3">CNX / CHIANG MAI OPERATIONS</text>
+<text x="48" y="122" font-size="40" font-weight="700">A place. Its signals. A readable view.</text>
+<text x="48" y="156" font-size="17">Source-grounded architecture • schematic, not a map or a live screenshot</text>
+<rect x="48" y="204" width="312" height="163" fill="#182e46"/>
+<g fill="#f4f1ea"><text x="70" y="238" font-size="14" letter-spacing="2">01 / OBSERVATIONS</text><text x="70" y="274" font-size="24" font-weight="700">Public feeds</text><text x="70" y="307" font-size="17">Air · water · fires · flights · news</text><text x="70" y="337" font-size="15">Availability, keys and quotas vary</text></g>
+<path d="M373 282 H413" fill="none" stroke="#182e46" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="432" y="204" width="312" height="163" fill="#dfd5bf"/>
+<text x="454" y="238" font-size="14" letter-spacing="2">02 / INTERPRETATION</text><text x="454" y="274" font-size="24" font-weight="700">Server-side adapters</text><text x="454" y="307" font-size="17">src/lib/cnx → /api/cnx/*</text><text x="454" y="337" font-size="15">Normalize · cache · label provenance</text>
+<path d="M757 282 H797" fill="none" stroke="#182e46" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="816" y="204" width="336" height="163" fill="#b69a55"/>
+<text x="838" y="238" font-size="14" letter-spacing="2">03 / OPERATIONS VIEW</text><text x="838" y="274" font-size="24" font-weight="700">Next.js /cnx</text><text x="838" y="307" font-size="17">MapLibre + deck.gl · panels</text><text x="838" y="337" font-size="15">Live / scenario / model / unavailable</text>
+<text x="48" y="416" font-size="14" letter-spacing="2">THE GEOGRAPHY IS A SEPARATE LAYER</text>
+<text x="48" y="452" font-size="22" font-weight="700">Refresh scripts → public/data/cnx</text><text x="48" y="484" font-size="17">Buildings · temples · walls · waterways · transit</text>
+<path d="M609 445 H985 V381" fill="none" stroke="#182e46" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="48" y="531" width="1104" height="81" fill="#182e46"/>
+<g fill="#f4f1ea"><text x="70" y="563" font-size="17" font-weight="700">LOCAL</text><text x="147" y="563" font-size="17">Next.js + .env.local + project-local snapshots</text><text x="70" y="591" font-size="17" font-weight="700">EDGE</text><text x="147" y="591" font-size="17">OpenNext Worker + ASSETS + optional flights KV + your own domain</text></g>
+<text x="48" y="640" font-size="13">CNX PUBLIC READINESS / original editable diagram / based on source paths documented in README</text>
+</g></svg>

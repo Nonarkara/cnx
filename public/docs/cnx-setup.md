@@ -1,94 +1,97 @@
-# CNX Dashboard — Clone &amp; Run
+# CNX Dashboard — Clone & Run
 
-> Step-by-step: from a fresh macOS box to a deployed
-> `cnx.nonarkara.org`. Filename mirrors `/docs/lopburi-setup.md` so
-> the Lopburi and Chiang Mai documentation sets look like siblings.
+A portable local-development guide for this public repository. The existing
+production Worker/domain belongs to the maintainer; cloning the source does
+not grant access to those resources.
 
-## 0. Prerequisites
+The [repository README](https://github.com/Nonarkara/cnx#readme) is the canonical
+setup and architecture guide. This downloadable copy follows the same contract.
 
-- macOS 14+ (Apple Silicon or Intel)
-- Node 20.x (Node 26 mostly works; the build script works around the OpenNext bundler hang by disabling ESLint at build time)
-- A Cloudflare account with a custom domain pointing at `cnx.nonarkara.org`
+## 1. Start locally
 
-## 1. Clone
+Use a current Node **22.x** release, **at least 22.20.0**, npm, and Git. The full
+locked toolchain includes Node-22-only packages and Linux compression tooling
+that requires 22.20+. `.nvmrc` and `.node-version` select the current 22 line.
+Node 20 and Node 26 are outside the repository’s supported range.
 
 ```bash
-git clone https://github.com/Nonarkara/cnx
+git clone https://github.com/Nonarkara/cnx.git
 cd cnx
-npm install
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-## 2. Configure environment
+Open **http://127.0.0.1:3000/cnx**. A Cloudflare account, custom domain, API key,
+external drive and data refresh are not required to start the local UI.
+Individual live feeds need network access and may require credentials or fail.
+This is not a complete offline-data mode.
 
-Create `var/.env.production` (or `.dev.vars` for local wrangler):
+## 2. Know which configuration is read
 
-```
-CLOUDFLARE_API_TOKEN=cfut_xxx        # worker write scope
-CF_ACCOUNT_ID=74ad6bf8dfaaccf82de6f0847f7d2d54
-FIRMS_MAP_KEY=xxx                    # NASA FIRMS map key
-LONGDO_API_KEY=xxx                   # Longdo CCTV
-ITIC_USERNAME=xxx
-ITIC_PASSWORD=xxx
-```
+- Next.js local development reads `.env.local`
+- Wrangler’s local Worker runtime reads `.dev.vars`
+- A deployed Worker needs its own account variables/secrets
+- `NEXT_PUBLIC_*` values are public build-time metadata, never secrets
 
-## 3. Bake static data
+The committed example uses the local site URL, so server-side asset reads use
+this checkout’s `public/data/cnx/`. Local snapshot paths stay in the gitignored
+`.data/cnx/` directory. Both `.env.local` and `.dev.vars` are ignored by Git.
+Restart the process after changing values.
+
+Leave optional keys empty for the first run. Add only your own credentials if
+you later enable that provider. Without `FIRMS_MAP_KEY`, the FIRMS/smoke path
+cannot supply a live VIIRS pass. Treat missing, scenario, modelled and live
+values as different states.
+
+## 3. Verify and build
 
 ```bash
-npm run fetch:opendata      # 311 data.go.th datasets → public/data/cnx/open-data/
-npm run ingest:all         # everything else (RFD snapshot, GISTDA PM2.5 cache, …)
+npm run type-check
+npm run lint
+CNX_SKIP_DISK_LOAD=1 npm test
+npm run build
 ```
 
-The 25-amphoe boundaries, OSM 3D buildings, Ping waterways, and the heritage POI list are all generated here. The scripts are idempotent — running them twice produces no diff.
+The ordinary build is a Next.js build. `npm start` serves it. Separately,
+`npm run build:cnx` builds the OpenNext Worker and applies the checked-in
+adapter patch. The deployment script’s public URL metadata must be adapted
+before building a fork for a different site.
 
-## 4. Build
+While the development server is running:
 
 ```bash
-npm run build:cnx
+curl -I http://127.0.0.1:3000/cnx
+curl -I http://127.0.0.1:3000/cnx/about
+curl -I http://127.0.0.1:3000/data/cnx/waterways.geojson
+curl http://127.0.0.1:3000/api/cnx/build
 ```
 
-This runs `next build` with `eslint.ignoreDuringBuilds: true`, then `npx @opennextjs/cloudflare build`, then `node scripts/patch-og-wasm.mjs` (strips the dead `cloudflare/images.js` import and stubs `unenv/internal/tty/write-stream.mjs` — both are post-build fixes required for Node 26).
+HTTP checks do not establish live-data availability, browser usability or
+production deployment readiness. Check those separately.
 
-## 5. Deploy
+## 4. Refresh only what you need
 
-```bash
-npm run deploy:cnx
-```
+Baked geography and catalogues already exist in `public/data/cnx/`. Read the
+relevant script and upstream terms before refreshing: refresh commands make
+external requests and rewrite generated files. `ingest:all` currently delegates
+to `fetch:opendata`; it does not regenerate every map layer.
 
-This runs `wrangler deploy -c wrangler.cnx.jsonc`. The route `cnx.nonarkara.org` is auto-created on first deploy via `custom_domain: true`; subsequent deploys update the same route in place.
+The optional `run-arnis-chiangmai.sh` is an operator-specific Bash/macOS job
+with an existing Arnis binary and `/Volumes/Data` assumption. It is not needed
+for the web app and should not be passed to Node.
 
-## 6. Verify
+## 5. Deploy only to your own target
 
-```bash
-curl -I https://cnx.nonarkara.org                  # 307 → /cnx
-curl -I https://cnx.nonarkara.org/cnx              # 200, dashboard
-curl -I https://cnx.nonarkara.org/cnx/about        # 200, this page
-curl -I https://cnx.nonarkara.org/api/cnx/fires-rfd  # 200, real RFD hotspots
-curl -I https://cnx.nonarkara.org/api/cnx/aqi-amphoe # 200, 25-amphoe PM2.5
-```
+The tracked Wrangler files contain the maintainer’s Worker name, routes and
+KV namespace. Do not run `deploy:cnx` unchanged for a fork.
 
-## What lives where
+Create your own account resources and reviewed configuration, update the
+Worker/domain/KV/public-URL identifiers, configure your own secrets, build and
+verify the Worker bundle, then deliberately deploy to your own target. Check
+provider service limits, billing and data terms before doing so. No account,
+DNS or deployment setup occurs in the local quickstart.
 
-| Layer | Lives in | Cost |
-|---|---|---|
-| Edge worker | Cloudflare Workers | free tier (well under) |
-| Static assets (JS / CSS / images / docs) | Cloudflare Pages asset bundle | free tier |
-| Slow-changing data (GeoJSON, open-data catalog) | `public/data/cnx/` (bundled) | free |
-| Flight snapshots (long-term) | `/Volumes/Data/CNX/flight-snapshots/` on the M3 Air | local disk |
-
-## How to add a new city
-
-The dashboard is designed for marginal-cost ~0 reuse across provinces:
-
-1. Copy `src/lib/cnx/` → `src/lib/<new>/` and rename.
-3. Copy `src/components/CNX/` → `src/components/<new>/`.
-4. Copy `src/app/cnx/` → `src/app/<new>/` and the route prefix.
-5. Update `wrangler.cnx.jsonc` → `wrangler.<new>.jsonc` with the new routes.
-6. Update `next.config.mjs` redirects to send `/` → `/<new>` when `NEXT_PUBLIC_PROVINCE=<new>`.
-
-The framework primitives (`CNXApp`, `CNXTopBar`, `CNXLogoRow`, `CNXMap`) are the same shape across provinces — only the data modules swap.
-
-## Known build gotchas on Node 26
-
-- `next build` sometimes hangs at "Creating an optimized production build…" for 30–60s before unblocking. The `eslint: { ignoreDuringBuilds: true }` flag in `next.config.mjs` skips the lint step that's stalling; the actual compilation proceeds.
-- After `npm install`, re-run `node scripts/patch-og-wasm.mjs` if you see `Could not resolve "./internal/tty/write-stream.mjs"` in the worker bundle. The patch is idempotent.
-- The `next.config.mjs` deliberately sets `output: 'export'` → NO; we removed `output: 'standalone'` too. The OpenNext adapter (`@opennextjs/cloudflare`) handles the worker build.
+Adapting to another city also requires checking geography, source coverage,
+route assumptions, attribution and provenance rules. Renaming folders alone
+does not create a verified municipal dashboard.

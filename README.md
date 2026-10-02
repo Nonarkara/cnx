@@ -1,5 +1,15 @@
 # CNX War Room — Chiang Mai Operations Dashboard
 
+![CNX system: public observations and baked geography feed server adapters and a labelled operations view](docs/diagrams/cnx-system.svg)
+
+An independent operations dashboard for people exploring Chiang Mai’s public
+data. Use it to inspect signals and their provenance; it is not an official
+emergency-warning service. The diagram is an editable system schematic, not
+a screenshot or a claim that every feed is available.
+
+**Start here:** [local development](#2-clone--run-locally) ·
+[architecture](#7-architecture) · [fork deployment](#5-deploy-your-own-copy)
+
 Real-time operational dashboard for Chiang Mai province, deployed at
 **[cnx.nonarkara.org](https://cnx.nonarkara.org)**. Sibling of the
 [Lopburi](https://lopburi.nonarkara.org), [Phuket](https://phuket.nonarkara.org),
@@ -31,103 +41,133 @@ Hua Lin, Chaeng Katam) traced in gold.
 
 ## 1. Prerequisites
 
-- macOS 14+ (Apple Silicon or Intel) or Linux x86_64
-- **Node 20.18+ or 22.x** (`nvm use` reads `.nvmrc` — Node 26 hangs on
-  the opennextjs bundler; Node 22 is the supported default)
-- A Cloudflare account with the `cnx.nonarkara.org` zone on it
-- 8 GB RAM minimum (16 GB recommended for `next build` parallelism)
+- A current **Node 22.x release, at least 22.20.0**. `.nvmrc` and
+  `.node-version` select the 22 line; CI tests the declared minimum.
+  The full locked toolchain includes Wrangler/MapLibre dependencies that
+  no longer support Node 20 and a Linux compression package needing 22.20+.
+- npm and Git. The checked-in `package-lock.json` supports `npm ci`.
+- macOS or Linux for the existing shell-based build/refresh commands.
+
+A Cloudflare account, custom domain, FIRMS key and mounted external drive are
+not prerequisites for starting the local UI. Live data needs network access;
+individual sources can be unavailable, rate-limited or require credentials.
+The first local run is not a complete offline simulation.
+
+## 2. Clone & run locally
 
 ```bash
-brew install node@22
-nvm use    # or: nvm install $(cat .nvmrc)
-```
-
-## 2. Clone & install
-
-```bash
-git clone https://github.com/Nonarkara/cnx
+git clone https://github.com/Nonarkara/cnx.git
 cd cnx
-npm install
-cp .env.example .dev.vars
-# Edit .dev.vars — fill in FIRMS_MAP_KEY at minimum
+nvm install  # optional: if you use nvm, reads .nvmrc
+nvm use
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-`FIRMS_MAP_KEY` is required for the FIRMS fire-hotspot feed to work;
-without it `/api/cnx/fires` returns an empty array (the API key is
-free at <https://firms.modaps.eosdis.nasa.gov/api/>).
+Open **http://127.0.0.1:3000/cnx**. `/` also redirects to `/cnx`.
+If you do not use nvm, install a supported Node version through your normal
+Node manager and omit the two nvm commands.
 
-## 3. Bake the slow-changing data
+The example now points `NEXT_PUBLIC_SITE_URL` to the local server, so the
+server reads this checkout’s baked assets rather than the production website.
+Next.js reads `.env.local`. Wrangler uses `.dev.vars` for its own local
+Worker runtime; copying only `.dev.vars` does not configure `next dev`.
+Both files are ignored by Git. Restart the dev server after changing values.
 
-The dashboard reads GeoJSON for buildings, temples, walls, waterways,
-and bus routes at runtime — baked from OSM Overpass via the scripts
-under `scripts/`. Run them once before the first build:
+No credentials are included. Leave optional secret values empty for the
+initial run. Without `FIRMS_MAP_KEY`, the FIRMS-backed fire/smoke path cannot
+provide a live VIIRS pass. Other feed failures should remain visible as
+missing, scenario or unavailable data, never interpreted as “all clear”.
+The example keeps optional snapshot output in `.data/cnx/` inside the project.
+
+## 3. Refresh geography when needed
+
+This checkout already contains baked buildings, temples, walls, waterways,
+transit and open-data assets under `public/data/cnx/`. Inspect those first;
+refreshing every external source is not part of the first-run sequence.
+
+The refresh scripts below access upstream services and overwrite generated
+local files. Read a script and its source terms before running it:
 
 ```bash
-npm run fetch:opendata     # 311 data.go.th datasets → public/data/cnx/open-data/
-node scripts/fetch-cnx-buildings-3d.mjs  # buildings + temples + walls
-node scripts/fetch-cnx-waterways.mjs      # Ping basin rivers + streams
-node scripts/fetch-cnx-bus-routes.mjs     # bus routes + stops
-node scripts/fetch-cnx-ground-overlay.mjs # ground overlay if needed
+npm run fetch:opendata
+node scripts/fetch-cnx-buildings-3d.mjs
+node scripts/fetch-cnx-waterways.mjs
+node scripts/fetch-cnx-bus-routes.mjs
 ```
 
-These bake to `public/data/cnx/<feature>.geojson` — see
-[`scripts/`](./scripts/) for one-off refresh recipes.
+The optional Minecraft workflow has additional inputs.
+`scripts/run-arnis-chiangmai.sh` is a **Bash script**, not JavaScript. It is an
+operator-specific macOS job: it uses `caffeinate`, an existing Arnis executable,
+and a mounted `/Volumes/Data` drive. It is not required for the web app and
+is not a portable, one-command installation recipe. Review/adapt it before
+running `bash scripts/run-arnis-chiangmai.sh` on a suitable machine.
 
-## 4. Build
+## 4. Check and build
 
 ```bash
-npm run build:cnx
+npm run type-check
+npm run lint
+CNX_SKIP_DISK_LOAD=1 npm test
+npm run build
 ```
 
-The build chain runs `next build` + `@opennextjs/cloudflare build` +
-`scripts/patch-og-wasm.mjs` (which strips the dead `cloudflare/images`
-import and stubs `unenv/internal/tty/write-stream` — both required for
-the OpenNext adapter). Expected wall time: 2–4 min on Node 22.
+`npm run build` creates the standard Next.js build; `npm start` serves it.
+`npm run build:cnx` separately creates the OpenNext Cloudflare Worker and
+runs the repository’s `patch-og-wasm.mjs` adapter patch. Build scripts contain
+site-specific public URL metadata; review it before preparing a fork release.
 
-> **If the build hangs at 0% CPU**: you've hit Node 26's `process.nextTick`
-> stall on the opennextjs bundler (memory note `Node 26 + @opennextjs/cloudflare`).
-> Switch to Node 22 via `nvm use`, kill any other heavy node processes
-> (airdash / chula / n8n / freellmapi), and retry. If still hung after 5
-> minutes, kill it and retry — the hang is intermittent and load-dependent.
+The [verification record](docs/PUBLIC-READINESS-VERIFICATION.md) lists checks
+actually run and their limits.
 
-## 5. Deploy
+A successful local page, tests, and production bundle are separate checks.
+Upstream feed availability, browser interaction and a deployed Worker must be
+verified in their own environments. Do not infer them from a green typecheck.
+
+## 5. Deploy your own copy
+
+The checked-in `wrangler.cnx.jsonc` and `wrangler.jsonc` describe the existing
+CNX deployment: its Worker name, custom routes and flights KV namespace.
+**Do not deploy those identifiers unchanged for a fork.**
+
+1. Create your own Cloudflare Worker/domain and, if enabling the flights relay,
+   your own KV namespace. These are account resources outside this repository.
+2. Replace the Worker name, routes, zone names, public URL variables and KV ID
+   in a copy of the deployment configuration. Update `build:cnx`’s public URL
+   for your fork too. Keep a reviewed configuration for your own target.
+3. Configure any required server-only secrets in your own account. Never put
+   them in `NEXT_PUBLIC_*` or commit them. Read `.env.example` for their roles.
+4. Build with `npm run build:cnx`, verify `.open-next/worker.js`, and only then
+   run Wrangler against the reviewed configuration for **your** target.
+5. Check the deployed UI and actual API provenance. Account login, KV setup,
+   DNS and a live deployment are not performed by the local quick start.
+
+Do not unset a valid authentication variable merely to copy an operator’s
+shell recipe. Choose the authentication method appropriate to your account.
+Cloudflare service limits, costs and source-provider terms apply separately.
+
+## 6. Verify the local result
+
+While `npm run dev` is running:
 
 ```bash
-unset CLOUDFLARE_API_TOKEN    # the env var defaults to a placeholder;
-                              # wrangler falls back to the OAuth token in
-                              # ~/.wrangler/config/default.toml
-npx wrangler deploy -c wrangler.cnx.jsonc
+curl -I http://127.0.0.1:3000/cnx
+curl -I http://127.0.0.1:3000/cnx/about
+curl -I http://127.0.0.1:3000/data/cnx/waterways.geojson
+curl http://127.0.0.1:3000/api/cnx/build
 ```
 
-DNS for `cnx.nonarkara.org` and `www.cnx.nonarkara.org` is auto-created
-via `custom_domain: true` on the route — first deploy creates the CNAMEs,
-subsequent deploys update them in place.
+The first three should return an HTTP success; the build endpoint exposes
+version/provenance metadata. These checks do not assert that every upstream
+feed is live. In a browser, inspect the map, a data panel, empty/error states,
+keyboard navigation and a narrow viewport. API routes are under
+`src/app/api/cnx/*/route.ts`; their returned counts change as source data changes.
 
-Worker scripts to seed first:
-```bash
-node scripts/run-arnis-chiangmai.sh   # ~5 min — generates the Java
-                                      # Minecraft world of Chiang Mai Old City
-                                      # (~106 MB, 3,766 Overture buildings)
-                                      # into /Volumes/Data/Projects/BKKx-worlds/
-                                      # This is a desktop step, not part of
-                                      # the web deploy.
-```
-
-## 6. Verify
-
-```bash
-curl -I https://cnx.nonarkara.org                  # 307 → /cnx
-curl -I https://cnx.nonarkara.org/cnx              # 200, dashboard
-curl -I https://cnx.nonarkara.org/cnx/about        # 200, methodology page
-curl -I https://cnx.nonarkara.org/api/cnx/fires-rfd # 200, real RFD hotspots
-curl https://cnx.nonarkara.org/api/cnx/open-data   # totalDatasets: 311
-curl https://cnx.nonarkara.org/api/cnx/bus-routes  # 17 routes + 1,117 stops
-curl https://cnx.nonarkara.org/api/cnx/waterways   # 5,323 streams + rivers
-curl https://cnx.nonarkara.org/api/cnx/social      # items > 0
-```
-
-The full route table is at `src/app/api/cnx/<feature>/route.ts` —
-17 endpoints in total.
+For a deployment, repeat the same checks with your own base URL, then inspect
+fire, flood, air, flights and social endpoints individually. A missing API key,
+a quota response or an unavailable source is a limitation to diagnose, not a
+passing live-data check.
 
 ## 7. Architecture
 
@@ -184,7 +224,7 @@ Full source catalogue: [`public/docs/cnx-sources.md`](./public/docs/cnx-sources.
 ## 9. Development workflow
 
 ```bash
-npm run dev            # next dev on 127.0.0.1 (M3 Air)
+npm run dev            # next dev on 127.0.0.1
 npm run type-check     # tsc --noEmit --skipLibCheck    (Node 22)
 npm run lint           # eslint src
 npm run build:cnx      # full Cloudflare build
@@ -203,9 +243,8 @@ The dashboard's locale is `th`. Layout is responsive:
 
 ```
 cnx/
-├── .env.example                  ← every secret / build-time var
+├── .env.example                  ← documented optional secrets / local defaults
 ├── .nvmrc / .node-version        ← pin Node 22
-├── AGENTS.md                     ← sister-project conventions
 ├── docs/
 │   ├── WAR-ROOM-BIBLE.md         ← operator study guide
 │   └── SOURCES.md                 ← full feed catalogue
@@ -223,7 +262,7 @@ cnx/
 ├── src/
 │   ├── app/
 │   │   ├── cnx/                  ← dashboard routes (/cnx, /cnx/about)
-│   │   └── api/cnx/<feature>/    ← 17 API endpoints
+│   │   └── api/cnx/<feature>/    ← API route handlers
 │   ├── components/CNX/           ← React shell + panels (CNXApp, CNXMap, CNXTopBar, …)
 │   ├── lib/cnx/                  ← data modules (fetchCnxSocial, fetchCnxBus, …)
 │   ├── services/                 ← basemap styles
@@ -249,6 +288,8 @@ three dashboards feel like a product line, not strangers.
 
 ## 12. License
 
-MIT for the code; OSM data is ODbL 1.0; rest of the feeds retain their
-respective upstream licenses (see `public/docs/cnx-sources.md` for
-the full table).
+The existing project documentation declares MIT for the code, but this
+checkout does not contain a standalone LICENSE file. Confirm the code grant
+with the maintainer before relying on it for reuse. This readiness pass does
+not add or change licensing terms. OSM-derived data and other feeds retain
+their upstream terms; see `public/docs/cnx-sources.md`.
