@@ -33,6 +33,11 @@ const ORIGIN = process.env.CNX_ORIGIN ?? "https://cnx.nonarkara.org";
 // Routes expected to answer 200. POST-only ingestion routes are listed
 // separately because a GET on them is *expected* to 405 — a 405 here is
 // the correct answer, not an anomaly.
+//
+// Enumerated from the tree with
+//   find src/app/api/cnx -name route.ts | sed 's|src/app/api/cnx/||;s|/route.ts||'
+// which is also how the ingest list below was produced. Guessing these
+// produced three FAILs against a perfectly healthy deployment.
 const ROUTES_200 = [
   "air-quality", "aircraft", "arrivals", "asmc", "aerosol", "aqi-amphoe",
   "bus-routes", "cctv", "citizen", "dustboy", "fires", "fires-rfd",
@@ -185,17 +190,34 @@ for (const name of expects) {
   }
   if (name === "river-level") {
     if (j.provenance === "live") ok(`provenance live, ${j.gaugeCount} gauges`);
-    else fail(`provenance is "${j.provenance}" (${j.unavailableReason ?? "no reason"})`);
-    if (typeof j.catalogueCount === "number") ok(`catalogue ${j.catalogueCount}, so coverage is stated against a population`);
-    else console.log("  note  catalogueCount null — the catalogue read failed (expected, but noted)");
+    else if (j.provenance === "unavailable") {
+      // A throttle is a KNOWN, documented condition, not an anomaly: the
+      // upstream rate-limits per source IP and Cloudflare's egress is
+      // shared. What must hold either way is that the reason is stated
+      // and that it does not read as a statement about the river.
+      ok(`unavailable — stated reason: ${j.unavailableReason}`);
+      if (typeof j.unavailableReason !== "string" || !j.unavailableReason) {
+        fail("unavailable with no reason — an operator cannot act on that");
+      }
+      if (!/not a measurement of absence|not an empty river/i.test(j.note ?? "")) {
+        fail(`note does not distinguish a failed read from an absent river: ${j.note}`);
+      }
+    } else {
+      fail(`unexpected provenance "${j.provenance}"`);
+    }
+    if (typeof j.catalogueCount === "number") ok(`catalogue ${j.catalogueCount} (context, not a denominator)`);
+    else if (j.catalogueCount === null) ok("catalogueCount null — catalogue unread, correctly not 0");
+    else fail(`catalogueCount should be number|null, got ${typeof j.catalogueCount}`);
     const withThreshold = (j.gauges ?? []).filter((g) => g.criticalLevelMsl !== null);
     if (withThreshold.length) {
       const g = withThreshold[0];
       ok(`published threshold: ${g.code} critical ${g.criticalLevelMsl} m, headroom ${g.headroomM?.toFixed(2)} m`);
     }
-    const withTime = (j.gauges ?? []).filter((g) => g.observedAt);
-    if (withTime.length) ok(`all ${withTime.length} gauges carry an observation time`);
-    else fail("no gauge carries an observation time — ages cannot be shown");
+    if (j.provenance === "live") {
+      const withTime = (j.gauges ?? []).filter((g) => g.observedAt);
+      if (withTime.length) ok(`all ${withTime.length} gauges carry an observation time`);
+      else fail("no gauge carries an observation time — ages cannot be shown");
+    }
   } else {
     ok(`${name} payload fetched (${res.text.length} bytes)`);
   }
