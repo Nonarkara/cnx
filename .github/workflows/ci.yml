@@ -18,11 +18,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Must satisfy vite's engines (^20.19.0 || >=22.12.0). The previous
-        # 20.18.1 / 22.11.0 pair sat just under both floors, so vitest died
-        # at startup with ERR_REQUIRE_ESM loading vitest.config.ts. Pin to
-        # the oldest versions that actually work, not round numbers.
-        node: ["20.19.0", "22.12.0"]
+        # The full locked toolchain requires Node 22.20+ on Linux.
+        # Node 20 no longer satisfies Wrangler / MapLibre dependencies.
+        node: ["22.20.0"]
     steps:
       - uses: actions/checkout@v4
 
@@ -56,8 +54,8 @@ jobs:
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          # Same floor as the test matrix — vite 7 requires >=22.12.0.
-          node-version: "22.12.0"
+          # Lowest supported full-toolchain version; .nvmrc uses current 22.x.
+          node-version: "22.20.0"
           cache: npm
 
       - name: Install
