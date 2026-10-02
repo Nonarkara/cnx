@@ -53,7 +53,24 @@ else {
   try {
     const remote = JSON.parse(build.text).commit;
     if (remote === head) ok(`build.commit == HEAD (${head.slice(0, 7)})`);
-    else fail(`deployed commit ${remote} differs from HEAD ${head}`);
+    else {
+      // A commit string alone is not proof of a release — but not every
+      // difference from it is a release problem either. Drift that
+      // touches only the private engineering docs (which never bundle
+      // and never ship) is benign: name it and pass. Anything touching a
+      // path the build consumes — src/, public/, configs — is real drift
+      // and fails, as it should: that was the deployed-but-uncommitted
+      // hazard this gate exists to catch.
+      let changed = null;
+      try {
+        changed = execFileSync("git", ["diff", "--name-only", `${remote}..HEAD`], { cwd: PROJECT_ROOT, encoding: "utf8" }).trim().split("\n").filter(Boolean);
+      } catch {
+        // Deployed commit is not in this history — treat as real drift.
+      }
+      const docsOnly = changed !== null && changed.length > 0 && changed.every((f) => f.startsWith("docs/") || /^[^/]+\.md$/.test(f));
+      if (docsOnly) ok(`deployed commit ${remote.slice(0, 7)} is behind HEAD by docs-only changes — deploy not required (${changed.length} file${changed.length === 1 ? "" : "s"})`);
+      else fail(`deployed commit ${remote} differs from HEAD ${head}`);
+    }
   } catch { fail("build returned non-JSON"); }
 }
 
