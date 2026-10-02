@@ -10,7 +10,7 @@
 //
 // Run: `npx vitest run src/lib/cnx/jaxa-aot.test.ts
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { bandForLon, itemPathFor, resolveAotItem, JAXA_AOT_NODATA, JAXA_AOT_SCALE } from "./jaxa-aot";
 
 const CNX_LON = 98.98;
@@ -125,6 +125,110 @@ describe("resolveAotItem — a missing pass is a missing pass", () => {
     );
     expect(item).toBeNull();
     expect(reason).toMatch(/unreachable/i);
+  });
+});
+
+describe("fetchLatestAotItem — walks back before it reports absence", () => {
+  const goodItem = {
+    type: "Feature",
+    properties: {
+      start_datetime: "2026-09-28T23:59:49.190000Z",
+      end_datetime: "2026-09-30T00:02:20.400000Z",
+      platform: "GCOM-C",
+      instrument: "SGLI",
+      license: "proprietary",
+    },
+    assets: {
+      AROT: {
+        href: "./E000.00-S90.00-E180.00-N90.00-AROT.tiff",
+        "je:rasters": {
+          dn: { data_type: "uint16", min: 10.0, max: 50000.0, nodata: 65535.0, error: [65535.0] },
+          dn2value: { slope: 9.999999747378752e-05, offset: 0.0 },
+        },
+      },
+    },
+  };
+
+  /** The module caches for 30 min, so each case needs a fresh module instance. */
+  async function freshFetchLatest() {
+    vi.resetModules();
+    const mod = await import("./jaxa-aot");
+    return mod.fetchLatestAotItem;
+  }
+
+  const NOW = new Date("2026-10-02T12:00:00Z");
+  const dateDaysAgo = (n: number) =>
+    new Date(new Date(NOW).setUTCDate(new Date(NOW).getUTCDate() - n)).toISOString().slice(0, 10);
+  // Catalogue URLs carry the date as `YYYY-MM/DD`, not dashed ISO — the
+  // stubs below must match the path form or the 404s never happen.
+  const pathDate = (iso: string) => `${iso.slice(0, 7)}/${iso.slice(8, 10)}`;
+
+  it("reports today's item when the catalogue carries it", async () => {
+    const urls: string[] = [];
+    const stub = (async (url: RequestInfo | URL) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify(goodItem), { status: 200 });
+    }) as unknown as typeof fetch;
+    const res = await (await freshFetchLatest())(98.98, stub, NOW);
+    expect(res.provenance).toBe("live");
+    expect(res.resolvedFor).toBe(dateDaysAgo(0));
+    expect(res.walkedBackDays).toBe(0);
+    expect(res.item!.license).toBe("proprietary");
+    expect(urls).toHaveLength(1);
+  });
+
+  it("walks back when today's pass is not up yet, and says how far", async () => {
+    // Today 404s (the daytime pass publishes with a lag); yesterday resolves.
+    // Reporting today's 404 as "no data" is the FIRMS header-only failure —
+    // the walk exists so that does not happen.
+    const stub = (async (url: RequestInfo | URL) => {
+      return String(url).includes(pathDate(dateDaysAgo(0)))
+        ? new Response("not found", { status: 404 })
+        : new Response(JSON.stringify(goodItem), { status: 200 });
+    }) as unknown as typeof fetch;
+    const res = await (await freshFetchLatest())(98.98, stub, NOW);
+    expect(res.provenance).toBe("live");
+    expect(res.resolvedFor).toBe(dateDaysAgo(1));
+    expect(res.walkedBackDays).toBe(1);
+  });
+
+  it("crosses the month boundary, where the real lag lives", async () => {
+    // Verified live 2 October 2026: 2026-10/catalog.json answered 404 on
+    // day 2 of the month while 2026-09-30 resolved — every date in an
+    // unpublished month 404s regardless of recency. The walk must cross
+    // into the previous month and keep going, and report how far it went.
+    const stub = (async (url: RequestInfo | URL) => {
+      const u = String(url);
+      return u.includes("2026-10/")
+        ? new Response("not found", { status: 404 })
+        : new Response(JSON.stringify(goodItem), { status: 200 });
+    }) as unknown as typeof fetch;
+    const res = await (await freshFetchLatest())(98.98, stub, NOW);
+    expect(res.provenance).toBe("live");
+    expect(res.resolvedFor).toBe(dateDaysAgo(2));
+    expect(res.walkedBackDays).toBe(2);
+  });
+
+  it("eleven clear days are absence, reported as absence — not zero, not a clear sky", async () => {
+    const stub = (async () => new Response("not found", { status: 404 })) as unknown as typeof fetch;
+    const res = await (await freshFetchLatest())(98.98, stub, NOW);
+    expect(res.provenance).toBe("unavailable");
+    expect(res.item).toBeNull();
+    expect(res.reason).toMatch(/no GCOM-C pass published in the last 11 days/);
+  });
+
+  it("an unreachable catalogue is not a clear week", async () => {
+    // The walk's own last words carry through: a transport failure and a
+    // genuine absence are different states, and flattening them into one
+    // sentence would tell operators the satellite is quiet when the
+    // catalogue simply did not answer.
+    const stub = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+    const res = await (await freshFetchLatest())(98.98, stub, NOW);
+    expect(res.provenance).toBe("unavailable");
+    expect(res.reason).toMatch(/unreachable/);
+    expect(res.reason).not.toMatch(/no GCOM-C pass/);
   });
 });
 

@@ -120,6 +120,6 @@ Requires Arnis installed locally (`brew install louis-e/arnis/arnis` on macOS) a
 ## Auth-walled / deferred (documented honestly)
 
 - **GISTDA disaster portal** (`https://disaster.gistda.or.th`) — full AOD tile range needs session; we use the public PM2.5 endpoint instead.
-- **JAXA GCOM-C SGLI AOT** — resolved from a static STAC COG catalog, but deliberately **not wired to the UI**: the dataset declares `license: proprietary` and access generates a text access log. The resolver ships in the codebase but no request path calls it.
+- **JAXA GCOM-C SGLI AOT** — resolved from a static STAC COG catalog, **wired 2026-10-02 at `/api/cnx/jaxa-aot`** by operator decision: the dataset declares `license: proprietary` and access generates a text access log, so the route is rate-limited (30 min server TTL + edge cache). The endpoint resolves which scene exists, its observation window, and the licence — it does not return an AOT value, because the value lives inside the COG and a decoded pixel is work the Workers runtime cannot do.
 - **OpenSky** — OAuth2 client-credentials via `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET`; `api.adsb.lol` is the fallback when that is unavailable.
 - **ThaiWater v3 / HII** — no live gauge feed. Until one exists the board reports **no measured river level** and refuses to certify the flood axis as safe; a flood-prone-area raster would be a static hazard map, not a measurement.

@@ -135,3 +135,85 @@ export async function resolveAotItem(
     reason: null,
   };
 }
+
+// ── newest-scene resolution, the thing the wired route serves ──
+
+export interface JaxaAotResponse {
+  generatedAt: string;
+  /** "live" = a resolved Item; "unavailable" = nothing resolvable. */
+  provenance: "live" | "unavailable";
+  item: AotItem | null;
+  /** Why there is no item, in operator language. */
+  reason: string | null;
+  /** The date the walk asked for when it found the item. */
+  resolvedFor: string | null;
+  /** How far back from today the walk had to go. */
+  walkedBackDays: number;
+}
+
+let cache: { at: number; data: JaxaAotResponse } | null = null;
+const TTL_MS = 30 * 60_000; // 30 min — a daily catalogue needs no more
+
+/**
+ * The newest GCOM-C scene, walking back from today.
+ *
+ * GCOM-C publishes the daytime pass with a lag, so today's item is often
+ * not up yet. Walking back is the difference between "no pass today" and
+ * "no data at all" — reporting the first as the second is the FIRMS
+ * header-only failure in new clothes.
+ *
+ * The walk is 10 days deep because the lag is at the MONTH BOUNDARY,
+ * verified live 2 October 2026: `2026-10/catalog.json` answered 404 on
+ * day 2 of the month while `2026-09-30` resolved — every date in an
+ * unpublished month 404s regardless of recency, so the walk must be able
+ * to cross into the previous month and keep going. Beyond 10 days the
+ * answer is genuinely "absent", reported as absence.
+ *
+ * The 30 min TTL is also access-log citizenship: access is what generates
+ * JAXA's text access log (the licence gate in docs/SOURCES.md §8), so the
+ * route hits the catalogue at most once per TTL plus once per s-maxage
+ * at the edge.
+ */
+export async function fetchLatestAotItem(
+  lon: number,
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<JaxaAotResponse> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
+  const generatedAt = now.toISOString();
+  let lastReason: string | null = null;
+  for (let daysAgo = 0; daysAgo <= 10; daysAgo += 1) {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() - daysAgo);
+    const date = d.toISOString().slice(0, 10);
+    const { item, reason } = await resolveAotItem(date, lon, fetchImpl);
+    if (item) {
+      const data: JaxaAotResponse = {
+        generatedAt,
+        provenance: "live",
+        item,
+        reason: null,
+        resolvedFor: date,
+        walkedBackDays: daysAgo,
+      };
+      cache = { at: Date.now(), data };
+      return data;
+    }
+    lastReason = reason;
+  }
+  const data: JaxaAotResponse = {
+    generatedAt,
+    provenance: "unavailable",
+    item: null,
+    // An unreachable catalogue is not a clear fortnight; carry the walk's
+    // own last words rather than flattening both states into one sentence.
+    reason:
+      lastReason === "no GCOM-C pass published for this date"
+        ? "no GCOM-C pass published in the last 11 days"
+        : lastReason,
+    resolvedFor: null,
+    walkedBackDays: 10,
+  };
+  cache = { at: Date.now(), data };
+  return data;
+}

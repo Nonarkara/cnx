@@ -64,7 +64,7 @@ tells operators "NASA did not answer" on a day when NASA answered clearly.
 | Source | Endpoint | Key | Gives | Failure mode |
 |---|---|---|---|---|
 | **Google Flood Hub** | `floodforecasting.googleapis.com` | `CNX_FLOODHUB_KEY` ✅ set | 7-day riverine model forecast at virtual gauges | **No physical gauge on the Ping.** 337 upper-north points, all HYBAS virtual, only 5 quality-verified, and **none** of the 12 nearest Chiang Mai |
-| **JAXA GCOM-C SGLI AOT** | `s3.ap-northeast-1.wasabisys.com` (static STAC COG) | none | Aerosol optical depth at 500 nm | Not yet wired. `license: proprietary` — see below |
+| **JAXA GCOM-C SGLI AOT** | `s3.ap-northeast-1.wasabisys.com` (static STAC COG) | none | Newest scene, walked back from today, at `/api/cnx/jaxa-aot`. **Wired 2026-10-02 by operator decision** — see below. `license: proprietary` travels with the response |
 
 **There is no measured river level in CNX.** `flood.ts:fetchLive()` is a
 `return null` placeholder; the module serves six hash-seeded Ping gauges
@@ -98,15 +98,17 @@ asset declares its own sentinel: `dn.nodata = 65535`, `slope = 1e-4`
 and read a hazy 0.8 as a pristine 0.08). Gaps are **spatial** — 65535 pixels
 where the swath saw cloud — not missing days; every date since 2018 resolves.
 
-**The licence gate does not block deploying the resolver.** Access is what
+**The licence gate did not block deploying the resolver.** Access is what
 generates the access log, so a module nothing calls generates nothing.
-As of `25244db` only four files in the repo mention JAXA at all —
-`jaxa-aot.ts`, its test, and two documents — and no route, component or lib
-module imports it. `bf01aac` added the module and its tests and nothing
-else, so it ships as unreferenced code and no request to Wasabi can be made
-from a request path. **The gate applies to *wiring it to a route*, which is
-a separate commit and still needs the operator's decision.** Do not hold
-unrelated work behind it.
+`bf01aac` added the module and its tests and nothing else, so it shipped as
+unreferenced code and no request to Wasabi could be made from a request
+path. **The gate applied to *wiring it to a route* — the operator called it
+2 October 2026, and the resolver is now wired at `/api/cnx/jaxa-aot`**
+(newest scene, walked back from today, 30 min TTL plus an s-maxage edge
+cache so the access log sees a quiet tenant). The route resolves WHICH
+scene exists, its observation window, and the licence — it deliberately
+does not return an AOT value, because the value lives inside the COG and
+decoding a GeoTIFF is work the Workers runtime cannot do.
 
 ---
 
@@ -299,7 +301,7 @@ measurement, and must never be rendered as current conditions or as
 ## 8. Licensing
 
 - **FloodHub** — data CC BY 4.0; **API terms limit use to non-commercial.** Fine for a civic dashboard; a licensing question before any paid deployment.
-- **JAXA GCOM-C** — declares `license: proprietary`, and access generates a text access log. Not wired to the UI pending an operator decision.
+- **JAXA GCOM-C** — declares `license: proprietary`, and access generates a text access log. **Wired 2 October 2026 by operator decision** at `/api/cnx/jaxa-aot`; the licence travels with the response, and the route is rate-limited (30 min TTL + edge cache) to keep the access log quiet.
 - **Chiang Mai airport statistics** (gdcatalog `gdpublish-69-162`) and the **provincial flood thematic map** (`gdpublish-69-200`) — both **Open Data Common**, both published by จังหวัดเชียงใหม่. Clean.
 - **gdcatalog.go.th** — per-dataset licences, not uniform; read `license_title` per package rather than assuming a portal-wide grant.
 - **FIRMS, GIBS, Open-Meteo, OSM, GDELT, RainViewer** — open, all attributed on the panels and in the About sources list.
