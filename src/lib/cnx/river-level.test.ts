@@ -279,14 +279,20 @@ describe("riverLevelNote", () => {
     expect(n).toMatch(/2\.42 m below that threshold/);
   });
 
-  it("reports coverage against the catalogue, not against zero", () => {
+  it("gives the catalogue as context, never as a denominator", () => {
+    // The catalogue is province-wide and carries NO basin field, so
+    // subtracting gaugeCount from it ("85 of 128 reported nothing") would
+    // call ~85 out-of-basin Kok stations "silent". That sentence is
+    // false, and it was in the first draft of this note.
     const n = riverLevelNote([PING, TRI], 128);
-    expect(n).toMatch(/126 of the province's 128 telemetry stations/);
+    expect(n).toMatch(/lists 128 stations across all basins/);
+    expect(n).not.toMatch(/of the province's 128 telemetry stations reported nothing/);
+    expect(n).not.toMatch(/126 of/);
   });
 
-  it("omits the coverage claim entirely when the catalogue is unknown", () => {
+  it("says no coverage claim at all when the catalogue is unknown", () => {
     const n = riverLevelNote([PING, TRI], null);
-    expect(n).not.toMatch(/telemetry stations/);
+    expect(n).not.toMatch(/telemetry/);
   });
 
   it("names the gauge closest to its bank", () => {

@@ -74,9 +74,11 @@ Resources), **HII** (Hydro-Informatics Institute) and **EGAT**.
 ### What it delivers, and what it does not
 
 - Measured 2026-10-02: **43 Ping-basin gauges reporting** in Chiang Mai
-  province, **8 of them on the Ping mainstem**, from a province telemetry
-  catalogue of **128 stations**. The panel always shows coverage as
-  "*N* of *128* reporting" — 43 gauges reporting is not 43 gauges.
+  province, **8 of them on the Ping mainstem**. The province's telemetry
+  catalogue lists 128 stations across all basins, and the panel shows that
+  as context only — it is **not** a coverage denominator, because the
+  catalogue carries no basin field and most of the other 85 stations drain
+  to the Kok and the Chao Phraya rather than the Ping.
 - Every reading carries a real observation time and a height above mean
   sea level. Freshness varies a lot between stations (minutes to hours
   in one response), so **each row ages its own observation**.

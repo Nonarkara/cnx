@@ -156,12 +156,15 @@ export default function CnxRiverLevelPanel() {
                 <GaugeRow key={g.id} g={g} rank={i + 1} />
               ))}
             </ul>
-            {/* Coverage is stated against the catalogue, never as a bare
-                count. 43 reporting is very different from 43 gauges. */}
+            {/* Context, not a denominator. The province catalogue is
+                all-basin and carries no basin field, so "N of 128
+                reporting" would be arithmetic across two populations
+                and would call ~85 out-of-basin stations "silent". */}
             {data && data.catalogueCount !== null && (
               <p className="mt-2 font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
-                {data.catalogueCount - data.gaugeCount} of the province&apos;s {data.catalogueCount} telemetry
-                stations reported nothing at the time of this read.
+                For context, the province&apos;s telemetry catalogue lists {data.catalogueCount} stations
+                across all basins; only Ping-basin gauges feed this panel, so this is not a
+                &quot;N of 128 reporting&quot; figure.
               </p>
             )}
             {data && data.catalogueCount === null && (

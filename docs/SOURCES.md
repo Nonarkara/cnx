@@ -109,8 +109,16 @@ Measured against the live feed, not against documentation:
   catalogue records; `tele_canal_station?province_code=50` returns **128
   telemetry stations**; `public/waterlevel?province_code=50` returns the
   **43 that reported** (46 province-wide, 43 of them in the Ping basin —
-  the other 3 drain to the Kok). The 46 is a **subset**, never a rival
-  count for the 128, and the panel states coverage as "*N* of 128".
+  the other 3 drain to the Kok). The 46 is a **subset** of the 128, never
+  a rival count for it. But the panel does **not** say "43 of 128
+  reporting", because **the catalogue endpoint returns no basin field** —
+  `station_id, station_name, station_old_code, lat, long, geocode,
+  province/amphoe/tumbon, agency_id, station_type, hydro_id, qmax` — so
+  there is no way to ask it how many *Ping* gauges the province has. The
+  first draft said "85 of the province's 128 telemetry stations reported
+  nothing", which is **false**: most of those 85 are Kok and Chao Phraya
+  stations that were never in scope. The 128 is now context only, and the
+  coverage claim is exactly what the data supports.
 - **Timestamps are ICT with no offset.** Read as UTC they land 7 hours in
   the future and every gauge renders as impossibly fresh. `parseIctStamp`
   attaches `+07:00` and converts. Range-checks components before

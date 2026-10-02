@@ -44,13 +44,26 @@
 // POPULATION DISCIPLINE
 // --------------------
 // The 46 is NOT "the number of gauges in Chiang Mai", and this module
-// must never report it as such. It is the subset that had a reading at
-// the moment of the call. The telemetry catalogue for the same province
+// must never report it as such. It is the subset that reported a reading
+// at the moment of the call. The telemetry catalogue for the same province
 // (`frontend/shared/tele_canal_station?province_code=50`) lists 128
-// stations; 82 of them had no reading. So the coverage statement this
-// board is allowed to make is "N of 128 telemetry stations reported",
-// and the difference is a real and reportable fact about the network,
-// not a rounding error to hide.
+// stations, which sounds like the denominator for a coverage fraction —
+// and it is not, and this cost a wrong sentence once.
+//
+// The catalogue endpoint returns **no basin field at all**. Verified
+// against the live payload: `station_id, station_name, station_old_code,
+// lat, long, geocode, province/amphoe/tumbon, agency_id, station_type,
+// hydro_id, qmax`. So there is no way to ask it how many *Ping* gauges the
+// province has, and "43 of 128 Ping stations reported" is not a sentence
+// this data can support.
+//
+// The first draft of this module said "85 of the province's 128 telemetry
+// stations reported nothing", which is FALSE: most of those 85 are Kok
+// and Chao Phraya stations that were never in scope and were never
+// expected to report here. Subtracting across two populations is how a
+// number comes out plausible and wrong. The catalogue is now reported as
+// context only, and the coverage claim is exactly what the data supports:
+// N Ping-basin gauges reported.
 //
 // THE NUMBERS ARE STRINGS, AND THE SHAPES ARE NOT UNIFORM
 // -------------------------------------------------------
@@ -224,9 +237,26 @@ export interface RiverLevelResponse {
   /** How many of those are on the Ping mainstem itself. */
   pingMainstemCount: number;
   /**
-   * Telemetry stations the province's catalogue lists, for context.
-   * Null when the catalogue could not be read — a failed catalogue read
-   * must not become "coverage is complete".
+   * Telemetry stations the province's catalogue lists, province-wide —
+   * ALL basins, not just the Ping.
+   *
+   * Read this field carefully, because it is NOT the denominator for
+   * `gaugeCount`. The catalogue endpoint carries no basin field at all
+   * (checked: `station_id, station_name, station_old_code, lat, long,
+   * geocode, province/amphoe/tumbon, agency_id, station_type, hydro_id,
+   * qmax`), so there is no way to ask it "how many Ping gauges does this
+   * province have". Subtracting 43 from 128 would produce "85 reported
+   * nothing", and that sentence is FALSE — most of the 85 are Kok and
+   * Chao Phraya stations that were never in scope and were never
+   * expected to report here.
+   *
+   * So the only honest coverage claim is the one the note makes: 43
+   * Ping-basin gauges reported. This number exists to let an operator
+   * see that the province's telemetry network is much larger than what
+   * feeds this board, which is context, not a denominator.
+   *
+   * Null when the catalogue read failed. Never 0 — that would read as
+   * "this province has no telemetry", which is false.
    */
   catalogueCount: number | null;
   /** Set when provenance === "unavailable": why, in plain words. */
@@ -488,8 +518,11 @@ export function riverLevelNote(gauges: RiverGauge[], catalogueCount: number | nu
   );
 
   if (catalogueCount !== null) {
+    // Deliberately NOT "N of 128 reported". The catalogue is province-wide
+    // and carries no basin, so that subtraction would silently count
+    // out-of-basin stations as "silent". See the field's doc comment.
     parts.push(
-      `${catalogueCount - gauges.length} of the province's ${catalogueCount} telemetry stations reported nothing at the moment of this call.`,
+      `For context, the province's telemetry catalogue lists ${catalogueCount} stations across all basins; only the Ping-basin ones feed this panel.`,
     );
   }
 
