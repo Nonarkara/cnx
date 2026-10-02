@@ -212,6 +212,29 @@ export function bandForLevel(level: VerdictLevel): VerdictBand {
 
 // ─── Inputs the engine reads ─────────────────────────────────────
 
+/**
+ * A real gauge reading, projected from the ThaiWater feed by
+ * `river-level.ts`. This is the one flood input on this board that is a
+ * measurement of a river rather than a number we generated.
+ */
+export interface PingMeasured {
+  /** Upstream station code, e.g. "P.1". */
+  stationCode: string | null;
+  /** Thai station name as published. */
+  stationNameTh: string;
+  /** Metres of headroom to the station's OWN published critical level,
+   *  when it publishes one. Null means it does not — never a guess. */
+  headroomM: number | null;
+  /** Metres of headroom to the published bank level. */
+  belowBankM: number | null;
+  /** Reading height above mean sea level, metres. */
+  levelMsl: number;
+  /** How many gauges in the basin reported at the time of the read. */
+  reportingCount: number;
+  /** Observation time, ISO-8601 UTC. The reason text ages it. */
+  observedAt: string;
+}
+
 export interface VerdictInputs {
   /** Worst live PM2.5 µg/m³ in CNX province. null = no signal. */
   pm25_now: number | null;
@@ -223,6 +246,19 @@ export interface VerdictInputs {
   rain_now_24h_mm: number | null;
   /** Worst gauge level / bank ratio across the Ping basin (0..1). */
   ping_capacity_ratio: number | null;
+  /**
+   * A MEASURED river reading, from a real gauge, when one is available.
+   *
+   * This is separate from `ping_capacity_ratio` on purpose. That ratio
+   * comes from the flood module, which bundles gauges, rainfall and
+   * reservoirs under one provenance flag — two of those three are still
+   * hash-seeded scenario. Flipping that flag to "live" to accommodate a
+   * real gauge would assert that the rainfall and reservoir numbers are
+   * measured too, which they are not. So the measurement arrives on its
+   * own field and speaks for itself, and the scenario module keeps its
+   * scenario label where an operator can still see it.
+   */
+  ping_measured?: PingMeasured | null;
   /** Reservoir outflow surge flag (any northern dam ≥ 1.5x inflow). */
   reservoir_surge: boolean;
   /** FIRMS / RFD fire hotspots within CNX bbox in the last 24 h. */
@@ -288,19 +324,97 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   // What it *does* get to do is state its own absence, because a blank
   // flood axis is not evidence that the river is quiet.
   const floodIsScenario = input.flood_provenance !== "live";
+  const measured = input.ping_measured ?? null;
+  // A gauge that reported a level but published no bank geometry and no
+  // threshold cannot be graded. Its presence unblinds nothing: the axis
+  // is still unable to say where the water stands, which is the same
+  // position as having no gauge at all.
+  const measuredGraded =
+    measured !== null && (measured.headroomM !== null || measured.belowBankM !== null);
   // "Blind" covers both ways the flood axis can fail to speak, because
   // neither is evidence of a quiet river: a scenario fill, and a live feed
   // whose gauge reading simply did not come through tonight.
-  const floodBlind = floodIsScenario || input.ping_capacity_ratio === null;
+  //
+  // A real, GRADED gauge reading is what makes this axis speak. It is
+  // checked before the scenario flag, because a live gauge is a
+  // measurement even when the rest of the flood module is still a
+  // scenario fill — and the axis is not blind just because its
+  // neighbours are.
+  const floodBlind = !measuredGraded && (floodIsScenario || input.ping_capacity_ratio === null);
 
   let floodScore = 0;
-  if (floodIsScenario) {
+  // A calm gauge reading, held back until every other domain has spoken.
+  // See the append at the bottom of the flood section for why.
+  let calmReading: VerdictReason | null = null;
+  if (floodIsScenario && !measuredGraded) {
     // Deliberately no points and no observation. The caveat reason is
     // pushed LAST, after every measured domain, so that a real air or fire
     // hazard still owns the headline — a governor must never be led by
     // "we can't see the river" while the air is at 200 µg/m³.
   } else {
-    if (input.ping_capacity_ratio !== null) {
+    // A real gauge, when there is one. This is the only flood reason on
+    // this board that is allowed to be phrased as an observation, and it
+    // ages its own observation time in the sentence rather than in a
+    // field an operator might not read.
+    //
+    // A calm reading is held back in `calmReading` and appended at the
+    // end of the function, after every other domain has spoken.
+    if (measuredGraded) {
+      const head = measured.headroomM;
+      const bank = measured.belowBankM;
+      const at = measured.stationCode ?? measured.stationNameTh;
+      const stamp = new Date(measured.observedAt);
+      const ageMin = Number.isFinite(stamp.getTime())
+        ? Math.max(0, Math.round((Date.now() - stamp.getTime()) / 60_000))
+        : null;
+      const ageTxt =
+        ageMin === null
+          ? ""
+          : ageMin < 60
+            ? ` (observed ${ageMin} min ago)`
+            : ageMin < 1440
+              ? ` (observed ${Math.round(ageMin / 60)} h ago)`
+              : ` (observed ${Math.round(ageMin / 1440)} d ago)`;
+
+      if (head !== null && head <= 0) {
+        floodScore = 40;
+        reasons.push({
+          domain: "flood",
+          th: `สถานี ${at} วัดได้เลยระดับวิกฤตที่ประกาศไว้ — น้ำล้นตลิ่ง${ageTxt}`,
+          en: `Gauge ${at} is at or above its published critical level — the river is over its bank${ageTxt}`,
+          evidence: `gauge_headroom=${head.toFixed(2)}m`,
+        });
+      } else if (bank !== null && bank <= 1) {
+        floodScore = bank <= 0 ? 40 : 25;
+        reasons.push({
+          domain: "flood",
+          th: `สถานี ${at} อยู่ห่างตลิ่ง ${Math.abs(bank).toFixed(2)} ม.${ageTxt}`,
+          en: `Gauge ${at} is ${Math.abs(bank).toFixed(2)} m from its bank level${ageTxt}`,
+          evidence: `gauge_below_bank=${bank.toFixed(2)}m`,
+        });
+      } else if (bank !== null) {
+        // Comfortably below the bank. Stated as a measurement, and NOT
+        // as a clearance: one gauge reading the river is below its bank
+        // is not the same statement as "the river is safe", and the
+        // cap below keeps it from certifying that on its own.
+        calmReading = {
+          domain: "flood",
+          th: `สถานี ${at} ระดับน้ำต่ำกว่าตลิ่ง ${bank.toFixed(2)} ม.${ageTxt}`,
+          en: `Gauge ${at} is ${bank.toFixed(2)} m below its bank level${ageTxt}`,
+          evidence: `gauge_below_bank=${bank.toFixed(2)}m`,
+        };
+      }
+    }
+    // The scenario-flood signals below (bank ratio, dam surge, gauge
+    // rainfall) all come from the flood module, which is still a
+    // hash-seeded fill for rainfall and reservoirs. Reaching this block
+    // via a live gauge must NOT let them speak: a measured river level
+    // standing next to an invented dam release is exactly the mixture
+    // this board refuses to publish. They require the module itself to
+    // be live.
+    if (floodIsScenario) {
+      // measured gauge spoke above; the scenario numbers stay silent.
+    } else if (input.ping_capacity_ratio !== null) {
       const r = input.ping_capacity_ratio;
       if (r >= 0.95) {
         floodScore = 40;
@@ -328,7 +442,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
         });
       }
     }
-    if (input.reservoir_surge) {
+    if (!floodIsScenario && input.reservoir_surge) {
       // Independent signal: a dam release is not the same as a gauge reading,
       // so it stacks on top of the gauge contribution. The composite total
       // is still capped at 100 below.
@@ -340,7 +454,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
         evidence: "reservoir_surge=true",
       });
     }
-    if (input.rain_now_24h_mm !== null && input.rain_now_24h_mm >= 80) {
+    if (!floodIsScenario && input.rain_now_24h_mm !== null && input.rain_now_24h_mm >= 80) {
       floodScore += 10;
       reasons.push({
         domain: "flood",
@@ -446,6 +560,17 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   const score = Math.min(100, floodScore + airScore + fireScore);
   const scoredBand = bandForScore(score);
   const scoredLevel = levelForBand(scoredBand);
+
+  // The calm gauge reading is appended LAST, once EVERY domain has had
+  // its say — flood escalation, air, fire and the cross-domain joins.
+  //
+  // It was appended inside the flood block first, and that put a river
+  // sitting comfortably below its bank at the TOP of the card, above a
+  // measured PM2.5 of 155 µg/m³. The headline of a governor-grade card
+  // is read first and often read alone, so an absence of flood trouble
+  // must never occupy that slot when a measured hazard is present. The
+  // reading is still shown; it is simply last.
+  if (calmReading) reasons.push(calmReading);
 
   // Absence of a flood feed is not evidence of a quiet river. "safe" is
   // the dashboard telling an operator "nothing to do right now", and we

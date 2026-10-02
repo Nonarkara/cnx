@@ -63,24 +63,102 @@ tells operators "NASA did not answer" on a day when NASA answered clearly.
 
 | Source | Endpoint | Key | Gives | Failure mode |
 |---|---|---|---|---|
-| **Google Flood Hub** | `floodforecasting.googleapis.com` | `CNX_FLOODHUB_KEY` ✅ set | 7-day riverine model forecast at virtual gauges | **No physical gauge on the Ping.** 337 upper-north points, all HYBAS virtual, only 5 quality-verified, and **none** of the 12 nearest Chiang Mai |
+| **ThaiWater v3** | `api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel` | **none** | **Measured** gauge levels: 43 Ping-basin gauges reporting in Chiang Mai, 8 on the mainstem. **Wired 2026-10-02** at `/api/cnx/river-level` | Values arrive as **strings**; `waterlevel_m` is null on every row while `waterlevel_msl` carries the reading. Shapes are not uniform (`river_name` is a bare string on 38 rows, null on 8). The bare path `…/thaiwater30` 404s — the router needs a sub-path |
+| **Google Flood Hub** | `floodforecasting.googleapis.com` | `CNX_FLOODHUB_KEY` ✅ set | 7-day riverine model forecast at virtual gauges | Model only — 337 upper-north points, all HYBAS virtual, only 5 quality-verified, **none** of the 12 nearest Chiang Mai. No physical gauge |
 | **JAXA GCOM-C SGLI AOT** | `s3.ap-northeast-1.wasabisys.com` (static STAC COG) | none | Newest scene, walked back from today, at `/api/cnx/jaxa-aot`. **Wired 2026-10-02 by operator decision** — see below. `license: proprietary` travels with the response |
 
-**There is no measured river level in CNX.** `flood.ts:fetchLive()` is a
-`return null` placeholder; the module serves six hash-seeded Ping gauges
-behind `provenance: "scenario"`. Consequences, all enforced:
+**Measured river levels arrived on 2026-10-02.** Everything below this line
+records what was believed before, and why it was wrong, because the error
+is the reusable part.
 
-- The verdict scores the flood axis at **0** and never emits a
-  measurement-shaped reason from it.
-- A blind flood axis **cannot certify "safe"** — absence from a layer is
-  never evidence of safety. The level caps at `watch` with the reason
-  *"No live river-gauge reading — this is not evidence the river is safe."*
-- It can never select the flood↔air "twins" correlation.
-- The RAG corpus does not index scenario gauges, and the keystone story
-  does not describe the river.
+### The feed that was written off as dead
 
-FloodHub is escalate-only by construction: a forecast of flooding raises the
-level, and the absence of one is never rendered as an all-clear.
+`flood.ts` carried this header for months:
+
+> *"The upstream ThaiWater/HII API requires a key we don't have on
+> Cloudflare Workers"* … *"GET ThaiWater realtime (water.rid.go.th)"*
+
+Both halves were wrong.
+
+- **`water.rid.go.th` is a 1996 HTML frameset** pointing at
+  `wmsc.rid.go.th` and `hits.html`. It was never an API, and naming it as
+  the intended source meant the real one was never looked for.
+- **No key is required.** The endpoints this board reads
+  (`/public/waterlevel`, `/frontend/shared/tele_canal_station`) are the
+  same paths the public website calls from a browser with no credential.
+- **`thaiwater30` was never dead.** A probe of
+  `api-v3.thaiwater.net/api/v1/thaiwater30` returns
+  `404 Request to an unknown service`, which reads exactly like a renamed
+  endpoint. The router dispatches on the **full sub-path**, so the bare
+  name is unroutable while `…/thaiwater30/public/waterlevel` answers `200`
+  with the national realtime feed.
+
+The endpoint list was not guessed. It was read out of the public site's own
+bundle (`www.thaiwater.net/dist/js/app.chunk.js`, 7.6 MB), which
+enumerates the paths the site itself calls.
+
+**The lesson: an unavailable feed is a claim about the integration, not
+about the world.** Two people, handed the same 404, both concluded the data
+did not exist.
+
+### What the payload actually contains
+
+Measured against the live feed, not against documentation:
+
+- **Population discipline.** `station_all?province_code=50` returns 627
+  catalogue records; `tele_canal_station?province_code=50` returns **128
+  telemetry stations**; `public/waterlevel?province_code=50` returns the
+  **43 that reported** (46 province-wide, 43 of them in the Ping basin —
+  the other 3 drain to the Kok). The 46 is a **subset**, never a rival
+  count for the 128, and the panel states coverage as "*N* of 128".
+- **Timestamps are ICT with no offset.** Read as UTC they land 7 hours in
+  the future and every gauge renders as impossibly fresh. `parseIctStamp`
+  attaches `+07:00` and converts. Range-checks components before
+  `Date.UTC`, which would otherwise normalise `2026-13-45 99:99` into a
+  perfectly plausible 2027 date.
+- **`situation_level` is not a severity scale, and is not interpreted.**
+  Measured across all 46 rows its ranges *overlap* — level 4 appears at
+  0.88 m below bank and at 3.19 m, level 2 at 7.84 m — and every row says
+  `ต่ำกว่าตลิ่ง`. The publisher's own bundle mentions it exactly once, as a
+  `zIndexOffset`. It is a draw-order hint. It is carried as
+  `sourceSituationCode`, labelled as undocumented, and never scored.
+- **One real threshold exists.** P.1 สะพานนวรัฐ (Nawarat Bridge) publishes
+  `critical_level_msl: 304.2` and `critical_level_m: 3.7` with
+  `offset: 300.5` — and `300.5 + 3.7 = 304.2`, so the two published forms
+  agree and the headroom in metres has a source authority behind it. The
+  scenario's guessed "~3.5 m bank-full" was in the right neighbourhood of
+  this real 3.7 m, and is now replaced by it.
+- `diff_wl_bank` is **derived**, not an independent reading: it equals
+  `min_bank − waterlevel_msl` on 46/46 rows. Verified arithmetically rather
+  than trusted.
+
+### The blind-axis rules, and how they changed
+
+- A blind flood axis **scores 0** and never emits a measurement-shaped reason.
+- A blind flood axis **cannot certify "safe"** — the level caps at `watch`
+  with the reason *"No live river-gauge reading — this is not evidence the
+  river is safe."*
+- A **graded** gauge unblinds the axis and may support `safe`. A gauge that
+  reports a level but publishes **no bank geometry does not** — an
+  ungradable station is the same position as no station, and treating its
+  presence as a measurement would let it certify safety off nothing.
+- A measured gauge **never launders the scenario**. The scenario bank-full
+  ratio, dam surge and 24 h rainfall all originate in a module that is
+  still hash-seeded for two of its three domains, so they are gated on
+  `flood.provenance === "live"` and stay silent beside a real reading.
+  A mixed card — real river level, invented dam release — is the exact
+  output this board refuses.
+- A **calm** reading is appended **last**, after every measured domain. It
+  was first appended inside the flood block, which put a river sitting
+  comfortably below its bank at the top of the card, above a measured
+  PM2.5 of 155 µg/m³.
+- The scenario module survives as a last-resort fallback behind
+  `provenance: "scenario"`, barred from the RAG corpus, the keystone
+  story, and the flood↔air correlation. **`flood.ts:fetchLive()` is still a
+  `return null` placeholder** — it is not what now carries the flood axis.
+
+FloodHub remains escalate-only by construction: a forecast of flooding
+raises the level, and the absence of one is never rendered as an all-clear.
 
 **FloodHub's two hard limits**, stated on the panel:
 1. Every point shown is unverified unless Google says otherwise — the note

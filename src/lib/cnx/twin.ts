@@ -22,7 +22,8 @@ import { fetchCnxAirQuality } from "./air-quality";
 import { fetchCnxFires } from "./fires";
 import { fetchCnxDustboy } from "./dustboy";
 import { fetchSmokeTrajectory } from "./smoke-feed";
-import { computeVerdict, type VerdictCard, type VerdictInputs } from "./verdict";
+import { fetchRiverLevel, isPingMainstem, type RiverGauge } from "./river-level";
+import { computeVerdict, type VerdictCard, type VerdictInputs, type PingMeasured } from "./verdict";
 
 export interface CnxTwinResponse {
   system: "cnx";
@@ -49,6 +50,26 @@ export interface CnxTwinResponse {
       stations_total: number | null;
       reservoir_surge: boolean | null;
       rain_now_24h_mm: number | null;
+      /**
+       * The MEASURED river, from ThaiWater. Separate from
+       * `ping_capacity_ratio` above, which is null unless the scenario
+       * flood module is live — so a consumer gets a real river reading
+       * even while the flood module's own numbers stay a scenario fill.
+       *
+       * `gauge_count` is the number of basin gauges that reported; it is
+       * NOT the number of gauges the province has. Coverage lives at
+       * `/api/cnx/river-level`, which also reports the catalogue size.
+       */
+      measured: {
+        station_code: string | null;
+        station_name_th: string;
+        level_msl: number;
+        below_bank_m: number | null;
+        headroom_m: number | null;
+        observed_at: string;
+        gauge_count: number;
+        provenance: "live" | "unavailable";
+      } | null;
     };
     air: {
       pm25_now: number | null;
@@ -171,7 +192,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
 
   // Gather in parallel — the slowest upstream dictates wall-clock latency.
-  const [flood, air, fires, wind, pm25_fc, rain_fc_24h_mm_from_air, dustboy, smoke] = await Promise.all([
+  const [flood, air, fires, wind, pm25_fc, rain_fc_24h_mm_from_air, dustboy, smoke, river] = await Promise.all([
     fetchCnxFlood(),
     fetchCnxAirQuality(),
     fetchCnxFires(),
@@ -198,6 +219,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     }),
     fetchCnxDustboy(),
     fetchSmokeTrajectory(),
+    fetchRiverLevel(),
   ]);
 
   const pm25_now = air.provinceAvgPm25 ?? null;
@@ -220,6 +242,48 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   const dustboyPm =
     dustboy.provenance === "live" ? dustboy.basin.chiangMai.avgPm25 : null;
   const smokeLive = smoke.provenance === "live";
+
+  // ─── The measured river, for the verdict ──────────────────────
+  //
+  // One station speaks for the province, and it is chosen deliberately
+  // rather than by "whichever returned first":
+  //
+  //   1. mainstem gauges only — a tributary at 1.3 m below its own bank
+  //      is not a statement about the Ping in Chiang Mai;
+  //   2. among those, the one closest to its bank, because that is the
+  //      binding constraint on the river, not the average;
+  //   3. a published critical level outranks everything, because it is
+  //      the only threshold in the feed that carries an authority. In
+  //      practice this is P.1 สะพานนวรัฐ (Nawarat Bridge), the station
+  //      this board used as a guessed bank-full figure for its whole
+  //      scenario life.
+  //
+  // Ties break toward the station with the newer observation, so a stale
+  // gauge does not represent a fresher one standing beside it.
+  const usableGauges: RiverGauge[] =
+    river.provenance === "live" ? river.gauges.filter(isPingMainstem) : [];
+
+  const pickGauge = (g: RiverGauge): number => {
+    // hasThreshold first, then tightness, then freshness.
+    const hasThreshold = g.criticalLevelMsl !== null ? 0 : 1;
+    const tightness = g.belowBankM ?? Number.POSITIVE_INFINITY;
+    const freshness = -Date.parse(g.observedAt);
+    return hasThreshold * 1e12 + tightness * 1e6 + (Number.isFinite(freshness) ? freshness / 1e6 : 0);
+  };
+
+  const headGauge = usableGauges.length > 0 ? [...usableGauges].sort((a, b) => pickGauge(a) - pickGauge(b))[0] : null;
+
+  const pingMeasured: PingMeasured | null = headGauge
+    ? {
+        stationCode: headGauge.code,
+        stationNameTh: headGauge.nameTh,
+        headroomM: headGauge.headroomM,
+        belowBankM: headGauge.belowBankM,
+        levelMsl: headGauge.levelMsl,
+        reportingCount: river.gaugeCount,
+        observedAt: headGauge.observedAt,
+      }
+    : null;
 
   const washout = washoutBand(rain_fc_24h_mm_from_air);
   const danger = dangerScore({
@@ -257,6 +321,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     wind_kmh: wind,
     provenance,
     flood_provenance: flood.provenance,
+    ping_measured: pingMeasured,
     dustboy_pm25: dustboyPm,
     smoke_hits_cnx: smokeLive ? smoke.summary.hitsCnx : null,
     smoke_near_cnx: smokeLive ? smoke.summary.nearCnx : null,
@@ -283,6 +348,18 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
         stations_total: floodLive ? stationsTotal : null,
         reservoir_surge: floodLive ? reservoirSurge : null,
         rain_now_24h_mm: floodLive ? rainNow24hMm : null,
+        measured: pingMeasured
+          ? {
+              station_code: pingMeasured.stationCode,
+              station_name_th: pingMeasured.stationNameTh,
+              level_msl: pingMeasured.levelMsl,
+              below_bank_m: pingMeasured.belowBankM,
+              headroom_m: pingMeasured.headroomM,
+              observed_at: pingMeasured.observedAt,
+              gauge_count: pingMeasured.reportingCount,
+              provenance: "live" as const,
+            }
+          : null,
       },
       air: {
         pm25_now,

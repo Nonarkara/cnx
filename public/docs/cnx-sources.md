@@ -30,6 +30,7 @@
 | OpenSky Network | Flight panel | `opensky-network.org` | **OAuth2 client-credentials** (`OPENSKY_CLIENT_ID` / `_SECRET`) |
 | adsb.lol | ADS-B backup, used when OpenSky is unavailable | `api.adsb.lol` | none |
 | **Maholan flood CCTV wall** | Public Cameras panel + map markers (position, owning agency, liveness) | `cctv.maholan.net/api/cameras` | none — **catalogue metadata only, no video proxied** |
+| **ThaiWater v3** | **Measured river levels** — Ping-basin gauge panel, map markers, and the flood axis of the province verdict | `api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel` | none — **keyless public endpoint** |
 | Google News RSS | Social sidebar | `news.google.com/rss` | none |
 | GDELT 2.0 | Social sidebar | `api.gdeltproject.org` | none |
 | data.go.th (CKAN) | Open Data panel | `data.go.th/api/3/action/package_search` | none |
@@ -51,8 +52,65 @@ stamp. Any figure quoted here is a snapshot, never a population count.
 
 | Source | Status |
 |---|---|
-| **ThaiWater v3 / HII** | **Not wired.** No module fetches `api-v3.thaiwater.net`. The flood layer serves Google Flood Hub virtual gauges and, failing that, an explicitly-labelled scenario. A `layer-contract.ts` entry and some UI copy name ThaiWater, but nothing calls it — see the note below |
 | Longdo CCTV / iTIC | Partially reachable; only a subset of cameras answer |
+
+> **ThaiWater v3 is now wired** (2026-10-02) for measured river levels —
+> see below. The older claim that nothing fetched `api-v3.thaiwater.net`
+> was true when written and is now out of date.
+
+## Measured river levels — ThaiWater v3
+
+The **Ping River — measured** panel, the blue gauge markers on the map, and
+the flood axis of the province verdict read
+**[ThaiWater](https://www.thaiwater.net)**, the national water data centre
+run by the **National Hydroinformatics Data Center (สทนช.)** under the Office
+of the National Water Command. The observations themselves belong to
+**RID** (Royal Irrigation Department), **FOP** (Department of Water
+Resources), **HII** (Hydro-Informatics Institute) and **EGAT**.
+
+**No API key is required.** The endpoints read here are the same
+`/public/` paths the public website calls from a browser.
+
+### What it delivers, and what it does not
+
+- Measured 2026-10-02: **43 Ping-basin gauges reporting** in Chiang Mai
+  province, **8 of them on the Ping mainstem**, from a province telemetry
+  catalogue of **128 stations**. The panel always shows coverage as
+  "*N* of *128* reporting" — 43 gauges reporting is not 43 gauges.
+- Every reading carries a real observation time and a height above mean
+  sea level. Freshness varies a lot between stations (minutes to hours
+  in one response), so **each row ages its own observation**.
+- **Exactly one station publishes an official critical level** — P.1
+  สะพานนวรัฐ (Nawarat Bridge), at 304.20 m above sea level. It is shown
+  with its headroom in metres. No threshold is invented for any other
+  station; the others show their distance to their published bank level.
+- The feed also returns a numeric `situation_level` per gauge. This board
+  **does not interpret it**: across the whole province its values do not
+  track height above the bank, and the publisher's own site uses it only
+  as a map draw-order hint. Severity bands on the panel are this board's
+  reading of published bank geometry, clearly labelled as such.
+- There is **no official machine-readable warning or advisory feed**. The
+  dashboard therefore never presents its own threshold as a government
+  announcement.
+
+### Terms
+
+The publisher states **"Copyright © 2024 Hydro - Informatics Institute,
+All rights reserved."** and publishes **no open licence** for this feed, so
+this dashboard claims none. The integration is keyless, limited to one
+read per 10 minutes, and scoped to Chiang Mai province. The full intended-use
+and terms text is owned by `src/lib/cnx/river-level.ts` and rendered
+verbatim in the panel footer.
+
+### How the endpoints were found
+
+Not by guessing. The service name `thaiwater30` had been recorded as dead
+because a probe of the bare path `/api/v1/thaiwater30` returns
+`404 Request to an unknown service` — the router dispatches on the full
+sub-path, so the bare name is unroutable while
+`/api/v1/thaiwater30/public/waterlevel` answers 200. The working endpoint
+list was read out of the public site's own JavaScript bundle, which
+enumerates the paths the site itself calls.
 
 ## Public cameras — credit, intended use and terms
 

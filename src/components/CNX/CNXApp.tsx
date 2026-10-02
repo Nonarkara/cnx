@@ -52,7 +52,9 @@ import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
 import CnxTopBar, { VerdictStrip } from "./CNXTopBar";
 import CnxFloodCamerasPanel from "./CNXFloodCamerasPanel";
+import CnxRiverLevelPanel from "./CNXRiverLevelPanel";
 import type { FloodCamera } from "../../lib/cnx/flood-cameras";
+import type { RiverLevelResponse, RiverGauge } from "../../lib/cnx/river-level";
 import CnxTicker from "./CNXTicker";
 import CNXMap, { type WallFeature } from "./CNXMap";
 import CnxStoryModal from "./CNXStoryModal";
@@ -113,6 +115,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [waterways, setWaterways] = useState<Waterway[]>([]);
   const [heritage, setHeritage] = useState<CnxHeritageSite[]>([]);
   const [floodCameras, setFloodCameras] = useState<FloodCamera[]>([]);
+  const [riverGauges, setRiverGauges] = useState<RiverGauge[]>([]);
   const [visitorAnalytics, setVisitorAnalytics] = useState<VisitorAnalytics | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -170,6 +173,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     // is a small edge-cached read; 15 min matches the upstream TTL.
     void fetchJsonOrNull<{ cameras?: FloodCamera[] }>("/api/cnx/flood-cameras").then((d) => {
       if (!cancelled && d?.cameras) setFloodCameras(d.cameras);
+    });
+    // Measured Ping-basin gauges. The response carries its own
+    // provenance, so a failed read leaves the state empty and the map
+    // layer simply draws nothing — it never falls back to the scenario
+    // flood gauges, which are a different thing entirely.
+    void fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level").then((d) => {
+      if (!cancelled && d?.gauges) setRiverGauges(d.gauges);
     });
     void fetchJsonOrNull<{ sites?: CnxHeritageSite[] }>("/api/cnx/heritage").then((d) => {
       if (!cancelled && d?.sites) setHeritage(d.sites);
@@ -482,6 +492,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             flights={flightStates}
             heritage={heritage}
             floodCameras={floodCameras}
+            riverGauges={riverGauges}
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
@@ -516,6 +527,14 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           </div>
           <div className="min-h-0 flex-1 overflow-hidden border-b border-[var(--line)]">
             <CnxFloodPanel flood={flood} air={air} fires={fires} />
+          </div>
+          {/* Measured river levels. Sits directly under the flood panel
+              because it is that panel's real evidence: until this was
+              wired, the flood axis of this board was a scenario and this
+              row is where a measurement replaces it. Fixed height so it
+              cannot squeeze the flex-1 flood panel above it. */}
+          <div className="h-[30%] min-h-[240px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxRiverLevelPanel />
           </div>
           <div className="h-[36%] min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxAirQualityPanel />

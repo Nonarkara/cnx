@@ -42,6 +42,7 @@ import type { FlightState } from "../../lib/cnx/opensky";
 import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge, CctvSlot } from "../../types/cnx";
 import type { Waterway } from "../../lib/cnx/waterways";
 import type { FloodCamera } from "../../lib/cnx/flood-cameras";
+import type { RiverGauge } from "../../lib/cnx/river-level";
 import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
 import { useRtcBusSim } from "../../hooks/useRtcBusSim";
@@ -318,6 +319,12 @@ interface MapProps {
   /** Public flood/road cameras in the CNX area, via the Maholan wall.
    *  Catalogue metadata only — no video is proxied. */
   floodCameras?: FloodCamera[];
+  /**
+   * Measured Ping-basin gauges. Empty when the read failed — which draws
+   * nothing, deliberately. The scenario flood gauges above are a
+   * different dataset and are never substituted for these.
+   */
+  riverGauges?: RiverGauge[];
   busRoutes?: BusRoute[];
   walls?: WallFeature[];
   waterways?: Waterway[];
@@ -364,6 +371,7 @@ export default function CNXMap({
   floodGauges = [],
   cctv = [],
   floodCameras = [],
+  riverGauges = [],
   busRoutes = [],
   walls = [],
   waterways = [],
@@ -788,9 +796,51 @@ export default function CNXMap({
       pickable: true,
     });
 
+    // Measured Ping-basin gauges. Sized and coloured by how much room
+    // is left to the bank's, NOT by our verdict — the map should not
+    // re-state a severity judgement the panel already made, but it can
+    // show a physical fact: distance to overtopping.
+    const riverGaugeLayer = new ScatterplotLayer<RiverGauge>({
+      id: "cnx-river-gauges",
+      data: riverGauges,
+      getPosition: (d) => [d.longitude, d.latitude],
+      getRadius: (d) => {
+        if (d.criticalLevelMsl !== null && d.headroomM !== null) {
+          // The station that carries an authority gets the biggest mark.
+          return 8;
+        }
+        return d.severity === "critical" ? 8 : d.severity === "alert" ? 7 : 5;
+      },
+      radiusUnits: "pixels",
+      getFillColor: (d) => {
+        switch (d.severity) {
+          case "critical":
+            return [239, 68, 68, 80];
+          case "alert":
+            return [249, 115, 22, 75];
+          case "watch":
+            return [245, 158, 11, 65];
+          default:
+            return [56, 189, 248, 55];
+        }
+      },
+      getLineColor: (d) => {
+        // A station with a published critical level is ringed, so the
+        // one number on this board that carries an authority is
+        // findable on the map at a glance.
+        if (d.criticalLevelMsl !== null) return [249, 115, 22, 255];
+        return d.severity === "critical" ? [239, 68, 68, 255] : [56, 189, 248, 190];
+      },
+      lineWidthMinPixels: 1.4,
+      stroked: true,
+      filled: true,
+      pickable: true,
+    });
+
     return [
       ...flightLayers,
       floodCameraLayer,
+      riverGaugeLayer,
       heritageLayer,
       airLayer,
       plumeLayer,
@@ -805,7 +855,7 @@ export default function CNXMap({
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, hazeById, citizenReports, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, riverGauges, hazeById, citizenReports, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -1080,6 +1130,33 @@ export default function CNXMap({
             return `${c.name}\n${state} · ${kind} · ${c.source}${c.region ? ` · ${c.region}` : ""}${
               c.live ? "" : "\nไม่ตอบสนอง — ยืนยันสภาพถนนจากกล้องนี้ไม่ได้ (not answering — cannot confirm this road)"
             }`;
+          }
+          if (layer.id === "cnx-river-gauges") {
+            const g = object as RiverGauge;
+            const parts = [
+              g.nameTh + (g.code ? ` (${g.code})` : ""),
+              `${g.levelMsl.toFixed(2)} m above sea level`,
+            ];
+            if (g.belowBankM !== null) {
+              parts.push(
+                g.belowBankM <= 0
+                  ? `AT/ABOVE bank level (${Math.abs(g.belowBankM).toFixed(2)} m over)`
+                  : `${g.belowBankM.toFixed(2)} m below its bank level`,
+              );
+            } else {
+              // Say the absence out loud. A gauge with no published bank
+              // level must not look like a gauge that is comfortably
+              // within it.
+              parts.push("no published bank level — this reading cannot be graded");
+            }
+            if (g.criticalLevelMsl !== null && g.headroomM !== null) {
+              parts.push(
+                `official critical level ${g.criticalLevelMsl.toFixed(2)} m — ${g.headroomM.toFixed(2)} m of headroom`,
+              );
+            }
+            if (g.dischargeM3s !== null) parts.push(`${g.dischargeM3s.toFixed(1)} m³/s`);
+            parts.push(`${g.agency} · observed ${g.observedAt.slice(0, 16).replace("T", " ")} UTC`);
+            return parts.join("\n");
           }
           if (layer.id === "cnx-cctv") {
             const c = object as CctvSlot;

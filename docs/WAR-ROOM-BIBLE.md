@@ -33,7 +33,7 @@ If you read only one paragraph:
 | **Fire safety (RFD)** | Active forest fires in CNX province, Thai forest-tenure class (DNP / NRF / ALOW / CMF / FIO) | [wildfire.forest.go.th/firemap/getdb.php](https://wildfire.forest.go.th/firemap/) | 30 min |
 | **Fire safety (FIRMS)** | Global VIIRS/MODIS hotspots — independent confirmation | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov) | 10 min |
 | **Aerosol / AOD** | Province-average 550 nm aerosol optical depth (burning-season haze proxy) | Open-Meteo CAMS | 30 min |
-| **Flood (Ping)** | Google Flood Hub riverine forecast at virtual HYBAS gauges on the Ping. **No physical gauge** — see §3 | [floodforecasting.googleapis.com](https://developers.google.com/flood-forecasting) | 10 min |
+| **Flood (Ping)** | **Measured** gauge levels (ThaiWater v3) + Google Flood Hub riverine forecast at virtual HYBAS gauges — see §3 | `api-v3.thaiwater.net` (keyless) + [floodforecasting.googleapis.com](https://developers.google.com/flood-forecasting) | 10 min |
 | **Air quality** | PM2.5 / PM10 / O3 / NO2 — province + per-station | Open-Meteo CAMS + PCD Air4Thai + CMU CCDC DustBoy | 5 min |
 | **CCTV** | 12 corridor cameras + reachable/live count | Longdo / iTIC / TAT / YouTube | 1 min |
 | **Flights** | Real-time airspace count over the CNX bbox, plane size buckets | [OpenSky Network](https://opensky-network.org) | 30 s |
@@ -82,34 +82,68 @@ single number — it is a layer cake:
 
 ## 3. The flood desk
 
-> **This section was wrong until 2026-10-01 and has been corrected.** It
-> previously read: *"The Ping river at Nawarat Bridge is the keystone
-> number. Bank-full is 3.5 m; below 60% capacity = normal; above 70% =
-> watch; above 85% = alert."* That described the **scenario** module —
-> hash-seeded numbers from public monthly reports — as though it were a
-> measured gauge. It is not a gauge, and it is not measured. An operator
-> reading that section would have believed the board knew the river.
+> **This section has been wrong twice, and both errors are recorded here
+> because the second one is more instructive than the first.**
+>
+> *Wrong until 2026-10-01:* it read *"The Ping river at Nawarat Bridge is
+> the keystone number. Bank-full is 3.5 m…"* as though that described a
+> measured gauge. It described the **scenario** module — hash-seeded
+> numbers — as though it were a reading. It was not one.
+>
+> *Wrong again until 2026-10-02:* the correction said "There is **no
+> physical gauge anywhere in CNX** — no ThaiWater feed is wired, and
+> nothing fetches `api-v3.thaiwater.net`." That was **false**, and so was
+> the reason it was believed. The flood module header claimed ThaiWater
+> "requires a key we don't have", and pointed at `water.rid.go.th` as the
+> source. Both were wrong: **the feed is keyless**, `water.rid.go.th` is a
+> 1996 HTML frameset that was never an API, and
+> `api-v3.thaiwater.net/api/v1/thaiwater30` was never a dead service — the
+> router dispatches on the full sub-path, so the bare path 404s while
+> `…/thaiwater30/public/waterlevel` answers 200. The working endpoint list
+> was read out of the public site's own JavaScript bundle.
+>
+> The lesson worth keeping: **an unavailable feed is a claim about the
+> integration, not about the world.** Two engineers, given a 404, both
+> concluded the data did not exist.
 
-The Ping basin floods seasonally (May–October). What the board actually
-has is **Google Flood Hub**: a 7-day riverine *model* forecast at virtual
-HYBAS gauges. There is **no physical gauge anywhere in CNX** — no ThaiWater
-feed is wired, and nothing fetches `api-v3.thaiwater.net`.
+The Ping basin floods seasonally (May–October). The board now has **two
+different things**, and they must never be confused:
 
-Three consequences, all enforced in code:
+1. **Measured levels** — 43 Ping-basin gauges reporting in Chiang Mai
+   province (8 on the mainstem), from **ThaiWater v3**, keyless and public.
+   One of them, **P.1 สะพานนวรัฐ (Nawarat Bridge)**, publishes an official
+   **critical level of 304.20 m** above sea level. That is the only number
+   on this board about the river that carries an authority, and it comes
+   from the station whose guessed 3.5 m bank-full figure the scenario used
+   to carry — the real published threshold is **3.7 m**.
+2. **Modelled forecast** — Google Flood Hub, a 7-day riverine *model* at
+   virtual HYBAS gauges. Still escalate-only, still not street flooding.
 
-- A blind flood axis **scores 0** and emits no observation-shaped reason.
-- A blind flood axis **cannot certify "safe."** The level caps at `watch`
-  and the reason reads *"No live river-gauge reading — this is not evidence
-  the river is safe."* Absence from a layer is never evidence of safety.
-- FloodHub is **escalate-only.** A forecast raises the alert; its absence
-  is never an all-clear. It covers **riverine flooding only** — not the
-  street-level flash flooding that actually closes a Thai city.
+Consequences, all enforced in code:
+
+- A blind flood axis **scores 0**, emits no observation-shaped reason, and
+  **cannot certify "safe"** — it caps at `watch`.
+- A **graded** gauge reading unblinds the axis and may support `safe`.
+  A gauge that reports a level but publishes **no bank geometry cannot** —
+  an ungradable station is the same position as no station at all.
+- The measured reading **never launders the scenario**. The scenario's
+  bank-full ratio, dam surge and rainfall all come from a module that is
+  still hash-seeded for two of its three domains, so they stay silent
+  beside a real gauge.
+- A **calm** reading is appended **last** in the verdict reasons, behind
+  every measured hazard. A governor reads the headline first and often
+  alone; an absence of flood trouble must never occupy that slot.
+- Thai public advisory feeds remain unwired because none exists
+  machine-readably. The dashboard **never renders its own threshold as a
+  government announcement**.
 
 The scenario module still exists as a last-resort fallback, always behind
 `provenance: "scenario"`, and is barred from the RAG corpus, the keystone
 story, and the flood↔air correlation.
 
-(Full Ping dashboard in `src/components/CNX/CNXFloodPanel.tsx`.)
+(Ping levels in `src/components/CNX/CNXRiverLevelPanel.tsx`; the source
+module is `src/lib/cnx/river-level.ts`, which owns its own credit and
+terms and is rendered verbatim wherever the gauges appear.)
 
 ## 3b. The map — why the mountains are 3D
 
