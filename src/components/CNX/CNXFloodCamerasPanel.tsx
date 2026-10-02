@@ -22,7 +22,7 @@
 // that looks like a live one sends someone down a flooded street.
 
 import { useEffect, useState } from "react";
-import { Video, VideoOff, ExternalLink, Scale } from "lucide-react";
+import { Video, VideoOff, Scale } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import { DataAge } from "./CNXDataAge";
 import type { FloodCamerasResponse, FloodCamera } from "../../lib/cnx/flood-cameras";

@@ -356,8 +356,61 @@ async function pushArrivals() {
 // reports (15 min) ride along on this process — each throttles itself.
 const WORKER_BASE = INGEST_URL.replace(/\/api\/cnx\/flights\/ingest$/, "");
 
+// ─── river levels (ThaiWater v3) ────────────────────────────────────
+// The Worker gets 429 from api-v3.thaiwater.net — the rate limit is per
+// source IP and Cloudflare's egress is shared (measured 2026-10-02:
+// eight rapid calls from this building all 200 while the Worker 429'd
+// the same URL in the same minute). So this process reads the feed on
+// the Worker's behalf and pushes the RAW envelope; the projection,
+// severity bands and note run at the edge in the same pure functions
+// the direct path uses, so this relay cannot push numbers that bypass
+// the documented bank-geometry methodology.
+const RIVER_URL = process.env.CNX_RIVER_INGEST_URL ?? `${WORKER_BASE}/api/cnx/river-level/ingest`;
+const RIVER_EVERY_MS = 10 * 60_000;
+let lastRiverAt = 0;
+
+async function pushRiverLevels() {
+  if (Date.now() - lastRiverAt < RIVER_EVERY_MS) return;
+  lastRiverAt = Date.now(); // set first: a failure retries next cycle, not every 30 s
+  try {
+    const base = "https://api-v3.thaiwater.net/api/v1/thaiwater30";
+    const headers = { Accept: "application/json", "User-Agent": UA };
+    const [wlRes, catRes] = await Promise.allSettled([
+      fetch(`${base}/public/waterlevel?province_code=50`, { headers, signal: AbortSignal.timeout(15_000) }),
+      fetch(`${base}/frontend/shared/tele_canal_station?province_code=50`, { headers, signal: AbortSignal.timeout(15_000) }),
+    ]);
+    if (wlRes.status === "rejected") throw wlRes.reason;
+    if (!wlRes.value.ok) throw new Error(`waterlevel ${wlRes.value.status}`);
+    const envelope = await wlRes.value.json();
+    let catalogueCount = null;
+    if (catRes.status === "fulfilled" && catRes.value.ok) {
+      try {
+        const j = await catRes.value.json();
+        const arr = j?.data?.tele_waterlevel;
+        catalogueCount = Array.isArray(arr) ? arr.length : null;
+      } catch {
+        // The catalogue is coverage context, not load-bearing — a failed
+        // read ships as null, which the edge reports as unread, never 0.
+      }
+    }
+    const res = await fetch(RIVER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+      body: JSON.stringify({ generatedAt: new Date().toISOString(), envelope, catalogueCount }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const body = await res.text();
+    if (!res.ok) throw new Error(`ingest ${res.status} ${body.slice(0, 160)}`);
+    const n = Array.isArray(envelope?.data) ? envelope.data.length : 0;
+    console.log(`[relay] river levels pushed: ${n} rows, catalogue ${catalogueCount ?? "—"}`);
+  } catch (e) {
+    console.warn(`[relay] river push failed: ${e.message}`);
+  }
+}
+
 async function tick() {
   void pushArrivals();
+  void pushRiverLevels();
   void runHazeVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   const snapshot = await buildSnapshot();

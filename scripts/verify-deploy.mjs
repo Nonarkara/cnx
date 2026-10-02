@@ -24,9 +24,7 @@
 //
 // Exit code 0 = all checks passed. Non-zero = read the FAIL lines.
 
-import { readFileSync, existsSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { join } from "node:path";
 
 const ORIGIN = process.env.CNX_ORIGIN ?? "https://cnx.nonarkara.org";
 

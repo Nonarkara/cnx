@@ -5,7 +5,7 @@
 // exist because a plausible-looking fixture hid two real defects, and
 // the tidy version of this payload would have hidden them again.
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   fetchRiverLevel,
   resetRiverLevelCache,
@@ -18,6 +18,25 @@ import {
   RIVER_LEVEL_TTL_MS,
   type RiverGauge,
 } from "./river-level";
+import {
+  isRiverLevelRelayPayload,
+  RIVER_LEVEL_KV_KEY,
+  RIVER_LEVEL_KV_STALE_MS,
+} from "./river-level-kv";
+
+// ─── The KV mock ────────────────────────────────────────────────
+// The relay tier reads CNX_FLIGHTS_KV via @opennextjs/cloudflare, which
+// has no context under vitest. This mock is file-scoped and fakeKV is
+// null by default, so every test below falls through to the direct read
+// — which is exactly the no-relay behavior — and only the relay-tier
+// cases install a KV.
+const relayState = vi.hoisted(() => ({
+  fakeKV: null as { get: (k: string) => Promise<string | null>; put: (k: string, v: string) => Promise<void> } | null,
+}));
+
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: async () => ({ env: { CNX_FLIGHTS_KV: relayState.fakeKV } }),
+}));
 
 // ─── Fixtures, copied from the live payload ─────────────────────
 
@@ -590,5 +609,147 @@ describe("regressions from the real payload", () => {
     // it is why the module can report headroom in metres with a source
     // threshold behind it.
     expect(P1.station.offset + P1.station.critical_level_m).toBeCloseTo(P1.station.critical_level_msl, 6);
+  });
+});
+
+// ─── The relay tier: KV first, direct second ────────────────────
+// ThaiWater 429s Cloudflare's shared egress, so the relay (a residential
+// IP) reads the feed on the Worker's behalf and pushes the RAW envelope.
+// The projection still runs at the edge — the tests below pin that a
+// relay copy goes through the same filter and projection as a direct
+// read, and that a useless copy falls through rather than being served.
+
+/** A relay payload as scripts/relay-flights.mjs actually pushes it. */
+function relayPayload(rows: unknown[], catalogueCount: number | null = 627, generatedAt = new Date().toISOString()): string {
+  return JSON.stringify({ generatedAt, envelope: { result: "OK", data: rows }, catalogueCount });
+}
+
+describe("isRiverLevelRelayPayload — the guard", () => {
+  it("accepts the payload the relay actually pushes", () => {
+    expect(isRiverLevelRelayPayload(JSON.parse(relayPayload([P1, KOK])))).toBe(true);
+  });
+
+  it("rejects a generatedAt that is not an ISO instant", () => {
+    expect(isRiverLevelRelayPayload(JSON.parse(relayPayload([P1], 627, "yesterday")))).toBe(false);
+  });
+
+  it("rejects an envelope whose data is not an array", () => {
+    expect(isRiverLevelRelayPayload({ generatedAt: new Date().toISOString(), envelope: { data: "nope" }, catalogueCount: 1 })).toBe(false);
+  });
+
+  it("rejects a row array that is not all objects", () => {
+    expect(isRiverLevelRelayPayload({ generatedAt: new Date().toISOString(), envelope: { data: [P1, 42] }, catalogueCount: 1 })).toBe(false);
+  });
+
+  it("rejects an oversized row array", () => {
+    // 2,000 is generous against the 627-station catalogue; beyond it the
+    // payload is not a province feed, it is something else.
+    expect(isRiverLevelRelayPayload({ generatedAt: new Date().toISOString(), envelope: { data: new Array(2_001).fill({}) }, catalogueCount: 1 })).toBe(false);
+  });
+
+  it("rejects a catalogueCount that is neither number nor null", () => {
+    expect(isRiverLevelRelayPayload({ generatedAt: new Date().toISOString(), envelope: { data: [] }, catalogueCount: "627" })).toBe(false);
+  });
+});
+
+describe("fetchRiverLevel — the relay tier", () => {
+  beforeEach(() => {
+    resetRiverLevelCache();
+    relayState.fakeKV = null;
+  });
+  afterEach(() => {
+    relayState.fakeKV = null;
+  });
+
+  it("serves the relay's fresh copy without a single upstream call", async () => {
+    const calls: string[] = [];
+    relayState.fakeKV = {
+      get: async (k) => {
+        calls.push(`kv:${k}`);
+        return relayPayload([P1, MAE_TAENG, KOK]);
+      },
+      put: async () => {},
+    };
+    globalThis.fetch = (async (u) => {
+      calls.push(String(u));
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("live");
+    // The same basin filter as the direct path: the Kok gauge is excluded.
+    expect(r.gaugeCount).toBe(2);
+    // The catalogue count comes from the payload, not a second fetch.
+    expect(r.catalogueCount).toBe(627);
+    expect(calls.some((c) => c.startsWith("http"))).toBe(false);
+    expect(calls).toContain(`kv:${RIVER_LEVEL_KV_KEY}`);
+  });
+
+  it("falls back to the direct read when the relay copy is stale", async () => {
+    // 60 min old, against a 45 min staleness window: the relay is down,
+    // and the direct read is the honest next tier.
+    const stale = relayPayload([P1], 627, new Date(Date.now() - 60 * 60_000).toISOString());
+    relayState.fakeKV = { get: async () => stale, put: async () => {} };
+    stubFetch({
+      "/public/waterlevel": { result: "OK", data: [P1] },
+      tele_canal_station: { data: { tele_waterlevel: new Array(128).fill({}) } },
+    });
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("live");
+    expect(r.unavailableReason).toBeNull();
+    expect(r.catalogueCount).toBe(128); // fetched directly on this path
+  });
+
+  it("falls back to the direct read when the relay copy fails the guard", async () => {
+    relayState.fakeKV = {
+      get: async () =>
+        JSON.stringify({ generatedAt: new Date().toISOString(), envelope: { data: "not-an-array" }, catalogueCount: 627 }),
+      put: async () => {},
+    };
+    stubFetch({ "/public/waterlevel": { result: "OK", data: [P1] } });
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("live");
+  });
+
+  it("a fresh relay copy with nothing usable falls through — an empty relay copy is not proof the river is empty", async () => {
+    // Only out-of-basin rows: the relay copy is fresh but yields no Ping
+    // gauge. Falling through to the direct read is the difference
+    // between "the relay saw nothing" and "the river is quiet".
+    relayState.fakeKV = { get: async () => relayPayload([KOK]), put: async () => {} };
+    stubFetch({
+      "/public/waterlevel": { result: "OK", data: [P1] },
+      tele_canal_station: { data: { tele_waterlevel: new Array(128).fill({}) } },
+    });
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("live");
+    expect(r.gaugeCount).toBe(1);
+  });
+
+  it("falls back to blind when the relay copy is stale and the direct read 429s", async () => {
+    relayState.fakeKV = {
+      get: async () => relayPayload([P1], 627, new Date(Date.now() - 60 * 60_000).toISOString()),
+      put: async () => {},
+    };
+    globalThis.fetch = (async () =>
+      new Response("การใช้งานถึง limit ที่กำหนด", { status: 429 })) as typeof fetch;
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("unavailable");
+    expect(r.unavailableReason).toMatch(/429/);
+    // The reason names the throttle, not the river.
+    expect(r.unavailableReason).toMatch(/throttled read, not an empty river/);
+  });
+
+  it("keys the KV entry under the river-level key, not the flights one", async () => {
+    // Same KV namespace as the flights snapshot, different key. Sharing
+    // the key would have the two relays overwriting each other.
+    let storedKey = "";
+    relayState.fakeKV = {
+      get: async () => null,
+      put: async (k) => {
+        storedKey = k;
+      },
+    };
+    expect(RIVER_LEVEL_KV_KEY).not.toBe("latest-snapshot");
+    expect(storedKey).toBe(""); // nothing written on this path: the write happens at the ingest route
+    expect(RIVER_LEVEL_KV_STALE_MS).toBeGreaterThan(RIVER_LEVEL_TTL_MS);
   });
 });

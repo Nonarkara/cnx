@@ -132,11 +132,20 @@ Three things followed, and only the first is a fix:
 3. **The panel says "this is a throttle, not the river"**, and the flood
    axis falls back to blind — which may not certify `safe`.
 
-**This is unresolved and is recorded as such.** The feed works; running it
-from shared edge IPs throttles it. Closing that properly needs a source
-that permits a key, or a scheduled bake to storage rather than a live
-per-request pull. Neither is assumed available, so the board is published
-with the limitation stated in the place an operator would look for it.
+**Closed 2 October 2026 with the relay bake — the same pattern as flights.**
+The feed works; running it from shared edge IPs throttles it. The durable
+fix did not need a key or new infrastructure: the same launchd relay that
+pushes flights (`scripts/relay-flights.mjs`) now also reads ThaiWater from
+this building's residential IP — where the `429` does not apply — and
+pushes the **raw** envelope into KV (`CNX_FLIGHTS_KV`, key
+`river-level-latest`), which `fetchRiverLevel` reads **first**
+(`river-level-kv.ts`). The projection, severity bands and note still run
+at the edge in the same pure functions, so the relay cannot push numbers
+that bypass the documented bank-geometry methodology — the same trust
+boundary as the flights relay's. Copies older than 45 min fall back to the
+direct read; from the edge that `429`s and the axis goes blind — honestly,
+with the reason naming the throttle. The limitation above stands as
+recorded for the record: it is why the relay tier exists.
 
 **Finding it cost two deploys, because the symptom was a lie.** The first
 production probe said "unavailable" with no reason, which is

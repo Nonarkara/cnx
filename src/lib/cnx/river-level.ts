@@ -146,6 +146,28 @@
 // old while the rest were under an hour, and that spread is shown
 // rather than flattened.
 
+// THE RELAY TIER
+// --------------
+// This direct read is tier 2. Tier 1 is the relay's copy: the same
+// launchd process that pushes flights (scripts/relay-flights.mjs) also
+// reads ThaiWater from this building's residential IP — where the 429
+// above does not apply — and pushes the RAW envelope into KV
+// (river-level-kv.ts), which fetchRiverLevel reads FIRST. The
+// projection, severity bands and note still run here, in the same pure
+// functions, so the relay cannot push numbers that bypass the
+// bank-geometry methodology — the same trust boundary as the flights
+// relay's. A copy older than 45 min falls back to this direct read;
+// from the edge that 429s, and the axis goes blind — honestly, with the
+// reason naming the throttle.
+
+import { readRelayJson } from "./relay-kv";
+import {
+  RIVER_LEVEL_KV_KEY,
+  RIVER_LEVEL_KV_STALE_MS,
+  isRiverLevelRelayPayload,
+  type RiverLevelRelayPayload,
+} from "./river-level-kv";
+
 const ENDPOINT = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel";
 
 /** The province this board covers. Thai two-digit geocode. */
@@ -669,6 +691,59 @@ function unavailable(reason: string): RiverLevelResponse {
   };
 }
 
+/**
+ * Builds the response from a raw waterlevel envelope — shared by the
+ * relay tier and the direct read, so both paths run the same projection,
+ * severity bands and note. A live response, or the stated "none usable"
+ * absence when no row in the envelope parses to a Ping gauge.
+ */
+function buildFromEnvelope(
+  rows: UpstreamRow[],
+  catalogueCount: number | null,
+  tier: string,
+): RiverLevelResponse {
+  // Basin filter: the province also drains to the Kok and the Chao
+  // Phraya headwaters, and those are not this board's flood axis.
+  const gauges: RiverGauge[] = [];
+  let mainstem = 0;
+  let skipped = 0;
+  for (const r of rows) {
+    if (r.basin?.basin_code !== PING_BASIN_CODE) continue;
+    const g = projectGauge(r);
+    if (!g) {
+      skipped++;
+      continue;
+    }
+    gauges.push(g);
+    if (isPingMainstem(g)) mainstem++;
+  }
+
+  if (gauges.length === 0) {
+    // Every row that parsed to nothing is a row the operator is not
+    // seeing. It is surfaced rather than dropped silently.
+    return unavailable(
+      `${tier} returned ${rows.length} rows for province ${PROVINCE_CODE}, none of which were usable Ping gauges` +
+        (skipped ? ` (${skipped} failed to parse)` : ""),
+    );
+  }
+
+  gauges.sort((a, b) => b.latitude - a.latitude);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    provenance: "live",
+    gauges,
+    gaugeCount: gauges.length,
+    pingMainstemCount: mainstem,
+    catalogueCount,
+    unavailableReason: null,
+    observedAt: newestObservation(gauges),
+    note: riverLevelNote(gauges, catalogueCount),
+    credit: CREDIT,
+    legal: LEGAL,
+  };
+}
+
 let cache: { at: number; value: RiverLevelResponse } | null = null;
 
 /**
@@ -703,6 +778,37 @@ export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
     if (now - cache.at < ttl) return cache.value;
   }
 
+  // ── Tier 1: the relay's copy ────────────────────────────────────
+  // A residential IP reads ThaiWater without the shared-egress throttle
+  // (the 429 below), and this tier is what makes the edge work at all.
+  // The projection, severity bands and note still run HERE, in the same
+  // pure functions the direct path uses — the relay cannot push numbers
+  // that bypass the documented bank-geometry methodology.
+  const relay = await readRelayJson<RiverLevelRelayPayload>(
+    RIVER_LEVEL_KV_KEY,
+    RIVER_LEVEL_KV_STALE_MS,
+    isRiverLevelRelayPayload,
+  );
+  if (relay) {
+    // envelope.data is unknown[] but the guard validated every entry is
+    // an object; projectGauge coerces every field and skips what it
+    // cannot use, surfacing the skipped count rather than throwing.
+    const value = buildFromEnvelope(
+      (relay.envelope.data ?? []) as UpstreamRow[],
+      relay.catalogueCount,
+      "ThaiWater (the relay's copy)",
+    );
+    if (value.provenance === "live") {
+      cache = { at: now, value };
+      return value;
+    }
+    // A fresh copy with nothing usable falls through to the direct
+    // read — an empty relay copy is not proof the river is empty.
+  }
+
+  // ── Tier 2: the direct read ─────────────────────────────────────
+  // Works from a residential IP; from Cloudflare it 429s (shared
+  // egress), which is why tier 1 exists.
   const env = await getJsonDetailed<WaterlevelEnvelope>(
     buildUrl("/public/waterlevel", { province_code: PROVINCE_CODE }),
   );
@@ -721,51 +827,7 @@ export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
     return value;
   }
 
-  // Basin filter: the province also drains to the Kok and the Chao
-  // Phraya headwaters, and those are not this board's flood axis.
-  const gauges: RiverGauge[] = [];
-  let mainstem = 0;
-  let skipped = 0;
-  for (const r of rows) {
-    if (r.basin?.basin_code !== PING_BASIN_CODE) continue;
-    const g = projectGauge(r);
-    if (!g) {
-      skipped++;
-      continue;
-    }
-    gauges.push(g);
-    if (isPingMainstem(g)) mainstem++;
-  }
-
-  // Every row that parsed to nothing is a row the operator is not
-  // seeing. It is surfaced rather than dropped silently.
-  if (gauges.length === 0) {
-    const value = unavailable(
-      `ThaiWater returned ${rows.length} rows for province ${PROVINCE_CODE}, none of which were usable Ping gauges` +
-        (skipped ? ` (${skipped} failed to parse)` : ""),
-    );
-    cache = { at: now, value };
-    return value;
-  }
-
-  gauges.sort((a, b) => b.latitude - a.latitude);
-
-  const catalogueCount = await fetchCatalogueCount();
-
-  const value: RiverLevelResponse = {
-    generatedAt: new Date().toISOString(),
-    provenance: "live",
-    gauges,
-    gaugeCount: gauges.length,
-    pingMainstemCount: mainstem,
-    catalogueCount,
-    unavailableReason: null,
-    observedAt: newestObservation(gauges),
-    note: riverLevelNote(gauges, catalogueCount),
-    credit: CREDIT,
-    legal: LEGAL,
-  };
-
+  const value = buildFromEnvelope(rows, await fetchCatalogueCount(), "ThaiWater (direct read)");
   cache = { at: now, value };
   return value;
 }
