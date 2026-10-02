@@ -1,9 +1,24 @@
 # CNX release audit — 2 October 2026
 
-## Verdict
+> **READ THIS FIRST — which paragraph below is current.**
+>
+> This file is a **chronological record**, appended across several runs on
+> 2 October 2026. The first section describes the audit *baseline*; later
+> sections describe follow-ups. **The current, verified release state is the
+> top of the final "Follow-up" section: version 1.3.4 at `ebf8146`.**
+> Everything above it is history and is kept because the audit's reasoning
+> and its explicit limits still apply.
+>
+> An earlier revision of this file was written at 22:26:29 ICT, **28 seconds
+> before** the release it was describing, so its header still named the
+> pre-release commit. That was a real defect in this document: a reader
+> arriving today would have drawn wrong conclusions about what is deployed.
+> The header now states the current release and points here.
+
+## Verdict (audit baseline — historical)
 
 Audit complete: **29 defect groups repaired**, integrated tests and final
-production packaging passed. This is a validated local release candidate with
+production packaging passed. This is a validated release candidate with
 the explicit limits below, not an unconditional security/accuracy certification.
 At the audit baseline, and again before the authorized release follow-up, live served
 `5606843`, built `2026-10-02T11:00:57Z`. Production had already advanced beyond
@@ -68,7 +83,7 @@ dependency advisories and the historical reserve Worker.
 | Medium | Reserve Worker reflected unescaped request/environment strings into HTML | Reflected values escaped; malicious-input regression |
 | Medium | Observability had logs but no traces | Sampled traces enabled in both config sources; query strings redacted |
 
-## Production observations before release
+## Production observations before release (baseline — historical)
 
 On 2 October 2026, all **38** discovered routes returned their intended status:
 31 ordinary GET routes answered JSON; `aircraft` and `ask` answered 400 without
@@ -93,6 +108,44 @@ waterways 8,876,771. Production serves these with Brotli. Phone default now avoi
 23,045,676 raw bytes of building geometry. This is avoided source data, not a
 claim of equal wire-byte savings. Waterway geometry remains a material startup
 cost. Font/chunk/terrain costs and device interaction still need a performance budget.
+
+## Current verified state — re-checked 23:30 ICT, 2 October 2026
+
+Everything in this block was measured directly against production after the
+1.3.4 release, not copied from the audit's own claims.
+
+| Property | Verified value |
+| --- | --- |
+| Deployed commit | `ebf8146872d48dcd18f43bd6ef14279c2ed36107`, built `2026-10-02T15:26:57Z` |
+| Local `HEAD` / `origin/main` | Both identical to the deployed commit |
+| Working tree | Clean — zero uncommitted, zero untracked files |
+| Release gate | `verify-deploy.mjs --expect river-level` → **PASS, 38 routes** |
+| Integrated suite | **487 tests in 51 files**, all passing |
+| Types / lint | `tsc --noEmit` exit 0; eslint reports no errors and no warnings |
+| `package.json` version | **1.3.4** |
+| Dependency advisories | **9 nodes** (2 critical, 2 high, 5 moderate) — re-run, unchanged |
+| Measured river | `provenance: live`, **43** Ping-basin gauges, 8 on the mainstem |
+| Published river thresholds | **4** stations: P.1, BBU01, BBU02, BBU04 |
+| Relay process | Running since 21:16:38; all five modules it imports are unmodified vs `HEAD` |
+
+Two of these deserve emphasis because they close earlier risk rather than
+merely restate a build number:
+
+- **The "deployed but never committed" hazard is closed.** Production ran
+  `5606843` while `origin/main` sat three commits behind and 67 `src/` files
+  were uncommitted. Live, `HEAD` and `origin/main` are now the same commit
+  with a clean tree, so a fresh clone reproduces what is running.
+- **The relay is not stale.** It started at 21:16, before the 22:26 release
+  commit, which would normally mean stale modules. Checking each module it
+  actually imports (`haze-vision-core.ts`, `dustboy.ts`, `citizen-core.ts`,
+  `haze-vision.mjs`, `citizen-reports.mjs`) shows all five unmodified against
+  `HEAD`, so the running process holds current code. This was verified
+  rather than assumed from a timestamp.
+
+The river feed's provenance is `live` and its upstream rate-limit workaround
+is holding; the edge throttle that forced a 30-minute failure cache earlier
+is now routed through the relay's KV copy, so the board reads gauges without
+requesting ThaiWater from shared edge IPs.
 
 ## Explicit release limits
 
@@ -221,3 +274,33 @@ and places expandable methodology after observations.
 Cache-isolation follow-up: **487 tests in 51 files passed**, full lint and
 TypeScript passed. Empty news now explicitly distinguishes missing coverage
 from an absence of events.
+
+## A second audit pass was started and lost
+
+After 1.3.4 shipped, a further code audit was begun. It ran out of context
+before it produced any output, and **its findings were not written to disk**.
+
+Checked and confirmed, so this is not carried as a suspicion:
+
+- `git status --porcelain --untracked-files=all` returns **zero** entries. The
+  pass left no partial edits, no untracked scratch files, and no half-applied
+  change. Nothing in this repository was lost.
+- The session log for that run stops at 22:39; newer entries sit in an
+  uncheckpointed SQLite write-ahead log, and the timeline table is empty. The
+  findings existed only in the model's context window, which is gone.
+- `docs/SHIP-AUDIT.md` — this file — was **not** updated by that pass. Its
+  last write predates the 1.3.4 release, which is how the stale header
+  described above went unnoticed.
+
+Consequence to carry forward: **an audit that is never written down did not
+happen.** The current-state table above was reconstructed from direct
+measurement of production, not from that pass, so it should not be read as
+its output. A rerun is required for any assurance the lost pass was going to
+provide.
+
+The one piece of residue that looked alarming was a recently-modified
+`src/lib/cnx/verdict.ts`. It was not the audit's: it was a deliberate mutation
+test that broke the air-quality floor, watched a test fail, and restored the
+file. Verified byte-identical to `HEAD` by SHA-256. Recorded here because a
+future reader running `find -mmin` will see the same timestamp and start the
+same investigation.
