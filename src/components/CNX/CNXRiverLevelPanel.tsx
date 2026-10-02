@@ -145,7 +145,17 @@ export default function CnxRiverLevelPanel() {
         {down && data && (
           <div className="mb-2 border border-[#ef4444]/40 bg-[#ef4444]/10 px-2 py-1.5 text-[10px] leading-[1.5] text-[#ef4444]">
             ไม่สามารถอ่านค่าจากสถานีวัด — ไม่ใช่หลักฐานว่าน้ำปลอดภัย
-            <div className="mt-0.5 font-mono text-[9px] opacity-80">{data.unavailableReason}</div>
+            <div className="mt-0.5 font-mono text-[9px] opacity-90">
+              {data.unavailableReason ?? "upstream read failed"}
+            </div>
+            {/rate limit|429/i.test(data.unavailableReason ?? "") && (
+              <div className="mt-1 text-[9px] italic opacity-90">
+                แหล่งข้อมูลจำกัดอัตราการเรียกใช้ชั่วคราว (ไม่ใช่สถานะของแม่น้ำ) — ค่าจริงยังมีอยู่ที่สถานีวัด
+                <br />
+                A temporary read throttle on our side, not a change in the river — the gauges are still reporting,
+                and this panel is blind until the next poll succeeds.
+              </div>
+            )}
           </div>
         )}
 

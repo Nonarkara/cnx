@@ -101,6 +101,51 @@ enumerates the paths the site itself calls.
 about the world.** Two people, handed the same 404, both concluded the data
 did not exist.
 
+### The edge rate limit, and what it cost to find
+
+The feed is keyless and reachable — from this laptop, on every request
+shape tried (plain curl, `Cloudflare-Workers` UA, no UA at all: `200` in
+81 ms). **Deployed on Cloudflare Workers it returns `429`.**
+
+    {"status":429,"contentType":"text/plain","head":"429:  การใช้งานถึง limit ที่กำหนด
+     กรุณาติดต่อผู้ดูแลระบบ"}
+
+*usage has reached the configured limit; please contact the administrator.*
+
+The decisive measurement: **eight consecutive rapid requests from this
+machine returned `200` in the same minute the Worker returned `429`** for
+the same URL. So the limit is per source IP, and Cloudflare's egress
+addresses are shared across many tenants. It is a property of where the
+code runs, not of the data.
+
+Three things followed, and only the first is a fix:
+
+1. **Failures are cached for 30 minutes**, successes for 10. A board that
+   re-polls an exhausted quota every 10 minutes stays blind forever and
+   burns the whole budget being told no.
+2. **The failure is named.** The first version reported "ThaiWater
+   returned no data array" for both a network error and an empty
+   response — asserting the source had answered when it had never
+   arrived. `getJsonDetailed` now separates transport failure, non-200
+   (with the status, and `429` called out as a throttle), and unparseable
+   body.
+3. **The panel says "this is a throttle, not the river"**, and the flood
+   axis falls back to blind — which may not certify `safe`.
+
+**This is unresolved and is recorded as such.** The feed works; running it
+from shared edge IPs throttles it. Closing that properly needs a source
+that permits a key, or a scheduled bake to storage rather than a live
+per-request pull. Neither is assumed available, so the board is published
+with the limitation stated in the place an operator would look for it.
+
+**Finding it cost two deploys, because the symptom was a lie.** The first
+production probe said "unavailable" with no reason, which is
+indistinguishable from "the river is quiet". A throwaway diagnostic route
+returning the raw status, content-type and body prefix found a `429` in
+one request. The lesson: **when a live read fails, the reason must come
+from the layer that failed.** A `null` that both means "no network" and
+"empty response" will eventually be reported as the second one.
+
 ### What the payload actually contains
 
 Measured against the live feed, not against documentation:

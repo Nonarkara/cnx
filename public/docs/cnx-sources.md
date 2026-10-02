@@ -71,6 +71,35 @@ Resources), **HII** (Hydro-Informatics Institute) and **EGAT**.
 **No API key is required.** The endpoints read here are the same
 `/public/` paths the public website calls from a browser.
 
+### A rate limit, and what it means for this panel
+
+**ThaiWater rate-limits per source IP, and Cloudflare's egress addresses
+are shared.** Measured 2026-10-02: the identical URL returned `200` on
+eight consecutive rapid requests from a laptop on the same connection
+while the deployed Worker returned `429` in the same minute. The upstream
+body is *"การใช้งานถึง limit ที่กำหนด"* — usage has reached the configured
+limit.
+
+When that happens the panel says so in those words, **not** as an empty
+province:
+
+- `provenance` is `unavailable`, never `live` with zero gauges.
+- The reason reads *"upstream rate limit (HTTP 429) — this is a throttled
+  read, not an empty river."*
+- The panel adds that the gauges are still reporting and it is blind until
+  the next poll succeeds.
+- The flood axis falls back to its blind state, which — as always — may
+  not certify `safe`.
+
+To stop the board spending its whole quota being told no, a **failed read
+is cached for 30 minutes** and no request is made during that window. A
+successful read caches for 10.
+
+**This is a known, unresolved limitation of running on shared edge IPs.**
+It is recorded here rather than smoothed over, because a governor-grade
+panel that is intermittently blind must say so in the place where someone
+would look for the reason.
+
 ### What it delivers, and what it does not
 
 - Measured 2026-10-02: **43 Ping-basin gauges reporting** in Chiang Mai

@@ -45,9 +45,13 @@ const ROUTES_200 = [
 // GET is answered with 400 by design (they require a query parameter).
 const ROUTES_400 = ["aircraft", "ask"];
 
-// POST-only. A GET must be 405.
+// POST-only ingestion routes. A GET must be 405, not 404 — a 404 here
+// would mean the route does not exist at all. Enumerated from the tree
+// (`find src/app/api/cnx -name route.ts`), NOT guessed: an earlier draft
+// of this file listed fires/social/dustboy ingest routes that have never
+// existed, and reported three FAILs that were the script's own fault.
 const ROUTES_405 = [
-  "flights/ingest", "fires/ingest", "social/ingest", "dustboy/ingest",
+  "arrivals/ingest", "citizen/ingest", "flights/ingest", "haze-vision/ingest",
 ];
 
 const args = process.argv.slice(2);
@@ -108,13 +112,21 @@ if (dirty) {
   ok("working tree clean");
 }
 
-const bc = await getJson("/api/cnx/build.commit");
+// The build identity lives at /api/cnx/build and its `commit` field. An
+// earlier draft of this script probed `/api/cnx/build.commit`, which has
+// never existed, and reported a FAIL against a correct deployment.
+const bc = await getJson("/api/cnx/build");
 if (bc.status === 200) {
-  const remote = bc.text.replace(/"/g, "").trim();
+  let remote = "?";
+  try {
+    remote = JSON.parse(bc.text).commit ?? "?";
+  } catch {
+    fail("build returned non-JSON");
+  }
   if (remote === head) ok(`build.commit == HEAD (${head.slice(0, 7)})`);
   else fail(`build.commit ${remote} != HEAD ${head} — the deployed commit is not this tree`);
 } else {
-  fail(`build.commit returned ${bc.status}`);
+  fail(`/api/cnx/build returned ${bc.status}`);
 }
 
 // ─── 2. routes ──────────────────────────────────────────────────

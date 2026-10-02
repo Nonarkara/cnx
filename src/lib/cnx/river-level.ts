@@ -570,6 +570,66 @@ async function getJson<T>(url: string, timeoutMs = 8_000): Promise<T | null> {
   }
 }
 
+/**
+ * Like `getJson`, but reports WHY it failed.
+ *
+ * This exists because a bare null made the two failure modes
+ * indistinguishable from the outside: a transport failure and a
+ * well-formed response with the wrong shape both produced "ThaiWater
+ * returned no data array", which asserts something about the response
+ * that a network error does not support. An operator reading that would
+ * be told the feed answered, when it never arrived. The distinction is
+ * the whole difference between "the source is empty" and "we could not
+ * reach the source", and only one of those is a statement about the
+ * river.
+ */
+async function getJsonDetailed<T>(
+  url: string,
+  timeoutMs = 8_000,
+): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await fetch(url, {
+      signal: ctl.signal,
+      headers: { accept: "application/json" },
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      // 429 is not a failure of the river, and the difference matters to
+      // whoever is reading. ThaiWater rate-limits per SOURCE IP, and
+      // Cloudflare's egress addresses are shared by many tenants, so the
+      // board gets throttled while a laptop on a residential connection
+      // does not — measured 2026-10-02: eight rapid calls from the
+      // building all returned 200 while the Worker returned 429 for the
+      // same URL in the same minute. The upstream body is
+      // "การใช้งานถึง limit ที่กำหนด" — usage has reached the limit.
+      //
+      // So the panel says it is a rate limit, not "no data", and the
+      // flood axis falls back to blind — which still cannot certify
+      // safe. It is a temporary blind, not a quiet river.
+      if (res.status === 429) {
+        return { data: null, error: "upstream rate limit (HTTP 429) — this is a throttled read, not an empty river" };
+      }
+      if (res.status === 403) {
+        return { data: null, error: "upstream refused the request (HTTP 403)" };
+      }
+      return { data: null, error: `upstream responded ${res.status}` };
+    }
+    try {
+      return { data: (await res.json()) as T, error: null };
+    } catch {
+      return { data: null, error: "upstream response was not JSON" };
+    }
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "Error";
+    return {
+      data: null,
+      error: name === "AbortError" ? `upstream timed out after ${timeoutMs} ms` : `upstream unreachable (${name})`,
+    };
+  }
+}
+
 interface WaterlevelEnvelope {
   result?: string;
   data?: UpstreamRow[];
@@ -611,6 +671,26 @@ function unavailable(reason: string): RiverLevelResponse {
 
 let cache: { at: number; value: RiverLevelResponse } | null = null;
 
+/**
+ * Failures are cached too, and for LONGER than successes.
+ *
+ * This is not an optimisation — it is the mitigation for a constraint
+ * measured on 2026-10-02: ThaiWater rate-limits per source IP, and
+ * Cloudflare's egress addresses are shared, so the Worker is throttled
+ * where a laptop is not. A board that re-polls every 10 minutes into an
+ * already-exhausted quota stays blind indefinitely and spends the whole
+ * budget being told no.
+ *
+ * So a failed read is remembered for 30 minutes. During that window the
+ * panel keeps showing the same stated reason, and no request goes out.
+ * The flood axis is blind while this holds — which is exactly what the
+ * blind-axis rules were built for: it may not certify `safe`.
+ *
+ * Serving the cached failure also means the panel cannot flap between
+ * "reporting" and "unavailable" as a single unlucky request lands.
+ */
+const FAILURE_TTL_MS = 30 * 60_000;
+
 /** Test seam. */
 export function resetRiverLevelCache(): void {
   cache = null;
@@ -618,15 +698,27 @@ export function resetRiverLevelCache(): void {
 
 export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
   const now = Date.now();
-  if (cache && now - cache.at < RIVER_LEVEL_TTL_MS) return cache.value;
+  if (cache) {
+    const ttl = cache.value.provenance === "live" ? RIVER_LEVEL_TTL_MS : FAILURE_TTL_MS;
+    if (now - cache.at < ttl) return cache.value;
+  }
 
-  const env = await getJson<WaterlevelEnvelope>(
+  const env = await getJsonDetailed<WaterlevelEnvelope>(
     buildUrl("/public/waterlevel", { province_code: PROVINCE_CODE }),
   );
 
-  const rows = env?.data;
+  const rows = env.data?.data;
   if (!Array.isArray(rows)) {
-    return unavailable("ThaiWater returned no data array");
+    // Say which failure this is. A network error is not the feed
+    // reporting an empty province, and the operator needs to know which
+    // one they are looking at.
+    const value = unavailable(
+      env.error
+        ? `could not read the gauge feed: ${env.error}`
+        : "ThaiWater answered, but the response carried no data array",
+    );
+    cache = { at: now, value };
+    return value;
   }
 
   // Basin filter: the province also drains to the Kok and the Chao
@@ -648,10 +740,12 @@ export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
   // Every row that parsed to nothing is a row the operator is not
   // seeing. It is surfaced rather than dropped silently.
   if (gauges.length === 0) {
-    return unavailable(
+    const value = unavailable(
       `ThaiWater returned ${rows.length} rows for province ${PROVINCE_CODE}, none of which were usable Ping gauges` +
         (skipped ? ` (${skipped} failed to parse)` : ""),
     );
+    cache = { at: now, value };
+    return value;
   }
 
   gauges.sort((a, b) => b.latitude - a.latitude);

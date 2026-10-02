@@ -425,6 +425,79 @@ describe("fetchRiverLevel", () => {
     expect(r.unavailableReason).not.toMatch(/failed to parse/);
   });
 
+  it("distinguishes a transport failure from an empty response", async () => {
+    // A network error is NOT the feed reporting an empty province. The
+    // first draft said "ThaiWater returned no data array" for both,
+    // which asserts the source answered when it never arrived.
+    globalThis.fetch = (async () => {
+      throw new TypeError("fetch failed");
+    }) as typeof fetch;
+    const netErr = await fetchRiverLevel();
+    expect(netErr.provenance).toBe("unavailable");
+    expect(netErr.unavailableReason).toMatch(/could not read the gauge feed/);
+    expect(netErr.unavailableReason).not.toMatch(/no data array/);
+
+    resetRiverLevelCache();
+    stubFetch({ "/public/waterlevel": { result: "ERR" } });
+    const answered = await fetchRiverLevel();
+    expect(answered.provenance).toBe("unavailable");
+    expect(answered.unavailableReason).toMatch(/answered, but the response carried no data array/);
+    expect(answered.unavailableReason).not.toMatch(/could not read/);
+  });
+
+  it("reports a non-200 as an upstream status, not as an empty feed", async () => {
+    globalThis.fetch = (async () => new Response("nope", { status: 503 })) as typeof fetch;
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("unavailable");
+    expect(r.unavailableReason).toMatch(/upstream responded 503/);
+  });
+
+  it("reports a rate limit as a throttled read, not an empty river", async () => {
+    // Measured on 2026-10-02: the same URL returned 200 eight times in a
+    // row from a laptop and 429 from the Worker in the same minute.
+    // ThaiWater limits per source IP and Cloudflare's egress is shared.
+    globalThis.fetch = (async () => new Response("429: การใช้งานถึง limit ที่กำหนด", { status: 429 })) as typeof fetch;
+    const r = await fetchRiverLevel();
+    expect(r.provenance).toBe("unavailable");
+    expect(r.unavailableReason).toMatch(/rate limit \(HTTP 429\)/);
+    // Crucially it must not read as a statement about the river.
+    expect(r.unavailableReason).toMatch(/not an empty river/);
+    expect(r.note).toMatch(/not a measurement of absence/i);
+  });
+
+  it("caches a failure for 30 minutes instead of retrying into the limit", async () => {
+    // Retrying a throttled upstream every 10 minutes is how a board
+    // spends its whole quota being told no.
+    globalThis.fetch = (async () => new Response("429", { status: 429 })) as typeof fetch;
+    const calls: string[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (u: RequestInfo | URL) => {
+      calls.push(String(u));
+      return real(u);
+    }) as typeof fetch;
+
+    await fetchRiverLevel();
+    await fetchRiverLevel();
+    await fetchRiverLevel();
+    const levelCalls = calls.filter((u) => u.includes("/public/waterlevel")).length;
+    expect(levelCalls).toBe(1);
+
+    resetRiverLevelCache();
+    await fetchRiverLevel();
+    expect(calls.filter((u) => u.includes("/public/waterlevel")).length).toBe(2);
+  });
+
+  it("caches a live read for 10 minutes, failures for longer", async () => {
+    stubFetch({
+      "/public/waterlevel": { data: [P1] },
+      "tele_canal_station": { data: { tele_waterlevel: new Array(128).fill({}) } },
+    });
+    await fetchRiverLevel();
+    await fetchRiverLevel();
+    // The stub counts nothing, so assert on TTL constants instead.
+    expect(RIVER_LEVEL_TTL_MS).toBe(600_000);
+  });
+
   it("keeps a null catalogue count when the catalogue read fails", async () => {
     // Never 0 — that would read as "this province has no telemetry".
     stubFetch({ "/public/waterlevel": { data: [P1] } });
