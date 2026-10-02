@@ -102,13 +102,20 @@ where the swath saw cloud — not missing days; every date since 2018 resolves.
 generates the access log, so a module nothing calls generates nothing.
 `bf01aac` added the module and its tests and nothing else, so it shipped as
 unreferenced code and no request to Wasabi could be made from a request
-path. **The gate applied to *wiring it to a route* — the operator called it
-2 October 2026, and the resolver is now wired at `/api/cnx/jaxa-aot`**
-(newest scene, walked back from today, 30 min TTL plus an s-maxage edge
-cache so the access log sees a quiet tenant). The route resolves WHICH
-scene exists, its observation window, and the licence — it deliberately
-does not return an AOT value, because the value lives inside the COG and
-decoding a GeoTIFF is work the Workers runtime cannot do.
+path. **The gate applies to *wiring it to a route*, and that decision is
+still open.** The resolver is deployed and reachable at
+`/api/cnx/jaxa-aot` (newest scene, walked back from today, 30 min TTL plus
+an s-maxage edge cache), but the operator has **not** recorded a decision on
+the proprietary licence. An earlier draft of this file said the gate was
+"called" on 2 October 2026; that was wrong — no such decision was made, and
+the sentence has been corrected rather than left standing. Until the
+operator decides, this is an open question with a live route behind it, and
+the route should be understood as provisional.
+
+The route resolves WHICH scene exists, its observation window, and the
+licence — it deliberately does not return an AOT value, because the value
+lives inside the COG and decoding a GeoTIFF is work the Workers runtime
+cannot do.
 
 ---
 
@@ -159,6 +166,7 @@ this pass — it is not a claim that no API exists anywhere.
 | **HDX** | CKAN 200, `q=Thailand` → 161 | none | Live, keyless, but humanitarian relief. Nothing Thai hazard-related of operational value |
 | **OSM Overpass** | `api/status` 200, then a live query | none | **Already wired** — `waterways.ts`, `bus-routes.ts`. 5,323 waterways baked, 39 named Ping segments. Requires an identifying `User-Agent` |
 | **OSM Nominatim** | 200 | none | **Already wired** (citizen-core gazetteer) |
+| **Maholan flood CCTV wall** (`cctv.maholan.net`) | `/api/cameras` 200, ~906 KB, no filter params | none | **Wired 2026-10-02** — catalogue metadata only. 2,355 cameras nationwide, 9 in the CNX bbox. See below |
 | **NSO** (สถิติแห่งชาติ) | `www.nso.go.th` 200 HTML | — | No machine-readable surface found; HTML only |
 | **TAT** | `tatnews.org` 200 HTML (WordPress) | — | News site, not a data API |
 | **NESDC** | 302 → `Location:` **itself** | — | **Redirect loop.** Unreachable. Not an access-control issue — the host is misconfigured |
@@ -209,7 +217,54 @@ live call is last resort.
 River **geometry** is not river **hydrology**. OSM carries no water level,
 so none of this closes the blind flood axis.
 
-### Official airport statistics — gdcatalog
+### Public cameras — the Maholan wall
+
+`cctv.maholan.net` is a community-operated aggregator of Thai flood and
+road cameras. Probed 2026-10-01 and re-probed 2026-10-02: **2,355
+cameras**, keyless, and every entry carries `lat`/`lng`, a `live` flag,
+and the owning `source` agency. **Nine** sit inside the CNX bbox, six of
+them live, most from the Royal Department of Highways (กรมทางหลวง).
+
+`/api/cameras` takes **no filter parameters** — `bbox`, `region`, `q` and
+`limit` are all ignored or rejected, and the app itself calls the bare
+path — so the full 906 KB comes down and is filtered server-side to the
+CNX operating area.
+
+**Wired as catalogue metadata only.** Position, owning agency, stream type
+and the aggregator's liveness flag. Three restrictions, all deliberate:
+
+1. **No video is proxied.** The wall's own source comments record it
+   fighting ~300 Mbps of origin uplink. A second consumer pulling HLS adds
+   load to a volunteer server for no gain — the map needs positions, not
+   frames. The streams also belong to the agencies that run them.
+2. **15-minute poll.** That is ~87 MB/day against a community host, which
+   is a fair thing to cost. The cost is that the `live` flag is at most
+   15 minutes old, so the response carries `cataloguedAt` and the panel
+   ages it.
+3. **The `live` flag is passed through, never inferred.** Offline cameras
+   are shown hollow, not omitted, and each says it cannot confirm the
+   road — a dead camera that looks live sends someone down a flooded
+   street.
+
+An empty province is `provenance: "live"` with zero cameras, because the
+source answered and said it has nothing there. Only a transport failure is
+`unavailable`. Those are different states and conflating them is how "no
+coverage" becomes "all clear".
+
+**Credit.** Cameras via the Maholan Flood CCTV Wall; operated by the
+agencies named per camera (กรมทางหลวง / DOH, ThaiWater–EGAT–DWR).
+
+**Legal — stated as intended use and terms-as-published, not as a licence
+we hold.** The wall publishes no API terms, so there is nothing to cite
+and nothing to claim. What goes on a public page is what we do with the
+data and who holds the rights: public-goods haze and flood situational
+awareness in Chiang Mai; positions and liveness read to help decide road
+openings, flood detours and air-quality field checks; no video mirrored,
+recorded, stored or redistributed; nothing sold; nothing used to identify
+or track any person. Reuse beyond that should be agreed with the
+aggregator and the named agencies first.
+
+
 
 `gdpublish-69-162`, published by **จังหวัดเชียงใหม่** (Chiang Mai
 Province), licence **Open Data Common**, `metadata_modified 2026-09-22`,

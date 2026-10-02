@@ -41,6 +41,7 @@ import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/ba
 import type { FlightState } from "../../lib/cnx/opensky";
 import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge, CctvSlot } from "../../types/cnx";
 import type { Waterway } from "../../lib/cnx/waterways";
+import type { FloodCamera } from "../../lib/cnx/flood-cameras";
 import type { CmuStation, CmuRoute } from "../../lib/cnx/cmu-transit";
 import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
 import { useRtcBusSim } from "../../hooks/useRtcBusSim";
@@ -314,6 +315,9 @@ interface MapProps {
   fireHotspots?: FireHotspot[];
   floodGauges?: CnxFloodGauge[];
   cctv?: CctvSlot[];
+  /** Public flood/road cameras in the CNX area, via the Maholan wall.
+   *  Catalogue metadata only — no video is proxied. */
+  floodCameras?: FloodCamera[];
   busRoutes?: BusRoute[];
   walls?: WallFeature[];
   waterways?: Waterway[];
@@ -359,6 +363,7 @@ export default function CNXMap({
   fireHotspots = [],
   floodGauges = [],
   cctv = [],
+  floodCameras = [],
   busRoutes = [],
   walls = [],
   waterways = [],
@@ -764,8 +769,28 @@ export default function CNXMap({
       pickable: true,
     });
 
+    // Public flood/road cameras in the CNX area (Maholan wall). Rings,
+    // not dots: a live camera and an offline one must be distinguishable
+    // at a glance from across a room, and an offline camera that looks
+    // like a live one is worse than no marker — it invites a detour that
+    // the operator then drives blind. Offline renders hollow.
+    const floodCameraLayer = new ScatterplotLayer<FloodCamera>({
+      id: "cnx-flood-cameras",
+      data: floodCameras,
+      getPosition: (d) => [d.longitude, d.latitude],
+      getRadius: (d) => (d.live ? 7 : 5),
+      radiusUnits: "pixels",
+      getFillColor: (d) => (d.live ? [16, 185, 129, 70] : [120, 113, 108, 45]),
+      getLineColor: (d) => (d.live ? [16, 185, 129, 235] : [146, 138, 130, 160]),
+      lineWidthMinPixels: 1.5,
+      stroked: true,
+      filled: true,
+      pickable: true,
+    });
+
     return [
       ...flightLayers,
+      floodCameraLayer,
       heritageLayer,
       airLayer,
       plumeLayer,
@@ -780,7 +805,7 @@ export default function CNXMap({
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, hazeById, citizenReports, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, hazeById, citizenReports, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -1044,6 +1069,18 @@ export default function CNXMap({
             return `CMU shuttle ${b.bus} · route ${b.route}\n${b.passenger} on board · live GPS`;
           }
           if (layer.id === "cmu-transit-stations") return (object as CmuStation).name;
+          if (layer.id === "cnx-flood-cameras") {
+            const c = object as FloodCamera;
+            const state = c.live ? "LIVE" : "OFFLINE";
+            const kind = c.type === "hls" ? "continuous video" : c.type === "snapshot" ? "still snapshot" : c.type;
+            // The offline line is deliberate. An operator planning a detour
+            // needs to know this camera cannot confirm the road right now —
+            // silence about a dead camera is the failure that gets someone
+            // sent down a flooded street.
+            return `${c.name}\n${state} · ${kind} · ${c.source}${c.region ? ` · ${c.region}` : ""}${
+              c.live ? "" : "\nไม่ตอบสนอง — ยืนยันสภาพถนนจากกล้องนี้ไม่ได้ (not answering — cannot confirm this road)"
+            }`;
+          }
           if (layer.id === "cnx-cctv") {
             const c = object as CctvSlot;
             const haze = hazeById.get(c.id);

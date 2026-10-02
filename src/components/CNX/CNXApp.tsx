@@ -51,6 +51,8 @@ import CnxAskChat from "./CNXAskChat";
 import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
 import CnxTopBar, { VerdictStrip } from "./CNXTopBar";
+import CnxFloodCamerasPanel from "./CNXFloodCamerasPanel";
+import type { FloodCamera } from "../../lib/cnx/flood-cameras";
 import CnxTicker from "./CNXTicker";
 import CNXMap, { type WallFeature } from "./CNXMap";
 import CnxStoryModal from "./CNXStoryModal";
@@ -110,6 +112,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [walls, setWalls] = useState<WallFeature[]>([]);
   const [waterways, setWaterways] = useState<Waterway[]>([]);
   const [heritage, setHeritage] = useState<CnxHeritageSite[]>([]);
+  const [floodCameras, setFloodCameras] = useState<FloodCamera[]>([]);
   const [visitorAnalytics, setVisitorAnalytics] = useState<VisitorAnalytics | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -162,6 +165,12 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   // heritage layer never had data.
   useEffect(() => {
     let cancelled = false;
+    // Public flood/road cameras for the CNX area. The upstream catalogue
+    // is ~906 KB and is already filtered and cached server-side, so this
+    // is a small edge-cached read; 15 min matches the upstream TTL.
+    void fetchJsonOrNull<{ cameras?: FloodCamera[] }>("/api/cnx/flood-cameras").then((d) => {
+      if (!cancelled && d?.cameras) setFloodCameras(d.cameras);
+    });
     void fetchJsonOrNull<{ sites?: CnxHeritageSite[] }>("/api/cnx/heritage").then((d) => {
       if (!cancelled && d?.sites) setHeritage(d.sites);
     });
@@ -472,6 +481,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           <CNXMap
             flights={flightStates}
             heritage={heritage}
+            floodCameras={floodCameras}
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.gauges ?? []}
@@ -509,6 +519,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           </div>
           <div className="h-[36%] min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxAirQualityPanel />
+          </div>
+          {/* Public cameras — sits under the air desk because its working
+              use is the same question by road: is the corridor visible, or
+              is it in haze / under water. Placed after (not above) the
+              flood panel, which is flex-1 and must keep its height. */}
+          <div className="min-h-[210px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+            <CnxFloodCamerasPanel />
           </div>
           <div className="min-h-[160px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />

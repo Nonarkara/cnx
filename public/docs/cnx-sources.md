@@ -29,6 +29,7 @@
 | RainViewer | Live precipitation radar tiles | `api.rainviewer.com` / `tilecache.rainviewer.com` | none |
 | OpenSky Network | Flight panel | `opensky-network.org` | **OAuth2 client-credentials** (`OPENSKY_CLIENT_ID` / `_SECRET`) |
 | adsb.lol | ADS-B backup, used when OpenSky is unavailable | `api.adsb.lol` | none |
+| **Maholan flood CCTV wall** | Public Cameras panel + map markers (position, owning agency, liveness) | `cctv.maholan.net/api/cameras` | none — **catalogue metadata only, no video proxied** |
 | Google News RSS | Social sidebar | `news.google.com/rss` | none |
 | GDELT 2.0 | Social sidebar | `api.gdeltproject.org` | none |
 | data.go.th (CKAN) | Open Data panel | `data.go.th/api/3/action/package_search` | none |
@@ -52,6 +53,38 @@ stamp. Any figure quoted here is a snapshot, never a population count.
 |---|---|
 | **ThaiWater v3 / HII** | **Not wired.** No module fetches `api-v3.thaiwater.net`. The flood layer serves Google Flood Hub virtual gauges and, failing that, an explicitly-labelled scenario. A `layer-contract.ts` entry and some UI copy name ThaiWater, but nothing calls it — see the note below |
 | Longdo CCTV / iTIC | Partially reachable; only a subset of cameras answer |
+
+## Public cameras — credit, intended use and terms
+
+The **Public Cameras** panel and the camera markers on the map read the
+**[Maholan Flood CCTV Wall](https://cctv.maholan.net)**, a
+community-operated aggregator of Thai flood and road cameras. The
+individual cameras are operated by the agency named beside each one —
+in the Chiang Mai area mostly the **Royal Department of Highways
+(กรมทางหลวง / DOH)**, plus **ThaiWater / EGAT / DWR**.
+
+**What is read:** position, owning agency, stream type, and the
+aggregator's own liveness flag. **What is not:** no video is mirrored,
+embedded, recorded, stored or redistributed by this board. The panel
+links to the source; the pictures stay with the agency that owns the
+camera. It is a volunteer-operated server, so the catalogue is read once
+every 15 minutes and filtered to this province rather than polled hard.
+
+**Intended use.** Public-goods situational awareness for haze and flood
+response in Chiang Mai province. Camera positions and liveness are read
+to help decide road openings, flood detours and air-quality field checks.
+Nothing here is sold, and nothing here is used to identify or track any
+person.
+
+**Terms.** Camera streams remain the property of the agencies that
+operate them, as credited per camera. The aggregator publishes no formal
+API terms, so this integration is keyless, rate-limited, and scoped to the
+Chiang Mai operating area. Any reuse beyond public-goods situational
+awareness should be agreed with the aggregator and the named agencies
+first.
+
+**A camera that is not answering is shown as not answering.** It is never
+hidden, and it never counts as evidence that a road is clear.
 
 ## Province code reference
 
