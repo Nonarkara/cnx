@@ -29,7 +29,7 @@ const SEVERITY_CLASSES: Record<SeverityLevel, string> = {
   // "unknown" must never inherit the green of a confirmed cool reading.
   unknown: "bg-[var(--line)] text-[var(--dim)]",
   good: "bg-[var(--success)] text-white",
-  watch: "bg-[#f59e0b] text-black",
+  watch: "bg-[#f99d1b] text-black",
   alert: "bg-[#fb923c] text-black",
   critical: "bg-[var(--danger)] text-white",
 };
@@ -85,7 +85,7 @@ export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
 const FH_LABEL: Record<string, { text: string; cls: string }> = {
   EXTREME: { text: "Extreme flood forecast", cls: "bg-[var(--danger)] text-white" },
   SEVERE: { text: "Severe flood forecast", cls: "bg-[#fb923c] text-black" },
-  ABOVE_NORMAL: { text: "Above-normal water forecast", cls: "bg-[#f59e0b] text-black" },
+  ABOVE_NORMAL: { text: "Above-normal water forecast", cls: "bg-[#f99d1b] text-black" },
   NO_FLOODING: { text: "No flooding forecast", cls: "bg-[var(--line)] text-[var(--ink)]" },
   UNKNOWN: { text: "No forecast", cls: "bg-[var(--line)] text-[var(--dim)]" },
 };
@@ -145,12 +145,12 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
   return (
     <div>
       {isScenario && (
-        <div className="border-b border-[#f59e0b] bg-[#f59e0b]/10 px-3 py-2">
+        <div className="border-b border-[#f99d1b] bg-[#f99d1b]/10 px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="rounded-sm bg-[#f59e0b] px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-black">
+            <span className="rounded-sm bg-[#f99d1b] px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-black">
               Demo
             </span>
-            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#f59e0b]">
+            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#f99d1b]">
               Illustrative — not measured
             </span>
           </div>
@@ -182,7 +182,7 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
                 </span>
                 <div className="relative h-2 flex-1 border border-[var(--line)] bg-[var(--bg)]">
                   <div
-                    className={`h-full ${r.severity === "alert" ? "bg-[#fb923c]" : r.severity === "watch" ? "bg-[#f59e0b]" : "bg-[var(--success)]"}`}
+                    className={`h-full ${r.severity === "alert" ? "bg-[#fb923c]" : r.severity === "watch" ? "bg-[#f99d1b]" : "bg-[var(--success)]"}`}
                     style={{ width: `${Math.min(100, r.fillFraction * 100)}%` }}
                   />
                 </div>

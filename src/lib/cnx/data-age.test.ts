@@ -102,7 +102,7 @@ describe("ageVerdict — wording must never claim an age it does not have", () =
   it("names staleness in text as well as amber past the threshold", () => {
     const stale = ageVerdict(ago(6 * MS), now, H);
     expect(stale.text).toBe("stale · 6 h ago");
-    expect(stale.tone).toBe("text-[#f59e0b]");
+    expect(stale.tone).toBe("text-[#f99d1b]");
   });
 
   it("calls a future timestamp clock skew, not a negative age", () => {
@@ -110,7 +110,7 @@ describe("ageVerdict — wording must never claim an age it does not have", () =
     const v = ageVerdict(future, now, H);
     expect(v.text).toBe("timestamp is in the future");
     expect(v.text).not.toMatch(/-\d/);
-    expect(v.tone).toBe("text-[#f59e0b]");
+    expect(v.tone).toBe("text-[#f99d1b]");
   });
 
   it("says 'unreadable' only for a genuinely unparseable timestamp", () => {

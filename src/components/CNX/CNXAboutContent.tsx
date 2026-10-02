@@ -116,6 +116,22 @@ export default function CNXAboutContent() {
           <a href="/cnx" className="mt-4 inline-flex min-h-11 items-center border border-[var(--line)] px-4 text-sm font-bold text-[var(--cool)] hover:border-[var(--cool)]">Open the live board</a>
         </section>
 
+        {/* ─── Colour ───────────────────────────────────────────── */}
+        <section className="border-t border-[var(--line)] py-8">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]">
+            Colour · where the palette comes from
+          </div>
+          <h2 className="mt-1 text-[22px] font-bold leading-tight tracking-[-0.01em]">
+            ระบบสีของกระดาน
+          </h2>
+          <p className="mt-3 max-w-[74ch] text-[15px] leading-[1.75]">
+            The board's colour system is <a href="https://colors.nonarkara.org/#plate-002" className="text-[var(--cool)] underline decoration-[var(--line)] underline-offset-2 hover:decoration-[var(--cool)]">Wada plate 002 — Yellow Orange · Dark Tyrian Blue</a>, from the exhibition at colors.nonarkara.org: Sanzo Wada's colour combinations, with the digital interpretation, roles and reading by Dr Non Arkaraprasertkul. The dominant carries the warm signal surface (about 62%), the counter the cool (about 38%), golden-ratio apart; ink on each field is chosen by measured contrast, not inherited. Doi Suthep gold stays the chedi's gilding — accents only, never a status role.
+          </p>
+          <p className="mt-2 max-w-[74ch] text-[13px] leading-[1.7] text-[var(--dim)]">
+            Source relationship: Sanzo Wada. Digital interpretation, roles, and reading: Dr Non Arkaraprasertkul. License: MIT.
+          </p>
+        </section>
+
         {/* ─── Findings from the night of 29 Sep 2026 ───────────── */}
         <section className="border-t border-[var(--line)] py-8">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]">

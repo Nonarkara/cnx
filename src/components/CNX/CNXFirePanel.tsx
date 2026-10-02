@@ -39,7 +39,7 @@ const TENURE_LABEL: Record<string, { th: string; en: string }> = {
 const SEVERITY_CLASSES: Record<string, string> = {
   unknown: "bg-[var(--line)] text-[var(--dim)]",
   good: "bg-[var(--success)] text-white",
-  watch: "bg-[#f59e0b] text-black",
+  watch: "bg-[#f99d1b] text-black",
   alert: "bg-[#fb923c] text-black",
   critical: "bg-[var(--danger)] text-white",
 };
@@ -147,7 +147,7 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
                       ? "bg-[var(--danger)]"
                       : t.type === "ALOW" || t.type === "CMF"
                       ? "bg-[#fb923c]"
-                      : "bg-[#f59e0b]"
+                      : "bg-[#f99d1b]"
                   }`}
                   style={{ width: `${Math.min(100, (t.count / Math.max(1, rfd.totalCount)) * 100)}%` }}
                 />

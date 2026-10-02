@@ -70,7 +70,7 @@ function Pill({
       : level === "alert"
       ? "bg-[#fb923c] text-black"
       : level === "watch"
-      ? "bg-[#f59e0b] text-black"
+      ? "bg-[#f99d1b] text-black"
       : "bg-[var(--bg-raised)] text-[var(--ink)] border border-[var(--line)]";
   return (
     // These are read, not tapped, so the touch-target rule does not apply —
@@ -114,7 +114,7 @@ export function VerdictStrip({
       : level === "prepare"
       ? "border-[#fb923c] bg-[#fb923c]/10 text-[#fb923c]"
       : level === "watch"
-      ? "border-[#f59e0b] bg-[#f59e0b]/10 text-[#f59e0b]"
+      ? "border-[#f99d1b] bg-[#f99d1b]/10 text-[#f99d1b]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
   const chipLabel =
     level === "danger"
@@ -225,7 +225,7 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
       : level === "prepare"
       ? "border-[#fb923c] bg-[#fb923c] text-black"
       : level === "watch"
-      ? "border-[#f59e0b] bg-[#f59e0b] text-black"
+      ? "border-[#f99d1b] bg-[#f99d1b] text-black"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
   const chipLabel =
     level === "danger"

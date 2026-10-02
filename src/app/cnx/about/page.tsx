@@ -50,7 +50,7 @@ export default function CNXAboutPage() {
                   />
                   <span
                     aria-hidden="true"
-                    className="hidden h-6 w-px shrink-0 bg-[#1d2951]/35 lg:inline-block"
+                    className="hidden h-6 w-px shrink-0 bg-[#12354e]/35 lg:inline-block"
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -84,7 +84,7 @@ export default function CNXAboutPage() {
             <div className="relative flex min-w-0 items-center gap-2 py-1 pl-3 pr-3 md:min-w-[190px]">
               <span
                 aria-hidden="true"
-                className="absolute bottom-0 left-0 top-0 w-1 bg-[#1d2951]"
+                className="absolute bottom-0 left-0 top-0 w-1 bg-[#12354e]"
               />
               <div className="flex min-w-0 flex-col justify-center leading-none">
                 <a className="hover:opacity-90" href="/cnx">

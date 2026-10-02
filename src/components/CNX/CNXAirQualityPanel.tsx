@@ -25,7 +25,7 @@ import type { GistdaPm25Response } from "../../lib/cnx/gistda-pm25";
 const SEVERITY_CLASSES: Record<string, string> = {
   unknown: "bg-[var(--line)] text-[var(--dim)]",
   good: "bg-[var(--success)] text-white",
-  watch: "bg-[#f59e0b] text-black",
+  watch: "bg-[#f99d1b] text-black",
   alert: "bg-[#fb923c] text-black",
   critical: "bg-[var(--danger)] text-white",
 };
@@ -56,12 +56,12 @@ function Sparkline({ points }: { points: { pm25: number; ts: string }[] }) {
     .join(" ");
   const last = values[values.length - 1];
   const lastColor =
-    last < 25 ? "var(--success)" : last < 50 ? "#f59e0b" : last < 90 ? "#fb923c" : "var(--danger)";
+    last < 25 ? "var(--success)" : last < 50 ? "#f99d1b" : last < 90 ? "#fb923c" : "var(--danger)";
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="h-6 w-full" preserveAspectRatio="none" role="img" aria-label={`${points.length} PM2.5 observations; latest ${last} micrograms per cubic metre${points.length === 1 ? "; insufficient samples to show a trend" : ""}`}>
       <path d={path} fill="none" stroke="var(--cool)" strokeWidth="1.4" />
       <circle cx={values.length === 1 ? width / 2 : width} cy={height - ((last - min) / Math.max(1, max - min)) * height} r="2.4" fill={lastColor} />
-      <line x1="0" y1={height - ((50 - min) / Math.max(1, max - min)) * height} x2={width} y2={height - ((50 - min) / Math.max(1, max - min)) * height} stroke="#f59e0b" strokeWidth="0.5" strokeDasharray="3 2" />
+      <line x1="0" y1={height - ((50 - min) / Math.max(1, max - min)) * height} x2={width} y2={height - ((50 - min) / Math.max(1, max - min)) * height} stroke="#f99d1b" strokeWidth="0.5" strokeDasharray="3 2" />
     </svg>
   );
 }

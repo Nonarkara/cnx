@@ -81,8 +81,8 @@ const TEMPLES_SOURCE = "cnx-temples";
 const TEMPLES_LAYER = "cnx-temples-fill";
 
 // Arnis-inspired palette:
-//   Doi Suthep gold (temples)  → #f59e0b / #d97706 (saffron / chedi gilding)
-//   Lanna navy (civic / gov)   → #1d2951
+//   Doi Suthep gold (temples)  → #f99d1b / #d97706 (saffron / chedi gilding)
+//   Lanna navy (civic / gov)   → #12354e
 //   Lanna blue (commercial)    → #2563eb
 //   Tourism / Hotel            → #0284c7
 //   Education / School         → #059669
@@ -99,7 +99,7 @@ function buildingColorExpr(): DataDrivenPropertyValueSpecification<string> {
     ["==", ["get", "kind"], "school"],
     "rgba(5, 150, 105, 0.92)",
     ["==", ["get", "kind"], "amenity"],
-    "rgba(29, 41, 81, 0.95)",
+    "rgba(18, 53, 78, 0.95)",
     ["==", ["get", "kind"], "tourism"],
     "rgba(2, 132, 199, 0.92)",
     ["==", ["get", "kind"], "commercial"],
@@ -562,7 +562,7 @@ export default function CNXMap({
       getPosition: (d) => [d.lng, d.lat],
       getRadius: 8,
       radiusUnits: "pixels",
-      getFillColor: (d) => [...hexToRgb(cmuRoutes[d.route]?.color ?? "#1d2951"), 240],
+      getFillColor: (d) => [...hexToRgb(cmuRoutes[d.route]?.color ?? "#12354e"), 240],
       getLineColor: [255, 255, 255, 255],
       lineWidthMinPixels: 1.5,
       stroked: true,
@@ -577,7 +577,7 @@ export default function CNXMap({
       id: "rtc-airport-lines",
       data: rtcLines,
       getPath: (d) => d.path,
-      getColor: (d) => [...hexToRgb(RTC_LINE_COLOURS[d.ref] ?? "#1d2951"), 110],
+      getColor: (d) => [...hexToRgb(RTC_LINE_COLOURS[d.ref] ?? "#12354e"), 110],
       getWidth: 4,
       widthUnits: "pixels",
       pickable: false,
@@ -1244,7 +1244,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={buildingsOn}
           onClick={handleToggle3D}
-          activeClassName="border-[#1d2951] bg-[#1d2951] text-white shadow-sm"
+          activeClassName="border-[#12354e] bg-[#12354e] text-white shadow-sm"
         >
           {buildingsOn ? "3D City: on" : "3D City: 2D"}
         </MapToggleButton>
@@ -1258,7 +1258,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={wallsOn}
           onClick={() => setWallsOn((v) => !v)}
-          activeClassName="border-[#1d2951] bg-[#1d2951] text-white"
+          activeClassName="border-[#12354e] bg-[#12354e] text-white"
         >
           {wallsOn ? "Walls: on" : "Walls: off"}
         </MapToggleButton>

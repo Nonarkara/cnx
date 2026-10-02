@@ -197,7 +197,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
         </section>
 
         {dustboy?.caveat && (
-          <p className="mt-3 border-l-2 border-[var(--warn,#f59e0b)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] leading-relaxed text-[var(--dim)]">
+          <p className="mt-3 border-l-2 border-[var(--warn,#f99d1b)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] leading-relaxed text-[var(--dim)]">
             <span className="font-semibold text-[var(--ink)]" lang="th">
               ตรวจสอบเครื่องก่อน
             </span>{" "}

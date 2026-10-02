@@ -68,7 +68,7 @@ export default function FlightPanel({ snapshot }: PanelProps) {
           Chiang Mai · live
         </div>
         <div className="mt-0.5 flex items-baseline gap-2">
-          <span className="text-[28px] font-bold leading-none text-[#1d2951]">
+          <span className="text-[28px] font-bold leading-none text-[#12354e]">
             {snapshot.airborne.length}
           </span>
           <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--dim)]">
@@ -90,7 +90,7 @@ export default function FlightPanel({ snapshot }: PanelProps) {
               <span className="truncate text-[var(--ink)]">{country}</span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="text-[9px] text-[var(--dim)]">≈ {v.seats.toLocaleString("th-TH")}</span>
-                <span className="font-bold tabular-nums text-[#1d2951]">{v.flights}</span>
+                <span className="font-bold tabular-nums text-[#12354e]">{v.flights}</span>
               </span>
             </li>
           ))}
@@ -110,7 +110,7 @@ export default function FlightPanel({ snapshot }: PanelProps) {
               <span className="text-[var(--ink)]">{labelForSize(row.size)}</span>
               <span className="flex shrink-0 items-center gap-2">
                 <span className="text-[9px] text-[var(--dim)]">≈ {row.seats.toLocaleString("th-TH")}</span>
-                <span className="font-bold tabular-nums text-[#1d2951]">{row.count}</span>
+                <span className="font-bold tabular-nums text-[#12354e]">{row.count}</span>
               </span>
             </li>
           ))}

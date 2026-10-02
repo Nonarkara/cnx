@@ -9,12 +9,19 @@
  * Chiang Mai's own colours survive as chrome only:
  *   Lanna blue       — deep blue-violet, Doi Suthep's roofs at dusk.
  *                      The province's flag chrome: wordmark, links.
+ *                      Re-anchored 2026-10-02 to Wada plate 002's
+ *                      Dark Tyrian Blue (#12354e) — the same royal
+ *                      navy, now with a named source.
  *   Doi Suthep gold  — the gilding on the chedi. Accents only, never
  *                      a status role (it sits near watch-amber on the
  *                      wheel, so the separation is positional).
  *
  * The status ramp (green/amber/orange/red) is load-bearing and
  * untouched, so brand colours own chrome only and never a status role.
+ * The watch level carries Wada plate 002's Yellow Orange (#f99d1b) —
+ * the amber the system already used was its unrecognized cousin, and
+ * it now wears its source. Alert stays the deepened orange; the
+ * separation is the wheel's, not the plate's.
  *
  * Type: Sao Chingcha (Thai display) + Libre Franklin (Latin display)
  * via the "CNX Display" composite in fonts.css; IBM Plex Sans Thai
@@ -22,6 +29,17 @@
  */
 
 :root {
+  /* The colour authority — Wada plate 002: Yellow Orange · Dark
+   * Tyrian Blue (colors.nonarkara.org/#plate-002). Sanzo Wada's
+   * combination; digital interpretation, roles and reading Dr Non
+   * Arkaraprasertkul. Dominant carries the warm signal surface (about
+   * 62%), counter the cool (about 38%), golden-ratio apart (1.618/1).
+   * Ink on each field is chosen by measured contrast, not inherited:
+   * black on the dominant clears 9.9:1, white on the counter 13.6:1.
+   * License: MIT. */
+  --wada-dominant: #f99d1b; /* Yellow Orange */
+  --wada-counter: #12354e;  /* Dark Tyrian Blue */
+
   /* Light theme — museum white */
   --bg: #ffffff;
   --bg-raised: #ffffff;
@@ -33,8 +51,8 @@
   --accent-soft: #6b6b6b;
 
   /* Lanna blue — flag chrome */
-  --cool: #1d2951;
-  --cool-dim: rgba(29, 41, 81, 0.1);
+  --cool: #12354e;
+  --cool-dim: rgba(18, 53, 78, 0.1);
 
   /* Doi Suthep gold — accent only */
   --sun: #b8860b;
@@ -65,8 +83,9 @@
     --dim: #8b949e;
     --accent: #e6edf3;
     --accent-soft: #8b949e;
-    /* Flag blue lifted to carry on the instrument ground: same royal hue
-       as the light token, raised until it clears AA against #0d1117. */
+    /* The Wada counter lifted to carry on the instrument ground: the
+       same royal hue as the light token (plate 002's Dark Tyrian
+       Blue), raised until it clears AA against #0d1117. */
     --cool: #6688c2;
     --cool-dim: rgba(102, 136, 194, 0.15);
     --sun: #e6b85c;
@@ -153,7 +172,7 @@ samp {
 
 /* Status classes — same palette, untouched */
 .text-status-good { color: var(--success); }
-.text-status-watch { color: #f59e0b; }
+.text-status-watch { color: #f99d1b; }
 .text-status-alert { color: #fb923c; }
 .text-status-critical { color: var(--danger); }
 
