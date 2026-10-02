@@ -10,6 +10,13 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: `Chiang Mai Operations War Room · v${process.env.NEXT_PUBLIC_APP_VERSION ?? ""}${process.env.NEXT_PUBLIC_GIT_SHA ? ` · ${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}`,
+  manifest: "/manifest.webmanifest",
+  applicationName: "CNX War Room",
+  appleWebApp: { capable: true, title: "CNX War Room", statusBarStyle: "default" },
+  icons: {
+    icon: [{ url: "/logos/cnx-icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/logos/cnx-icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
   description:
     "Live flights, weather, and operations data for Chiang Mai. Lanna blue + Doi Suthep gold.",
 };
@@ -34,6 +41,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#1d2951",
 };
 
 export default function RootLayout({

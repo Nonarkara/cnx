@@ -1,15 +1,20 @@
-# Logos
+# CNX brand assets
 
-The CNX logo slot ships with a wordmark SVG (`cnx-wordmark.svg`). When
-the operator drops the official provincial seal in, rename it to
-`cnx-seal.png` and `scripts/logo-manifest.mjs` will pick it up
-automatically.
+Transparent PNG variants extracted from the supplied Logo Option 2 board:
 
-Until then, the wordmark stands in. Same design language as Lopburi:
-no internal frame, accent bar in Lanna blue (#1d2951), Thai on top,
-English tracked subtitle below.
+- `cnx-mark.png`: colour emblem for the compact dashboard and About headers.
+- `cnx-lockup.png`: emblem and full English wordmark for About / Research.
+- `cnx-monochrome.png`: neutral emblem in the About footer; CSS inverts it in dark mode.
+- `cnx-app-mark.png`: brighter app emblem for the mobile availability card.
+- `cnx-icon-{180,192,512}.png`: square home-screen / browser icons derived from the app emblem.
 
-If you add partner logos later (CAAT, AOT, Chiang Mai University, …),
-list them here and they go in `public/logos/`. The build manifest
-decides which ones exist; missing files never produce 404s on the
-wall.
+White areas are alpha holes, including internal lines and chart gaps. Never
+flatten these files, use blend modes, or stretch them. Use `object-contain`
+with bounded dimensions. The navy colour assets use `.cnx-brand-plate` for
+a pale CSS backing that remains legible in either theme. The PNG itself
+has no opaque plate. Monochrome uses `.cnx-brand-mono` on the theme surface.
+
+These are product branding, not the official provincial seal. The existing
+`cnx-wordmark.svg` remains available as a legacy asset. RCAD, depa,
+Smart City Thailand and Axiom / ReTL remain in the partner row. The manifest provides standalone web-app entry;
+there is no offline cache or guarantee of offline live data.

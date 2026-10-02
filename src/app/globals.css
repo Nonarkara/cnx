@@ -156,3 +156,13 @@ samp {
 .text-status-watch { color: #f59e0b; }
 .text-status-alert { color: #fb923c; }
 .text-status-critical { color: var(--danger); }
+
+/* Transparent brand artwork: never blend pixels into the page or stretch it.
+ * A pale backing keeps the navy originals legible in both themes; PNG holes
+ * show this CSS surface. Monochrome follows the interface ink in dark mode. */
+.cnx-brand-plate { background-color: #edf3f7; }
+.cnx-brand-mono { filter: none; }
+:root[data-theme="dark"] .cnx-brand-mono { filter: invert(1); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cnx-brand-mono { filter: invert(1); }
+}

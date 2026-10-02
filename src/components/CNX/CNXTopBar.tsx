@@ -250,11 +250,12 @@ export default function CnxTopBar(props: TopBarProps) {
     // the remainder. The bar is now one 32 px row plus a single-line pill
     // strip, and the verdict reasoning floats over the map instead.
     <header className="relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1.5">
-      <div className="flex items-center gap-2.5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center bg-[var(--cool)] text-[11px] font-black text-white">
-            CNX
-          </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <a href="/cnx" aria-label="CNX War Room home" className="cnx-brand-plate flex h-9 w-[72px] shrink-0 items-center justify-center px-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logos/cnx-mark.png" alt="" width={60} height={28} className="block h-7 w-[60px] object-contain" />
+          </a>
           <div className="min-w-0 leading-none">
             <div className="font-display text-[13px] font-bold text-[var(--ink)]">
               เชียงใหม่ · <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--cool)]">War Room</span>
@@ -272,7 +273,7 @@ export default function CnxTopBar(props: TopBarProps) {
 
         {twin && <VerdictChip twin={twin} />}
 
-        <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           {officeNotice && (
             <button
               className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
@@ -334,6 +335,10 @@ export default function CnxTopBar(props: TopBarProps) {
           </button>
         </div>
       </div>
+
+      <a href="/cnx/about#web-app" className="mt-1 w-fit text-[11px] leading-5 text-[var(--dim)] hover:text-[var(--cool)] hover:underline">
+        Available on Android &amp; iPhone as a web app · Add to Home Screen
+      </a>
 
       <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Pill label="PM2.5" value={air?.provinceAvgPm25 ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />

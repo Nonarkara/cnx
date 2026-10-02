@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   ],
 };
 
-const WORDMARK = "/logos/cnx-wordmark.svg";
+const WORDMARK = "/logos/cnx-mark.png";
 
 export default function CNXAboutPage() {
   return (
@@ -39,7 +39,7 @@ export default function CNXAboutPage() {
                 className="flex items-center"
                 href="/cnx"
               >
-                <div className="flex shrink-0 items-center gap-2.5 bg-white px-2.5 py-1.5">
+                <div className="flex shrink-0 items-center gap-2.5 cnx-brand-plate px-2.5 py-1.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={WORDMARK}

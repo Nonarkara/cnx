@@ -78,6 +78,10 @@ function DiagramDefs() {
 export default function CNXAboutContent() {
   return (
       <div className="mx-auto max-w-[880px] px-5 py-8">
+        <div className="cnx-brand-plate mb-6 w-fit max-w-full p-4 sm:p-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logos/cnx-lockup.png" alt="CNX War Room · Chiang Mai Operations War Room" width={1000} height={500} className="block h-auto w-[360px] max-w-full object-contain" />
+        </div>
         {/* Title block */}
         <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]">
           เอกสารอธิบายระบบ · How the system works
@@ -95,6 +99,22 @@ export default function CNXAboutContent() {
           A plain-language explanation of the system: where every number comes from, how the system reaches its judgments, and why it can be trusted.
           {" "}Document v{process.env.NEXT_PUBLIC_APP_VERSION}.
         </p>
+
+        <section id="web-app" className="my-6 scroll-mt-20 border border-[var(--line)] bg-[var(--bg-surface)] p-5">
+          <div className="flex items-center gap-3">
+            <div className="cnx-brand-plate flex h-14 w-14 shrink-0 items-center justify-center rounded-xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logos/cnx-app-mark.png" alt="" width={48} height={48} className="block h-12 w-12 object-contain" />
+            </div>
+            <h2 className="text-lg font-bold">Available on Android &amp; iPhone as a web app</h2>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-[var(--dim)]">Open CNX War Room in your phone’s browser. Add it to your Home Screen for quick access to the live board. An internet connection is required for live data.</p>
+          <div className="mt-3 grid gap-3 text-sm leading-6 sm:grid-cols-2">
+            <p><strong>Android:</strong> Open in Chrome, then use the browser menu → Add to Home screen / Install app.</p>
+            <p><strong>iPhone:</strong> Open in Safari, tap Share → Add to Home Screen → Add.</p>
+          </div>
+          <a href="/cnx" className="mt-4 inline-flex min-h-11 items-center border border-[var(--line)] px-4 text-sm font-bold text-[var(--cool)] hover:border-[var(--cool)]">Open the live board</a>
+        </section>
 
         {/* ─── Findings from the night of 29 Sep 2026 ───────────── */}
         <section className="border-t border-[var(--line)] py-8">
@@ -750,6 +770,8 @@ export default function CNXAboutContent() {
         </section>
 
         <footer className="border-t border-[var(--line)] py-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--dim)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logos/cnx-monochrome.png" alt="CNX War Room" width={64} height={48} className="cnx-brand-mono mb-3 block h-10 w-16 object-contain" />
           จังหวัดเชียงใหม่ · RCAD · สำนักงานส่งเสริมเศรษฐกิจดิจิทัล (depa) · Smart City Thailand — ข้อมูลจากหน่วยงานที่ระบุในเอกสารแหล่งข้อมูล
         </footer>
       </div>
