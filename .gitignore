@@ -27,5 +27,11 @@ scripts/relay-flights.env
 # wrangler
 .wrangler/
 
+# baked open-data resource mirrors — the index and all.json are what ship;
+# the ~280 downloaded dataset copies are a local cache and were never tracked
+/public/data/cnx/open-data/*
+!/public/data/cnx/open-data/all.json
+!/public/data/cnx/open-data/index.json
+
 # typescript
 *.tsbuildinfo
