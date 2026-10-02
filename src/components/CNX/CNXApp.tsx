@@ -512,7 +512,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-y-auto 2xl:w-[380px]"
         >
           {/* Measurements lead the desk; scenario context and tourism follow. */}
-          <div className="h-[42%] min-h-[340px] shrink-0 overflow-hidden border-b border-[var(--line)]">
+          <div className="h-[42%] min-h-[480px] shrink-0 overflow-hidden border-b border-[var(--line)]">
             <CnxRiverLevelPanel />
           </div>
           <div className="min-h-[260px] shrink-0 border-b border-[var(--line)]">

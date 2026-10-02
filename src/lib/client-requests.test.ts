@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchJsonOrNull } from './client-requests';
+import { buildReleaseUrl, fetchJsonOrNull } from './client-requests';
 afterEach(() => vi.unstubAllGlobals());
 describe('client request cancellation', () => {
   it('forwards caller abort to an in-flight fetch', async () => {
@@ -25,5 +25,23 @@ describe('client request cancellation', () => {
       throw new DOMException('Aborted', 'AbortError');
     }));
     await expect(fetchJsonOrNull('/api/cnx/flood', { signal: controller.signal, headers: new Headers({ 'X-Test': 'present' }) })).resolves.toBeNull();
+  });
+});
+
+describe('release cache isolation', () => {
+  it('separates cached API contracts while preserving scenario and country selection', () => {
+    const original = '/api/cnx/social?scenario=flood&countries=Japan%2CChina';
+    const old = buildReleaseUrl(original, 'old-release');
+    const next = buildReleaseUrl(original, 'new-release');
+    expect(next).not.toBe(old);
+    const params = new URL(next, 'https://cnx.invalid').searchParams;
+    expect(params.get('scenario')).toBe('flood');
+    expect(params.get('countries')).toBe('Japan,China');
+    expect(params.get('_release')).toBe('new-release');
+  });
+  it('leaves static/external URLs and an unversioned local preview unchanged', () => {
+    expect(buildReleaseUrl('/data/cnx/walls.geojson', 'release')).toBe('/data/cnx/walls.geojson');
+    expect(buildReleaseUrl('https://news.test/api/cnx/social', 'release')).toBe('https://news.test/api/cnx/social');
+    expect(buildReleaseUrl('/api/cnx/social', '')).toBe('/api/cnx/social');
   });
 });

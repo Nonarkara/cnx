@@ -154,7 +154,6 @@ export default function CnxRiverLevelPanel() {
         <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">Read the nearest relevant gauge and check official local notices. A river gauge cannot establish street or drainage flooding.</p>
         {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sun)]">Unable to refresh gauge data. {data ? "Showing the last received observations; check each timestamp." : "Current river conditions are unknown. The next poll will retry."}</p>}
         {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{currentCount} current observations shown (within 3 hours); older or invalid timestamps are retained as history.</p>}
-        {data && <details className="mb-2 text-[11px] leading-relaxed text-[var(--dim)]"><summary className="cursor-pointer py-2">Basin coverage &amp; methodology</summary><p>{data.note}</p></details>}
 
         {down && data && (
           <div className="mb-2 border border-[#ef4444]/40 bg-[#ef4444]/10 px-2 py-1.5 text-[10px] leading-[1.5] text-[#ef4444]">
@@ -208,6 +207,7 @@ export default function CnxRiverLevelPanel() {
             ))}
           </div>
         )}
+        {data && <details className="mb-2 text-[11px] leading-relaxed text-[var(--dim)]"><summary className="cursor-pointer py-2">Basin coverage &amp; methodology</summary><p>{data.note}</p></details>}
       </div>
 
       {/* Credit and terms are rendered VERBATIM from the module, for the

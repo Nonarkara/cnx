@@ -211,3 +211,13 @@ unconditional safety certification is claimed.
 
 Follow-up local verification: **485 tests in 51 files passed**; full TypeScript,
 full lint, diff whitespace check and plain-Node relay imports passed.
+
+Live-browser follow-up found that an API cache could retain 1.3.2 payloads even
+while the UI and origin API served 1.3.3. Version **1.3.4** isolates dashboard API
+cache keys by the embedded release commit, preserving normal within-release
+cache reuse and query filters. It also gives the desktop gauge list more room
+and places expandable methodology after observations.
+
+Cache-isolation follow-up: **487 tests in 51 files passed**, full lint and
+TypeScript passed. Empty news now explicitly distinguishes missing coverage
+from an absence of events.

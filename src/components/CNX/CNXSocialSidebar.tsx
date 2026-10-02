@@ -132,7 +132,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">No mentions matching filter.</p>
+          <p className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">{data?.items.length ? "No mentions matching this filter." : "No verified news retrieved. Sources may be unavailable; this does not mean no events occurred."}</p>
         ) : (
           items.map((item) => {
             const badge = sourceBadge(item);

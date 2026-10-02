@@ -15,6 +15,14 @@ export function buildScenarioUrl(base: string, scenarioId: string | null): strin
   return `${base}${sep}scenario=${encodeURIComponent(scenarioId)}`;
 }
 
+/** Keep edge/browser API cache entries isolated across deployed contracts. */
+export function buildReleaseUrl(url: string, release = process.env.NEXT_PUBLIC_GIT_SHA): string {
+  if (!release || !url.startsWith("/api/cnx/")) return url;
+  const parsed = new URL(url, "https://cnx.invalid");
+  parsed.searchParams.set("_release", release);
+  return parsed.pathname + parsed.search + parsed.hash;
+}
+
 /**
  * Fetches a JSON document; returns null on abort / network error so
  * the polling effect can keep ticking. The server is allowed to be
@@ -33,7 +41,7 @@ export async function fetchJsonOrNull<T>(
   const headers = new Headers(rest.headers);
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
   try {
-    const res = await fetch(url, {
+    const res = await fetch(buildReleaseUrl(url), {
       ...rest,
       signal: controller.signal,
       headers,
