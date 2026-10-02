@@ -130,7 +130,11 @@ export const LAYER_CONTRACTS: Record<string, LayerContract> = {
       th: "ระดับน้ำที่สถานีไม่ได้บอกว่าน้ำท่วมถึงบ้านใคร — ต้องดูพื้นที่ที่อยู่ใกล้สถานีด้วย",
       en: "A station level does not tell you whose house is flooded — you need the area near the gauge too",
     },
-    source: "ThaiWater / HII",
+    // Not ThaiWater. This contract annotates the Google Flood Hub model
+    // layer, and naming ThaiWater here asserted a provenance this layer
+    // does not have. Measured ThaiWater gauges are a separate layer
+    // (`river-level.ts` / `/api/cnx/river-level`).
+    source: "Google Flood Hub (model)",
   },
 
   // ── GISTDA flood extent, when it is ever wired in.
@@ -180,7 +184,7 @@ export const LAYER_CONTRACTS: Record<string, LayerContract> = {
       th: "ฝนที่วัดได้ที่สถานีไม่ได้แปลว่าฝนตกเท่ากันทั้งลุ่มน้ำ",
       en: "Rain at a station is not rain across the whole basin",
     },
-    source: "ThaiWater",
+    source: "scenario (this board — not measured)",
   },
 
   // ── Reservoirs. Measured, and the only reliable forward indicator.

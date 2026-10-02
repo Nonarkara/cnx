@@ -1,25 +1,40 @@
 // CNX flood / hydrology data module.
 //
-// Sources, in priority order:
-//   1. ThaiWater / HII realtime gauges on the Ping basin
-//      (HII: Hydro-Informatics Institute, water.rid.go.th).
-//   2. Open-Meteo precipitation forecast for the CNX bbox.
-//   3. Royal Irrigation Department reservoir storage for the three
-//      northern dams that drain into the Ping: Bhumibol, Sirikit,
-//      and the smaller Mae Kuang Udomthara.
+// ── THIS HEADER WAS WRONG UNTIL 2026-10-02. BOTH HALVES. ──────────
+// It previously read:
 //
-// The upstream ThaiWater/HII API requires a key we don't have on
-// Cloudflare Workers; the live fetch lives behind an environment
-// gate (`process.env.CNX_FLOOD_LIVE === "1"`). When the gate is off
-// — the default — the module returns a scenario-shaped snapshot so
-// the dashboard has live-looking data without a backend secret on the
-// edge.
+//   "The upstream ThaiWater/HII API requires a key we don't have on
+//    Cloudflare Workers" … "GET ThaiWater realtime (water.rid.go.th)"
+//
+// Neither was true. There is no key: the feed this board now reads is
+// keyless and public. And `water.rid.go.th` is a 1996 HTML frameset that
+// was never an API. The service name `thaiwater30` was never dead either
+// — the router dispatches on the FULL sub-path, so the bare path 404s
+// while `…/thaiwater30/public/waterlevel` answers 200.
+//
+// MEASURED RIVER LEVELS NOW LIVE IN `river-level.ts`, at
+// `/api/cnx/river-level`. They are deliberately NOT here: this payload
+// bundles gauges, rainfall and reservoirs under ONE provenance flag, and
+// two of those three are still scenario. Moving the real gauges in would
+// have forced that flag to "live" and quietly asserted that the rainfall
+// and reservoir numbers are measured too. So the measurement sits beside
+// this module, and this module keeps its scenario label where an operator
+// can still see it.
+//
+// WHAT THIS MODULE STILL IS: the scenario fallback, and the reservoir and
+// rainfall series. `fetchLive()` remains `return null` — it is not what
+// carries the flood axis, and nothing imports it.
 //
 // The scenario numbers come from public monthly ThaiWater reports:
 //   - Ping river bank-full at Nawarat Bridge ~3.5 m
 //   - Bhumibol dam capacity 13,462 MCM
 //   - Sirikit dam capacity 9,510 MCM
 //   - Mae Kuang 263 MCM
+//
+// For what it's worth, that guessed 3.5 m turned out to be close: the
+// station publishes a real critical level of 3.7 m above its zero
+// (304.20 m above sea level). The guess was still a guess, and the
+// published figure is what the board now shows.
 
 import { CNX_PROVINCE } from "./config";
 import type { CnxFloodResponse, CnxRainfallStation, CnxReservoir, CnxFloodGauge, OfficeNotice, SeverityLevel } from "../../types/cnx";
@@ -49,16 +64,18 @@ function severityForLevel(level: number, bankFull: number | undefined): Severity
 }
 
 // ─── Live upstream hooks ─────────────────────────────────────────
-// Disabled by default. Wire `CNX_FLOOD_LIVE=1` once the upstream key
-// is provisioned. The shape is the ThaiWater/HII `getWaterlevel` JSON,
-// projected into our CnxFloodResponse.
+// STILL a placeholder, and now honestly labelled as one. It is not
+// waiting on a key — there was never a key requirement, and the intended
+// source (water.rid.go.th) is a 1996 frameset. The measured feed is
+// `river-level.ts`; this function exists only so the module's shape
+// contract is preserved, and nothing imports it.
+//
+//   1. GET ThaiWater v3 /public/waterlevel?province_code=50
+//   2. filter to basin_code 6 (Ping)
+//   3. project, dedupe, attach observedAt
+// See `river-level.ts` for all three, done.
 
 async function fetchLive(): Promise<CnxFloodResponse | null> {
-  // Placeholder. Real implementation:
-  //   1. GET ThaiWater realtime (water.rid.go.th) → filter province 50
-  //   2. GET HII api.hii.or.th (key required) → station list
-  //   3. Project, dedupe, attach observedAt
-  // For the war-room v1 we use scenario data.
   return null;
 }
 
