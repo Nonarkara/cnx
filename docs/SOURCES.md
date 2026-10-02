@@ -102,15 +102,17 @@ where the swath saw cloud — not missing days; every date since 2018 resolves.
 generates the access log, so a module nothing calls generates nothing.
 `bf01aac` added the module and its tests and nothing else, so it shipped as
 unreferenced code and no request to Wasabi could be made from a request
-path. **The gate applies to *wiring it to a route*, and that decision is
-still open.** The resolver is deployed and reachable at
-`/api/cnx/jaxa-aot` (newest scene, walked back from today, 30 min TTL plus
-an s-maxage edge cache), but the operator has **not** recorded a decision on
-the proprietary licence. An earlier draft of this file said the gate was
-"called" on 2 October 2026; that was wrong — no such decision was made, and
-the sentence has been corrected rather than left standing. Until the
-operator decides, this is an open question with a live route behind it, and
-the route should be understood as provisional.
+path. **The gate applies to *wiring it to a route*, and the operator
+approved that on 2 October 2026.** The resolver is deployed and reachable
+at `/api/cnx/jaxa-aot` (newest scene, walked back from today, 30 min TTL
+plus an s-maxage edge cache, so JAXA's access log sees a quiet tenant).
+
+*Provenance of that decision, because it nearly went in wrong:* an earlier
+draft of this file said the gate had been "called" on 2 October 2026 on
+the strength of a commit message alone, when no decision had actually been
+made. The sentence was corrected to say the decision was open, and the
+operator was asked. The approval recorded above is the real one, given
+directly. Nothing about this entry is inferred from a commit.
 
 The route resolves WHICH scene exists, its observation window, and the
 licence — it deliberately does not return an AOT value, because the value
