@@ -81,9 +81,12 @@ describe("parseConfidence", () => {
 
 describe("normaliseSatellite", () => {
   it("expands the NRT single-letter codes", () => {
-    expect(normaliseSatellite("N")).toBe("NOAA-20");
+    // NASA's S-NPP file carries only "N" (14,117 rows on 2026-10-03); NOAA-20
+    // is "N20" and NOAA-21 "N21". This test previously asserted N = NOAA-20.
+    expect(normaliseSatellite("N")).toBe("SUOMI-NPP");
     expect(normaliseSatellite("S")).toBe("SUOMI-NPP");
-    expect(normaliseSatellite("J")).toBe("NOAA-21");
+    expect(normaliseSatellite("N20")).toBe("NOAA-20");
+    expect(normaliseSatellite("N21")).toBe("NOAA-21");
     expect(normaliseSatellite("T")).toBe("TERRA");
     expect(normaliseSatellite("A")).toBe("AQUA");
   });
@@ -357,5 +360,16 @@ describe("every satellite counts", () => {
     const out = await call({ west: 98, south: 18, east: 100, north: 20 });
     const oneArchive = NRT_CSV.split("\n").length - 1;
     expect(out?.length).toBe(2 * oneArchive);
+  });
+});
+
+describe("normaliseSatellite — NASA's codes as they appear in the CSV", () => {
+  it("maps N / N20 / N21 to S-NPP / NOAA-20 / NOAA-21", async () => {
+    const { normaliseSatellite } = await import("./fires");
+    expect(normaliseSatellite("N")).toBe("SUOMI-NPP");
+    expect(normaliseSatellite("N20")).toBe("NOAA-20");
+    expect(normaliseSatellite("N21")).toBe("NOAA-21");
+    expect(normaliseSatellite("Suomi NPP")).toBe("SUOMI-NPP");
+    expect(normaliseSatellite("T")).toBe("TERRA");
   });
 });

@@ -89,12 +89,22 @@ export function parseConfidence(cell: string | undefined): number {
  * a value the type system claimed was impossible but which reached the
  * UI and the trajectory weight unchanged.
  */
+// NASA FIRMS satellite codes, as they appear in the CSV (checked against
+// the live 24 h files, 2026-10-03): VIIRS "N" = Suomi-NPP, "N20" = NOAA-20
+// (JPSS-1), "N21" = NOAA-21 (JPSS-2); MODIS "T" = Terra, "A" = Aqua. The
+// old table read "N" as NOAA-20 and had no N20/N21, so every NOAA
+// detection fell through to "SUOMI-NPP".
 const SATELLITE_MAP: Record<string, FireHotspot["satellite"]> = {
+  n: "SUOMI-NPP",
   s: "SUOMI-NPP",
+  npp: "SUOMI-NPP",
   "suomi-npp": "SUOMI-NPP",
-  n: "NOAA-20",
+  "suomi npp": "SUOMI-NPP",
+  n20: "NOAA-20",
+  j1: "NOAA-20",
   "noaa-20": "NOAA-20",
-  j: "NOAA-21",
+  n21: "NOAA-21",
+  j2: "NOAA-21",
   "noaa-21": "NOAA-21",
   t: "TERRA",
   terra: "TERRA",
