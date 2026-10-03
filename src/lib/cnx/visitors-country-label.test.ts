@@ -61,3 +61,44 @@ describe("an origin with no country is a label, not a blank", () => {
     expect(rows[0]?.flights).toBe(2);
   });
 });
+
+describe("a durable archive preserves old defects, so the read boundary repairs them", () => {
+  // The write-side fix shipped and the blank row STILL rendered: the day
+  // answer is rebuilt from snapshots stored in KV before the fix, and those
+  // rows still said country: "". Verified live 2026-10-03 after deploying
+  // the write-side fix — the same ('', 165) row, unchanged. Writing correct
+  // rows does not retroactively correct rows already archived.
+  const legacySnapshot = (country: string, visitors: number) => [
+    { country, visitors, flights: 1, airlines: [], languages: ["en"] },
+  ];
+
+  it("relabels a blank country in stored history as Unknown", () => {
+    const r = summariseVisitors([], {
+      ts,
+      historyOrigins: [legacySnapshot("", 165), legacySnapshot("China", 160)],
+    });
+    const countries = r.topOriginsToday.map((o) => o.country);
+    expect(countries).toContain("Unknown");
+    expect(countries).not.toContain("");
+    expect(countries.every((c) => c.trim() !== "")).toBe(true);
+  });
+
+  it("keeps the seat count when relabelling — repair, not deletion", () => {
+    const r = summariseVisitors([], { ts, historyOrigins: [legacySnapshot("", 165)] });
+    const unknown = r.topOriginsToday.find((o) => o.country === "Unknown");
+    expect(unknown?.visitors).toBe(165);
+  });
+
+  it("merges blank and Unknown history into one row rather than two", () => {
+    // Without read-time repair these are two distinct map keys, so the
+    // answer would carry BOTH "" and "Unknown" for the same real-world
+    // bucket. Assert the total, not just the presence of "Unknown" — the
+    // weaker form of this assertion passes either way.
+    const r = summariseVisitors([], {
+      ts,
+      historyOrigins: [legacySnapshot("", 165), legacySnapshot("Unknown", 165)],
+    });
+    expect(r.topOriginsToday).toHaveLength(1);
+    expect(r.topOriginsToday[0]?.country).toBe("Unknown");
+  });
+});

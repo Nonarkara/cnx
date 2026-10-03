@@ -356,10 +356,19 @@ export function summariseVisitors(
   const todayAcc = new Map<string, VisitorOrigin>();
   for (const prev of historyOrigins) {
     for (const o of prev) {
-      const existing = todayAcc.get(o.country);
+      // Normalise on READ, not only on write. classifyFlight now labels an
+      // unattributable flight "Unknown", but the day archive is durable:
+      // snapshots stored before that fix still carry `country: ""`, and
+      // they still aggregate into today's answer. Without this the panel
+      // kept rendering a blank label beside a seat count for the rest of
+      // the ICT day after the fix shipped. A durable archive preserves old
+      // defects, so the read boundary has to be defended too.
+      const country = o.country.trim() || "Unknown";
+      const key = country;
+      const existing = todayAcc.get(key);
       if (!existing || o.visitors > existing.visitors) {
         const airlines = [...new Set([...(existing?.airlines ?? []), ...o.airlines])].sort();
-        todayAcc.set(o.country, { ...o, airlines });
+        todayAcc.set(key, { ...o, country: key, airlines });
       }
     }
   }
