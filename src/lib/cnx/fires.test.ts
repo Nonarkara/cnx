@@ -145,7 +145,10 @@ describe("fetchFirmsInBbox — unknown, clear, and detections are three states",
     // The fetch asks for 2 days so an empty body can be told from a
     // published one, but the operator is shown a 24-hour number — so the
     // 48-hour tail must be dropped here or the label lies.
-    stubFirms(csv(row(1), row(40)));
+    // Detections from one satellite only; the others answer empty.
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) =>
+      new Response(String(input).includes("VIIRS_SNPP_NRT") ? csv(row(1), row(40)) : csv(), { status: 200 }),
+    );
     const { fetchFirmsInBbox } = await import("./fires");
     const rows = await fetchFirmsInBbox(BBOX);
     expect(rows).toHaveLength(1);

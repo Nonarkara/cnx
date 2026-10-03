@@ -267,8 +267,13 @@ async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
   // Last status seen, so a failure that is not the key (HTTP 429, a
   // network error) is distinguishable from "key not visible" downstream.
   let lastStatus = 0;
+  // A typed binding: narrowing `mapKey` across a loop with `continue` in
+  // its catch sends TypeScript's flow analysis in a circle (TS7022).
+  const key: string = mapKey;
+  const answered: FireHotspot[] = [];
+  let anyAnswered = false;
   for (const source of FIRMS_SOURCES) {
-    const url = `${FIRMS_BASE}/${mapKey}/${source}/${box}/${FIRMS_WINDOW_DAYS}/${today}`;
+    const url = `${FIRMS_BASE}/${key}/${source}/${box}/${FIRMS_WINDOW_DAYS}/${today}`;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
       lastStatus = res.status;
@@ -288,7 +293,7 @@ async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
           let detail = "";
           try {
             const body = (await res.text()).trim();
-            if (body && body.length <= 120 && !body.includes(mapKey)) detail = `: ${body}`;
+            if (body && body.length <= 120 && !body.includes(key)) detail = `: ${body}`;
           } catch {
             // Body already consumed or unreadable; the status is enough.
           }
@@ -317,13 +322,22 @@ async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
         lastFirmsFailure = "FIRMS rejected the request: -1 (no data / quota)";
         return null;
       }
-      return finishLivePass(csv, bbox);
+      // Keep going: each archive is a different satellite (S-NPP, NOAA-20,
+      // NOAA-21) passing at a different time. Returning the first one that
+      // answered showed 0 fires on 2026-10-03 while NOAA-20/21 had 16
+      // detections in the box from passes that afternoon.
+      answered.push(...finishLivePass(csv, bbox));
+      anyAnswered = true;
+      continue;
     } catch (e) {
       lastStatus = 0;
       lastFirmsFailure = `FIRMS request failed: ${(e as Error).message}`;
+      // One satellite's archive timing out must not discard the others'.
+      if (anyAnswered) continue;
       return null;
     }
   }
+  if (anyAnswered) return answered;
   // Every archive refused. If none of them answered with a status at all,
   // this is a network problem; otherwise the sources themselves are gone.
   lastFirmsFailure =

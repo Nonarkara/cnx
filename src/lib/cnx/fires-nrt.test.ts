@@ -163,9 +163,9 @@ describe("fetchFirmsInBbox failure handling", () => {
       return Promise.resolve(new Response(NRT_CSV, { status: 200 }));
     });
     await fetchFirmsInBbox(BOX);
-    expect(urls).toHaveLength(1);
-    expect(urls[0]).toContain("/2/");
-    expect(urls[0]).not.toContain("/1/");
+    // One request per satellite archive, every one a two-day window.
+    expect(urls).toHaveLength(3);
+    expect(urls.every((u) => u.includes("/2/") && !u.includes("/1/"))).toBe(true);
   });
 
   it("treats an empty published pass as unknown, never as a clear sky", async () => {
@@ -196,7 +196,10 @@ describe("fetchFirmsInBbox failure handling", () => {
 
   it("returns real detections when the pass is healthy", async () => {
     process.env.FIRMS_MAP_KEY = "TESTKEY";
-    stub(() => Promise.resolve(new Response(NRT_CSV, { status: 200 })));
+    // Only S-NPP has detections; the other satellites answer empty.
+    stub((input) =>
+      Promise.resolve(new Response(String(input).includes("VIIRS_SNPP_NRT") ? NRT_CSV : NRT_CSV.split("\n")[0], { status: 200 })),
+    );
     const rows = await fetchFirmsInBbox(BOX);
     expect(rows).not.toBeNull();
     expect(rows).toHaveLength(3);
@@ -223,7 +226,8 @@ describe("NRT archive rotation", () => {
       return new Response([H, row].join("\n"), { status: 200 });
     }));
     const rows = await fetchFirmsInBbox(BOX2);
-    expect(rows).toHaveLength(1);
+    // The retired archive is skipped; both live satellites still count.
+    expect(rows).toHaveLength(2);
     expect(urls[0]).toContain("VIIRS_SNPP_NRT");
     expect(urls[1]).not.toContain("VIIRS_SNPP_NRT");
   });
@@ -336,5 +340,22 @@ describe("prefilterFirmsCsv", () => {
     const { prefilterFirmsCsv } = await import("./fires");
     const odd = "lon,lat\n98.9,18.5";
     expect(prefilterFirmsCsv(odd, BOX)).toBe(odd);
+  });
+});
+
+describe("every satellite counts", () => {
+  it("merges S-NPP, NOAA-20 and NOAA-21 instead of stopping at the first that answers", async () => {
+    // 2026-10-03: S-NPP had nothing in 24 h, NOAA-20/21 had afternoon passes.
+    process.env.FIRMS_MAP_KEY = "K";
+    const HEADER_ONLY = NRT_CSV.split("\n")[0];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const u = String(url);
+      if (u.includes("VIIRS_SNPP_NRT")) return new Response(HEADER_ONLY, { status: 200 });
+      return new Response(NRT_CSV, { status: 200 });
+    }));
+    const { fetchFirmsInBbox: call } = await import("./fires");
+    const out = await call({ west: 98, south: 18, east: 100, north: 20 });
+    const oneArchive = NRT_CSV.split("\n").length - 1;
+    expect(out?.length).toBe(2 * oneArchive);
   });
 });
