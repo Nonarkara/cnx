@@ -408,9 +408,35 @@ async function pushRiverLevels() {
   }
 }
 
+// ─── visitor archive warm-up ────────────────────────────────────────
+// The visitor day-archive only grows when someone asks for it — the
+// route appends one snapshot per GET — and the disclosure honestly
+// reports every gap that leaves. A day nobody views would be endless
+// "partial": this board exists to be right even when unobserved. A 12
+// min GET keeps the archive continuous — under the 15 min gap threshold
+// in visitors-kv.ts — at one request to the worker's own endpoint.
+const VISITORS_WARM_EVERY_MS = 12 * 60_000;
+let lastVisitorsWarmAt = 0;
+
+async function warmVisitorArchive() {
+  if (Date.now() - lastVisitorsWarmAt < VISITORS_WARM_EVERY_MS) return;
+  lastVisitorsWarmAt = Date.now(); // set first: a failure retries next cycle, not every 30 s
+  try {
+    const res = await fetch(`${WORKER_BASE}/api/cnx/visitors`, {
+      headers: { "User-Agent": UA },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) throw new Error(`visitors ${res.status}`);
+    console.log("[relay] visitor archive warmed");
+  } catch (e) {
+    console.warn(`[relay] visitor warm failed: ${e.message}`);
+  }
+}
+
 async function tick() {
   void pushArrivals();
   void pushRiverLevels();
+  void warmVisitorArchive();
   void runHazeVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   const snapshot = await buildSnapshot();

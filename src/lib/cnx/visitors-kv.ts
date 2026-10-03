@@ -126,9 +126,17 @@ export async function hasVisitorDayKv(date: string): Promise<boolean> {
 // ── completeness disclosure ──
 
 /**
- * A poll is every ~5 min. A gap three times that long means the archive
- * missed a stretch, so the day aggregate is missing observations and must
- * not be presented as if it covers the whole day.
+ * A poll is one snapshot per /api/cnx/visitors GET — the archive is
+ * request-driven. Someone viewing the board keeps it moving; a day
+ * nobody views would be endless "partial", so the launchd relay ALSO
+ * warms the endpoint every 12 minutes (scripts/relay-flights.mjs), just
+ * under the gap threshold below. Yesterday's 46-minute gap (2026-10-03,
+ * between the deploy verification and the next page view) is what the
+ * disclosure was built to report, and what the warmer now pre-empts.
+ *
+ * A gap longer than the threshold means the archive missed a stretch, so
+ * the day aggregate is missing observations and must not be presented as
+ * if it covers the whole day.
  */
 export const HISTORY_GAP_MS = 15 * 60_000;
 
