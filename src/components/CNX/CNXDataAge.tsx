@@ -52,9 +52,12 @@ function humanAge(ms: number): string {
 }
 
 export interface AgeVerdict {
-  /** What to say after the source name. `null` means: say nothing yet. */
+  /** What to say after the source name. `null` means: say nothing yet.
+   *  The tone is the semantic status class, not a raw hex — the watch
+   *  colour lives in globals.css as `.text-status-watch`, so a re-anchor
+   *  of the palette changes the colour and not this contract. */
   text: string | null;
-  tone: "opacity-70" | "text-[#f99d1b]";
+  tone: "opacity-70" | "text-status-watch";
 }
 
 /**
@@ -79,8 +82,8 @@ export function ageVerdict(
   const ms = ageMs(observedAt, now);
   if (ms === null) return { text: "timestamp unreadable", tone: "opacity-70" };
   // Publisher clock skew. "in 4 h" would be absurd; name the skew.
-  if (ms < 0) return { text: "timestamp is in the future", tone: "text-[#f99d1b]" };
-  if (ms > staleAfterMs) return { text: `stale · ${humanAge(ms)}`, tone: "text-[#f99d1b]" };
+  if (ms < 0) return { text: "timestamp is in the future", tone: "text-status-watch" };
+  if (ms > staleAfterMs) return { text: `stale · ${humanAge(ms)}`, tone: "text-status-watch" };
   return { text: humanAge(ms), tone: "opacity-70" };
 }
 
