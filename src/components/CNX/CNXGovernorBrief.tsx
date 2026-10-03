@@ -147,13 +147,8 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
               <p lang="th" className="mt-1 text-[15px] leading-snug text-[var(--ink)]">{t.th}</p>
               <p className="mt-0.5 text-[11px] text-[var(--dim)]">{t.en}</p>
               <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--dim)]">
-                {t.source}
-                {t.observedAt && (
-                  <>
-                    {" · "}
-                    <DataAge observedAt={t.observedAt} source={t.source} />
-                  </>
-                )}
+                {/* DataAge prints the source itself; without a time, print it plainly. */}
+                {t.observedAt ? <DataAge observedAt={t.observedAt} source={t.source} /> : t.source}
               </p>
             </div>
           ))}
