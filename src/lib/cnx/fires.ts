@@ -162,12 +162,90 @@ export function firmsFailureReason(): string | null {
   return lastFirmsFailure;
 }
 
-export async function fetchFirmsInBbox(bbox: {
-  west: number;
-  south: number;
-  east: number;
-  north: number;
-}): Promise<FireHotspot[] | null> {
+/** Which path produced the last live answer. */
+export type FirmsSource = "area-api" | "open-24h";
+let lastFirmsSource: FirmsSource | null = null;
+export function firmsSource(): FirmsSource | null {
+  return lastFirmsSource;
+}
+
+/**
+ * NASA's open, keyless "active fire" files: the last 24 h of VIIRS
+ * detections for Southeast Asia, one file per satellite, same columns as
+ * the area API. Used when the keyed API fails (the stored MAP_KEY has been
+ * rejected since 2026-09-30), so a key problem no longer blanks the fire
+ * layer. warroom.pro's NASA layer is built on the same files.
+ */
+const OPEN_FIRMS_FILES = [
+  "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_SouthEast_Asia_24h.csv",
+  "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_SouthEast_Asia_24h.csv",
+  "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-21-viirs-c2/csv/J2_VIIRS_C2_SouthEast_Asia_24h.csv",
+] as const;
+
+type Bbox = { west: number; south: number; east: number; north: number };
+
+/**
+ * Keeps the header and only the rows inside the box, reading just the
+ * leading latitude/longitude fields. Each file is 1–2 MB and ~20k rows; a
+ * full split costs ~70 ms of CPU per file, this ~5 ms.
+ */
+export function prefilterFirmsCsv(csv: string, bbox: Bbox): string {
+  const headerEnd = csv.indexOf("\n");
+  if (headerEnd < 0) return csv;
+  const header = csv.slice(0, headerEnd).trim();
+  if (!header.startsWith("latitude,longitude,")) return csv; // unexpected layout: let the full parser decide
+  const kept = [header];
+  let i = headerEnd + 1;
+  while (i < csv.length) {
+    let end = csv.indexOf("\n", i);
+    if (end < 0) end = csv.length;
+    const c1 = csv.indexOf(",", i);
+    if (c1 > i && c1 < end) {
+      const lat = Number(csv.slice(i, c1));
+      if (lat >= bbox.south && lat <= bbox.north) {
+        const c2 = csv.indexOf(",", c1 + 1);
+        const lon = Number(csv.slice(c1 + 1, c2));
+        if (lon >= bbox.west && lon <= bbox.east) kept.push(csv.slice(i, end).trim());
+      }
+    }
+    i = end + 1;
+  }
+  return kept.join("\n");
+}
+
+/** All three satellites' open 24 h files, merged. Null only when none answered. */
+async function fetchOpenFirmsInBbox(bbox: Bbox): Promise<FireHotspot[] | null> {
+  const bodies = await Promise.all(
+    OPEN_FIRMS_FILES.map(async (url) => {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(25_000) });
+        if (!res.ok) return null;
+        const csv = await res.text();
+        return csv.startsWith("latitude,") ? prefilterFirmsCsv(csv, bbox) : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const answered = bodies.filter((b): b is string => b !== null);
+  if (answered.length === 0) return null;
+  return answered.flatMap((csv) => finishLivePass(csv, bbox));
+}
+
+export async function fetchFirmsInBbox(bbox: Bbox): Promise<FireHotspot[] | null> {
+  lastFirmsSource = null;
+  const keyed = await fetchFirmsKeyed(bbox);
+  if (keyed !== null) {
+    lastFirmsSource = "area-api";
+    return keyed;
+  }
+  // Keep lastFirmsFailure (why the key path failed) for the response.
+  const open = await fetchOpenFirmsInBbox(bbox);
+  if (open !== null) lastFirmsSource = "open-24h";
+  return open;
+}
+
+async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
   const mapKey = process.env.FIRMS_MAP_KEY;
   lastFirmsFailure = null;
   if (!mapKey) {
@@ -334,11 +412,15 @@ export async function fetchCnxFires(): Promise<CnxFiresResponse> {
   const now = new Date().toISOString();
   const live = await fetchLiveFirms();
   if (live) {
+    const source = firmsSource() ?? undefined;
     const response: CnxFiresResponse = {
       generatedAt: now,
       hotspots: live,
       totalCount: live.length,
       provenance: "live",
+      liveSource: source,
+      // Still say why the keyed API was skipped, so a rejected key stays visible.
+      liveFailure: source === "open-24h" ? firmsFailureReason() ?? undefined : undefined,
     };
     cache = { at: Date.now(), data: response };
     return response;

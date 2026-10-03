@@ -138,15 +138,17 @@ describe("fetchFirmsInBbox failure handling", () => {
   const stub = (impl: (input: RequestInfo | URL) => Response | Promise<Response>) =>
     vi.stubGlobal("fetch", vi.fn(impl));
 
-  it("returns null with no key and makes no request", async () => {
+  it("with no key, never calls the keyed API and falls back only to the open files", async () => {
     process.env.FIRMS_MAP_KEY = "";
     const calls: string[] = [];
-    stub(() => {
-      calls.push("called");
-      return new Response(NRT_CSV, { status: 200 });
+    stub((input) => {
+      const url = String(input);
+      calls.push(url);
+      return new Response("<html>down</html>", { status: 503 });
     });
     expect(await fetchFirmsInBbox(BOX)).toBeNull();
-    expect(calls).toEqual([]);
+    expect(calls.some((u) => u.includes("/api/area/"))).toBe(false);
+    expect(calls.every((u) => u.includes("/data/active_fire/"))).toBe(true);
   });
 
   it("requests a two-day window, not one day", async () => {
@@ -231,18 +233,37 @@ describe("NRT archive rotation", () => {
     // identical answer for all three archives. Retrying would triple the
     // transactions against an already-rejected key.
     process.env.FIRMS_MAP_KEY = "BAD";
-    let calls = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => { calls += 1; return new Response("Invalid MAP_KEY.", { status: 400 }); }));
+    let keyed = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).includes("/api/area/")) keyed += 1;
+      return new Response("Invalid MAP_KEY.", { status: 400 });
+    }));
     expect(await fetchFirmsInBbox(BOX2)).toBeNull();
-    expect(calls).toBe(1);
+    expect(keyed).toBe(1);
   });
 
   it("stops on a quota 429 for the same reason", async () => {
     process.env.FIRMS_MAP_KEY = "K";
-    let calls = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => { calls += 1; return new Response("", { status: 429 }); }));
+    let keyed = 0;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (String(url).includes("/api/area/")) keyed += 1;
+      return new Response("", { status: 429 });
+    }));
     expect(await fetchFirmsInBbox(BOX2)).toBeNull();
-    expect(calls).toBe(1);
+    expect(keyed).toBe(1);
+  });
+
+  it("falls back to NASA's open 24 h files when the key is rejected", async () => {
+    process.env.FIRMS_MAP_KEY = "BAD";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      String(url).includes("/api/area/") ? new Response("Invalid MAP_KEY.", { status: 400 }) : new Response(NRT_CSV, { status: 200 }),
+    ));
+    const { fetchFirmsInBbox: call, firmsSource, firmsFailureReason } = await import("./fires");
+    const out = await call(BOX2);
+    expect(out).not.toBeNull();
+    expect(firmsSource()).toBe("open-24h");
+    // The rejected key stays visible after the fallback succeeds.
+    expect(firmsFailureReason()).toMatch(/Invalid MAP_KEY/);
   });
 
   it("names the problem when every archive is retired", async () => {
@@ -300,5 +321,20 @@ describe("failure diagnostics", () => {
     const { fetchFirmsInBbox: call, firmsFailureReason } = await import("./fires");
     await call(BOX2);
     expect(firmsFailureReason()).toBe("FIRMS answered HTTP 429");
+  });
+});
+
+describe("prefilterFirmsCsv", () => {
+  it("keeps the header and only rows inside the box", async () => {
+    const { prefilterFirmsCsv } = await import("./fires");
+    const head = "latitude,longitude,bright_ti4";
+    const out = prefilterFirmsCsv([head, "18.5,98.9,330", "10.0,98.9,330", "18.5,105.0,330", "19.9,99.9,350", ""].join("\n"), BOX);
+    expect(out.split("\n")).toEqual([head, "18.5,98.9,330", "19.9,99.9,350"]);
+  });
+
+  it("passes an unexpected layout through untouched for the full parser", async () => {
+    const { prefilterFirmsCsv } = await import("./fires");
+    const odd = "lon,lat\n98.9,18.5";
+    expect(prefilterFirmsCsv(odd, BOX)).toBe(odd);
   });
 });

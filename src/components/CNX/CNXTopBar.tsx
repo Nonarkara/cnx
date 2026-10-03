@@ -412,7 +412,9 @@ export default function CnxTopBar(props: TopBarProps) {
           // that says "illustrated". surface the upstream's own words.
           title={
             fires?.provenance !== "scenario"
-              ? "NASA VIIRS, Chiang Mai bbox, 24 h — cloud can hide fires from the satellite"
+              ? fires?.liveSource === "open-24h"
+                ? `NASA VIIRS open 24 h files (S-NPP, NOAA-20, NOAA-21), Chiang Mai bbox — cloud can hide fires.${fires.liveFailure ? ` Keyed API skipped: ${fires.liveFailure}.` : ""}`
+                : "NASA VIIRS, Chiang Mai bbox, 24 h — cloud can hide fires from the satellite"
               : fires.liveFailure
               ? `Live pass unavailable: ${fires.liveFailure}. Showing illustrated hotspots.`
               : "Illustrated hotspots — not a satellite pass"

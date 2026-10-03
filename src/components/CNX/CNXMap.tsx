@@ -23,6 +23,7 @@
 // the raw coordinate array as `geometry` and MapLibre silently
 // rejected the source, so the 3D layer never rendered.
 
+import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CameraHaze } from "../../lib/cnx/haze-vision";
 import type { HazeLabel } from "../../lib/cnx/haze-vision-core";
@@ -411,6 +412,7 @@ export default function CNXMap({
   const [rainRadarOn, setRainRadarOn] = useState(false);
   const [himawariOn, setHimawariOn] = useState(false);
   const [aerosolLayerOn, setAerosolLayerOn] = useState(false);
+  const [burnScarOn, setBurnScarOn] = useState(false);
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
@@ -1074,10 +1076,15 @@ export default function CNXMap({
     // maxzoom = the deepest tile level each upstream actually serves; past it
     // MapLibre upscales the last level instead of requesting tiles that
     // don't exist (GIBS Level6 400s on z7+, RainViewer's free tier tops out at z7).
-    const overlays: { id: string; on: boolean; url: string | null; attribution: string; opacity: number; maxzoom: number }[] = [
+    // HII burn scars come through our own proxy (no CORS upstream); MapLibre
+    // needs an absolute tile URL.
+    const burnscar = (layer: "agri" | "forest") => `${window.location.origin}/api/cnx/burnscar?l=${layer}&z={z}&x={x}&y={y}`;
+    const overlays: { id: string; on: boolean; url: string | null; attribution: string; opacity: number; maxzoom: number; minzoom?: number }[] = [
       { id: "cnx-rain-radar", on: rainRadarOn, url: weatherLayers?.rainRadar ?? null, attribution: weatherLayers?.attribution.rainRadar ?? "", opacity: 0.55, maxzoom: 7 },
       { id: "cnx-himawari", on: himawariOn, url: weatherLayers?.himawari ?? null, attribution: weatherLayers?.attribution.himawari ?? "", opacity: 0.5, maxzoom: 6 },
       { id: "cnx-aerosol", on: aerosolLayerOn, url: weatherLayers?.aerosol ?? null, attribution: weatherLayers?.attribution.aerosol ?? "", opacity: 0.65, maxzoom: 6 },
+      { id: "cnx-burnscar-agri", on: burnScarOn, url: burnscar("agri"), attribution: BURNSCAR_ATTRIBUTION, opacity: 0.8, maxzoom: BURNSCAR_MAX_ZOOM, minzoom: BURNSCAR_MIN_ZOOM },
+      { id: "cnx-burnscar-forest", on: burnScarOn, url: burnscar("forest"), attribution: BURNSCAR_ATTRIBUTION, opacity: 0.8, maxzoom: BURNSCAR_MAX_ZOOM, minzoom: BURNSCAR_MIN_ZOOM },
     ];
 
     const setup = async () => {
@@ -1096,6 +1103,7 @@ export default function CNXMap({
             tiles: [layer.url],
             tileSize: 256,
             maxzoom: layer.maxzoom,
+            ...(layer.minzoom !== undefined ? { minzoom: layer.minzoom } : {}),
             attribution: layer.attribution,
           });
           map.addLayer({ id: layer.id, type: "raster", source: sourceId, paint: { "raster-opacity": layer.opacity } });
@@ -1108,7 +1116,7 @@ export default function CNXMap({
     return () => {
       cancelled = true;
     };
-  }, [basemap, weatherLayers, rainRadarOn, himawariOn, aerosolLayerOn, mapReady]);
+  }, [basemap, weatherLayers, rainRadarOn, himawariOn, aerosolLayerOn, burnScarOn, mapReady]);
 
   return (
     <div className="relative h-full w-full overflow-hidden [&_.maplibregl-ctrl-attrib]:text-[#111] [&_.maplibregl-ctrl-attrib_a]:text-[#111]">
@@ -1322,6 +1330,14 @@ export default function CNXMap({
           title="MODIS aerosol optical depth — haze / smoke density, daily, NASA GIBS"
         >
           {weatherLayers?.aerosol ? (aerosolLayerOn ? "Aerosol (AOD): on" : "Aerosol (AOD): off") : "Aerosol (AOD): no data"}
+        </MapToggleButton>
+        <MapToggleButton
+          pressed={burnScarOn}
+          onClick={() => setBurnScarOn((v) => !v)}
+          activeClassName="border-[#9a3412] bg-[#9a3412] text-white"
+          title="Burned area, whole season Dec 2025 – Apr 2026, 20 m Sentinel-2, farmland + forest — HII ตามรอยเผา (tamroypao.hii.or.th)"
+        >
+          {burnScarOn ? "Burn scars 2569: on" : "Burn scars 2569: off"}
         </MapToggleButton>
         <MapToggleButton
           pressed={dustboyOn}

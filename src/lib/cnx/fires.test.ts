@@ -167,8 +167,9 @@ describe("fetchFirmsInBbox — unknown, clear, and detections are three states",
     expect(await fetchFirmsInBbox(BBOX)).toBeNull();
   });
 
-  it("reports unknown when the key is absent, never an empty illustration", async () => {
+  it("reports unknown when the key is absent and the open files do not answer", async () => {
     delete process.env.FIRMS_MAP_KEY;
+    vi.stubGlobal("fetch", async () => new Response("", { status: 503 }));
     const { fetchFirmsInBbox } = await import("./fires");
     expect(await fetchFirmsInBbox(BBOX)).toBeNull();
   });

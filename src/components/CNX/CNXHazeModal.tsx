@@ -20,6 +20,7 @@ import { MIN_BASELINE_SAMPLES, type HazeLabel } from "../../lib/cnx/haze-vision-
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import type { AirQualityResponse } from "../../types/cnx";
 import { DataAge, newest } from "./CNXDataAge";
+import CnxBurnSeason from "./CNXBurnSeason";
 
 interface Props {
   isOpen: boolean;
@@ -257,6 +258,8 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
             </p>
           )}
         </section>
+
+        <CnxBurnSeason />
 
         <section className="mt-6">
           <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">

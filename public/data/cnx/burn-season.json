@@ -1,0 +1,399 @@
+{
+ "generatedAt": "2026-10-03T14:58:14.490Z",
+ "source": "Hydro-Informatics Institute (HII / สสน.) — ตามรอยเผา, tamroypao.hii.or.th, open CSV",
+ "province": {
+  "code": "TH50",
+  "th": "เชียงใหม่",
+  "en": "Chiang Mai"
+ },
+ "unit": "rai (1 rai = 1,600 m²)",
+ "caveat": "Monthly burned area summed over the season: a field burned in two different months is counted in both, so season totals overstate unique area. Hotspots are MODIS counts from HII; PM2.5 is HII's provincial monthly average and days above the Thai 24-h standard.",
+ "seasons": [
+  {
+   "labelBE": 2569,
+   "from": "202511",
+   "to": "202604",
+   "months": [
+    {
+     "month": "202511",
+     "farmRai": {
+      "paddy": 1294,
+      "sugarcane": 1,
+      "mixed": 101,
+      "corn": 2041
+     },
+     "forestRai": 1942,
+     "hotspots": null,
+     "pm25Avg": 13,
+     "pm25DaysOver": 0
+    },
+    {
+     "month": "202512",
+     "farmRai": {
+      "paddy": 7797,
+      "sugarcane": 2,
+      "mixed": 263,
+      "corn": 2353
+     },
+     "forestRai": 2277,
+     "hotspots": null,
+     "pm25Avg": 23.6,
+     "pm25DaysOver": 0
+    },
+    {
+     "month": "202601",
+     "farmRai": {
+      "paddy": 15015,
+      "sugarcane": 56,
+      "mixed": 4477,
+      "corn": 25082
+     },
+     "forestRai": 17457,
+     "hotspots": 17,
+     "pm25Avg": 22.5,
+     "pm25DaysOver": 1
+    },
+    {
+     "month": "202602",
+     "farmRai": {
+      "paddy": 8381,
+      "sugarcane": 224,
+      "mixed": 6146,
+      "corn": 36336
+     },
+     "forestRai": 46237,
+     "hotspots": 49,
+     "pm25Avg": 24.6,
+     "pm25DaysOver": 1
+    },
+    {
+     "month": "202603",
+     "farmRai": {
+      "paddy": 4055,
+      "sugarcane": 123,
+      "mixed": 6838,
+      "corn": 37356
+     },
+     "forestRai": 116906,
+     "hotspots": 910,
+     "pm25Avg": 40.1,
+     "pm25DaysOver": 15
+    },
+    {
+     "month": "202604",
+     "farmRai": {
+      "paddy": 892,
+      "sugarcane": 8,
+      "mixed": 2306,
+      "corn": 7181
+     },
+     "forestRai": 59763,
+     "hotspots": 1096,
+     "pm25Avg": 76.5,
+     "pm25DaysOver": 30
+    }
+   ],
+   "totals": {
+    "farmRai": 168328,
+    "forestRai": 244582,
+    "totalRai": 412910,
+    "hotspots": 2072,
+    "monthsWithData": 6
+   }
+  },
+  {
+   "labelBE": 2568,
+   "from": "202411",
+   "to": "202504",
+   "months": [
+    {
+     "month": "202411",
+     "farmRai": {
+      "paddy": 6386,
+      "sugarcane": 10,
+      "mixed": 415,
+      "corn": 3280
+     },
+     "forestRai": 1420,
+     "hotspots": null,
+     "pm25Avg": null,
+     "pm25DaysOver": null
+    },
+    {
+     "month": "202412",
+     "farmRai": {
+      "paddy": 14802,
+      "sugarcane": 6,
+      "mixed": 1001,
+      "corn": 5187
+     },
+     "forestRai": 3085,
+     "hotspots": null,
+     "pm25Avg": null,
+     "pm25DaysOver": null
+    },
+    {
+     "month": "202501",
+     "farmRai": {
+      "paddy": 6643,
+      "sugarcane": 47,
+      "mixed": 3207,
+      "corn": 16205
+     },
+     "forestRai": 10888,
+     "hotspots": 5,
+     "pm25Avg": 29.6,
+     "pm25DaysOver": 4
+    },
+    {
+     "month": "202502",
+     "farmRai": {
+      "paddy": 4091,
+      "sugarcane": 70,
+      "mixed": 3490,
+      "corn": 18313
+     },
+     "forestRai": 46533,
+     "hotspots": 54,
+     "pm25Avg": 29,
+     "pm25DaysOver": 8
+    },
+    {
+     "month": "202503",
+     "farmRai": {
+      "paddy": 4288,
+      "sugarcane": 127,
+      "mixed": 5782,
+      "corn": 26602
+     },
+     "forestRai": 271471,
+     "hotspots": 459,
+     "pm25Avg": 47.2,
+     "pm25DaysOver": 23
+    },
+    {
+     "month": "202504",
+     "farmRai": {
+      "paddy": 628,
+      "sugarcane": 15,
+      "mixed": 979,
+      "corn": 2782
+     },
+     "forestRai": 69720,
+     "hotspots": 155,
+     "pm25Avg": 28.7,
+     "pm25DaysOver": 14
+    }
+   ],
+   "totals": {
+    "farmRai": 124356,
+    "forestRai": 403117,
+    "totalRai": 527473,
+    "hotspots": 673,
+    "monthsWithData": 6
+   }
+  }
+ ],
+ "districtsLatest": [
+  {
+   "code": "TH5003",
+   "th": "แม่แจ่ม",
+   "en": "Mae Chaem",
+   "farmRai": 59041,
+   "forestRai": 60395,
+   "totalRai": 119436
+  },
+  {
+   "code": "TH5004",
+   "th": "เชียงดาว",
+   "en": "Chiang Dao",
+   "farmRai": 47485,
+   "forestRai": 10772,
+   "totalRai": 58257
+  },
+  {
+   "code": "TH5017",
+   "th": "ดอยเต่า",
+   "en": "Doi Tao",
+   "farmRai": 2934,
+   "forestRai": 51403,
+   "totalRai": 54337
+  },
+  {
+   "code": "TH5018",
+   "th": "อมก๋อย",
+   "en": "Omkoi",
+   "farmRai": 5177,
+   "forestRai": 36879,
+   "totalRai": 42056
+  },
+  {
+   "code": "TH5016",
+   "th": "ฮอด",
+   "en": "Hot",
+   "farmRai": 5734,
+   "forestRai": 32627,
+   "totalRai": 38361
+  },
+  {
+   "code": "TH5020",
+   "th": "เวียงแหง",
+   "en": "Wiang Haeng",
+   "farmRai": 16429,
+   "forestRai": 6670,
+   "totalRai": 23099
+  },
+  {
+   "code": "TH5002",
+   "th": "จอมทอง",
+   "en": "Chom Thong",
+   "farmRai": 1088,
+   "forestRai": 10266,
+   "totalRai": 11354
+  },
+  {
+   "code": "TH5011",
+   "th": "พร้าว",
+   "en": "Phrao",
+   "farmRai": 6308,
+   "forestRai": 3632,
+   "totalRai": 9940
+  },
+  {
+   "code": "TH5025",
+   "th": "กัลยาณิวัฒนา",
+   "en": "Galyani Vadhana",
+   "farmRai": 591,
+   "forestRai": 8567,
+   "totalRai": 9158
+  },
+  {
+   "code": "TH5023",
+   "th": "แม่ออน",
+   "en": "Mae On",
+   "farmRai": 708,
+   "forestRai": 5955,
+   "totalRai": 6663
+  },
+  {
+   "code": "TH5006",
+   "th": "แม่แตง",
+   "en": "Mae Taeng",
+   "farmRai": 2566,
+   "forestRai": 3638,
+   "totalRai": 6204
+  },
+  {
+   "code": "TH5005",
+   "th": "ดอยสะเก็ด",
+   "en": "Doi Saket",
+   "farmRai": 2759,
+   "forestRai": 3333,
+   "totalRai": 6092
+  },
+  {
+   "code": "TH5010",
+   "th": "แม่อาย",
+   "en": "Mae Ai",
+   "farmRai": 3766,
+   "forestRai": 1782,
+   "totalRai": 5548
+  },
+  {
+   "code": "TH5021",
+   "th": "ไชยปราการ",
+   "en": "Chai Prakan",
+   "farmRai": 3515,
+   "forestRai": 1883,
+   "totalRai": 5398
+  },
+  {
+   "code": "TH5008",
+   "th": "สะเมิง",
+   "en": "Samoeng",
+   "farmRai": 2835,
+   "forestRai": 2410,
+   "totalRai": 5245
+  },
+  {
+   "code": "TH5009",
+   "th": "ฝาง",
+   "en": "Fang",
+   "farmRai": 2934,
+   "forestRai": 1672,
+   "totalRai": 4606
+  },
+  {
+   "code": "TH5022",
+   "th": "แม่วาง",
+   "en": "Mae Wang",
+   "farmRai": 990,
+   "forestRai": 1085,
+   "totalRai": 2075
+  },
+  {
+   "code": "TH5013",
+   "th": "สันกำแพง",
+   "en": "San Kamphaeng",
+   "farmRai": 1104,
+   "forestRai": 536,
+   "totalRai": 1640
+  },
+  {
+   "code": "TH5014",
+   "th": "สันทราย",
+   "en": "San Sai",
+   "farmRai": 793,
+   "forestRai": 386,
+   "totalRai": 1179
+  },
+  {
+   "code": "TH5007",
+   "th": "แม่ริม",
+   "en": "Mae Rim",
+   "farmRai": 923,
+   "forestRai": 96,
+   "totalRai": 1019
+  },
+  {
+   "code": "TH5024",
+   "th": "ดอยหล่อ",
+   "en": "Doi Lo",
+   "farmRai": 33,
+   "forestRai": 464,
+   "totalRai": 497
+  },
+  {
+   "code": "TH5015",
+   "th": "หางดง",
+   "en": "Hang Dong",
+   "farmRai": 344,
+   "forestRai": 103,
+   "totalRai": 447
+  },
+  {
+   "code": "TH5012",
+   "th": "สันป่าตอง",
+   "en": "San Pa Tong",
+   "farmRai": 215,
+   "forestRai": 24,
+   "totalRai": 239
+  },
+  {
+   "code": "TH5019",
+   "th": "สารภี",
+   "en": "Saraphi",
+   "farmRai": 39,
+   "forestRai": 0,
+   "totalRai": 39
+  },
+  {
+   "code": "TH5001",
+   "th": "เมืองเชียงใหม่",
+   "en": "Mueang Chiang Mai",
+   "farmRai": 17,
+   "forestRai": 4,
+   "totalRai": 21
+  }
+ ]
+}

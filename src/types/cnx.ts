@@ -227,6 +227,8 @@ export interface CnxFiresResponse {
   provenance: "live" | "scenario";
   /** When provenance is scenario: why the live FIRMS request failed. */
   liveFailure?: string;
+  /** Live path that answered: keyed area API, or NASA's open 24 h files. */
+  liveSource?: "area-api" | "open-24h";
 }
 
 // ─── Open data catalog ───────────────────────────────────────────
