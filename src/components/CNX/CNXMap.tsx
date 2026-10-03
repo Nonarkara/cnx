@@ -409,10 +409,14 @@ export default function CNXMap({
   const [airportBusOn, setAirportBusOn] = useState(true);
   const airportBuses = useRtcBusSim(rtcLines, airportBusOn);
   // Off by default — supplementary weather context, not core-view clutter.
-  const [rainRadarOn, setRainRadarOn] = useState(false);
-  const [himawariOn, setHimawariOn] = useState(false);
-  const [aerosolLayerOn, setAerosolLayerOn] = useState(false);
-  const [burnScarOn, setBurnScarOn] = useState(false);
+  // Image overlays are mutually exclusive: infrared cloud and aerosol cover
+  // the whole map, so two at once hid whichever was underneath.
+  const [imageOverlay, setImageOverlay] = useState<"rain" | "ir" | "aerosol" | "burnscar" | null>(null);
+  const pickOverlay = (id: NonNullable<typeof imageOverlay>) => setImageOverlay((cur) => (cur === id ? null : id));
+  const rainRadarOn = imageOverlay === "rain";
+  const himawariOn = imageOverlay === "ir";
+  const aerosolLayerOn = imageOverlay === "aerosol";
+  const burnScarOn = imageOverlay === "burnscar";
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
@@ -1224,31 +1228,32 @@ export default function CNXMap({
         </Map>
       </DeckGL>
 
-      {/* Basemap toggle, bottom-right */}
-      <div className="absolute bottom-2 right-2 z-10 flex gap-1 bg-[var(--bg-raised)] px-1.5 py-1">
-        {BASEMAP_OPTIONS.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => handleBasemapChange(b.id)}
-            aria-pressed={basemap === b.id}
-            className={`border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${
-              basemap === b.id
-                ? "border-[var(--cool)] text-[var(--cool)]"
-                : "border-[var(--line)] text-[var(--dim)]"
-            }`}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
-
       {/* Layer toggles, top-left — grouped so the operator can scan by
           concern (city, transit, weather, range) instead of a flat
           undifferentiated stack. Scrolls internally past ~13 buttons
           rather than running off the bottom of a short viewport. */}
       <div className="absolute left-2 top-2 z-10 flex max-h-[calc(100%-5.5rem)] w-[168px] flex-col gap-1 overflow-y-auto">
-        <ToggleGroupLabel first>3D City</ToggleGroupLabel>
+        <ToggleGroupLabel first>Base map</ToggleGroupLabel>
+        <div role="radiogroup" aria-label="Base map" className="grid grid-cols-3 gap-0.5">
+          {BASEMAP_OPTIONS.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              role="radio"
+              aria-checked={basemap === b.id}
+              title={b.hint}
+              onClick={() => handleBasemapChange(b.id)}
+              className={`min-h-[30px] border px-1 text-[9px] font-bold uppercase tracking-[0.06em] ${
+                basemap === b.id
+                  ? "border-[var(--cool)] bg-[var(--cool)] text-white"
+                  : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:text-[var(--ink)]"
+              }`}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <ToggleGroupLabel>3D City</ToggleGroupLabel>
         <MapToggleButton
           pressed={buildingsOn}
           onClick={handleToggle3D}
@@ -1303,10 +1308,10 @@ export default function CNXMap({
           {airportBusOn ? `Airport Bus: sim (${airportBuses.length})` : "Airport Bus: off"}
         </MapToggleButton>
 
-        <ToggleGroupLabel>Weather &amp; Air</ToggleGroupLabel>
+        <ToggleGroupLabel>Image layer · one at a time</ToggleGroupLabel>
         <MapToggleButton
           pressed={rainRadarOn}
-          onClick={() => setRainRadarOn((v) => !v)}
+          onClick={() => pickOverlay("rain")}
           activeClassName="border-[#0891b2] bg-[#0891b2] text-white"
           disabled={!weatherLayers?.rainRadar}
           title="Live precipitation radar — RainViewer, refreshes ~every 10 min"
@@ -1315,7 +1320,7 @@ export default function CNXMap({
         </MapToggleButton>
         <MapToggleButton
           pressed={himawariOn}
-          onClick={() => setHimawariOn((v) => !v)}
+          onClick={() => pickOverlay("ir")}
           activeClassName="border-[#7c3aed] bg-[#7c3aed] text-white"
           disabled={!weatherLayers?.himawari}
           title="Himawari-9 infrared cloud imagery — NASA GIBS / JMA, ~10 min cadence"
@@ -1324,7 +1329,7 @@ export default function CNXMap({
         </MapToggleButton>
         <MapToggleButton
           pressed={aerosolLayerOn}
-          onClick={() => setAerosolLayerOn((v) => !v)}
+          onClick={() => pickOverlay("aerosol")}
           activeClassName="border-[#a16207] bg-[#a16207] text-white"
           disabled={!weatherLayers?.aerosol}
           title="MODIS aerosol optical depth — haze / smoke density, daily, NASA GIBS"
@@ -1333,12 +1338,14 @@ export default function CNXMap({
         </MapToggleButton>
         <MapToggleButton
           pressed={burnScarOn}
-          onClick={() => setBurnScarOn((v) => !v)}
+          onClick={() => pickOverlay("burnscar")}
           activeClassName="border-[#9a3412] bg-[#9a3412] text-white"
           title="Burned area, whole season Dec 2025 – Apr 2026, 20 m Sentinel-2, farmland + forest — HII ตามรอยเผา (tamroypao.hii.or.th)"
         >
           {burnScarOn ? "Burn scars 2569: on" : "Burn scars 2569: off"}
         </MapToggleButton>
+
+        <ToggleGroupLabel>Weather &amp; Air</ToggleGroupLabel>
         <MapToggleButton
           pressed={dustboyOn}
           onClick={() => setDustboyOn((v) => !v)}

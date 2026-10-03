@@ -132,7 +132,18 @@ export function summariseFloodHub(
     const end = Date.parse(s?.forecastTimeRange?.end ?? "");
     const start = Date.parse(s?.forecastTimeRange?.start ?? "");
     const nowMs = Date.parse(now);
-    const usable = Number.isFinite(issued) && issued <= nowMs + 5 * 60_000 && nowMs - issued <= 24 * 3_600_000 && Number.isFinite(start) && Number.isFinite(end) && start <= nowMs && end > nowMs;
+    // Current = issued in the last 24 h and its window not yet over. The
+    // window is the period FORECAST, normally days ahead (2026-10-03: issued
+    // today for 6–7 Oct), so it must not be required to have started — that
+    // rule marked every real forecast UNKNOWN and the strip "unavailable".
+    const usable =
+      Number.isFinite(issued) &&
+      issued <= nowMs + 5 * 60_000 &&
+      nowMs - issued <= 24 * 3_600_000 &&
+      Number.isFinite(start) &&
+      Number.isFinite(end) &&
+      start < end &&
+      end > nowMs;
     const severity = usable && SEVERITIES.includes(s?.severity as FloodHubSeverity) ? (s?.severity as FloodHubSeverity) : "UNKNOWN";
     const trend = usable && TRENDS.includes(s?.forecastTrend as (typeof TRENDS)[number]) ? (s?.forecastTrend as FloodHubPoint["trend"]) : "UNKNOWN";
     return {

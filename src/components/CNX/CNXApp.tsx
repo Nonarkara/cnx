@@ -50,6 +50,7 @@ import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
 import CnxDataLibraryModal from "./CNXDataLibraryModal";
 import CnxHazeModal from "./CNXHazeModal";
+import CnxGovernorBrief from "./CNXGovernorBrief";
 import CnxEmergencyModal from "./CNXEmergencyModal";
 import { rfdToFireHotspot } from "../../lib/cnx/fire-rfd";
 
@@ -109,6 +110,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [hazeVision, setHazeVision] = useState<import("../../lib/cnx/haze-vision").HazeVisionResponse | null>(null);
   const [citizen, setCitizen] = useState<import("../../lib/cnx/citizen-reports").CitizenResponse | null>(null);
   const [isHazeOpen, setIsHazeOpen] = useState(false);
+  const [isBriefOpen, setIsBriefOpen] = useState(false);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -447,6 +449,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         onOpenResearch={() => setIsResearchOpen(true)}
         onOpenData={() => setIsDataOpen(true)}
         onOpenHaze={() => setIsHazeOpen(true)}
+        onOpenBrief={() => setIsBriefOpen(true)}
         onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
@@ -615,6 +618,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
       <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
+      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} air={air} dustboy={dustboy} fires={fires} twin={twin} />
       <CnxHazeModal
         isOpen={isHazeOpen}
         onClose={() => setIsHazeOpen(false)}

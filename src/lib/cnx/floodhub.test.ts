@@ -47,6 +47,21 @@ describe("summariseFloodHub", () => {
     expect(s.provenance).toBe("unavailable");
   });
 
+  it("uses a fresh forecast whose window lies days ahead (the normal shape)", () => {
+    // Live 2026-10-03: issued 11:59Z for 6–7 Oct. It must count.
+    const now = "2026-10-03T15:00:00.000Z";
+    const s = summariseFloodHub(
+      gauges,
+      [
+        { gaugeId: "a", severity: "NO_FLOODING", forecastTrend: "FALL", issuedTime: "2026-10-03T11:59:07Z", forecastTimeRange: { start: "2026-10-06T00:00:00Z", end: "2026-10-07T00:00:00Z" } },
+        { gaugeId: "b", severity: "NO_FLOODING", forecastTrend: "FALL", issuedTime: "2026-10-03T13:07:31Z", forecastTimeRange: { start: "2026-10-06T00:00:00Z", end: "2026-10-07T00:00:00Z" } },
+      ],
+      now,
+    );
+    expect(s.provenance).toBe("live");
+    expect(s.outlook).toBe("none-forecast");
+  });
+
   it("treats unrecognised severity strings as unknown", () => {
     expect(summariseFloodHub(gauges, [{ ...statusTime(), gaugeId: "a", severity: "WHATEVER" }]).points[0].severity).toBe("UNKNOWN");
   });

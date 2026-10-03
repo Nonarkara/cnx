@@ -2,13 +2,14 @@
 // Chiang Mai bbox so we don't request tiles for Lopburi's geography
 // by accident.
 
-export type BasemapId = "street" | "satellite" | "topography" | "vegetation";
+export type BasemapId = "street" | "satellite" | "topography";
 
-export const BASEMAP_OPTIONS: { id: BasemapId; label: string }[] = [
-  { id: "street", label: "Street" },
-  { id: "satellite", label: "Satellite" },
-  { id: "topography", label: "Topography" },
-  { id: "vegetation", label: "Vegetation" },
+// "Vegetation" was removed: it served the identical Esri imagery as
+// "Satellite", so two buttons did the same thing.
+export const BASEMAP_OPTIONS: { id: BasemapId; label: string; hint: string }[] = [
+  { id: "topography", label: "Terrain", hint: "Contours and relief (OpenTopoMap) — best for haze basins and rivers" },
+  { id: "satellite", label: "Satellite", hint: "Photo imagery (Esri) with relief — best for burn scars and land cover" },
+  { id: "street", label: "Street", hint: "Roads and Thai place names (OpenFreeMap) — best for locating places" },
 ];
 
 interface RasterSource {
@@ -115,15 +116,6 @@ export function basemapStyle(id: BasemapId): string | MaplibreRasterStyle {
         ],
         "Map data © OpenStreetMap contributors, SRTM | OpenTopoMap",
         { tileSize: 256, maxzoom: 17, terrain: true },
-      );
-    case "vegetation":
-      return singleRaster(
-        "vegetation",
-        [
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        ],
-        "Imagery © Esri, Maxar, Earthstar Geographics",
-        { tileSize: 256, maxzoom: 19, terrain: true },
       );
   }
 }

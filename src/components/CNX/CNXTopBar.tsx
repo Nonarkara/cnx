@@ -6,7 +6,7 @@
 // shows live flood/air/fires/social counters in the masthead.
 
 import { useEffect, useState } from "react";
-import { Bell, BookOpen, Database, FlaskConical, Moon, PhoneCall, Sun, Wind } from "lucide-react";
+import { Bell, BookOpen, Database, FileText, FlaskConical, Moon, PhoneCall, Sun, Wind } from "lucide-react";
 import { useDarkMode } from "../../hooks/useDarkMode";
 import CNXLogoRow from "./CNXLogoRow";
 import { lookupAircraft } from "../../lib/cnx/aircraft";
@@ -50,6 +50,7 @@ interface TopBarProps {
   onOpenResearch: () => void;
   onOpenData: () => void;
   onOpenHaze: () => void;
+  onOpenBrief: () => void;
   onOpenEmergency: () => void;
 }
 
@@ -249,7 +250,7 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenEmergency } = props;
+  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -335,6 +336,14 @@ export default function CnxTopBar(props: TopBarProps) {
           >
             <Database className="h-3 w-3" />
             Data
+          </button>
+          <button
+            onClick={onOpenBrief}
+            title="One-screen summary for the governor — copy to LINE or print"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--cool)] bg-[var(--cool)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white hover:opacity-90 sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
+          >
+            <FileText className="h-3 w-3" />
+            <span lang="th">Brief ผู้ว่าฯ</span>
           </button>
           <button
             onClick={onOpenHaze}
