@@ -9,6 +9,7 @@ import {
   appendVisitorSnapshot,
   readVisitorSnapshotsForDay,
 } from "../../../../lib/cnx/visitors-store";
+import { visitorHistoryState } from "../../../../lib/cnx/visitors-kv";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -37,15 +38,15 @@ export async function GET(): Promise<Response> {
   const ts = Date.now();
   const snapshot = await fetchCnxSnapshot();
   const today = new Date(ts + 7 * 3_600_000).toISOString().slice(0, 10);
-  const recent = await readVisitorSnapshotsForDay(today);
+  const { rows: historyRows, source: storeKind } = await readVisitorSnapshotsForDay(today);
 
-  const hourlyFromHistory = aggregateHourlyFromHistory(recent, ts);
+  const hourlyFromHistory = aggregateHourlyFromHistory(historyRows, ts);
 
   // Per-country origins from every snapshot stored today, so the
   // day-scoped "where are people flying in from" answer survives the
   // hours when nothing is airborne. Without this the list is empty from
   // roughly 00:00 until the first morning arrival.
-  const historyOrigins = recent.map((r) => r.analytics?.topOrigins ?? []);
+  const historyOrigins = historyRows.map((r) => r.analytics?.topOrigins ?? []);
 
   const analytics: VisitorAnalytics = summariseVisitors(
     [...snapshot.airborne, ...snapshot.ground],
@@ -61,11 +62,17 @@ export async function GET(): Promise<Response> {
     console.warn(`[visitors] snapshot append failed: ${(e as Error).message}`),
   );
 
+  // Say what the day archive actually covers. On Workers the archive lives
+  // in KV (see visitors-kv.ts); when it is missing or has holes the
+  // day-to-date list is a lower bound, and the panel has to say so rather
+  // than presenting a partial history as a complete one.
+  const history = visitorHistoryState(historyRows, ts);
+
   // Echo the recommended top-origin countries for the social rail.
   const socialCountries = recommendedCountriesForSocial(analytics);
 
   return NextResponse.json(
-    { ...analytics, socialCountries },
+    { ...analytics, socialCountries, history: { ...history, stored: storeKind } },
     {
       headers: {
         "Cache-Control": "s-maxage=30, stale-while-revalidate=60",

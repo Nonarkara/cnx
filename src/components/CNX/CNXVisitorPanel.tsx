@@ -23,10 +23,17 @@ import { Plane, Users, Globe, AlertTriangle } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { VisitorAnalytics as BaseVisitorAnalytics } from "../../lib/cnx/visitors";
 
-// The API route spreads `...analytics` plus a `socialCountries` field
-// it derives itself — not part of summariseVisitors()' own return
-// shape, so it's added here rather than in lib/cnx/visitors.ts.
-export type VisitorAnalytics = BaseVisitorAnalytics & { socialCountries?: string[] };
+// The API route spreads `...analytics` plus `socialCountries` and the
+// day-archive `history` block it derives itself — not part of
+// summariseVisitors()' own return shape, so they're added here rather than
+// in lib/cnx/visitors.ts.
+import type { VisitorHistoryState } from "../../lib/cnx/visitors-kv";
+
+export type VisitorAnalytics = BaseVisitorAnalytics & {
+  socialCountries?: string[];
+  /** What the stored day archive actually covers, and where it lives. */
+  history?: VisitorHistoryState & { stored: "file" | "kv" | "memory" | "none" };
+};
 
 const LANG_LABELS: Record<string, string> = {
   en: "EN",
@@ -106,6 +113,7 @@ export default function CNXVisitorPanel({
   }
 
   const visitors = data?.visitorsToday ?? 0;
+  const history = data?.history;
   const flights = data?.inboundFlights ?? 0;
   const groundOps = data?.groundOps ?? 0;
   const topOrigins = data?.topOrigins ?? [];
@@ -178,6 +186,18 @@ export default function CNXVisitorPanel({
                 {useDay ? "Today so far" : "In this snapshot"} — registration country, not passenger nationality.
                 {useDay ? " Largest single poll per country, not a distinct-flight count." : ""}
               </p>
+              {history && history.provenance !== "complete" ? (
+                <p className="mt-1 flex items-start gap-1 border-l-2 border-[var(--warn,#f99d1b)] pl-1.5 font-mono text-[8px] leading-[1.5] text-[var(--warn,#f99d1b)]">
+                  <AlertTriangle className="mt-px h-2.5 w-2.5 shrink-0" aria-hidden />
+                  <span>
+                    {history.reason ??
+                      "Day-to-date origins are unavailable — these are one snapshot, not the day."}
+                    {history.stored === "memory"
+                      ? " Stored in one worker's memory only, so it may shrink or drop countries."
+                      : ""}
+                  </span>
+                </p>
+              ) : null}
               <ul className="mt-1 space-y-1">
                 {list.slice(0, 5).map((o) => (
                   <li key={o.country} className="flex items-baseline justify-between gap-2 text-[10px]">

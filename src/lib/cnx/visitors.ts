@@ -224,11 +224,17 @@ export interface VisitorAnalytics {
    * Mai. That is honest but it is not the answer to "how many people are
    * flying in from where", which is a question about the day.
    *
-   * These are summed across today's stored snapshots, so they persist
-   * after the last flight lands. Two cautions the UI must keep: a
-   * registration country is NOT passenger nationality and not a departure
-   * airport, and an aircraft is counted once per snapshot it appears in,
-   * so these are upper bounds on distinct flights.
+   * These are the MAXIMUM per country across today's stored snapshots —
+   * deliberately not a sum. The same aircraft appears in consecutive
+   * polls, so summing counts one seat several times and grows all day
+   * without a single new arrival. Max is the honest reduction: it says
+   * "the largest single poll we saw from this country", which the UI
+   * states in those words.
+   *
+   * Two cautions the UI must keep: a registration country is NOT passenger
+   * nationality and not a departure airport, and because this is a
+   * maximum rather than a sum it UNDER-counts a country's true day total
+   * whenever that country's traffic peaked outside the polls we hold.
    */
   topOriginsToday: VisitorOrigin[];
   recommendedLanguages: string[];
