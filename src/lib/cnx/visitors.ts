@@ -188,7 +188,15 @@ function classifyFlight(state: FlightState, ts: number): ClassifiedFlight | null
     icao24: state.icao24,
     callsign,
     airline: airline?.name ?? null,
-    country: airline?.country ?? state.originCountry ?? "Unknown",
+    // `||` and trim, NOT `??`. opensky.ts maps an absent origin country to
+    // "" by design (see `originCountry: typeof country === "string" ? … : ""`),
+    // and `??` does not catch "" — it only catches null/undefined. The
+    // earlier `?? state.originCountry ?? "Unknown"` therefore let an empty
+    // string straight through and produced an origin row with a BLANK
+    // country name, which the panel rendered as a seat count beside no
+    // label at all. Live on 2026-10-03 as a literal `country: ""` row.
+    // opensky.ts:324 already does this correctly with `||`; match it.
+    country: airline?.country || state.originCountry?.trim() || "Unknown",
     fleet,
     estimatedSeats: spec?.seats ?? FLEET_SEATS[fleet],
     inbound,
