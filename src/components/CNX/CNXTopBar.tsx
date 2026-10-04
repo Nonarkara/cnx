@@ -30,6 +30,7 @@ import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 
 interface TopBarProps {
+  compact?: boolean;
   flood: CnxFloodResponse | null;
   air: AirQualityResponse | null;
   fires: CnxFiresResponse | null;
@@ -101,9 +102,11 @@ function Pill({
 export function VerdictStrip({
   twin,
   onOpenEmergency,
+  compact = false,
 }: {
   twin: CnxTwinResponse;
   onOpenEmergency: () => void;
+  compact?: boolean;
 }) {
   const v = twin.verdict;
   const level = v.level;
@@ -148,25 +151,8 @@ export function VerdictStrip({
     : level === "safe"
     ? "ติดตามสถานีวัดและประกาศในพื้นที่ต่อไป — ยังไม่ใช่การยืนยันว่าปลอดภัย"
     : "ติดตามความเสี่ยงที่รายงานและยืนยันสภาพจริงในพื้นที่";
-  return (
-    <div className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]">
-          {chipLabel}
-        </span>
-        <span className="text-[11px] leading-relaxed opacity-80">
-          {evidenceLabel}
-        </span>
-        <span className="ml-auto font-mono text-[9px] uppercase tracking-[0.14em] opacity-70">
-          {twin.province_en} · ปภ. {HOTLINES.ddpm} · EMS {HOTLINES.ems}
-        </span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="font-display text-[15px] font-bold leading-tight">{v.head_th}</div>
-        <div className="text-[12px] leading-relaxed opacity-90">
-          {v.head_en}
-        </div>
-      </div>
+  const evidence = <>
+      {compact && <p className="mb-3 text-[12px] leading-relaxed">{v.head_en}</p>}
       {topReason && (
         <div className="flex flex-col gap-1 text-[12px] leading-relaxed">
           {[
@@ -207,6 +193,27 @@ export function VerdictStrip({
           {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[10px] opacity-70">{reason.domain}: {reason.evidence}</p>)}
         </details>
       </div>
+  </>;
+  return (
+    <div className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]">
+          {compact && level === "safe" ? "สถานการณ์ · CONTEXT" : chipLabel}
+        </span>
+        <span className="text-[11px] leading-relaxed opacity-80">
+          {evidenceLabel}
+        </span>
+        <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[9px] uppercase tracking-[0.14em] opacity-70`}>
+          {twin.province_en} · ปภ. {HOTLINES.ddpm} · EMS {HOTLINES.ems}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1">
+        <div className="font-display text-[15px] font-bold leading-tight">{v.head_th}</div>
+        <div className={`${compact ? "hidden" : ""} text-[12px] leading-relaxed opacity-90`}>
+          {v.head_en}
+        </div>
+      </div>
+      {compact ? <details className="text-[12px]"><summary className="min-h-11 cursor-pointer py-3 font-semibold">ตรวจเหตุผลและข้อจำกัด · Evidence</summary>{evidence}</details> : evidence}
     </div>
   );
 }
@@ -250,7 +257,7 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
+  const { compact = false, flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -274,7 +281,7 @@ export default function CnxTopBar(props: TopBarProps) {
     // furniture while the map — the thing that carries the geography — got
     // the remainder. The bar is now one 32 px row plus a single-line pill
     // strip; full verdict reasoning sits above the news rail or mobile map.
-    <header className="relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1.5">
+    <header className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-4 py-2 sm:px-6`}>
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <a href="/cnx" aria-label="CNX War Room home" className="cnx-brand-plate flex h-9 w-[72px] shrink-0 items-center justify-center px-1.5">
@@ -296,12 +303,12 @@ export default function CnxTopBar(props: TopBarProps) {
           </span>
         </div>
 
-        {twin && <VerdictChip twin={twin} />}
+
 
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           {officeNotice && (
             <button
-              className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
+              className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
               title={officeNotice.title}
             >
               <Bell className="h-3 w-3" />
@@ -309,71 +316,58 @@ export default function CnxTopBar(props: TopBarProps) {
             </button>
           )}
           <span className="hidden font-mono text-[9px] text-[var(--dim)] lg:inline">{now}</span>
-          <button
+<button
+            onClick={onOpenBrief}
+            title="One-screen summary for the governor — copy to LINE or print"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--wada-counter)] bg-[var(--wada-counter)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-white hover:opacity-90 "
+          >
+            <FileText className="h-3 w-3" />
+            <span lang="th"><span className="sm:hidden">สรุปผู้ว่าฯ</span><span className="hidden sm:inline">Brief ผู้ว่าฯ</span></span>
+          </button>
+<button
+            onClick={onOpenEmergency}
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
+          >
+            <PhoneCall className="h-3 w-3" />
+            <span lang="th" className="sm:hidden">ฉุกเฉิน</span><span className="hidden sm:inline">Emergency</span>
+          </button>
+          <details className="relative">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">เมนู</span><span className="hidden sm:inline">เครื่องมือ</span> <span aria-hidden="true">⌄</span></summary>
+            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--line)] bg-[var(--bg-raised)] p-3 shadow-xl"><button
+            onClick={onOpenData}
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
+          >
+            <Database className="h-3 w-3" />
+            Data
+          </button><button
+            onClick={onOpenHaze}
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
+          >
+            <Wind className="h-3 w-3" />
+            Haze
+          </button><button
             onClick={onOpenStory}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] "
           >
             <BookOpen className="h-3 w-3" />
             Story
-          </button>
-          <button
+          </button><button
             onClick={onOpenManual}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <BookOpen className="h-3 w-3" />
             Manual
-          </button>
-          <button
+          </button><button
             onClick={onOpenResearch}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] "
           >
             <FlaskConical className="h-3 w-3" />
             Research
           </button>
-          <button
-            onClick={onOpenData}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
-          >
-            <Database className="h-3 w-3" />
-            Data
-          </button>
-          <button
-            onClick={onOpenBrief}
-            title="One-screen summary for the governor — copy to LINE or print"
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--cool)] bg-[var(--cool)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white hover:opacity-90 sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
-          >
-            <FileText className="h-3 w-3" />
-            <span lang="th">Brief ผู้ว่าฯ</span>
-          </button>
-          <button
-            onClick={onOpenHaze}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
-          >
-            <Wind className="h-3 w-3" />
-            Haze
-          </button>
-          <button
-            onClick={onOpenEmergency}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
-          >
-            <PhoneCall className="h-3 w-3" />
-            Emergency
-          </button>
-          <button
-            onClick={toggleDark}
-            aria-label="Toggle theme"
-            className="flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)] sm:h-7 sm:w-7"
-          >
-            {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
-          </button>
-        </div>
-      </div>
-
-      <a href="/cnx/about#web-app" className="mt-1 w-fit text-[11px] leading-5 text-[var(--dim)] hover:text-[var(--cool)] hover:underline">
-        Available on Android &amp; iPhone as a web app · Add to Home Screen
-      </a>
-
-      <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <a href="/cnx/about#web-app" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">เว็บแอป · Android &amp; iPhone</a>
+      {!compact && <details className="border-t border-[var(--line)]">
+        <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-3 text-[12px] font-semibold">สถานะแหล่งข้อมูล · Feed status</summary>
+        <div className="min-w-0 max-w-full border border-[var(--line)] p-3">{twin && <VerdictChip twin={twin} />}      <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Pill label="PM2.5" value={air?.provinceAvgPm25 != null ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
         <Pill
           label={flood?.provenance === "scenario" ? "Scenario Ping" : "Ping model"}
@@ -489,7 +483,25 @@ export default function CnxTopBar(props: TopBarProps) {
         <Pill label="News" value={social ? `${social.items.length}` : "—"} />
       </div>
 
-      <CnxTimezoneStrip topOrigins={topOrigins} />
+      <CnxTimezoneStrip topOrigins={topOrigins} /></div>
+      </details>}
+</div>
+          </details>
+          <button
+            onClick={toggleDark}
+            aria-label="Toggle theme"
+            className="flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)] "
+          >
+            {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+          </button>
+        </div>
+      </div>
+
+      <a href="/cnx/about#web-app" className="mt-1 w-fit text-[11px] sm:hidden leading-5 text-[var(--dim)] hover:text-[var(--cool)] hover:underline">
+        Available on Android &amp; iPhone as a web app · Add to Home Screen
+      </a>
+
+
     </header>
   );
 }

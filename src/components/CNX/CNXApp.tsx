@@ -7,6 +7,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { LayoutDashboard, Map as MapIcon } from "lucide-react";
 
 import { buildScenarioUrl, fetchJsonOrNull } from "../../lib/client-requests";
 import type {
@@ -44,7 +46,11 @@ import CnxRiverLevelPanel from "./CNXRiverLevelPanel";
 import type { FloodCamera } from "../../lib/cnx/flood-cameras";
 import type { RiverLevelResponse, RiverGauge } from "../../lib/cnx/river-level";
 import CnxTicker from "./CNXTicker";
-import CNXMap, { type WallFeature } from "./CNXMap";
+import type { WallFeature } from "./CNXMap";
+import CnxExecutiveOverview from "./CNXExecutiveOverview";
+import CnxOperationalPulse from "./CNXOperationalPulse";
+
+const CNXMap = dynamic(() => import("./CNXMap"), { ssr: false, loading: () => <div role="status" className="flex h-full items-center justify-center text-sm text-[var(--dim)]">กำลังเปิดแผนที่ · Opening operational map…</div> });
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
@@ -77,6 +83,8 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
+  const [deskTab, setDeskTab] = useState<"water" | "air" | "fire" | "model" | "visitors" | "cameras" | "data" | "ask">("water");
+  const [view, setView] = useState<"overview" | "map">("map");
   const [layout, setLayout] = useState({ desktop: false, socialRail: false });
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1280px)");
@@ -131,6 +139,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   // they only re-render when an OSM contributor updates the historic
   // city_wall tag. ~7.8 KB so the parse cost is negligible.
   useEffect(() => {
+    if (view !== "map") return;
     let cancelled = false;
     void fetchJsonOrNull<{ features?: WallFeature[] }>("/data/cnx/walls.geojson").then((d) => {
       if (!cancelled && d?.features) setWalls(d.features);
@@ -138,13 +147,14 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [view]);
 
   // Waterways — one-time fetch from a baked GeoJSON, same as walls.
   // Baked (scripts/fetch-cnx-waterways.mjs) rather than fetched live
   // per-request: Overpass is too flaky for a cold-Worker-isolate fetch
   // to depend on, and rivers/streams don't change week to week.
   useEffect(() => {
+    if (view !== "map") return;
     let cancelled = false;
     void fetchJsonOrNull<{
       features?: { properties: { id: number; name: string | null; category: Waterway["category"]; width: Waterway["width"] }; geometry: { coordinates: [number, number][] } }[];
@@ -163,7 +173,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [view]);
 
   // Heritage — one-time fetch from the curated static API (12 sites,
   // 24 h server cache). Previously hardcoded to [] so the map's
@@ -189,6 +199,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   // doesn't change week to week and a live Overpass call per request
   // was too flaky to be worth it.
   useEffect(() => {
+    if (view !== "map") return;
     let cancelled = false;
     void fetchJsonOrNull<{ routes?: BusRoute[] }>("/data/cnx/bus-routes.geojson").then((d) => {
       if (!cancelled && d?.routes) setBusRoutes(d.routes);
@@ -196,13 +207,14 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [view]);
 
   // CMU internal shuttle — station + route-polyline geometry, one-time
   // fetch from baked JSON (see public/data/cnx/cmu-transit-*.json).
   // Live bus positions come separately via MQTT in CNXMap itself, only
   // while the operator has that layer toggled on.
   useEffect(() => {
+    if (view !== "map") return;
     let cancelled = false;
     void fetchJsonOrNull<{ stations?: CmuStation[] }>("/data/cnx/cmu-transit-stations.json").then((d) => {
       if (!cancelled && d?.stations) setCmuStations(d.stations);
@@ -216,7 +228,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [view]);
 
   // 1-min core feed polling
   useEffect(() => {
@@ -226,23 +238,20 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       const controller = new AbortController();
       controllerRef.current = controller;
       try {
-        const [nextFlood, nextCctv, nextAir, nextFires, nextFiresRfd, nextAerosol, nextRiver] = await Promise.all([
-          fetchJsonOrNull<CnxFloodResponse>(buildScenarioUrl("/api/cnx/flood", scenarioId), { signal: controller.signal }),
-          fetchJsonOrNull<CctvFeedResponse>("/api/cnx/cctv", { signal: controller.signal }),
-          fetchJsonOrNull<AirQualityResponse>("/api/cnx/air-quality", { signal: controller.signal }),
-          fetchJsonOrNull<CnxFiresResponse>("/api/cnx/fires", { signal: controller.signal }),
-          fetchJsonOrNull<RfdFiresResponse>("/api/cnx/fires-rfd", { signal: controller.signal }),
-          fetchJsonOrNull<AerosolResponse>("/api/cnx/aerosol", { signal: controller.signal }),
-          fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level", { signal: controller.signal }),
+        // Each feed becomes visible as soon as it answers; a slow source
+        // must not hold back the river, air, or satellite evidence.
+        const apply = (commit: () => void) => {
+          if (!controller.signal.aborted && id === requestIdRef.current) commit();
+        };
+        await Promise.all([
+          fetchJsonOrNull<CnxFloodResponse>(buildScenarioUrl("/api/cnx/flood", scenarioId), { signal: controller.signal }).then((d) => d && apply(() => setFlood(d))),
+          fetchJsonOrNull<CctvFeedResponse>("/api/cnx/cctv", { signal: controller.signal }).then((d) => d && apply(() => setCctv(d))),
+          fetchJsonOrNull<AirQualityResponse>("/api/cnx/air-quality", { signal: controller.signal }).then((d) => d && apply(() => setAir(d))),
+          fetchJsonOrNull<CnxFiresResponse>("/api/cnx/fires", { signal: controller.signal }).then((d) => d && apply(() => setFires(d))),
+          fetchJsonOrNull<RfdFiresResponse>("/api/cnx/fires-rfd", { signal: controller.signal }).then((d) => d && apply(() => setFiresRfd(d))),
+          fetchJsonOrNull<AerosolResponse>("/api/cnx/aerosol", { signal: controller.signal }).then((d) => d && apply(() => setAerosol(d))),
+          fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level", { signal: controller.signal }).then((d) => d && apply(() => setRiverGauges(d.gauges))),
         ]);
-        if (controller.signal.aborted || id !== requestIdRef.current) return;
-        if (nextFlood) setFlood(nextFlood);
-        if (nextCctv) setCctv(nextCctv);
-        if (nextAir) setAir(nextAir);
-        if (nextFires) setFires(nextFires);
-        if (nextFiresRfd) setFiresRfd(nextFiresRfd);
-        if (nextAerosol) setAerosol(nextAerosol);
-        if (nextRiver) setRiverGauges(nextRiver.gauges);
       } catch { /* abort-safe */ }
       void fetchJsonOrNull<OutboundAnalysis>("/api/cnx/outbound").then((o) => {
         if (o && id === requestIdRef.current) setOutbound(o);
@@ -261,16 +270,11 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [nextSocial, nextStory, nextWeatherLayers] = await Promise.all([
-        fetchJsonOrNull<SocialListeningResponse>(buildScenarioUrl("/api/cnx/social", scenarioId)),
-        fetchJsonOrNull<CnxStoryResponse>(buildScenarioUrl("/api/cnx/story", scenarioId)),
-        fetchJsonOrNull<WeatherLayerUrls>("/api/cnx/weather-layers"),
+      await Promise.all([
+        fetchJsonOrNull<SocialListeningResponse>(buildScenarioUrl("/api/cnx/social", scenarioId)).then((d) => { if (!cancelled && d) setSocial(d); }),
+        fetchJsonOrNull<CnxStoryResponse>(buildScenarioUrl("/api/cnx/story", scenarioId)).then((d) => { if (!cancelled && d) setStory(d); }),
+        fetchJsonOrNull<WeatherLayerUrls>("/api/cnx/weather-layers").then((d) => { if (!cancelled && d) setWeatherLayers(d); }),
       ]);
-      if (!cancelled) {
-        if (nextSocial) setSocial(nextSocial);
-        if (nextStory) setStory(nextStory);
-        if (nextWeatherLayers) setWeatherLayers(nextWeatherLayers);
-      }
     };
     void load();
     const interval = window.setInterval(() => void load(), 3 * 60_000);
@@ -322,13 +326,10 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [nextDust, nextSmoke] = await Promise.all([
-        fetchJsonOrNull<import("../../lib/cnx/dustboy").DustboyResponse>("/api/cnx/dustboy"),
-        fetchJsonOrNull<import("../../lib/cnx/smoke-trajectory").SmokeTrajectoryResponse>("/api/cnx/smoke-trajectory"),
+      await Promise.all([
+        fetchJsonOrNull<import("../../lib/cnx/dustboy").DustboyResponse>("/api/cnx/dustboy").then((d) => { if (!cancelled && d) setDustboy(d); }),
+        fetchJsonOrNull<import("../../lib/cnx/smoke-trajectory").SmokeTrajectoryResponse>("/api/cnx/smoke-trajectory").then((d) => { if (!cancelled && d) setSmoke(d); }),
       ]);
-      if (cancelled) return;
-      if (nextDust) setDustboy(nextDust);
-      if (nextSmoke) setSmoke(nextSmoke);
     };
     void load();
     const interval = window.setInterval(() => void load(), 5 * 60_000);
@@ -426,9 +427,10 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       id="main-content"
       tabIndex={-1}
       data-surface="cnx-dashboard"
-      className="relative flex min-h-[100dvh] w-screen flex-col overflow-x-hidden bg-[var(--bg)] text-[var(--ink)] xl:h-[100dvh] xl:overflow-hidden"
+      className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-[var(--bg)] text-[var(--ink)] ${view === "map" ? "xl:h-[100dvh] xl:overflow-hidden" : ""}`}
     >
       <CnxTopBar
+        compact={view === "overview"}
         flood={flood}
         air={air}
         fires={fires}
@@ -453,11 +455,28 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
+      <nav aria-label="Dashboard views" className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--bg)] px-4 py-1 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-1">
+          <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")} className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold ${view === "map" ? "bg-[var(--cool-dim)] text-[var(--cool)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}>
+            <MapIcon className="h-4 w-4" aria-hidden="true" /> ห้องปฏิบัติการ <span className="hidden text-xs font-normal sm:inline">Operations map</span>
+          </button>
+          <button type="button" aria-pressed={view === "overview"} onClick={() => setView("overview")} className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold ${view === "overview" ? "bg-[var(--cool-dim)] text-[var(--cool)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}>
+            <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> ภาพรวมจังหวัด <span className="hidden text-xs font-normal sm:inline">Executive overview</span>
+          </button>
+        </div>
+
+      </nav>
+      {scenarioId && <p className="border-b border-[var(--line)] px-5 py-2 text-sm text-[var(--dim)]">มีบริบทสถานการณ์จำลอง · The executive overview excludes simulated readings.</p>}
+      {view === "overview" ? (
+        <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenHaze={() => setIsHazeOpen(true)} />
+      ) : <>
+      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} onOpenMetric={(id) => {
+        setDeskTab(id === "mobility" ? "visitors" : id);
+        setMobileTab(id === "water" ? "flood" : id === "mobility" ? "visitors" : id);
+        if (!layout.desktop) document.getElementById("hazard-panels")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }} />
       <CnxCctvStrip feed={cctv} />
 
-      {twin && <div className="border-t border-[var(--line)] p-2 lg:hidden">
-        <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
-      </div>}
 
       <a href="#hazard-panels" className="flex min-h-[44px] items-center justify-center border-y border-[var(--line)] px-3 text-sm font-semibold text-[var(--cool)] xl:hidden">
         ดูค่าที่วัดได้ · View air, river &amp; fire readings ↓
@@ -468,10 +487,10 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             from xl onwards on desktop with full width. */}
         {layout.socialRail && <aside
           aria-label="Social listening stream"
-          className="hidden min-h-0 w-[260px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[280px] 2xl:w-[300px]"
+          className="hidden min-h-0 w-[240px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[240px] 2xl:w-[280px]"
         >
           {twin && <div className="shrink-0 border-b border-[var(--line)] p-2">
-            <VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
+            <VerdictStrip compact twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
           </div>}
           <div className="min-h-0 flex-1">
             <div className="h-full min-h-[240px]">
@@ -509,40 +528,31 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           />
         </section>
 
-        {/* Right rail — operations desk. Visible from xl onwards. */}
-        {layout.desktop && <aside
-          aria-label="Operations desk"
-          className="hidden w-[330px] shrink-0 border-l border-[var(--line)] xl:flex xl:flex-col xl:overflow-y-auto 2xl:w-[380px]"
-        >
-          {/* Measurements lead the desk; scenario context and tourism follow. */}
-          <div className="h-[42%] min-h-[480px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxRiverLevelPanel />
+        {/* The desk changes topic without burying other hazards below long gauge lists. */}
+        {layout.desktop && <aside aria-label="Operations desk" className="hidden min-h-0 w-[300px] shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-raised)] xl:flex 2xl:w-[360px]">
+          <div role="group" aria-label="Operations desk topics" className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
+            {([
+              { id: "water", label: "น้ำ", en: "Water" }, { id: "air", label: "อากาศ", en: "Air" },
+              { id: "fire", label: "ไฟ", en: "Fire" }, { id: "model", label: "แบบจำลอง", en: "Models" },
+              { id: "visitors", label: "การบิน", en: "Aviation" }, { id: "cameras", label: "กล้อง", en: "Cameras" },
+              { id: "data", label: "ข้อมูล", en: "Data" }, { id: "ask", label: "ค้นหา", en: "Search" },
+            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span lang="th" className="text-[13px] font-semibold">{topic.label}</span><span className="text-[10px]">{topic.en}</span></button>)}
           </div>
-          <div className="min-h-[260px] shrink-0 border-b border-[var(--line)]">
-            <CnxAirQualityPanel />
-          </div>
-          <div className="h-[28%] min-h-[230px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />
-          </div>
-          <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxFloodPanel flood={flood} air={air} fires={fires} />
-          </div>
-          <div className="min-h-[260px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxVisitorPanel onData={setVisitorAnalytics} />
-          </div>
-          <div className="shrink-0 border-b border-[var(--line)]"><CnxArrivalsPanel /></div>
-          {outbound && <div className="shrink-0 border-b border-[var(--line)]"><CnxOutboundPanel snapshot={outbound} /></div>}
-          <div className="min-h-[210px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxFloodCamerasPanel />
-          </div>
-          <div className="min-h-[160px] shrink-0 overflow-hidden border-b border-[var(--line)]">
-            <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />
-          </div>
-          <div className="min-h-[180px] flex-1 overflow-hidden border-t border-[var(--line)]">
-            <CnxAskChat />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {deskTab === "water" && <div className="h-full min-h-[260px]"><CnxRiverLevelPanel /></div>}
+            {deskTab === "air" && <div className="h-full min-h-[300px]"><CnxAirQualityPanel /></div>}
+            {deskTab === "fire" && <div className="h-full min-h-[230px]"><CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} /></div>}
+            {deskTab === "model" && <div className="h-full min-h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} /></div>}
+            {deskTab === "visitors" && <><div className="h-[320px]"><CnxVisitorPanel onData={setVisitorAnalytics} /></div><CnxArrivalsPanel />{outbound && <CnxOutboundPanel snapshot={outbound} />}</>}
+            {deskTab === "cameras" && <div className="h-full min-h-[240px]"><CnxFloodCamerasPanel /></div>}
+            {deskTab === "data" && <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />}
+            {deskTab === "ask" && <div className="h-full min-h-[240px]"><CnxAskChat /></div>}
           </div>
         </aside>}
+
       </section>
+
+      {twin && <details className="border-t border-[var(--line)] bg-[var(--bg-raised)] px-4 lg:hidden"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">เหตุผลและข้อจำกัดของสถานการณ์ · Situation evidence</summary><VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} /></details>}
 
       {/* Mobile / tablet panels stay available until the desktop desk appears. */}
       <section
@@ -614,11 +624,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         />
       </div>
 
+      </>}
+
       <CnxStoryModal story={story} isOpen={isStoryOpen} onClose={() => setIsStoryOpen(false)} />
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
       <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
-      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} air={air} dustboy={dustboy} fires={fires} twin={twin} />
+      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} />
       <CnxHazeModal
         isOpen={isHazeOpen}
         onClose={() => setIsHazeOpen(false)}

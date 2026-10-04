@@ -27,12 +27,18 @@ describe("districtTable", () => {
     const rows = districtTable(
       [station("เมือง", 10), station("เมืองเชียงใหม่", 20), station("พร้้าว", 29), station("พร้าว", 400, { suspect: true }), station("หางดง", null)],
       burn,
+      new Date("2026-10-03T15:00:00Z"),
     );
     expect(rows[0]).toMatchObject({ th: "พร้าว", pm25: 29, sensors: 1 });
     expect(rows[1]).toMatchObject({ th: "เมืองเชียงใหม่", pm25: 15, sensors: 2 });
     // No reading: not invented, sorted after measured districts.
     expect(rows.slice(2).every((r) => r.pm25 === null)).toBe(true);
   });
+  it("excludes stale district evidence and retains the oldest contributing observation", () => {
+    const rows = districtTable([station("เมือง", 12), station("เมือง", 500, { observedAt: "2026-10-02T14:00:00Z" }), station("เมือง", 14, { observedAt: "2026-10-03T13:00:00Z" })], burn, new Date("2026-10-03T15:00:00Z"));
+    expect(rows[0]).toMatchObject({ pm25: 13, sensors: 2, observedAt: "2026-10-03T13:00:00Z" });
+  });
+
 });
 
 describe("pm25Band", () => {
@@ -60,6 +66,17 @@ describe("buildTiles", () => {
     expect(tiles.filter((t) => t.level === "unknown").map((t) => t.key)).toEqual(["air", "fire", "water"]);
   });
 
+  it("does not promote old air or river observations to a current briefing", () => {
+    const old = "2026-10-02T14:00:00Z";
+    const tiles = buildTiles(inputs({ airGround: { avg: 12, stations: 2, observedAt: old, source: "PCD" }, river: { th: "old reading", en: "old reading", level: "good", observedAt: old } }));
+    expect(tiles.find((t) => t.key === "air")?.level).toBe("unknown");
+    expect(tiles.find((t) => t.key === "water")?.level).toBe("unknown");
+  });
+
+  it("keeps a missing satellite count distinct from a verified zero", () => {
+    expect(buildTiles(inputs({ fires: { live: true, count: null, observedAt: null, source: "NASA" } })).find((t) => t.key === "fire")?.level).toBe("unknown");
+  });
+
   it("never presents a Flood Hub 'no flood' as confirmed safety", () => {
     const water = buildTiles(inputs()).find((t) => t.key === "water")!;
     expect(water.th).toContain("ไม่ใช่การยืนยันว่าปลอดภัย");
@@ -77,6 +94,13 @@ describe("lineText", () => {
     expect(text).toContain("🟢 คุณภาพอากาศ: PM2.5 เฉลี่ย 12");
     expect(text).toContain("ที่มา:");
     expect(text.trim().endsWith("https://cnx.nonarkara.org/cnx")).toBe(true);
+  });
+
+  it("includes reference times when forwarded and handles invalid times honestly", () => {
+    const tiles = buildTiles(inputs());
+    expect(lineText(tiles, [], inputs().now, "https://example.org")).toContain("เวลาอ้างอิง:");
+    tiles[0].observedAt = "invalid";
+    expect(lineText(tiles, [], inputs().now, "https://example.org")).toContain("เวลาอ้างอิง: ไม่ทราบ");
   });
 
   it("formats Thai dates in the Buddhist era", () => {

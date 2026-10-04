@@ -1,7 +1,7 @@
 "use client";
 
 // Dark mode toggle — same hook as Lopburi. The toggle sets a
-// `data-theme="dark"` attribute on <html>; the CSS overrides live in
+// explicit light/dark attributes on <html>; the CSS overrides live in
 // globals.css under :root[data-theme="dark"].
 
 import { useCallback, useEffect, useState } from "react";
@@ -18,7 +18,7 @@ export function useDarkMode() {
       document.documentElement.dataset.theme = "dark";
     } else if (stored === "light") {
       setIsDark(false);
-      delete document.documentElement.dataset.theme;
+      document.documentElement.dataset.theme = "light";
     } else if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
       setIsDark(true);
       document.documentElement.dataset.theme = "dark";
@@ -32,7 +32,7 @@ export function useDarkMode() {
         document.documentElement.dataset.theme = "dark";
         window.localStorage.setItem(STORAGE_KEY, "dark");
       } else {
-        delete document.documentElement.dataset.theme;
+        document.documentElement.dataset.theme = "light";
         window.localStorage.setItem(STORAGE_KEY, "light");
       }
       return next;

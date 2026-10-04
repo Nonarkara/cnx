@@ -146,7 +146,7 @@ function templeColorExpr(): DataDrivenPropertyValueSpecification<string> {
  *  layer bar (3D City / Transit / Weather & Air / Range Rings). */
 function ToggleGroupLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
   return (
-    <div className={`px-1 text-[8px] font-bold uppercase tracking-[0.18em] bg-[var(--bg-raised)] text-[var(--dim)] ${first ? "" : "mt-1.5"}`}>
+    <div className={`px-1 py-2 text-[12px] font-semibold uppercase tracking-[0.08em] bg-[var(--bg-raised)] text-[var(--dim)] ${first ? "" : "mt-1.5"}`}>
       {children}
     </div>
   );
@@ -177,7 +177,7 @@ function MapToggleButton({
       disabled={disabled}
       aria-pressed={pressed}
       title={title}
-      className={`border px-2 py-1 text-left text-[10px] font-bold uppercase tracking-[0.14em] transition-colors ${
+      className={`min-h-11 border px-3 py-2 text-left text-[13px] font-semibold transition-colors ${
         disabled
           ? "cursor-not-allowed border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] opacity-70"
           : pressed
@@ -397,16 +397,9 @@ export default function CNXMap({
   dustboyStations = NO_DUSTBOY,
   smokeSegments = NO_PLUMES,
 }: MapProps) {
-  // Default to Topography — Chiang Mai sits in a mountain basin (Doi Suthep,
-  // Doi Inthanon, the Ping valley), and the topographic context drives the
-  // operational read: PM2.5 traps in the valleys during burning season,
-  // flood basins along the Ping and its tributaries, the urban footprint
-  // outlined by the surrounding ridges. OpenTopoMap tiles are free and
-  // already wired (basemapStyle("topography")); this just promotes them to
-  // the default landing view, matching the Phuket dashboard pattern. The
-  // basemap toggle stays available — operators can swap to Street /
-  // Satellite / Vegetation for street-level or imagery-heavy work.
-  const [basemap, setBasemap] = useState<BasemapId>("topography");
+  // Street labels lead the operational landing view. Terrain, satellite and
+  // the heavier 3D city remain explicit choices in Layers.
+  const [basemap, setBasemap] = useState<BasemapId>("street");
   const [buildingsOn, setBuildingsOn] = useState(false);
   const [templesOn, setTemplesOn] = useState(true);
   const [wallsOn, setWallsOn] = useState(true);
@@ -449,13 +442,6 @@ export default function CNXMap({
     bearing: 0,
   });
 
-  // Phone startup avoids the heavy city meshes. Desktop retains the
-  // 3D overview; phone operators can explicitly enable it.
-  useEffect(() => {
-    if (!window.matchMedia("(min-width: 1024px)").matches) return;
-    setBuildingsOn(true);
-    setViewState((view) => ({ ...view, pitch: 55, bearing: -15 }));
-  }, []);
   const wideBuildings = (viewState.zoom ?? CITY_ZOOM) < 13;
 
   const handleToggle3D = () => {
@@ -1239,31 +1225,19 @@ export default function CNXMap({
         </Map>
       </DeckGL>
 
-      {/* Layer toggles, top-left — grouped so the operator can scan by
-          concern (city, transit, weather, range) instead of a flat
-          undifferentiated stack. Scrolls internally past ~13 buttons
-          rather than running off the bottom of a short viewport. */}
-      <div className="absolute left-2 top-2 z-10 flex max-h-[calc(100%-5.5rem)] w-[168px] flex-col gap-1 overflow-y-auto">
-        <ToggleGroupLabel first>Base map</ToggleGroupLabel>
-        <div role="radiogroup" aria-label="Base map" className="grid grid-cols-3 gap-0.5">
-          {BASEMAP_OPTIONS.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              role="radio"
-              aria-checked={basemap === b.id}
-              title={b.hint}
-              onClick={() => handleBasemapChange(b.id)}
-              className={`min-h-[30px] border px-1 text-[9px] font-bold uppercase tracking-[0.06em] ${
-                basemap === b.id
-                  ? "border-[var(--cool)] bg-[var(--cool)] text-white"
-                  : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
+      {/* Native disclosure keeps controls available without obscuring the operational map. */}
+      <details className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] rounded-sm border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)] shadow-sm" onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.currentTarget.open = false;
+          event.currentTarget.querySelector("summary")?.focus();
+        }
+      }}>
+        <summary className="min-h-11 cursor-pointer px-3 py-3 text-[14px] font-semibold">ชั้นข้อมูล · Layers</summary>
+        <div className="flex flex-col gap-1 border-t border-[var(--line)] p-3">
+        <label htmlFor="cnx-basemap" className="px-1 py-2 text-[12px] font-semibold text-[var(--dim)]">แผนที่พื้นฐาน · Base map</label>
+        <select id="cnx-basemap" value={basemap} onChange={(event) => handleBasemapChange(event.target.value as BasemapId)} className="min-h-11 w-full border border-[var(--line)] bg-[var(--bg-raised)] px-3 text-[14px] text-[var(--ink)]">
+          {BASEMAP_OPTIONS.map((option) => <option key={option.id} value={option.id} title={option.hint}>{option.label}</option>)}
+        </select>
         <ToggleGroupLabel>3D City</ToggleGroupLabel>
         <MapToggleButton
           pressed={buildingsOn}
@@ -1393,7 +1367,7 @@ export default function CNXMap({
                   })
                 }
                 aria-pressed={on}
-                className={`flex-1 border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+                className={`min-h-11 flex-1 border px-2 py-2 text-[13px] font-semibold ${
                   on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
                 }`}
               >
@@ -1402,7 +1376,8 @@ export default function CNXMap({
             );
           })}
         </div>
-      </div>
+        </div>
+      </details>
 
       {/* Flight count badge, top-right */}
       <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5 bg-[var(--bg-raised)] px-2 py-1">
@@ -1410,7 +1385,7 @@ export default function CNXMap({
           aria-hidden="true"
           className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#b8860b]"
         />
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--cool)]">
+        <span className="text-[12px] font-semibold text-[var(--cool)]">
           {flights.length} {flights.length === 1 ? "flight" : "flights"}
         </span>
       </div>

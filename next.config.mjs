@@ -13,6 +13,7 @@ const MAPLIBRE_ESM = fileURLToPath(import.meta.resolve("maplibre-gl"));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
   // Shown next to the title (top-left) so every deploy is identifiable.
   // The build metadata goes through the env config rather than bare
   // NEXT_PUBLIC_* shell exports: the env block is inlined into both the

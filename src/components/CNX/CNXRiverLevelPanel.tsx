@@ -151,9 +151,9 @@ export default function CnxRiverLevelPanel() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">Read the nearest relevant gauge and check official local notices. A river gauge cannot establish street or drainage flooding.</p>
+        <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">อ่านสถานีใกล้พื้นที่และประกาศทางการ · ค่าสถานีไม่ยืนยันน้ำท่วมถนน</p>
         {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sun)]">Unable to refresh gauge data. {data ? "Showing the last received observations; check each timestamp." : "Current river conditions are unknown. The next poll will retry."}</p>}
-        {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{currentCount} current observations shown (within 3 hours); older or invalid timestamps are retained as history.</p>}
+        {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{currentCount} สถานีใน 3 ชม. · ค่าที่เก่ากว่านี้แสดงเป็นประวัติ</p>}
 
         {down && data && (
           <div className="mb-2 border border-[#ef4444]/40 bg-[#ef4444]/10 px-2 py-1.5 text-[10px] leading-[1.5] text-[#ef4444]">
@@ -214,7 +214,9 @@ export default function CnxRiverLevelPanel() {
           same reason as the camera panel: attribution is a data
           contract, and three retyped copies drift apart. */}
       {data && (
-        <footer className="shrink-0 space-y-1.5 border-t border-[var(--line)] bg-[var(--bg)] px-3 py-2">
+        <footer className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3">
+          <details><summary className="min-h-11 cursor-pointer py-3 text-[12px] text-[var(--dim)]">ThaiWater · แหล่งข้อมูลและเงื่อนไข</summary>
+          <div className="max-h-48 overflow-y-auto pb-3">
           <div className="font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
             Levels via{" "}
             <a href={data.credit.publisherUrl} target="_blank" rel="noreferrer" className="underline">
@@ -234,7 +236,7 @@ export default function CnxRiverLevelPanel() {
               <p>{data.legal.terms}</p>
             </div>
           </details>
-        </footer>
+        </div></details></footer>
       )}
     </div>
   );

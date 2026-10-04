@@ -124,6 +124,51 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Executive briefing: comfortable reading, with colour reserved for evidence. */
+.cnx-executive-header button {
+  min-height: 44px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.cnx-executive-header .font-display { font-size: 17px; }
+@media (max-width: 639px) {
+  .cnx-executive-header .cnx-header-secondary { display: none; }
+}
+.cnx-primary-action {
+  background: var(--wada-counter);
+  color: #fff;
+  border-color: var(--wada-counter);
+}
+
+@media print {
+  body:has([data-governor-brief]) {
+    background: #fff;
+    padding: 0;
+  }
+  body:has([data-governor-brief]) [data-surface="cnx-dashboard"] {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body:has([data-governor-brief]) [data-surface="cnx-dashboard"] > :not([data-governor-brief]) {
+    display: none !important;
+  }
+  [data-governor-brief] {
+    --bg: #fff;
+    --bg-raised: #fff;
+    --bg-surface: #f7f7f7;
+    --ink: #111;
+    --dim: #444;
+    --line: #ccc;
+    --cool: #12354e;
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  [data-governor-brief] section { break-inside: avoid; }
+}
+
 /* Respect the notch / status bar on phones. `viewport-fit=cover` (set in
    layout.tsx) lets the board use the full screen including the safe areas,
    which then puts content underneath the iPhone status bar and the Android

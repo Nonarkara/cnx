@@ -26,6 +26,12 @@ export interface BriefDistrict {
   sensors: number;
   burnedLastSeasonRai: number | null;
   forestShare: number | null;
+  observedAt: string | null;
+}
+
+export function isBriefObservationCurrent(observedAt: string | null, now = new Date()): boolean {
+  const age = now.getTime() - Date.parse(observedAt ?? "");
+  return Number.isFinite(age) && age >= -5 * 60_000 && age <= 3 * 3_600_000;
 }
 
 /** Thai PCD PM2.5 bands (24-h, µg/m³): 0–15 very good, –25 good,
@@ -48,24 +54,25 @@ export function canonicalDistrict(raw: string, official: string[]): string | nul
   return official.find((o) => clean(o) === r) ?? null;
 }
 
-export function districtTable(stations: DustboyStation[], burn: BurnSeasonDoc | null): BriefDistrict[] {
+export function districtTable(stations: DustboyStation[], burn: BurnSeasonDoc | null, now = new Date()): BriefDistrict[] {
   const official = burn?.districtsLatest ?? [];
   const names = official.map((d) => d.th);
-  const readings = new Map<string, number[]>();
+  const readings = new Map<string, DustboyStation[]>();
   for (const s of stations) {
-    if (s.province !== "เชียงใหม่" || s.pm25 === null || s.suspect) continue;
+    if (s.province !== "เชียงใหม่" || s.pm25 === null || !Number.isFinite(s.pm25) || s.suspect || !isBriefObservationCurrent(s.observedAt, now)) continue;
     const d = canonicalDistrict(s.district, names);
-    if (d) readings.set(d, [...(readings.get(d) ?? []), s.pm25]);
+    if (d) readings.set(d, [...(readings.get(d) ?? []), s]);
   }
   const rows: BriefDistrict[] = official.map((d) => {
     const r = readings.get(d.th) ?? [];
     return {
       th: d.th,
       en: d.en,
-      pm25: r.length ? Math.round((r.reduce((a, b) => a + b, 0) / r.length) * 10) / 10 : null,
+      pm25: r.length ? Math.round((r.reduce((a, b) => a + (b.pm25 ?? 0), 0) / r.length) * 10) / 10 : null,
       sensors: r.length,
       burnedLastSeasonRai: d.totalRai,
       forestShare: d.totalRai > 0 ? Math.round((d.forestRai / d.totalRai) * 100) : null,
+      observedAt: r.length ? r.map((s) => s.observedAt).sort((a, b) => Date.parse(a) - Date.parse(b))[0] : null,
     };
   });
   // Worst air first; districts without a sensor sink, ordered by burn history.
@@ -77,15 +84,15 @@ export interface BriefInputs {
   airGround: { avg: number | null; stations: number; observedAt: string | null; source: string };
   worstDistrict: BriefDistrict | null;
   fires: { live: boolean; count: number | null; observedAt: string | null; source: string };
-  river: { th: string; en: string; level: BriefLevel; observedAt: string | null } | null;
+  river: { th: string; en: string; level: BriefLevel; observedAt: string | null; source?: string } | null;
   floodForecast: { outlook: "flooding" | "none-forecast" | "unknown"; points: number } | null;
   arrivals: { date: string; flights: number; international: number; estimatedVisitors: number } | null;
 }
 
 export function buildTiles(i: BriefInputs): BriefTile[] {
   const air: BriefTile =
-    i.airGround.avg === null
-      ? { key: "air", titleTh: "คุณภาพอากาศ", level: "unknown", th: "ไม่มีข้อมูลเซนเซอร์ภาคพื้นดินที่เป็นปัจจุบัน", en: "No current ground-sensor reading", source: i.airGround.source, observedAt: null }
+    i.airGround.avg === null || !isBriefObservationCurrent(i.airGround.observedAt, i.now)
+      ? { key: "air", titleTh: "คุณภาพอากาศ", level: "unknown", th: "ไม่มีข้อมูลเซนเซอร์ภาคพื้นดินที่เป็นปัจจุบัน", en: "No current ground-sensor reading", source: i.airGround.source, observedAt: i.airGround.observedAt }
       : (() => {
           const band = pm25Band(i.airGround.avg);
           const worst = i.worstDistrict?.pm25 != null ? ` · สูงสุด อ.${i.worstDistrict.th} ${i.worstDistrict.pm25}` : "";
@@ -93,14 +100,14 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
             key: "air",
             titleTh: "คุณภาพอากาศ",
             level: band.level,
-            th: `PM2.5 เฉลี่ย ${i.airGround.avg} มคก./ลบ.ม. (${band.th})${worst}`,
-            en: `Ground PM2.5 average ${i.airGround.avg} µg/m³ across ${i.airGround.stations} sensors`,
+            th: `PM2.5 เฉลี่ย ${i.airGround.avg} มคก./ลบ.ม. (${band.th})${worst} · คัดกรองเบื้องต้น ไม่ใช่การประเมินสุขภาพจากค่าเฉลี่ย 24 ชม.`,
+            en: `Ground PM2.5 average ${i.airGround.avg} µg/m³ across ${i.airGround.stations} sensors; screening bands, not a verified 24-hour average`,
             source: i.airGround.source,
             observedAt: i.airGround.observedAt,
           };
         })();
 
-  const fire: BriefTile = !i.fires.live
+  const fire: BriefTile = !i.fires.live || i.fires.count === null
     ? { key: "fire", titleTh: "ไฟป่า/จุดความร้อน", level: "unknown", th: "ไม่มีข้อมูลดาวเทียมรอบล่าสุด", en: "No live satellite pass", source: i.fires.source, observedAt: null }
     : {
         key: "fire",
@@ -118,14 +125,14 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
       : i.floodForecast?.outlook === "none-forecast"
         ? " · Google ไม่คาดการณ์น้ำท่วม (ไม่ใช่การยืนยันว่าปลอดภัย)"
         : "";
-  const water: BriefTile = i.river
+  const water: BriefTile = i.river && isBriefObservationCurrent(i.river.observedAt, i.now)
     ? {
         key: "water",
         titleTh: "น้ำ",
         level: i.floodForecast?.outlook === "flooding" && i.river.level === "good" ? "watch" : i.river.level,
         th: `${i.river.th}${forecast}`,
         en: i.river.en,
-        source: "ThaiWater (P.1) · Google Flood Hub",
+        source: `${i.river.source ?? "ThaiWater"}${i.floodForecast ? " · Google Flood Hub" : ""}`,
         observedAt: i.river.observedAt,
       }
     : { key: "water", titleTh: "น้ำ", level: "unknown", th: `ไม่มีข้อมูลระดับน้ำที่วัดได้จริง${forecast}`, en: "No measured river level", source: "ThaiWater", observedAt: null };
@@ -157,14 +164,15 @@ const MARK: Record<BriefLevel, string> = { good: "🟢", watch: "🟡", alert: "
 
 /** Plain text for a LINE group: dated, one line per hazard, top districts,
  *  sources, and the link. No markdown — LINE shows it literally. */
-export function lineText(tiles: BriefTile[], districts: BriefDistrict[], now: Date, url: string): string {
+export function lineText(tiles: BriefTile[], districts: BriefDistrict[], now: Date, url: string, actions: string[] = []): string {
   const bkk = new Date(now.getTime() + 7 * 3_600_000);
   const time = `${String(bkk.getUTCHours()).padStart(2, "0")}:${String(bkk.getUTCMinutes()).padStart(2, "0")} น.`;
   const worst = districts.filter((d) => d.pm25 !== null).slice(0, 3);
   return [
     `สรุปสถานการณ์จังหวัดเชียงใหม่ ${thaiDate(bkk.toISOString())} เวลา ${time}`,
-    ...tiles.map((t) => `${MARK[t.level]} ${t.titleTh}: ${t.th}`),
+    ...tiles.map((t) => `${MARK[t.level]} ${t.titleTh}: ${t.th}${Number.isFinite(Date.parse(t.observedAt ?? "")) ? `\n  เวลาอ้างอิง: ${new Date(t.observedAt!).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" })}` : "\n  เวลาอ้างอิง: ไม่ทราบ"}`),
     ...(worst.length ? [`อำเภอที่ค่าฝุ่นสูงสุด: ${worst.map((d) => `${d.th} ${d.pm25}`).join(" · ")}`] : []),
+    ...(actions.length ? ["ตรวจสอบต่อ:", ...actions.map((action) => `• ${action}`)] : []),
     `ที่มา: ${[...new Set(tiles.map((t) => t.source))].join(" · ")}`,
     `ดูต่อ: ${url}`,
   ].join("\n");
