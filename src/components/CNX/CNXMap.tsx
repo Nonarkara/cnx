@@ -54,9 +54,18 @@ import type { WeatherLayerUrls } from "../../lib/cnx/weather-layers";
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
 });
-const Map = dynamic(() => import("react-map-gl/maplibre").then((m) => m.default), {
-  ssr: false,
-});
+// maplibre-gl v6 needs its worker URL set before the first Map is built;
+// the files are copied to public/ by scripts/copy-maplibre-worker.mjs.
+// react-map-gl's own import("maplibre-gl") resolves to this same module.
+const MAPLIBRE_WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
+const Map = dynamic(
+  () =>
+    Promise.all([import("react-map-gl/maplibre"), import("maplibre-gl")]).then(([m, maplibre]) => {
+      maplibre.setWorkerUrl(MAPLIBRE_WORKER_URL);
+      return m.default;
+    }),
+  { ssr: false },
+);
 
 const AttributionControl = dynamic(() => import("react-map-gl/maplibre").then((m) => m.AttributionControl), { ssr: false });
 
