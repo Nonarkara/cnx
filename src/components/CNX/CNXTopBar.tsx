@@ -6,7 +6,7 @@
 // shows live flood/air/fires/social counters in the masthead.
 
 import { useEffect, useState } from "react";
-import { Bell, BookOpen, Database, FileText, FlaskConical, Moon, PhoneCall, Sun, Wind } from "lucide-react";
+import { Bell, BookOpen, Database, FileText, FlaskConical, Moon, PhoneCall, Sun, Wind, LayoutDashboard, Map as MapIcon } from "lucide-react";
 import { useDarkMode } from "../../hooks/useDarkMode";
 import CNXLogoRow from "./CNXLogoRow";
 import { lookupAircraft } from "../../lib/cnx/aircraft";
@@ -31,6 +31,8 @@ import type { AerosolResponse } from "../../lib/cnx/aerosol";
 
 interface TopBarProps {
   compact?: boolean;
+  view: "overview" | "map";
+  onChangeView: (view: "overview" | "map") => void;
   flood: CnxFloodResponse | null;
   air: AirQualityResponse | null;
   fires: CnxFiresResponse | null;
@@ -257,7 +259,7 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
 }
 
 export default function CnxTopBar(props: TopBarProps) {
-  const { compact = false, flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
+  const { compact = false, view, onChangeView, flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
   const [now, setNow] = useState<string>("");
@@ -296,7 +298,7 @@ export default function CnxTopBar(props: TopBarProps) {
           <CNXLogoRow size={16} />
           <span
             className="shrink-0 bg-[var(--ink)] px-1 py-0.5 font-mono text-[9px] font-bold tracking-[0.12em] text-[var(--bg)]"
-            title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"}`}
+            title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"} · ${now}`}
           >
             v{process.env.NEXT_PUBLIC_APP_VERSION}
             {process.env.NEXT_PUBLIC_GIT_SHA ? `·${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}
@@ -315,11 +317,11 @@ export default function CnxTopBar(props: TopBarProps) {
               {officeNotice.level.toUpperCase()}
             </button>
           )}
-          <span className="hidden font-mono text-[9px] text-[var(--dim)] lg:inline">{now}</span>
+          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span lang="th">{view === "map" ? "ภาพรวมจังหวัด" : "ห้องปฏิบัติการ"}</span></button>
 <button
             onClick={onOpenBrief}
             title="One-screen summary for the governor — copy to LINE or print"
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--wada-counter)] bg-[var(--wada-counter)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-white hover:opacity-90 "
+            className="hidden min-h-11 items-center gap-1.5 border border-[var(--wada-counter)] sm:flex bg-[var(--wada-counter)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-white hover:opacity-90 "
           >
             <FileText className="h-3 w-3" />
             <span lang="th"><span className="sm:hidden">สรุปผู้ว่าฯ</span><span className="hidden sm:inline">Brief ผู้ว่าฯ</span></span>
@@ -333,7 +335,7 @@ export default function CnxTopBar(props: TopBarProps) {
           </button>
           <details className="relative">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">เมนู</span><span className="hidden sm:inline">เครื่องมือ</span> <span aria-hidden="true">⌄</span></summary>
-            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--line)] bg-[var(--bg-raised)] p-3 shadow-xl"><button
+            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--line)] bg-[var(--bg-raised)] p-3 shadow-xl"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">สรุปสำหรับผู้ว่าฯ</button><button
             onClick={onOpenData}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >

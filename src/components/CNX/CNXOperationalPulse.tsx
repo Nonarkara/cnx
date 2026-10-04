@@ -33,10 +33,12 @@ export default function CnxOperationalPulse({ onOpenMetric, ...input }: Props) {
       const Icon = icons[metric.id];
       const concern = ["watch", "alert", "critical"].includes(metric.level);
       const observed = metric.observedAt ? Date.parse(metric.observedAt) : NaN;
-      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${metric.summaryTh} · ${metric.source}`} className="min-h-[72px] min-w-0 border-r border-[var(--line)] px-4 py-2 text-left transition-colors hover:bg-[var(--bg-surface)] sm:px-6">
-        <div className="flex items-center gap-2 text-[12px] text-[var(--dim)]"><Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${concern ? "text-[var(--sun)]" : "text-[var(--cool)]"}`} /><span lang="th">{metric.titleTh}</span>{metric.state !== "current" && <span className="ml-auto">{metric.state === "stale" ? "ข้อมูลเก่า" : "ยังไม่มีข้อมูล"}</span>}{concern && <span className="ml-auto text-[var(--ink)]">ติดตาม</span>}</div>
-        <div className="mt-1 flex flex-wrap items-baseline gap-x-2"><span className="font-mono text-[22px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[12px] text-[var(--dim)]">{metric.unit}</span></div>
-        <div className="mt-1 truncate text-[12px] text-[var(--dim)]">{metric.id === "water" ? metric.source : metric.id === "air" ? "สถานีภาคพื้นดิน" : metric.id === "fire" ? "NASA FIRMS · ไม่ใช่จำนวนไฟ" : "ADS-B · ในพื้นที่ติดตาม"}{Number.isFinite(observed) && <> · <time dateTime={metric.observedAt!}>{time.format(observed)} น.</time></>}</div>
+      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${metric.summaryTh} · ${metric.source}${Number.isFinite(observed) ? ` · ${time.format(observed)} น.` : ""}`} className="flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0 border-r border-[var(--line)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--bg-surface)]">
+        <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 self-center ${concern ? "text-[var(--sun)]" : "text-[var(--cool)]"}`} />
+        <span lang="th" className="text-[12px] text-[var(--dim)]">{metric.titleTh}</span>
+        <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metric.unit}</span>
+        {metric.state !== "current" && <span className="text-[11px] text-[var(--dim)]">{metric.state === "stale" ? "ข้อมูลเก่า" : "ยังไม่มีข้อมูล"}</span>}
+        <span className="sr-only">{metric.summaryTh} · {metric.source}{Number.isFinite(observed) && <> · <time dateTime={metric.observedAt!}>{time.format(observed)} น.</time></>}</span>
       </button>;
     })}
   </section>;

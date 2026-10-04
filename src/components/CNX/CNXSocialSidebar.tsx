@@ -171,7 +171,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
             const href = item.url && /^https?:\/\//i.test(item.url) ? item.url : null;
             return (
               <article
-                key={item.id}
+                key={`${item.id}:${item.url ?? ""}`}
                 className={`border-b border-l-2 ${sentimentBorder(item)} border-b-[var(--line)] px-3 py-2 transition-colors hover:bg-[var(--sun-dim)]`}
               >
                 <div className="flex items-center gap-1.5">

@@ -8,7 +8,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { LayoutDashboard, Map as MapIcon } from "lucide-react";
 
 import { buildScenarioUrl, fetchJsonOrNull } from "../../lib/client-requests";
 import type {
@@ -431,6 +430,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
     >
       <CnxTopBar
         compact={view === "overview"}
+        view={view}
+        onChangeView={setView}
         flood={flood}
         air={air}
         fires={fires}
@@ -455,17 +456,6 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
-      <nav aria-label="Dashboard views" className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--bg)] px-4 py-1 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-1">
-          <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")} className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold ${view === "map" ? "bg-[var(--cool-dim)] text-[var(--cool)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}>
-            <MapIcon className="h-4 w-4" aria-hidden="true" /> ห้องปฏิบัติการ <span className="hidden text-xs font-normal sm:inline">Operations map</span>
-          </button>
-          <button type="button" aria-pressed={view === "overview"} onClick={() => setView("overview")} className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-semibold ${view === "overview" ? "bg-[var(--cool-dim)] text-[var(--cool)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}>
-            <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> ภาพรวมจังหวัด <span className="hidden text-xs font-normal sm:inline">Executive overview</span>
-          </button>
-        </div>
-
-      </nav>
       {scenarioId && <p className="border-b border-[var(--line)] px-5 py-2 text-sm text-[var(--dim)]">มีบริบทสถานการณ์จำลอง · The executive overview excludes simulated readings.</p>}
       {view === "overview" ? (
         <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenHaze={() => setIsHazeOpen(true)} />
@@ -475,12 +465,12 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         setMobileTab(id === "water" ? "flood" : id === "mobility" ? "visitors" : id);
         if (!layout.desktop) document.getElementById("hazard-panels")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }} />
-      <CnxCctvStrip feed={cctv} />
+      <details className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
+        <summary className="flex min-h-11 cursor-pointer items-center gap-3 px-4 text-[12px] text-[var(--dim)]"><span className="font-semibold text-[var(--ink)]">กล้อง · CCTV</span><span>{cctv ? `${cctv.reachableCount}/${cctv.totalCount} แหล่งภาพตอบสนอง` : "กำลังตรวจสอบแหล่งภาพ"}</span><span className="ml-auto">เปิดภาพและเวลาถ่าย ⌄</span></summary>
+        <CnxCctvStrip feed={cctv} />
+      </details>
 
 
-      <a href="#hazard-panels" className="flex min-h-[44px] items-center justify-center border-y border-[var(--line)] px-3 text-sm font-semibold text-[var(--cool)] xl:hidden">
-        ดูค่าที่วัดได้ · View air, river &amp; fire readings ↓
-      </a>
 
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] xl:flex-1">
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,

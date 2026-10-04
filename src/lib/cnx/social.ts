@@ -239,9 +239,9 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
       }
     }
 
-    for (const a of gdelt.filter((x) => x.title && x.url && /^https?:\/\//i.test(x.url) && isoFromGdelt(x.seendate))) {
+    for (const a of gdelt.filter((x) => x.title && x.url && /^https?:\/\//i.test(x.url) && isoFromGdelt(x.seendate)).filter((a, i, rows) => rows.findIndex((row) => row.url === a.url) === i)) {
       items.push({
-        id: `gdelt-${a.url?.slice(-12)}`,
+        id: `gdelt-${a.url}`,
         source: "gdelt",
         lang: "en",
         title: a.title!,
@@ -359,8 +359,9 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
     const en = enFeed.text ? parseRss(enFeed.text).slice(0, 12) : [];
     const gdeltItems: SocialItem[] = gdeltResult.articles
       .filter((a) => a.title && a.url && /^https?:\/\//i.test(a.url) && isoFromGdelt(a.seendate))
-      .map((a, i) => ({
-        id: `gdelt-${a.url?.slice(-12)}-${i}`,
+      .filter((a, i, rows) => rows.findIndex((row) => row.url === a.url) === i)
+      .map((a) => ({
+        id: `gdelt-${a.url}`,
         source: "gdelt",
         lang: "en",
         title: a.title!,

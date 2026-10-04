@@ -35,3 +35,15 @@ it("skips undated, invalid-date and future news without inventing an observation
     expect(out.items.every((item) => item.title === "Actual")).toBe(true);
   }
 });
+
+it.each(["standard", "multilingual"])("%s keeps distinct articles with the same URL suffix and collapses repeat URLs", async (mode) => {
+  const one = { title: "First publisher", url: "https://one.test/news/chiang-rai/", seendate: "20261004T060000Z" };
+  const two = { title: "Second publisher", url: "https://two.test/news/chiang-rai/", seendate: "20261004T060000Z" };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("gdelt")
+    ? Response.json({ articles: [one, two, one] })
+    : new Response("<rss><channel></channel></rss>")));
+  const result = mode === "standard" ? await social.fetchCnxSocial() : await social.fetchCnxSocialMultilingual(["Japan"]);
+  expect(result.items).toHaveLength(2);
+  expect(new Set(result.items.map((item) => item.id)).size).toBe(2);
+  expect(new Set(result.items.map((item) => item.url))).toEqual(new Set([one.url, two.url]));
+});
