@@ -24,7 +24,9 @@ beforeEach(async () => {
   store.put.mockReset();
   vi.spyOn(Date, "now").mockReturnValue(NOW);
   social = await import("./social");
-});
+  // The first cold import after resetModules pulls in next/server; on a
+  // loaded machine that alone passed vitest's 10 s hook default.
+}, 30_000);
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("GDELT response validation", () => {

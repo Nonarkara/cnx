@@ -11,19 +11,22 @@
 // budget for 3-min polling from a single wall display.
 
 import type { SocialItem, SocialListeningResponse, FeedOutcome } from "../../types/cnx";
-import { GOOGLE_NEWS_EN, GOOGLE_NEWS_TH, MAX_FEED_BYTES, RELAYED_FEEDS, SOCIAL_RSS_KV_KEY } from "./social-feeds";
+import { GDELT_URL, GOOGLE_NEWS_EN, GOOGLE_NEWS_TH, MAX_FEED_BYTES, MAX_GDELT_BYTES, MULTILINGUAL_FEEDS, RELAYED_FEEDS, SOCIAL_RSS_KV_KEY } from "./social-feeds";
 import { isIsoDate, isObj, readRelayJson } from "./relay-kv";
 
 /** What scripts/social-relay.mjs pushes: raw RSS bodies keyed by feed URL. */
 export interface SocialRssPayload {
   generatedAt: string;
   feeds: Record<string, string>;
+  /** Raw GDELT ArtList JSON text, when the relay got one. */
+  gdelt?: string;
 }
 
 /** Only the known feeds, each a bounded RSS document. */
 export function isSocialRssPayload(v: unknown): v is SocialRssPayload {
   if (!isObj(v) || !isIsoDate(v.generatedAt) || !isObj(v.feeds)) return false;
   const entries = Object.entries(v.feeds);
+  if (v.gdelt !== undefined && (typeof v.gdelt !== "string" || v.gdelt.length > MAX_GDELT_BYTES)) return false;
   return (
     entries.length > 0 &&
     entries.every(
@@ -41,7 +44,6 @@ export function isSocialRssPayload(v: unknown): v is SocialRssPayload {
  */
 const RELAY_MAX_AGE_MS = 20 * 60_000;
 
-const GDELT = "https://api.gdeltproject.org/api/v2/doc/doc?query=%22Chiang+Mai%22%20OR%20%22เชียงใหม่%22%20sourcelang:english&mode=ArtList&maxrecords=25&format=json";
 
 interface ParsedRss {
   title: string;
@@ -76,18 +78,37 @@ interface GdeltArticle {
   socialimage?: string;
 }
 
-/** GDELT articles plus what actually happened — a failed request is not
- *  "ok, 0 articles". */
-async function fetchGdelt(): Promise<{ articles: GdeltArticle[]; outcome: FeedOutcome }> {
+/** Parse a GDELT ArtList body. Anything without an article list is a
+ *  failure, not "ok, 0 articles" — GDELT answers its rate limit with a
+ *  plain-text 200. */
+export function parseGdelt(text: string): { articles: GdeltArticle[]; outcome: FeedOutcome } {
+  let json: unknown;
   try {
-    const res = await fetch(GDELT, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(4000) });
+    json = JSON.parse(text);
+  } catch {
+    const hint = /limit requests/i.test(text) ? "rate-limited by GDELT" : "Invalid article response from GDELT";
+    return { articles: [], outcome: { state: "failed", detail: hint } };
+  }
+  if (!isObj(json) || !Array.isArray(json.articles)) {
+    return { articles: [], outcome: { state: "failed", detail: "Invalid article response from GDELT" } };
+  }
+  const articles: GdeltArticle[] = json.articles.filter(
+    (article) => isObj(article) && typeof article.title === "string" && typeof article.url === "string",
+  );
+  return { articles, outcome: { state: "ok", itemCount: articles.length } };
+}
+
+/** The relay's copy first (GDELT rate-limits and times out from Workers),
+ *  then a direct request. */
+async function fetchGdelt(relayed: SocialRssPayload | null = null): Promise<{ articles: GdeltArticle[]; outcome: FeedOutcome }> {
+  if (relayed?.gdelt) {
+    const fromRelay = parseGdelt(relayed.gdelt);
+    if (fromRelay.outcome.state === "ok") return fromRelay;
+  }
+  try {
+    const res = await fetch(GDELT_URL, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(4000) });
     if (!res.ok) return { articles: [], outcome: { state: "failed", detail: `HTTP ${res.status} from GDELT` } };
-    const json: unknown = await res.json();
-    if (!isObj(json) || !Array.isArray(json.articles)) {
-      return { articles: [], outcome: { state: "failed", detail: "Invalid article response from GDELT" } };
-    }
-    const articles: GdeltArticle[] = json.articles.filter((article) => article && typeof article.title === "string" && typeof article.url === "string");
-    return { articles, outcome: { state: "ok", itemCount: articles.length } };
+    return parseGdelt(await res.text());
   } catch (e) {
     const name = e instanceof Error ? e.name : "Error";
     return { articles: [], outcome: { state: "failed", detail: name === "TimeoutError" || name === "AbortError" ? "timed out after 4000 ms" : String(e) } };
@@ -114,20 +135,6 @@ let cache: { at: number; data: SocialListeningResponse } | null = null;
 // Only the eight configured countries participate in keys: at most 256 subsets.
 const multilingualCache = new Map<string, { at: number; data: SocialListeningResponse }>();
 const TTL_MS = 3 * 60_000;
-
-/** Per-language Google News feeds, keyed by tourist-origin country. The
- *  flight desk drives which of these are subscribed at any moment —
- *  see fetchCnxSocialMultilingual(). */
-const MULTILINGUAL_FEEDS: { lang: SocialItem["lang"]; country: string; url: string }[] = [
-  { lang: "zh", country: "China", url: "https://news.google.com/rss/search?q=%E6%B8%85%E8%BF%AA&hl=zh-CN&gl=CN" },
-  { lang: "ja", country: "Japan", url: "https://news.google.com/rss/search?q=%E3%83%81%E3%82%A2%E3%83%B3%E3%83%9E%E3%82%A4&hl=ja&gl=JP" },
-  { lang: "ko", country: "Korea", url: "https://news.google.com/rss/search?q=%EC%B2%9C%EC%9D%B4%EB%A7%88%EC%9D%B4&hl=ko&gl=KR" },
-  { lang: "ru", country: "Russia", url: "https://news.google.com/rss/search?q=%D0%A7%D0%B8%D0%B0%D0%BD%D0%B3-%D0%9C%D0%B0%D0%B8&hl=ru&gl=RU" },
-  { lang: "de", country: "Germany", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=de&gl=DE" },
-  { lang: "fr", country: "France", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=fr&gl=FR" },
-  { lang: "en", country: "India", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=en-IN&gl=IN" },
-  { lang: "en", country: "Australia", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=en-AU&gl=AU" },
-];
 
 /** Origin-country names as other modules write them (airports.ts says
  *  "South Korea", adsb-lol.ts "Republic of Korea", OpenSky "Russian
@@ -175,7 +182,7 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
           }),
         )
       ),
-      fetchGdelt(),
+      fetchGdelt(relayed),
     ]);
 
     const items: SocialItem[] = [];
@@ -341,7 +348,7 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
     const [thFeed, enFeed, gdeltResult] = await Promise.all([
       fetchRssFeed(GOOGLE_NEWS_TH, 6_000, relayed),
       fetchRssFeed(GOOGLE_NEWS_EN, 6_000, relayed),
-      fetchGdelt(),
+      fetchGdelt(relayed),
     ]);
 
     const th = thFeed.text ? parseRss(thFeed.text).slice(0, 12) : [];
