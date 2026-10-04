@@ -16,7 +16,7 @@ describe("published release identity", () => {
 describe("release route inventory", () => {
   it("includes previously omitted routes and required-query probes", () => {
     const routes = discoverRoutes();
-    for (const [route, status] of [["aeronet", 200], ["ask", 400], ["aircraft", 400], ["river-level/ingest", 405]] as const) {
+    for (const [route, status] of [["aeronet", 200], ["ask", 400], ["aircraft", 400], ["burnscar", 400], ["river-level/ingest", 405]] as const) {
       expect(routes.find((r) => r.route === route)?.status).toBe(status);
     }
     expect(new Set(routes.map((r) => r.route)).size).toBe(routes.length);

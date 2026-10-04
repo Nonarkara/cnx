@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const REQUIRED_QUERY = new Set(["aircraft", "ask"]);
+const REQUIRED_QUERY = new Set(["aircraft", "ask", "burnscar"]);
 
 /** A release must be recoverable from the published branch, not only local Git. */
 export function checkPublishedHead(head, publishedHead) {
