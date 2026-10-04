@@ -23,6 +23,7 @@
 // the raw coordinate array as `geometry` and MapLibre silently
 // rejected the source, so the 3D layer never rendered.
 
+import { clampView } from "../../lib/cnx/map-bounds";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CameraHaze } from "../../lib/cnx/haze-vision";
@@ -1131,7 +1132,8 @@ export default function CNXMap({
           // deck.gl types `viewState` directly on the params; pull and merge
           // into local state so React re-renders the deck.gl view-port.
           const vs = e.viewState as Partial<MapViewState> | undefined;
-          if (vs) setViewState((prev) => ({ ...prev, ...vs }));
+          // Clamp to ~100 km around Chiang Mai (lib/cnx/map-bounds.ts).
+          if (vs) setViewState((prev) => clampView({ ...prev, ...vs }));
         }}
         layers={[
           ...layers,

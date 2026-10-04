@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { runHazeVision } from "./haze-vision.mjs";
 import { runCitizenReports } from "./citizen-reports.mjs";
+import { runSocialRelay } from "./social-relay.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 loadEnvFile(new URL("relay-flights.env", `file://${HERE}`).pathname);
@@ -439,6 +440,7 @@ async function tick() {
   void warmVisitorArchive();
   void runHazeVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
+  void runSocialRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   const snapshot = await buildSnapshot();
   if (!snapshot) {
     console.warn("[relay] both upstreams failed this tick, not writing (Worker keeps its last-known snapshot)");

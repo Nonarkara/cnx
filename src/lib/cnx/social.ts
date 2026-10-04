@@ -11,9 +11,30 @@
 // budget for 3-min polling from a single wall display.
 
 import type { SocialItem, SocialListeningResponse, FeedOutcome } from "../../types/cnx";
+import { GOOGLE_NEWS_EN, GOOGLE_NEWS_TH, MAX_FEED_BYTES, RELAYED_FEEDS, SOCIAL_RSS_KV_KEY } from "./social-feeds";
+import { isIsoDate, isObj, readRelayJson } from "./relay-kv";
 
-const GOOGLE_NEWS_TH = "https://news.google.com/rss/search?q=%E0%B9%80%E0%B8%8A%E0%B8%B5%E0%B8%A2%E0%B8%87%E0%B9%83%E0%B8%AB%E0%B8%A1%E0%B9%88&hl=th";
-const GOOGLE_NEWS_EN = "https://news.google.com/rss/search?q=Chiang+Mai+OR+%22Chiang+Mai%22&hl=en&gl=US";
+/** What scripts/social-relay.mjs pushes: raw RSS bodies keyed by feed URL. */
+export interface SocialRssPayload {
+  generatedAt: string;
+  feeds: Record<string, string>;
+}
+
+/** Only the known feeds, each a bounded RSS document. */
+export function isSocialRssPayload(v: unknown): v is SocialRssPayload {
+  if (!isObj(v) || !isIsoDate(v.generatedAt) || !isObj(v.feeds)) return false;
+  const entries = Object.entries(v.feeds);
+  return (
+    entries.length > 0 &&
+    entries.every(
+      ([url, body]) => RELAYED_FEEDS.includes(url) && typeof body === "string" && body.length <= MAX_FEED_BYTES && body.includes("<rss"),
+    )
+  );
+}
+
+/** The relay's copy is used for up to 30 min (it refreshes every 10). */
+const RELAY_MAX_AGE_MS = 30 * 60_000;
+
 const GDELT = "https://api.gdeltproject.org/api/v2/doc/doc?query=%22Chiang+Mai%22%20OR%20%22เชียงใหม่%22%20sourcelang:english&mode=ArtList&maxrecords=25&format=json";
 
 interface ParsedRss {
@@ -115,10 +136,11 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
     ];
     for (const f of selected) feeds.push({ url: f.url, lang: f.lang });
 
+    const relayed = await readRelayJson(SOCIAL_RSS_KV_KEY, RELAY_MAX_AGE_MS, isSocialRssPayload);
     const [rssResults, gdelt] = await Promise.all([
       Promise.allSettled(
         feeds.map((f) =>
-          fetchRssFeed(f.url).then((r) => {
+          fetchRssFeed(f.url, 6_000, relayed).then((r) => {
             if (r.text === null) throw new Error(r.outcome.state === "failed" ? r.outcome.detail : "empty");
             return r.text;
           }),
@@ -224,7 +246,13 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
  * them apart, which is how a total upstream block rendered on the board
  * as an ordinary empty rail.
  */
-async function fetchRssFeed(url: string, timeoutMs = 6_000): Promise<{ text: string | null; outcome: FeedOutcome }> {
+async function fetchRssFeed(
+  url: string,
+  timeoutMs = 6_000,
+  relayed: SocialRssPayload | null = null,
+): Promise<{ text: string | null; outcome: FeedOutcome }> {
+  const copy = relayed?.feeds[url];
+  if (copy) return { text: copy, outcome: { state: "ok", itemCount: (copy.match(/<item>/g) ?? []).length } };
   try {
     const res = await fetch(url, {
       headers: { Accept: "application/rss+xml", "User-Agent": "cnx-dashboard/1.0" },
@@ -273,9 +301,10 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
   const now = new Date().toISOString();
 
   try {
+    const relayed = await readRelayJson(SOCIAL_RSS_KV_KEY, RELAY_MAX_AGE_MS, isSocialRssPayload);
     const [thFeed, enFeed, gdelt] = await Promise.all([
-      fetchRssFeed(GOOGLE_NEWS_TH),
-      fetchRssFeed(GOOGLE_NEWS_EN),
+      fetchRssFeed(GOOGLE_NEWS_TH, 6_000, relayed),
+      fetchRssFeed(GOOGLE_NEWS_EN, 6_000, relayed),
       fetchGdelt(),
     ]);
 
