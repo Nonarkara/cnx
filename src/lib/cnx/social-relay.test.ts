@@ -75,3 +75,14 @@ describe("tourist-language search terms", () => {
     expect(q).toMatchObject({ China: "清迈", Japan: "チェンマイ", Korea: "치앙마이", Russia: "Чиангмай" });
   });
 });
+
+describe("GDELT query", () => {
+  it("wraps OR'd terms in parentheses and asks for recent articles first", async () => {
+    const { GDELT_URL } = await import("./social-feeds");
+    const u = new URL(GDELT_URL);
+    expect(u.searchParams.get("query")).toBe('("Chiang Mai" OR "เชียงใหม่") sourcelang:english');
+    expect(u.searchParams.get("sort")).toBe("datedesc");
+    expect(u.searchParams.get("timespan")).toBe("7d");
+    expect(u.searchParams.get("format")).toBe("json");
+  });
+});

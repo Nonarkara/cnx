@@ -31,8 +31,18 @@ export const MULTILINGUAL_FEEDS: readonly { lang: FeedLang; country: string; url
 
 export const RELAYED_FEEDS: readonly string[] = [GOOGLE_NEWS_TH, GOOGLE_NEWS_EN, ...MULTILINGUAL_FEEDS.map((f) => f.url)];
 
+/**
+ * GDELT DOC 2.0 query. OR'd terms must be wrapped in parentheses — without
+ * them GDELT answers HTTP 200 with the plain-text error "Queries containing
+ * OR'd terms must be surrounded by ()", which the old query got on every
+ * request (seen 2026-10-04, once the rate limit let a request through). With
+ * them it returns 25 articles; timespan + datedesc keep them recent instead
+ * of the most "relevant" from the last three months.
+ */
 export const GDELT_URL =
-  "https://api.gdeltproject.org/api/v2/doc/doc?query=%22Chiang+Mai%22%20OR%20%22เชียงใหม่%22%20sourcelang:english&mode=ArtList&maxrecords=25&format=json";
+  "https://api.gdeltproject.org/api/v2/doc/doc?query=" +
+  encodeURIComponent('("Chiang Mai" OR "เชียงใหม่") sourcelang:english') +
+  "&mode=ArtList&maxrecords=25&timespan=7d&sort=datedesc&format=json";
 
 export const SOCIAL_RSS_KV_KEY = "social-rss-latest";
 /** Largest single feed body accepted from the relay. Feeds are trimmed to

@@ -86,7 +86,11 @@ export function parseGdelt(text: string): { articles: GdeltArticle[]; outcome: F
   try {
     json = JSON.parse(text);
   } catch {
-    const hint = /limit requests/i.test(text) ? "rate-limited by GDELT" : "Invalid article response from GDELT";
+    const hint = /limit requests/i.test(text)
+      ? "rate-limited by GDELT"
+      : /OR'd terms/i.test(text)
+        ? "GDELT rejected the query syntax"
+        : "Invalid article response from GDELT";
     return { articles: [], outcome: { state: "failed", detail: hint } };
   }
   if (!isObj(json) || !Array.isArray(json.articles)) {
