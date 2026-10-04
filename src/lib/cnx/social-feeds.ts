@@ -13,12 +13,16 @@ export const GOOGLE_NEWS_TH =
 export const GOOGLE_NEWS_EN = "https://news.google.com/rss/search?q=Chiang+Mai+OR+%22Chiang+Mai%22&hl=en&gl=US";
 
 /** Per-language Google News feeds, keyed by tourist-origin country. The
- *  flight desk decides which are shown — see fetchCnxSocialMultilingual(). */
+ *  flight desk decides which are shown — see fetchCnxSocialMultilingual().
+ *  Search terms are the names each press actually uses (checked against
+ *  Google News 2026-10-04, relevant stories in the top 20): 清迈 (was 清迪,
+ *  1/20 — "迪" matched Rolex Daytona and Fendi), チェンマイ (was チアンマイ),
+ *  치앙마이 (was 천이마이, 0/20), Чиангмай (was Чианг-Маи, 4/20). */
 export const MULTILINGUAL_FEEDS: readonly { lang: FeedLang; country: string; url: string }[] = [
-  { lang: "zh", country: "China", url: "https://news.google.com/rss/search?q=%E6%B8%85%E8%BF%AA&hl=zh-CN&gl=CN" },
-  { lang: "ja", country: "Japan", url: "https://news.google.com/rss/search?q=%E3%83%81%E3%82%A2%E3%83%B3%E3%83%9E%E3%82%A4&hl=ja&gl=JP" },
-  { lang: "ko", country: "Korea", url: "https://news.google.com/rss/search?q=%EC%B2%9C%EC%9D%B4%EB%A7%88%EC%9D%B4&hl=ko&gl=KR" },
-  { lang: "ru", country: "Russia", url: "https://news.google.com/rss/search?q=%D0%A7%D0%B8%D0%B0%D0%BD%D0%B3-%D0%9C%D0%B0%D0%B8&hl=ru&gl=RU" },
+  { lang: "zh", country: "China", url: "https://news.google.com/rss/search?q=%E6%B8%85%E8%BF%88&hl=zh-CN&gl=CN" },
+  { lang: "ja", country: "Japan", url: "https://news.google.com/rss/search?q=%E3%83%81%E3%82%A7%E3%83%B3%E3%83%9E%E3%82%A4&hl=ja&gl=JP" },
+  { lang: "ko", country: "Korea", url: "https://news.google.com/rss/search?q=%EC%B9%98%EC%95%99%EB%A7%88%EC%9D%B4&hl=ko&gl=KR" },
+  { lang: "ru", country: "Russia", url: "https://news.google.com/rss/search?q=%D0%A7%D0%B8%D0%B0%D0%BD%D0%B3%D0%BC%D0%B0%D0%B9&hl=ru&gl=RU" },
   { lang: "de", country: "Germany", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=de&gl=DE" },
   { lang: "fr", country: "France", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=fr&gl=FR" },
   { lang: "en", country: "India", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=en-IN&gl=IN" },

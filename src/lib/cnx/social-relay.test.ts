@@ -67,3 +67,11 @@ describe("isSocialRssPayload — GDELT copy", () => {
     expect(isSocialRssPayload({ ...base, gdelt: "x".repeat(300_000) })).toBe(false);
   });
 });
+
+describe("tourist-language search terms", () => {
+  it("search for the name each press uses for Chiang Mai", async () => {
+    const { MULTILINGUAL_FEEDS } = await import("./social-feeds");
+    const q = Object.fromEntries(MULTILINGUAL_FEEDS.map((f) => [f.country, new URL(f.url).searchParams.get("q")]));
+    expect(q).toMatchObject({ China: "清迈", Japan: "チェンマイ", Korea: "치앙마이", Russia: "Чиангмай" });
+  });
+});
