@@ -22,6 +22,12 @@ describe("clampView", () => {
     expect(km(east)).toBeCloseTo(100, 0);
   });
 
+  it("is a circle: a corner drag stops at 100 km, not ~141 km", () => {
+    const corner = clampView({ longitude: MAP_CENTER.longitude + 5, latitude: MAP_CENTER.latitude + 5, zoom: 12 });
+    expect(km(corner)).toBeLessThanOrEqual(100.5);
+    expect(km(corner)).toBeGreaterThan(99);
+  });
+
   it("will not zoom out to the whole world", () => {
     expect(clampView({ longitude: 98.99, latitude: 18.8, zoom: 2 }).zoom).toBe(MIN_ZOOM);
   });

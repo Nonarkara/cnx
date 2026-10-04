@@ -32,8 +32,14 @@ export function isSocialRssPayload(v: unknown): v is SocialRssPayload {
   );
 }
 
-/** The relay's copy is used for up to 30 min (it refreshes every 10). */
-const RELAY_MAX_AGE_MS = 30 * 60_000;
+/**
+ * How old the relay's copy may be. The relay refreshes every 10 min; on top
+ * of this age the response can sit in the in-process cache (TTL_MS, 3 min)
+ * and at the edge (s-maxage 120 + stale-while-revalidate 180 = 5 min), so
+ * 20 + 3 + 5 budgets the relay copy's collection age below 30 min.
+ * Headline publication times are separate and can be older.
+ */
+const RELAY_MAX_AGE_MS = 20 * 60_000;
 
 const GDELT = "https://api.gdeltproject.org/api/v2/doc/doc?query=%22Chiang+Mai%22%20OR%20%22เชียงใหม่%22%20sourcelang:english&mode=ArtList&maxrecords=25&format=json";
 
@@ -70,16 +76,21 @@ interface GdeltArticle {
   socialimage?: string;
 }
 
-async function fetchGdelt(): Promise<GdeltArticle[]> {
+/** GDELT articles plus what actually happened — a failed request is not
+ *  "ok, 0 articles". */
+async function fetchGdelt(): Promise<{ articles: GdeltArticle[]; outcome: FeedOutcome }> {
   try {
     const res = await fetch(GDELT, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(4000) });
-    if (!res.ok) return [];
-    const json = (await res.json()) as { articles?: GdeltArticle[] };
-    return Array.isArray(json.articles)
-      ? json.articles.filter((article) => article && typeof article.title === "string" && typeof article.url === "string")
-      : [];
-  } catch {
-    return [];
+    if (!res.ok) return { articles: [], outcome: { state: "failed", detail: `HTTP ${res.status} from GDELT` } };
+    const json: unknown = await res.json();
+    if (!isObj(json) || !Array.isArray(json.articles)) {
+      return { articles: [], outcome: { state: "failed", detail: "Invalid article response from GDELT" } };
+    }
+    const articles: GdeltArticle[] = json.articles.filter((article) => article && typeof article.title === "string" && typeof article.url === "string");
+    return { articles, outcome: { state: "ok", itemCount: articles.length } };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "Error";
+    return { articles: [], outcome: { state: "failed", detail: name === "TimeoutError" || name === "AbortError" ? "timed out after 4000 ms" : String(e) } };
   }
 }
 
@@ -118,26 +129,44 @@ const MULTILINGUAL_FEEDS: { lang: SocialItem["lang"]; country: string; url: stri
   { lang: "en", country: "Australia", url: "https://news.google.com/rss/search?q=Chiang+Mai&hl=en-AU&gl=AU" },
 ];
 
+/** Origin-country names as other modules write them (airports.ts says
+ *  "South Korea", adsb-lol.ts "Republic of Korea", OpenSky "Russian
+ *  Federation") → the feed list's names. Without this, Korean and Russian
+ *  visitors never selected their feed. */
+const COUNTRY_ALIASES: Record<string, string> = {
+  "south korea": "korea",
+  "republic of korea": "korea",
+  "korea, republic of": "korea",
+  "russian federation": "russia",
+  "people's republic of china": "china",
+  "china, people's republic of": "china",
+};
+
+export function normaliseCountry(name: string): string {
+  const n = name.trim().toLowerCase();
+  return COUNTRY_ALIASES[n] ?? n;
+}
+
 /** Multilingual social: subscribes to per-language Google News feeds
  *  for the given top-N countries. Used when the flight desk's top
  *  origin countries include CN / JP / KR / RU / DE / FR / IN / AU. */
 export async function fetchCnxSocialMultilingual(countries: string[] = []): Promise<SocialListeningResponse> {
-  const wanted = new Set(countries.map((c) => c.trim().toLowerCase()));
-  const selected = MULTILINGUAL_FEEDS.filter((f) => countries.length === 0 || wanted.has(f.country.toLowerCase()));
+  const wanted = new Set(countries.map(normaliseCountry));
+  const selected = MULTILINGUAL_FEEDS.filter((f) => countries.length === 0 || wanted.has(normaliseCountry(f.country)));
   const key = selected.map((f) => f.country).sort().join(",");
   const cached = multilingualCache.get(key);
   if (cached && Date.now() - cached.at < TTL_MS) return cached.data;
   const now = new Date().toISOString();
 
   try {
-    const feeds: { url: string; lang: SocialItem["lang"] }[] = [
-      { url: GOOGLE_NEWS_TH, lang: "th" },
-      { url: GOOGLE_NEWS_EN, lang: "en" },
+    const feeds: { url: string; lang: SocialItem["lang"]; country: string | null }[] = [
+      { url: GOOGLE_NEWS_TH, lang: "th", country: null },
+      { url: GOOGLE_NEWS_EN, lang: "en", country: null },
+      ...selected.map((f) => ({ url: f.url, lang: f.lang, country: f.country })),
     ];
-    for (const f of selected) feeds.push({ url: f.url, lang: f.lang });
 
     const relayed = await readRelayJson(SOCIAL_RSS_KV_KEY, RELAY_MAX_AGE_MS, isSocialRssPayload);
-    const [rssResults, gdelt] = await Promise.all([
+    const [rssResults, gdeltResult] = await Promise.all([
       Promise.allSettled(
         feeds.map((f) =>
           fetchRssFeed(f.url, 6_000, relayed).then((r) => {
@@ -155,10 +184,20 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
     // a feed that answers records how many items it actually had, so a
     // feed that returns 200 with nothing is distinguishable from one that
     // was never reached.
+    const gdelt = gdeltResult.articles;
+    const multilingual: Record<string, FeedOutcome> = {};
     const sources: SocialListeningResponse["sources"] = {
       googleNewsTh: { state: "ok", itemCount: 0 },
       googleNewsEn: { state: "ok", itemCount: 0 },
-      gdelt: { state: "ok", itemCount: 0 },
+      gdelt: gdeltResult.outcome,
+      multilingual,
+    };
+    // Each outcome goes to its own slot: the Indian and Australian feeds are
+    // also English, and used to overwrite the main English feed's status.
+    const record = (meta: (typeof feeds)[number], outcome: FeedOutcome) => {
+      if (meta.country) multilingual[meta.country] = outcome;
+      else if (meta.url === GOOGLE_NEWS_TH) sources.googleNewsTh = outcome;
+      else sources.googleNewsEn = outcome;
     };
     for (let i = 0; i < feeds.length; i++) {
       const settled = rssResults[i];
@@ -167,15 +206,12 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
         // Name the refusal. Three different things can happen here and
         // the rail must not render all of them as "no news".
         const why = settled && settled.status === "rejected" ? String(settled.reason?.message ?? settled.reason) : "no response";
-        const failed: FeedOutcome = { state: "failed", detail: why };
-        if (meta.lang === "th") sources.googleNewsTh = failed;
-        else if (meta.lang === "en") sources.googleNewsEn = failed;
+        record(meta, { state: "failed", detail: why });
         continue;
       }
       try {
         const parsed = parseRss(settled.value).slice(0, 8);
-        if (meta.lang === "th") sources.googleNewsTh = { state: "ok", itemCount: parsed.length };
-        else if (meta.lang === "en") sources.googleNewsEn = { state: "ok", itemCount: parsed.length };
+        record(meta, { state: "ok", itemCount: parsed.length });
         for (const r of parsed) {
           items.push({
             id: `gn-${meta.lang}-${i}-${r.link.slice(-12)}`,
@@ -206,7 +242,6 @@ export async function fetchCnxSocialMultilingual(countries: string[] = []): Prom
     }
 
     items.sort((a, b) => (b.publishedAt > a.publishedAt ? 1 : -1));
-    sources.gdelt = { state: "ok", itemCount: gdelt.length };
     const unavailableReason = socialUnavailableReason(sources);
     const response: SocialListeningResponse = {
       generatedAt: now,
@@ -283,7 +318,8 @@ async function fetchRssFeed(
 
 /** Turn per-source outcomes into the operator-facing reason. */
 function socialUnavailableReason(sources: SocialListeningResponse["sources"]): string | null {
-  const failed = Object.entries(sources).filter(([, o]) => o.state === "failed");
+  const { multilingual = {}, ...core } = sources;
+  const failed = [...Object.entries(core), ...Object.entries(multilingual)].filter(([, o]) => o.state === "failed");
   if (failed.length === 0) return null;
   const names: Record<string, string> = {
     googleNewsTh: "Google News (Thai)",
@@ -291,7 +327,7 @@ function socialUnavailableReason(sources: SocialListeningResponse["sources"]): s
     gdelt: "GDELT",
   };
   const detail = failed
-    .map(([k, o]) => `${names[k] ?? k}: ${o.state === "failed" ? o.detail : "?"}`)
+    .map(([k, o]) => `${names[k] ?? `Google News (${k})`}: ${o.state === "failed" ? o.detail : "?"}`)
     .join("; ");
   return `Could not read the news feeds — ${detail}. This is a read failure, not an absence of news.`;
 }
@@ -302,7 +338,7 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
 
   try {
     const relayed = await readRelayJson(SOCIAL_RSS_KV_KEY, RELAY_MAX_AGE_MS, isSocialRssPayload);
-    const [thFeed, enFeed, gdelt] = await Promise.all([
+    const [thFeed, enFeed, gdeltResult] = await Promise.all([
       fetchRssFeed(GOOGLE_NEWS_TH, 6_000, relayed),
       fetchRssFeed(GOOGLE_NEWS_EN, 6_000, relayed),
       fetchGdelt(),
@@ -310,7 +346,7 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
 
     const th = thFeed.text ? parseRss(thFeed.text).slice(0, 12) : [];
     const en = enFeed.text ? parseRss(enFeed.text).slice(0, 12) : [];
-    const gdeltItems: SocialItem[] = gdelt
+    const gdeltItems: SocialItem[] = gdeltResult.articles
       .filter((a) => a.title && a.url && /^https?:\/\//i.test(a.url) && isoFromGdelt(a.seendate))
       .map((a, i) => ({
         id: `gdelt-${a.url?.slice(-12)}-${i}`,
@@ -350,7 +386,7 @@ export async function fetchCnxSocial(): Promise<SocialListeningResponse> {
     const sources: SocialListeningResponse["sources"] = {
       googleNewsTh: thFeed.outcome,
       googleNewsEn: enFeed.outcome,
-      gdelt: { state: "ok", itemCount: gdeltItems.length },
+      gdelt: gdeltResult.outcome,
     };
     const unavailableReason = socialUnavailableReason(sources);
     const response: SocialListeningResponse = {

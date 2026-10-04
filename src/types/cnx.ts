@@ -132,6 +132,9 @@ export interface SocialListeningResponse {
     googleNewsTh: FeedOutcome;
     googleNewsEn: FeedOutcome;
     gdelt: FeedOutcome;
+    /** Per-country tourist-language feeds (multilingual mode), so a failed
+     *  Korean or Chinese feed is reported instead of silently dropped. */
+    multilingual?: Record<string, FeedOutcome>;
   };
 }
 

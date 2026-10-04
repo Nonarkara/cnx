@@ -122,6 +122,13 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
         ))}
       </div>
 
+      {data && data.items.length > 0 && data.unavailableReason && (
+        <details className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[#f59e0b]">
+          <summary className="cursor-pointer">Some news sources are unavailable · แหล่งข่าวบางแห่งไม่พร้อมใช้งาน</summary>
+          <p className="mt-1 text-[var(--dim)]">{data.unavailableReason}</p>
+        </details>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!data && refreshFailed ? (
           <p role="status" className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">News feed unavailable. Retrying on the next refresh.</p>
