@@ -296,6 +296,13 @@ export interface VerdictInputs {
   smoke_near_cnx?: number | null;
   smoke_origin_th?: string | null;
   smoke_origin_en?: string | null;
+  /**
+   * MEASURED 24 h rainfall at ThaiWater gauges (rain.ts), independent of
+   * the scenario flood module — like `ping_measured`, it speaks for itself.
+   * Flash floods in the hill districts start as rain on slopes far from
+   * any river gauge, so this can raise the card while P.1 is calm.
+   */
+  rain_measured?: { maxMm: number; districtTh: string; districtEn: string; heavyGauges: number } | null;
 }
 
 const EMPTY_CARD: VerdictCard = {
@@ -476,6 +483,21 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
         evidence: `rain_24h=${input.rain_now_24h_mm}`,
       });
     }
+  }
+
+  // ─── Measured rain (gauges) ─────────────────────────────────
+  // TMD classes: heavy 35.1–90, very heavy ≥ 90.1 mm / 24 h. Very heavy
+  // rain alone reaches "watch" (25); heavy rain is a stated reason.
+  const rainMeasured = input.rain_measured ?? null;
+  if (rainMeasured && rainMeasured.maxMm >= 35.1) {
+    const veryHeavy = rainMeasured.maxMm >= 90.1;
+    floodScore += veryHeavy ? 25 : 10;
+    reasons.push({
+      domain: "flood",
+      th: `${veryHeavy ? "ฝนหนักมาก" : "ฝนหนัก"} ${rainMeasured.maxMm} มม. ใน 24 ชม. ที่ อ.${rainMeasured.districtTh} (${rainMeasured.heavyGauges} สถานีฝนหนักขึ้นไป) — เฝ้าระวังน้ำป่าไหลหลาก/ดินถล่มในพื้นที่ลาดชัน`,
+      en: `${veryHeavy ? "Very heavy" : "Heavy"} rain ${rainMeasured.maxMm} mm in 24 h at ${rainMeasured.districtEn} (${rainMeasured.heavyGauges} gauges heavy or worse) — watch for flash floods and landslides on slopes`,
+      evidence: `rain_gauge_max=${rainMeasured.maxMm}`,
+    });
   }
 
   // ─── Air contribution (0–40) — mountain-basin trap weighting ─

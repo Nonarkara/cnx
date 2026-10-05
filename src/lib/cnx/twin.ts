@@ -21,6 +21,7 @@ import { fetchCnxFlood } from "./flood";
 import { fetchCnxAirQuality } from "./air-quality";
 import { fetchCnxFires } from "./fires";
 import { fetchCnxDustboy } from "./dustboy";
+import { fetchCnxRain } from "./rain";
 import { fetchSmokeTrajectory } from "./smoke-feed";
 import { fetchRiverLevel, isPingMainstem, type RiverGauge } from "./river-level";
 import { computeVerdict, isCurrentGaugeReading, type VerdictCard, type VerdictInputs, type PingMeasured } from "./verdict";
@@ -205,7 +206,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
 
   // Gather in parallel — the slowest upstream dictates wall-clock latency.
-  const [flood, air, fires, wind, pm25_fc, rain_fc_24h_mm_from_air, dustboy, smoke, river] = await Promise.all([
+  const [flood, air, fires, wind, pm25_fc, rain_fc_24h_mm_from_air, dustboy, smoke, river, rainGauges] = await Promise.all([
     fetchCnxFlood(),
     fetchCnxAirQuality(),
     fetchCnxFires(),
@@ -215,7 +216,12 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     fetchCnxDustboy(),
     fetchSmokeTrajectory(),
     fetchRiverLevel(),
+    fetchCnxRain(),
   ]);
+  const wettest = rainGauges.provenance === "live" ? rainGauges.districts[0] : undefined;
+  const rainMeasured = wettest
+    ? { maxMm: wettest.max, districtTh: wettest.th, districtEn: wettest.en, heavyGauges: rainGauges.bands.heavy + rainGauges.bands["very-heavy"] }
+    : null;
 
   const pm25_now = air.provinceAvgPm25 ?? null;
   const pingCapacity = flood.pingCapacityFraction ?? null;
@@ -232,7 +238,8 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     0,
   ) || null;
   const firesAreLive = fires.provenance === "live";
-  const fireCount = firesAreLive ? fires.totalCount : null;
+  // Inside the province: the FIRMS box also spans neighbouring provinces.
+  const fireCount = firesAreLive ? (fires.provinceCount ?? fires.totalCount) : null;
   const forestShare = firesAreLive ? (fires.forestShare ?? null) : null;
   const dustboyPm =
     dustboy.provenance === "live" ? dustboy.basin.chiangMai.avgPm25 : null;
@@ -306,6 +313,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
         : "scenario";
 
   const verdictInputs: VerdictInputs = {
+    rain_measured: rainMeasured,
     pm25_now,
     pm25_fc_24h: pm25_fc,
     rain_fc_24h_mm: rain_fc_24h_mm_from_air,

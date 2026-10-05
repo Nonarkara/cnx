@@ -48,17 +48,18 @@ describe("computeTrajectories — advection math", () => {
     expect(seg.travelKm6h).toBeLessThan(220);
   });
 
-  it("east wind (from 90°) pushes a Myanmar hotspot west into CNX bbox", () => {
-    // Myanmar Shan state — east wind (fromDeg=90) blows plume west toward CNX.
-    // 30 km/h × 6 h = 180 km west. From (20.0, 99.5) → (20.0, 97.8).
-    // 97.8 is inside CNX bbox (west=97.5), so hitsCnxBbox should fire.
-    const r = computeTrajectories(
-      [{ id: "mmr-1", latitude: 20.0, longitude: 99.5, frp: 25 }],
-      { speedKmh: 30, fromDirectionDeg: 90 },
-    );
-    const six = r.segments[0].points[r.segments[0].points.length - 1];
+  it("counts a plume as entering the province only if it ends inside Chiang Mai, not just the query box", () => {
+    // 30 km/h × 6 h = 180 km west. From (20.0, 99.5) the plume ends near
+    // (20.0, 97.8) — inside the old rectangular box (west 97.5) but in Mae
+    // Hong Son, outside Chiang Mai. This test used to assert it counted.
+    const out = computeTrajectories([{ id: "mmr-1", latitude: 20.0, longitude: 99.5, frp: 25 }], { speedKmh: 30, fromDirectionDeg: 90 });
+    const six = out.segments[0].points[out.segments[0].points.length - 1];
     expect(six.longitude).toBeLessThan(99.5);
-    expect(r.segments[0].hitsCnxBbox || r.segments[0].nearCnx).toBe(true);
+    expect(out.segments[0].hitsCnxBbox).toBe(false);
+    // From Chiang Rai/Phayao (19.4, 100.6) the same wind carries smoke over
+    // Chiang Dao (~98.9 °E) — inside the province.
+    const into = computeTrajectories([{ id: "cri-1", latitude: 19.4, longitude: 100.6, frp: 25 }], { speedKmh: 30, fromDirectionDeg: 90 });
+    expect(into.segments[0].hitsCnxBbox).toBe(true);
   });
 
   it("flags hitsCnxBbox when a 6 h endpoint falls inside the CNX bbox", () => {

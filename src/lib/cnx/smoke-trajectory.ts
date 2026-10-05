@@ -45,6 +45,7 @@
 //     = "any trajectory segment endpoint falls within CNX bbox"
 
 import { CNX_PROVINCE } from "./config";
+import { inChiangMaiProvince } from "./province-boundary";
 
 export interface HotspotPoint {
   id: string;
@@ -193,11 +194,13 @@ function distKm(
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
+/** Inside the Chiang Mai province outline. Every consumer reports this as
+ *  "enters the province"; it used to be the rectangular query box, which
+ *  also covers Mae Hong Son, Lamphun, Lampang, Chiang Rai and Myanmar — on
+ *  2026-10-05 it counted 16 plumes "entering the province" from fires that
+ *  were all outside it. (The field keeps its historical name.) */
 function inCnxBbox(p: { latitude: number; longitude: number }): boolean {
-  const b = CNX_PROVINCE.bbox;
-  return (
-    p.longitude >= b.west && p.longitude <= b.east && p.latitude >= b.south && p.latitude <= b.north
-  );
+  return inChiangMaiProvince(p.longitude, p.latitude);
 }
 
 function inCnxCore(p: { latitude: number; longitude: number }): boolean {

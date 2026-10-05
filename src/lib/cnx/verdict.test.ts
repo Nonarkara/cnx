@@ -509,3 +509,38 @@ describe("checklists follow the observed hazard", () => {
     expect(v.head_en).not.toMatch(/Nothing to do|tomorrow/);
   });
 });
+
+describe("computeVerdict — measured rain at gauges", () => {
+  const calm = {
+    pm25_now: 13,
+    pm25_fc_24h: 10,
+    rain_fc_24h_mm: 12,
+    rain_now_24h_mm: null,
+    ping_capacity_ratio: 0.3,
+    reservoir_surge: false,
+    fire_count: 0,
+    wind_kmh: 5,
+    provenance: "live" as const,
+    flood_provenance: "live" as const,
+    smoke_hits_cnx: 16,
+    smoke_near_cnx: 0,
+  };
+
+  it("very heavy rain leads the card and reaches watch on its own (2026-10-05: 94.5 mm, Chom Thong)", () => {
+    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 94.5, districtTh: "จอมทอง", districtEn: "Chom Thong", heavyGauges: 11 } });
+    expect(v.level).toBe("watch");
+    expect(v.head_en).toMatch(/^Very heavy rain 94\.5 mm in 24 h at Chom Thong/);
+    expect(v.reasons[0].domain).toBe("flood");
+  });
+
+  it("heavy rain is a stated reason without forcing watch by itself", () => {
+    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 60, districtTh: "แม่แตง", districtEn: "Mae Taeng", heavyGauges: 2 } });
+    expect(v.reasons.some((r) => /Heavy rain 60 mm/.test(r.en))).toBe(true);
+    expect(v.score).toBeLessThan(25);
+  });
+
+  it("moderate rain adds nothing", () => {
+    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 20, districtTh: "หางดง", districtEn: "Hang Dong", heavyGauges: 0 } });
+    expect(v.reasons.some((r) => /rain \d+ mm in 24 h at/.test(r.en))).toBe(false);
+  });
+});
