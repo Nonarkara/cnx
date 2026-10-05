@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compactRainRow, rainBand, summariseRain, type RainRow } from "./rain-core";
+import { compactRainRow, currentRainSummary, rainBand, summariseRain, type RainRow } from "./rain-core";
 
 const raw = (over: Record<string, unknown> = {}) => ({
   id: 313237813,
@@ -61,5 +61,15 @@ describe("summariseRain", () => {
   it("drops readings too old to describe the last 24 hours now", () => {
     const old: RainRow = { ...rows[0], at: "2026-10-04 23:00" }; // 14 h before NOW
     expect(summariseRain([old], NOW).stations).toEqual([]);
+  });
+  it("rejects normalized invalid dates and future observations", () => {
+    expect(summariseRain([{ ...rows[0], at: "2026-02-30 11:00" }], NOW).stations).toEqual([]);
+    expect(summariseRain([{ ...rows[0], at: "2026-10-05 13:06" }], NOW).stations).toEqual([]);
+  });
+  it("re-ages a cached summary instead of trusting its wettest district", () => {
+    const data = { ...summariseRain(rows, NOW), provenance: "live", collectedAt: new Date(NOW).toISOString() };
+    expect(currentRainSummary(data, NOW)?.wettest?.rain24h).toBe(94.5);
+    expect(currentRainSummary(data, NOW + 61 * 60_000)).toBeNull();
+    expect(currentRainSummary({ ...data, collectedAt: new Date(NOW + 5 * 3_600_000).toISOString() }, NOW + 5 * 3_600_000)).toBeNull();
   });
 });

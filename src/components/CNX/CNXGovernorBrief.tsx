@@ -81,7 +81,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
     const airMetric = executive.metrics.find((m) => m.id === "air")!;
     const airGround = { avg: airMetric.state === "current" ? Number(airMetric.value) : null, stations: pcd.length || freshDust.length, observedAt: airMetric.observedAt, source: airMetric.source };
     const water = executive.metrics.find((m) => m.id === "water")!;
-    const river = water.state === "current" ? { th: `${water.value} ${water.unit} · ${water.summaryTh}`, en: `${water.value} ${water.unit} · ${water.summaryEn}`, level: water.level, observedAt: water.observedAt, source: water.source } : null;
+    const river = water.state === "current" ? { th: `${water.value} ${water.unit} · ${water.summaryTh}`, en: `${water.value} ${water.unit} · ${water.summaryEn}`, level: water.level, observedAt: water.observedAt, source: water.source, kind: water.source === "ThaiWater rain gauges" ? "rain" as const : "river" as const } : null;
     const latestDetection = (fires?.hotspots ?? []).map((h) => h.detectedAt).filter((t) => Number.isFinite(Date.parse(t)) && Date.parse(t) <= now.getTime() + 300_000).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
     const yesterday = arrivals?.days[1];
     const tiles = buildTiles({

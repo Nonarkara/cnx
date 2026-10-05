@@ -302,7 +302,7 @@ export interface VerdictInputs {
    * Flash floods in the hill districts start as rain on slopes far from
    * any river gauge, so this can raise the card while P.1 is calm.
    */
-  rain_measured?: { maxMm: number; districtTh: string; districtEn: string; heavyGauges: number } | null;
+  rain_measured?: { maxMm: number; districtTh: string; districtEn: string; heavyGauges: number; observedAt: string } | null;
 }
 
 const EMPTY_CARD: VerdictCard = {
@@ -489,14 +489,15 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   // TMD classes: heavy 35.1–90, very heavy ≥ 90.1 mm / 24 h. Very heavy
   // rain alone reaches "watch" (25); heavy rain is a stated reason.
   const rainMeasured = input.rain_measured ?? null;
-  if (rainMeasured && rainMeasured.maxMm >= 35.1) {
+  const rainAge = rainMeasured ? Date.now() - Date.parse(rainMeasured.observedAt) : NaN;
+  if (rainMeasured && Number.isFinite(rainAge) && rainAge >= -5 * 60_000 && rainAge <= 6 * 3_600_000 && Number.isFinite(rainMeasured.maxMm) && rainMeasured.maxMm >= 35.1 && rainMeasured.maxMm <= 500) {
     const veryHeavy = rainMeasured.maxMm >= 90.1;
     floodScore += veryHeavy ? 25 : 10;
     reasons.push({
       domain: "flood",
-      th: `${veryHeavy ? "ฝนหนักมาก" : "ฝนหนัก"} ${rainMeasured.maxMm} มม. ใน 24 ชม. ที่ อ.${rainMeasured.districtTh} (${rainMeasured.heavyGauges} สถานีฝนหนักขึ้นไป) — เฝ้าระวังน้ำป่าไหลหลาก/ดินถล่มในพื้นที่ลาดชัน`,
-      en: `${veryHeavy ? "Very heavy" : "Heavy"} rain ${rainMeasured.maxMm} mm in 24 h at ${rainMeasured.districtEn} (${rainMeasured.heavyGauges} gauges heavy or worse) — watch for flash floods and landslides on slopes`,
-      evidence: `rain_gauge_max=${rainMeasured.maxMm}`,
+      th: `${veryHeavy ? "ฝนหนักมาก" : "ฝนหนัก"} ${rainMeasured.maxMm} มม. ใน 24 ชม. ที่ อ.${rainMeasured.districtTh} (${rainMeasured.heavyGauges} สถานีฝนหนักขึ้นไปทั่วจังหวัด) — เฝ้าระวังน้ำป่าไหลหลาก/ดินถล่มในพื้นที่ลาดชัน`,
+      en: `${veryHeavy ? "Very heavy" : "Heavy"} rain ${rainMeasured.maxMm} mm in 24 h at ${rainMeasured.districtEn} (${rainMeasured.heavyGauges} gauges heavy or worse across the province) — watch for flash floods and landslides on slopes`,
+      evidence: `rain_gauge_max=${rainMeasured.maxMm}; observed_at=${rainMeasured.observedAt}`,
     });
   }
 

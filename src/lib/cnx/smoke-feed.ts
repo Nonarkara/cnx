@@ -40,19 +40,19 @@ function unavailable(note: string): SmokeTrajectoryResponse {
   };
 }
 
-async function fetchWind(): Promise<WindVector | null> {
+export async function fetchWind(): Promise<WindVector | null> {
   try {
     const url =
-      "https://api.open-meteo.com/v1/forecast?latitude=18.788&longitude=98.985&current=wind_speed_10m,wind_direction_10m&timezone=Asia%2FBangkok";
+      "https://api.open-meteo.com/v1/forecast?latitude=18.788&longitude=98.985&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh&timezone=Asia%2FBangkok";
     const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12_000) });
     if (!res.ok) return null;
     const j = (await res.json()) as {
       current?: { wind_speed_10m?: number; wind_direction_10m?: number };
     };
-    const mps = j.current?.wind_speed_10m;
+    const kmh = j.current?.wind_speed_10m;
     const dir = j.current?.wind_direction_10m;
-    if (typeof mps !== "number" || typeof dir !== "number") return null;
-    return { speedKmh: Math.round(mps * 3.6 * 10) / 10, fromDirectionDeg: Math.round(dir) };
+    if (typeof kmh !== "number" || !Number.isFinite(kmh) || kmh < 0 || typeof dir !== "number" || !Number.isFinite(dir) || dir < 0 || dir > 360) return null;
+    return { speedKmh: Math.round(kmh * 10) / 10, fromDirectionDeg: Math.round(dir) };
   } catch {
     return null;
   }

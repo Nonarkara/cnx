@@ -47,6 +47,15 @@ export interface RainSummary {
 /** Plausible 24-hour totals; above this a gauge is faulty, not wet. */
 const MAX_PLAUSIBLE_MM = 500;
 export const RAIN_MAX_AGE_HOURS = 6;
+export const RAIN_RELAY_MAX_AGE_MS = 60 * 60_000;
+
+/** Parse a real Bangkok calendar minute; Date.parse alone normalizes Feb 30. */
+export function rainObservationTime(at: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(at)) return null;
+  const t = Date.parse(`${at.replace(" ", "T")}:00+07:00`);
+  if (!Number.isFinite(t) || new Date(t + 7 * 3_600_000).toISOString().slice(0, 16).replace("T", " ") !== at) return null;
+  return t;
+}
 
 export function rainBand(mm: number): RainBand {
   if (mm >= 90.1) return "very-heavy";
@@ -72,12 +81,12 @@ const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : t
 
 /** ThaiWater rain_24h row → RainRow, or null when it is not a usable Chiang Mai reading. */
 export function compactRainRow(raw: Raw): RainRow | null {
-  if (str(raw?.geocode?.province_code) !== "50") return null;
+  if (String(raw?.geocode?.province_code) !== "50") return null;
   const mm = num(raw.rain_24h);
   const lat = num(raw.station?.tele_station_lat);
   const lon = num(raw.station?.tele_station_long);
   const at = str(raw.rainfall_datetime);
-  if (mm === null || mm < 0 || mm > MAX_PLAUSIBLE_MM || lat === null || lon === null || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(at)) return null;
+  if (mm === null || mm < 0 || mm > MAX_PLAUSIBLE_MM || lat === null || lat < -90 || lat > 90 || lon === null || lon < -180 || lon > 180 || rainObservationTime(at.slice(0, 16)) === null) return null;
   return {
     id: String(raw.id ?? `${lat},${lon}`),
     rain24h: Math.round(mm * 10) / 10,
@@ -95,8 +104,8 @@ export function compactRainRow(raw: Raw): RainRow | null {
 /** Current readings, banded and summarised. Old readings are dropped, not shown as now. */
 export function summariseRain(rows: RainRow[], nowMs: number = Date.now()): RainSummary {
   const stations: RainStation[] = rows.flatMap((r) => {
-    const t = Date.parse(`${r.at.replace(" ", "T")}:00+07:00`);
-    if (!Number.isFinite(t) || nowMs - t > RAIN_MAX_AGE_HOURS * 3_600_000 || t - nowMs > 10 * 60_000) return [];
+    const t = rainObservationTime(r.at);
+    if (t === null || nowMs - t > RAIN_MAX_AGE_HOURS * 3_600_000 || t - nowMs > 5 * 60_000) return [];
     return [{ ...r, band: rainBand(r.rain24h), observedAt: new Date(t).toISOString() }];
   });
   const bands: Record<RainBand, number> = { none: 0, light: 0, moderate: 0, heavy: 0, "very-heavy": 0 };
@@ -119,6 +128,15 @@ export function summariseRain(rows: RainRow[], nowMs: number = Date.now()): Rain
     districts,
     maxAgeHours: RAIN_MAX_AGE_HOURS,
   };
+}
+
+/** Re-age cached browser evidence too; precomputed district maxima can expire. */
+export function currentRainSummary(data: { provenance: string; generatedAt: string; collectedAt?: string; stations: RainStation[] } | null | undefined, nowMs = Date.now()): RainSummary | null {
+  if (data?.provenance !== "live") return null;
+  const age = nowMs - Date.parse(data.collectedAt ?? data.generatedAt);
+  if (!Number.isFinite(age) || age < -5 * 60_000 || age > RAIN_RELAY_MAX_AGE_MS) return null;
+  const summary = summariseRain(data.stations, nowMs);
+  return summary.stations.length ? summary : null;
 }
 
 export const RAIN_BAND_TH: Record<RainBand, string> = {

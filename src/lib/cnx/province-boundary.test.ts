@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { inChiangMaiProvince } from "./province-boundary";
+import { CNX_PROVINCE_RING } from "./province-boundary";
+import { CNX_FIRMS_BBOX } from "./fires";
 
 describe("inChiangMaiProvince", () => {
+  it("queries the whole province, including the southern tip below 17.5N", () => {
+    expect(CNX_FIRMS_BBOX.south).toBeLessThan(17.5);
+    for (const [lon, lat] of CNX_PROVINCE_RING) {
+      expect(lon >= CNX_FIRMS_BBOX.west && lon <= CNX_FIRMS_BBOX.east && lat >= CNX_FIRMS_BBOX.south && lat <= CNX_FIRMS_BBOX.north).toBe(true);
+    }
+  });
   it.each([
     ["Chiang Mai old city", 98.987, 18.788],
     ["Fang (far north)", 99.212, 19.918],

@@ -61,6 +61,12 @@ const inputs = (over: Partial<BriefInputs> = {}): BriefInputs => ({
 });
 
 describe("buildTiles", () => {
+  it("uses the rain observation window without extending river freshness", () => {
+    const now = new Date("2026-10-05T06:00:00Z");
+    const water = { th: "ฝนหนัก 102 มม.", en: "Heavy measured rain", level: "alert" as const, observedAt: "2026-10-05T02:00:00Z" };
+    expect(buildTiles(inputs({ now, river: { ...water, kind: "rain" } })).find(t => t.key === "water")?.level).toBe("alert");
+    expect(buildTiles(inputs({ now, river: { ...water, kind: "river" } })).find(t => t.key === "water")?.level).toBe("unknown");
+  });
   it("says 'no data' rather than calm when a feed is missing", () => {
     const tiles = buildTiles(inputs({ airGround: { avg: null, stations: 0, observedAt: null, source: "x" }, fires: { live: false, count: null, observedAt: null, source: "x" }, river: null }));
     expect(tiles.filter((t) => t.level === "unknown").map((t) => t.key)).toEqual(["air", "fire", "water"]);

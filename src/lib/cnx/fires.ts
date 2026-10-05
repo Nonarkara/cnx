@@ -11,10 +11,15 @@
 // concentrated in the forest-edge districts.
 
 import { CNX_PROVINCE } from "./config";
-import { inChiangMaiProvince } from "./province-boundary";
+import { inChiangMaiProvince, CNX_PROVINCE_RING } from "./province-boundary";
 import type { CnxFiresResponse, FireHotspot, SeverityLevel } from "../../types/cnx";
 
 const FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
+/** Preserve regional smoke context while covering the province's southern tip. */
+export const CNX_FIRMS_BBOX = {
+  ...CNX_PROVINCE.bbox,
+  south: Math.min(CNX_PROVINCE.bbox.south, ...CNX_PROVINCE_RING.map(p => p[1])),
+};
 /** Days requested per pass — see fetchFirmsInBbox for why not 1. */
 const FIRMS_WINDOW_DAYS = 2;
 
@@ -120,7 +125,7 @@ export function normaliseSatellite(cell: string | undefined): FireHotspot["satel
 
 export function parseFirmsCsv(
   csv: string,
-  bbox: { west: number; south: number; east: number; north: number } = CNX_PROVINCE.bbox,
+  bbox: { west: number; south: number; east: number; north: number } = CNX_FIRMS_BBOX,
 ): FireHotspot[] {
   const lines = csv.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
@@ -391,7 +396,7 @@ function finishLivePass(csv: string, bbox: { west: number; south: number; east: 
 }
 
 async function fetchLiveFirms(): Promise<FireHotspot[] | null> {
-  return fetchFirmsInBbox(CNX_PROVINCE.bbox);
+  return fetchFirmsInBbox(CNX_FIRMS_BBOX);
 }
 
 function buildScenario(now: string): CnxFiresResponse {

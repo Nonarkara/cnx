@@ -527,20 +527,26 @@ describe("computeVerdict — measured rain at gauges", () => {
   };
 
   it("very heavy rain leads the card and reaches watch on its own (2026-10-05: 94.5 mm, Chom Thong)", () => {
-    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 94.5, districtTh: "จอมทอง", districtEn: "Chom Thong", heavyGauges: 11 } });
+    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 94.5, districtTh: "จอมทอง", districtEn: "Chom Thong", heavyGauges: 11, observedAt: new Date().toISOString() } });
     expect(v.level).toBe("watch");
     expect(v.head_en).toMatch(/^Very heavy rain 94\.5 mm in 24 h at Chom Thong/);
     expect(v.reasons[0].domain).toBe("flood");
   });
 
   it("heavy rain is a stated reason without forcing watch by itself", () => {
-    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 60, districtTh: "แม่แตง", districtEn: "Mae Taeng", heavyGauges: 2 } });
+    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 60, districtTh: "แม่แตง", districtEn: "Mae Taeng", heavyGauges: 2, observedAt: new Date().toISOString() } });
     expect(v.reasons.some((r) => /Heavy rain 60 mm/.test(r.en))).toBe(true);
     expect(v.score).toBeLessThan(25);
   });
 
   it("moderate rain adds nothing", () => {
-    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 20, districtTh: "หางดง", districtEn: "Hang Dong", heavyGauges: 0 } });
+    const v = computeVerdict({ ...calm, rain_measured: { maxMm: 20, districtTh: "หางดง", districtEn: "Hang Dong", heavyGauges: 0, observedAt: new Date().toISOString() } });
     expect(v.reasons.some((r) => /rain \d+ mm in 24 h at/.test(r.en))).toBe(false);
+  });
+  it("does not escalate from stale, future or undated rain", () => {
+    for (const observedAt of ["invalid", new Date(Date.now() - 7 * 3_600_000).toISOString(), new Date(Date.now() + 6 * 60_000).toISOString()]) {
+      const v = computeVerdict({ ...calm, rain_measured: { maxMm: 102, districtTh: "จอมทอง", districtEn: "Chom Thong", heavyGauges: 15, observedAt } });
+      expect(v.reasons.some(r => r.evidence?.startsWith("rain_gauge_max="))).toBe(false);
+    }
   });
 });

@@ -6,6 +6,8 @@
 // the map. The social rail appears at 1024 px; the full desk at 1280 px.
 
 import type { RainResponse } from "../../lib/cnx/rain";
+import { currentRainSummary } from "../../lib/cnx/rain-core";
+import CnxRainPanel from "./CNXRainPanel";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -127,6 +129,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [floodCameras, setFloodCameras] = useState<FloodCamera[]>([]);
   const [riverGauges, setRiverGauges] = useState<RiverGauge[]>([]);
   const [rain, setRain] = useState<RainResponse | null>(null);
+  const [rainClock, setRainClock] = useState(() => Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
+  const currentRain = currentRainSummary(rain, rainClock);
   const [visitorAnalytics, setVisitorAnalytics] = useState<VisitorAnalytics | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -516,7 +521,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             weatherLayers={weatherLayers}
             cameraHaze={hazeVision?.cameras ?? []}
             citizenReports={citizen?.reports ?? []}
-            rainStations={rain?.stations ?? []}
+            rainStations={currentRain?.stations ?? []}
+            rainAvailable={currentRain !== null}
             dustboyStations={dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.pm25 !== null) : []}
             smokeSegments={smoke?.provenance === "live" ? smoke.segments : []}
           />
@@ -533,7 +539,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span lang="th" className="text-[13px] font-semibold">{topic.label}</span><span className="text-[10px]">{topic.en}</span></button>)}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {deskTab === "water" && <div className="h-full min-h-[260px]"><CnxRiverLevelPanel /></div>}
+            {deskTab === "water" && <><CnxRainPanel rain={rain} /><div className="min-h-[350px]"><CnxRiverLevelPanel /></div></>}
             {deskTab === "air" && <div className="h-full min-h-[300px]"><CnxAirQualityPanel /></div>}
             {deskTab === "fire" && <div className="h-full min-h-[230px]"><CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} /></div>}
             {deskTab === "model" && <div className="h-full min-h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} /></div>}
@@ -589,8 +595,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
           {mobileTab === "flood" && <>
+            <CnxRainPanel rain={rain} />
             <div className="h-[400px]"><CnxRiverLevelPanel /></div>
-            <div className="h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} /></div>
             <div className="h-[300px]"><CnxFloodCamerasPanel /></div>
           </>}
           {mobileTab === "visitors" && <>

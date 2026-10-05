@@ -39,3 +39,18 @@ export function checkRiverPayload(j) {
   if (!(j.catalogueCount === null || (Number.isFinite(j.catalogueCount) && j.catalogueCount >= 0))) failures.push("catalogueCount must be a nonnegative number or null");
   return failures;
 }
+
+export function checkRainPayload(j) {
+  const failures = [];
+  if (j.provenance !== "live") failures.push("rainfall is not live measured data");
+  if (!Array.isArray(j.stations) || !j.stations.length) failures.push("rainfall has no current gauges");
+  else {
+    const now = Date.now();
+    if (j.stations.some(s => !Number.isFinite(Date.parse(s.observedAt)) || now - Date.parse(s.observedAt) > 6 * 3_600_000 || Date.parse(s.observedAt) > now + 5 * 60_000)) failures.push("rainfall has expired or invalid gauge observation times");
+    if (j.stations.some(s => !Number.isFinite(s.rain24h) || s.rain24h < 0 || s.rain24h > 500)) failures.push("rainfall has invalid totals");
+    if (j.wettest?.rain24h !== Math.max(...j.stations.map(s => s.rain24h))) failures.push("rainfall maximum differs from measured gauges");
+  }
+  const age = Date.now() - Date.parse(j.collectedAt);
+  if (!Number.isFinite(age) || age < -5 * 60_000 || age > 60 * 60_000) failures.push("rainfall relay collection is missing or expired");
+  return failures;
+}

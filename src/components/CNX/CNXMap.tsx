@@ -23,7 +23,7 @@
 // the raw coordinate array as `geometry` and MapLibre silently
 // rejected the source, so the 3D layer never rendered.
 
-import { RAIN_BAND_TH, type RainStation } from "../../lib/cnx/rain-core";
+import { RAIN_BAND_TH, summariseRain, type RainStation } from "../../lib/cnx/rain-core";
 import { clampView } from "../../lib/cnx/map-bounds";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -352,6 +352,7 @@ interface MapProps {
   citizenReports?: CitizenReport[];
   /** Measured 24 h rainfall at gauges (ThaiWater). */
   rainStations?: RainStation[];
+  rainAvailable?: boolean;
   /** Online DustBoy sensors. Offline rows are omitted by the caller. */
   dustboyStations?: DustboyStation[];
   /** Live plume polylines. Empty when FIRMS did not answer. */
@@ -399,6 +400,7 @@ export default function CNXMap({
   cameraHaze = NO_CAMERA_HAZE,
   citizenReports = NO_REPORTS,
   rainStations = NO_RAIN,
+  rainAvailable = false,
   dustboyStations = NO_DUSTBOY,
   smokeSegments = NO_PLUMES,
 }: MapProps) {
@@ -413,7 +415,10 @@ export default function CNXMap({
   const [dustboyOn, setDustboyOn] = useState(true);
   const [rainOn, setRainOn] = useState(true);
   // Moderate rain or more (≥10.1 mm/24 h): dry gauges would only add clutter.
-  const wetStations = useMemo(() => rainStations.filter((s) => s.band === "moderate" || s.band === "heavy" || s.band === "very-heavy"), [rainStations]);
+  const [rainClock, setRainClock] = useState(() => Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
+  const currentRainStations = useMemo(() => summariseRain(rainStations, rainClock).stations, [rainStations, rainClock]);
+  const wetStations = useMemo(() => currentRainStations.filter((s) => s.band === "moderate" || s.band === "heavy" || s.band === "very-heavy"), [currentRainStations]);
   const [busesOn, setBusesOn] = useState(true);
   const [cmuShuttleOn, setCmuShuttleOn] = useState(true);
   const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
@@ -1367,7 +1372,7 @@ export default function CNXMap({
           disabled={wetStations.length === 0}
           title="Measured 24-hour rainfall at ThaiWater gauges, moderate (≥10.1 mm) and above. Heavy rain on slopes can cause flash floods far from any river gauge."
         >
-          {wetStations.length ? (rainOn ? `Rain 24h: on (${wetStations.length})` : "Rain 24h: off") : "Rain 24h: none ≥10 mm"}
+          {wetStations.length ? (rainOn ? `Rain 24h: on (${wetStations.length})` : "Rain 24h: off") : rainAvailable && currentRainStations.length ? "Rain 24h: none ≥10.1 mm" : "Rain 24h: unavailable"}
         </MapToggleButton>
         <MapToggleButton
           pressed={dustboyOn}

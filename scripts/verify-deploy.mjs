@@ -3,7 +3,7 @@
 // proof of a release: every working-tree change fails the identity gate.
 // Usage: node scripts/verify-deploy.mjs --expect river-level
 import { execFileSync } from "node:child_process";
-import { discoverRoutes, checkRiverPayload, checkPublishedHead, PROJECT_ROOT } from "./deploy-checks.mjs";
+import { discoverRoutes, checkRiverPayload, checkRainPayload, checkPublishedHead, PROJECT_ROOT } from "./deploy-checks.mjs";
 
 const ORIGIN = process.env.CNX_ORIGIN ?? "https://cnx.nonarkara.org";
 const args = process.argv.slice(2);
@@ -103,6 +103,10 @@ for (const route of expects) {
       const problems = checkRiverPayload(j);
       problems.forEach(fail);
       if (!problems.length) ok(`river-level: live, ${j.gaugeCount} gauges, all with observation times`);
+    } else if (route === "rain") {
+      const problems = checkRainPayload(j);
+      problems.forEach(fail);
+      if (!problems.length) ok(`rain: live, ${j.stations.length} current gauges, maximum ${j.wettest.rain24h} mm`);
     } else ok(`${route} returned JSON`);
   } catch { fail(`${route} returned non-JSON`); }
 }

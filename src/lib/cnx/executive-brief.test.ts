@@ -198,7 +198,7 @@ describe("measured heavy rain raises the water tile", () => {
   const base = { air: null, dustboy: null, fires: null, twin: null, riverGauges: [], flights: null, now };
   const rainResponse = (max: number, band: "heavy" | "very-heavy") => ({
     generatedAt: now.toISOString(),
-    stations: [],
+    stations: [{ id: "rain-1", rain24h: max, at: "2026-10-05 12:00", station: "บ้านห้วยส้มป่อย", amphoeTh: "จอมทอง", amphoeEn: "Chom Thong", tambonTh: "ดอยแก้ว", lat: 18.375, lon: 98.534, agency: "DWR", band, observedAt: "2026-10-05T05:00:00Z" }],
     bands: { none: 0, light: 0, moderate: 0, heavy: band === "heavy" ? 1 : 0, "very-heavy": band === "very-heavy" ? 1 : 0 },
     wettest: null,
     districts: [{ th: "จอมทอง", en: "Chom Thong", max, band, stations: 3 }],
@@ -219,5 +219,17 @@ describe("measured heavy rain raises the water tile", () => {
   it("does nothing when the rain feed is unavailable", () => {
     const water = buildExecutiveBrief({ ...base, rain: { ...rainResponse(94.5, "very-heavy"), provenance: "unavailable" } }).metrics.find((m) => m.id === "water")!;
     expect(water.state).toBe("unavailable");
+  });
+  it("leads with the rain value and its observation time when the river is calm", () => {
+    const water = buildExecutiveBrief({ ...base, riverGauges: [gauge({ observedAt: now.toISOString(), levelMsl: 297, bankLevelMsl: 300, criticalLevelMsl: 300, belowBankM: 3 })], rain: rainResponse(94.5, "very-heavy") }).metrics.find(m => m.id === "water")!;
+    expect(water.value).toBe("94.5");
+    expect(water.source).toBe("ThaiWater rain gauges");
+    expect(water.observedAt).toBe("2026-10-05T05:00:00.000Z");
+    expect(water.summaryEn).toContain("below bank");
+  });
+  it("stops a cached rain alert when collection expires", () => {
+    const water = buildExecutiveBrief({ ...base, rain: rainResponse(94.5, "very-heavy"), now: new Date(now.getTime() + 61 * 60_000) }).metrics.find(m => m.id === "water")!;
+    expect(water.state).toBe("unavailable");
+    expect(water.level).toBe("unknown");
   });
 });

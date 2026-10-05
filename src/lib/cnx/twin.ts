@@ -220,7 +220,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   ]);
   const wettest = rainGauges.provenance === "live" ? rainGauges.districts[0] : undefined;
   const rainMeasured = wettest
-    ? { maxMm: wettest.max, districtTh: wettest.th, districtEn: wettest.en, heavyGauges: rainGauges.bands.heavy + rainGauges.bands["very-heavy"] }
+    ? { maxMm: wettest.max, districtTh: wettest.th, districtEn: wettest.en, heavyGauges: rainGauges.bands.heavy + rainGauges.bands["very-heavy"], observedAt: rainGauges.wettest!.observedAt }
     : null;
 
   const pm25_now = air.provinceAvgPm25 ?? null;

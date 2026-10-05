@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { discoverRoutes, checkRiverPayload, checkPublishedHead } from "../../../scripts/deploy-checks.mjs";
+import { discoverRoutes, checkRiverPayload, checkRainPayload, checkPublishedHead } from "../../../scripts/deploy-checks.mjs";
 
 describe("published release identity", () => {
   it("accepts a HEAD recoverable from origin/main", () => {
@@ -14,6 +14,14 @@ describe("published release identity", () => {
 });
 
 describe("release route inventory", () => {
+  it("checks rainfall observations and collection rather than accepting 200 JSON alone", () => {
+    const observedAt = new Date().toISOString();
+    const good = { provenance: "live", collectedAt: observedAt, stations: [{ observedAt, rain24h: 102 }], wettest: { rain24h: 102 } };
+    expect(checkRainPayload(good)).toEqual([]);
+    expect(checkRainPayload({ ...good, collectedAt: "invalid" }).length).toBeGreaterThan(0);
+    expect(checkRainPayload({ ...good, wettest: { rain24h: 0 } }).length).toBeGreaterThan(0);
+    expect(checkRainPayload({ ...good, stations: [{ observedAt: new Date(Date.now() - 7 * 3_600_000).toISOString(), rain24h: 102 }] }).length).toBeGreaterThan(0);
+  });
   it("includes previously omitted routes and required-query probes", () => {
     const routes = discoverRoutes();
     for (const [route, status] of [["aeronet", 200], ["ask", 400], ["aircraft", 400], ["burnscar", 400], ["river-level/ingest", 405]] as const) {

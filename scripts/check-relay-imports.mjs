@@ -26,7 +26,7 @@ import { checkRelayGraph } from "./relay-import-graph.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // Imported for real: these export functions and start no timers.
-const importable = ["./haze-vision.mjs", "./citizen-reports.mjs"];
+const importable = ["./haze-vision.mjs", "./citizen-reports.mjs", "./rain-relay.mjs", "./social-relay.mjs"];
 
 // relay-flights.mjs ends in `await tick(); setInterval(tick, POLL_MS)`, so
 // importing it would start the poll loop and hang this check. Its module

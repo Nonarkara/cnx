@@ -29,9 +29,9 @@ export interface BriefDistrict {
   observedAt: string | null;
 }
 
-export function isBriefObservationCurrent(observedAt: string | null, now = new Date()): boolean {
+export function isBriefObservationCurrent(observedAt: string | null, now = new Date(), maxAgeHours = 3): boolean {
   const age = now.getTime() - Date.parse(observedAt ?? "");
-  return Number.isFinite(age) && age >= -5 * 60_000 && age <= 3 * 3_600_000;
+  return Number.isFinite(age) && age >= -5 * 60_000 && age <= maxAgeHours * 3_600_000;
 }
 
 /** Thai PCD PM2.5 bands (24-h, µg/m³): 0–15 very good, –25 good,
@@ -84,7 +84,7 @@ export interface BriefInputs {
   airGround: { avg: number | null; stations: number; observedAt: string | null; source: string };
   worstDistrict: BriefDistrict | null;
   fires: { live: boolean; count: number | null; observedAt: string | null; source: string };
-  river: { th: string; en: string; level: BriefLevel; observedAt: string | null; source?: string } | null;
+  river: { th: string; en: string; level: BriefLevel; observedAt: string | null; source?: string; kind?: "rain" | "river" } | null;
   floodForecast: { outlook: "flooding" | "none-forecast" | "unknown"; points: number } | null;
   arrivals: { date: string; flights: number; international: number; estimatedVisitors: number } | null;
 }
@@ -125,7 +125,7 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
       : i.floodForecast?.outlook === "none-forecast"
         ? " · Google ไม่คาดการณ์น้ำท่วม (ไม่ใช่การยืนยันว่าปลอดภัย)"
         : "";
-  const water: BriefTile = i.river && isBriefObservationCurrent(i.river.observedAt, i.now)
+  const water: BriefTile = i.river && isBriefObservationCurrent(i.river.observedAt, i.now, i.river.kind === "rain" ? 6 : 3)
     ? {
         key: "water",
         titleTh: "น้ำ",

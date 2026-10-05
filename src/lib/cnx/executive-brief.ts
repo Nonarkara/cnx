@@ -4,6 +4,7 @@ import type { FetchResult } from "./opensky";
 import type { RiverGauge } from "./river-level";
 import type { CnxTwinResponse } from "./twin";
 import type { RainResponse } from "./rain";
+import { currentRainSummary } from "./rain-core";
 
 export type BriefLevel = "good" | "watch" | "alert" | "critical" | "unknown";
 export interface ExecutiveMetric {
@@ -183,14 +184,15 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
   // Measured rain. A river gauge sees a flood once it reaches the river;
   // flash floods in the hill districts start as very heavy rain on slopes
   // far from any gauge. Heavy rain raises the water tile — never lowers it.
-  const rain = input.rain?.provenance === "live" ? input.rain : null;
+  const rain = currentRainSummary(input.rain, now);
   const wet = rain?.districts[0];
   if (rain && wet) {
     const rainLevel: BriefLevel = wet.band === "very-heavy" ? "alert" : "watch";
     const places = rain.districts.slice(0, 3).map(d => `${d.th} ${d.max}`).join(" · ");
     const placesEn = rain.districts.slice(0, 3).map(d => `${d.en} ${d.max} mm`).join(", ");
-    const heavyTh = `ฝนหนัก${wet.band === "very-heavy" ? "มาก" : ""} 24 ชม. วัดได้ที่ ${places} มม. (${rain.bands["very-heavy"] + rain.bands.heavy} สถานี)`;
-    const heavyEn = `${wet.band === "very-heavy" ? "Very heavy" : "Heavy"} 24-hour rain measured: ${placesEn} (${rain.bands["very-heavy"] + rain.bands.heavy} gauges)`;
+    const heavyTh = `ฝนหนัก${wet.band === "very-heavy" ? "มาก" : ""} 24 ชม. วัดได้ที่ ${places} มม. (${rain.bands["very-heavy"] + rain.bands.heavy} สถานีทั่วจังหวัด) · วัด ${rain.wettest?.at} น.`;
+    const heavyEn = `${wet.band === "very-heavy" ? "Very heavy" : "Heavy"} 24-hour rain measured: ${placesEn} (${rain.bands["very-heavy"] + rain.bands.heavy} gauges across the province); observed ${rain.wettest?.at} Bangkok time`;
+    const rainLeads = water.state !== "current" || rank[rainLevel] > rank[water.level];
     if (water.state !== "current") {
       water.state = "current"; water.value = String(wet.max); water.unit = "มม. / 24 ชม. (สูงสุด)";
       water.observedAt = rain.wettest?.observedAt ?? null; water.source = "ThaiWater rain gauges";
@@ -204,6 +206,12 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
       water.level = rainLevel;
       water.actionTh = `เฝ้าระวังน้ำป่า/ดินถล่มในพื้นที่ลาดชันของ อ.${wet.th} และลำห้วยท้ายน้ำ · ตรวจสอบประกาศทางการ`;
       water.actionEn = `Watch for flash floods and landslides on slopes in ${wet.en} and downstream streams; check official notices`;
+    }
+    if (rainLeads) {
+      water.titleTh = "ฝน/น้ำ"; water.titleEn = "Rain / Water";
+      water.value = String(wet.max); water.unit = "มม. / 24 ชม. (สูงสุด)";
+      water.observedAt = rain.wettest?.observedAt ?? null;
+      water.source = "ThaiWater rain gauges";
     }
   }
 
