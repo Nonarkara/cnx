@@ -23,6 +23,7 @@
 // the raw coordinate array as `geometry` and MapLibre silently
 // rejected the source, so the 3D layer never rendered.
 
+import { RAIN_BAND_TH, type RainStation } from "../../lib/cnx/rain-core";
 import { clampView } from "../../lib/cnx/map-bounds";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -349,6 +350,8 @@ interface MapProps {
   cameraHaze?: CameraHaze[];
   /** Haze posts/news the relay could place; unplaced ones are not drawn. */
   citizenReports?: CitizenReport[];
+  /** Measured 24 h rainfall at gauges (ThaiWater). */
+  rainStations?: RainStation[];
   /** Online DustBoy sensors. Offline rows are omitted by the caller. */
   dustboyStations?: DustboyStation[];
   /** Live plume polylines. Empty when FIRMS did not answer. */
@@ -357,6 +360,7 @@ interface MapProps {
 
 const NO_CAMERA_HAZE: CameraHaze[] = [];
 const NO_REPORTS: CitizenReport[] = [];
+const NO_RAIN: RainStation[] = [];
 const NO_DUSTBOY: DustboyStation[] = [];
 const NO_PLUMES: TrajectorySegment[] = [];
 const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
@@ -394,6 +398,7 @@ export default function CNXMap({
   weatherLayers = null,
   cameraHaze = NO_CAMERA_HAZE,
   citizenReports = NO_REPORTS,
+  rainStations = NO_RAIN,
   dustboyStations = NO_DUSTBOY,
   smokeSegments = NO_PLUMES,
 }: MapProps) {
@@ -406,6 +411,9 @@ export default function CNXMap({
   const [waterwaysOn, setWaterwaysOn] = useState(true);
   const [plumesOn, setPlumesOn] = useState(true);
   const [dustboyOn, setDustboyOn] = useState(true);
+  const [rainOn, setRainOn] = useState(true);
+  // Moderate rain or more (≥10.1 mm/24 h): dry gauges would only add clutter.
+  const wetStations = useMemo(() => rainStations.filter((s) => s.band === "moderate" || s.band === "heavy" || s.band === "very-heavy"), [rainStations]);
   const [busesOn, setBusesOn] = useState(true);
   const [cmuShuttleOn, setCmuShuttleOn] = useState(true);
   const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
@@ -772,11 +780,27 @@ export default function CNXMap({
       getPosition: (d) => [d.place!.lon, d.place!.lat],
       getRadius: (d) => d.place!.precisionKm * 1000,
       radiusUnits: "meters",
-      getFillColor: [147, 51, 234, 28],
-      getLineColor: [147, 51, 234, 120],
+      // Outline only. A district-level mention gets a 15 km circle; filled,
+      // one Reddit post about Hang Dong tinted the whole city lavender and
+      // read as "something is happening here".
+      filled: false,
+      getLineColor: [147, 51, 234, 110],
       lineWidthMinPixels: 1,
       stroked: true,
       pickable: false,
+    });
+    // Rain gauges: sized by the 24 h total, darkest for very heavy rain.
+    const rainLayer = new ScatterplotLayer<RainStation>({
+      id: "cnx-rain",
+      data: rainOn ? wetStations : [],
+      getPosition: (d) => [d.lon, d.lat],
+      getRadius: (d) => 4 + Math.min(10, d.rain24h / 10),
+      radiusUnits: "pixels",
+      getFillColor: (d) => (d.band === "very-heavy" ? [30, 64, 175, 235] : d.band === "heavy" ? [37, 99, 235, 220] : [96, 165, 250, 190]),
+      getLineColor: [255, 255, 255, 230],
+      lineWidthMinPixels: 1,
+      stroked: true,
+      pickable: true,
     });
     const citizenLayer = new ScatterplotLayer<CitizenReport>({
       id: "cnx-citizen",
@@ -861,6 +885,7 @@ export default function CNXMap({
       dustboyLayer,
       fireLayer,
       floodLayer,
+      rainLayer,
       citizenAreaLayer,
       citizenLayer,
       cctvLayer,
@@ -869,7 +894,7 @@ export default function CNXMap({
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, riverGauges, hazeById, citizenReports, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, riverGauges, hazeById, citizenReports, wetStations, rainOn, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -1193,6 +1218,10 @@ export default function CNXMap({
             const hazeLine = haze ? `\nHaze: ${haze.verdict}${haze.score !== null ? ` (${haze.score.toFixed(2)})` : ""} · frame ${haze.observedAt.slice(11, 16)} UTC` : "";
             return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? "วิดีโอสด" : "ภาพนิ่งรีเฟรช") : "OFFLINE"} — เปิดดูในแถบ CCTV ด้านบน${hazeLine}`;
           }
+          if (layer.id === "cnx-rain") {
+            const r = object as RainStation;
+            return `ฝน 24 ชม. ${r.rain24h} มม. · ${RAIN_BAND_TH[r.band]}\n${r.station} · ต.${r.tambonTh} อ.${r.amphoeTh}\n${r.agency} · ${r.at} น. (ThaiWater)`;
+          }
           if (layer.id === "cnx-citizen") {
             const r = object as CitizenReport;
             return `${r.source === "reddit" ? "Reddit post" : "News"} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n📍 ${r.place?.nameEn || r.place?.nameTh} (±${r.place?.precisionKm} km, from the place name)`;
@@ -1331,6 +1360,15 @@ export default function CNXMap({
         </MapToggleButton>
 
         <ToggleGroupLabel>Weather &amp; Air</ToggleGroupLabel>
+        <MapToggleButton
+          pressed={rainOn}
+          onClick={() => setRainOn((v) => !v)}
+          activeClassName="border-[#1e40af] bg-[#1e40af] text-white"
+          disabled={wetStations.length === 0}
+          title="Measured 24-hour rainfall at ThaiWater gauges, moderate (≥10.1 mm) and above. Heavy rain on slopes can cause flash floods far from any river gauge."
+        >
+          {wetStations.length ? (rainOn ? `Rain 24h: on (${wetStations.length})` : "Rain 24h: off") : "Rain 24h: none ≥10 mm"}
+        </MapToggleButton>
         <MapToggleButton
           pressed={dustboyOn}
           onClick={() => setDustboyOn((v) => !v)}

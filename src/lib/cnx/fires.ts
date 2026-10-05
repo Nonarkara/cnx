@@ -11,6 +11,7 @@
 // concentrated in the forest-edge districts.
 
 import { CNX_PROVINCE } from "./config";
+import { inChiangMaiProvince } from "./province-boundary";
 import type { CnxFiresResponse, FireHotspot, SeverityLevel } from "../../types/cnx";
 
 const FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv";
@@ -262,7 +263,14 @@ async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
     lastFirmsFailure = "FIRMS_MAP_KEY is not visible to the Worker";
     return null;
   }
-  // Ask for a two-day window ending today, not one day.
+  // Ask for the two most recent days: today and yesterday (UTC).
+  //
+  // The URL carries NO date. FIRMS reads a date as the START of the window
+  // ("Returns data for [DATE] .. [DATE + DAY_RANGE-1]"); without one it
+  // returns "TODAY to TODAY - (DAY_RANGE-1)". The old /2/<today> asked for
+  // today and tomorrow, so until NASA published the first pass of the new
+  // UTC day — every Bangkok morning — the board read 0 detections while
+  // NASA held 16 from the night before (seen 2026-10-05 12:28 BKK).
   //
   // FIRMS NRT is a near-real-time product with a publishing delay of a few
   // hours, and the request is anchored to UTC while the province runs on
@@ -272,7 +280,6 @@ async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
   // is the most dangerous failure available: it is a false all-clear
   // produced by a clock, not by data. Two days costs one extra row and
   // removes most of that window.
-  const today = new Date().toISOString().slice(0, 10);
   const box = `${bbox.west},${bbox.south},${bbox.east},${bbox.north}`;
   // Last status seen, so a failure that is not the key (HTTP 429, a
   // network error) is distinguishable from "key not visible" downstream.
@@ -283,7 +290,7 @@ async function fetchFirmsKeyed(bbox: Bbox): Promise<FireHotspot[] | null> {
   const answered: FireHotspot[] = [];
   let anyAnswered = false;
   for (const source of FIRMS_SOURCES) {
-    const url = `${FIRMS_BASE}/${key}/${source}/${box}/${FIRMS_WINDOW_DAYS}/${today}`;
+    const url = `${FIRMS_BASE}/${key}/${source}/${box}/${FIRMS_WINDOW_DAYS}`;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
       lastStatus = res.status;
@@ -441,6 +448,7 @@ export async function fetchCnxFires(): Promise<CnxFiresResponse> {
       generatedAt: now,
       hotspots: live,
       totalCount: live.length,
+      provinceCount: live.filter((h) => inChiangMaiProvince(h.longitude, h.latitude)).length,
       provenance: "live",
       liveSource: source,
       // Still say why the keyed API was skipped, so a rejected key stays visible.

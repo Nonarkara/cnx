@@ -113,8 +113,8 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
         key: "fire",
         titleTh: "ไฟป่า/จุดความร้อน",
         level: (i.fires.count ?? 0) > 30 ? "alert" : (i.fires.count ?? 0) > 0 ? "watch" : "good",
-        th: (i.fires.count ?? 0) === 0 ? "ไม่พบจุดความร้อนใน 24 ชม. (เมฆอาจบังได้)" : `พบจุดความร้อน ${i.fires.count} จุดใน 24 ชม.`,
-        en: `${i.fires.count ?? 0} VIIRS hotspots in 24 h (cloud can hide fires)`,
+        th: (i.fires.count ?? 0) === 0 ? "ไม่พบจุดความร้อนในเขตจังหวัดใน 24 ชม. (เมฆอาจบังได้)" : `พบจุดความร้อนในเขตจังหวัด ${i.fires.count} จุดใน 24 ชม.`,
+        en: `${i.fires.count ?? 0} VIIRS hotspots inside Chiang Mai province in 24 h (cloud can hide fires)`,
         source: i.fires.source,
         observedAt: i.fires.observedAt,
       };

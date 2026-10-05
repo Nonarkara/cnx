@@ -3,6 +3,7 @@ import type { DustboyResponse } from "./dustboy";
 import type { FetchResult } from "./opensky";
 import type { RiverGauge } from "./river-level";
 import type { CnxTwinResponse } from "./twin";
+import type { RainResponse } from "./rain";
 
 export type BriefLevel = "good" | "watch" | "alert" | "critical" | "unknown";
 export interface ExecutiveMetric {
@@ -45,6 +46,8 @@ export interface ExecutiveBriefInput {
   twin: CnxTwinResponse | null;
   riverGauges: RiverGauge[];
   flights: FetchResult | null;
+  /** Measured 24-hour rainfall at gauges; optional so older callers still work. */
+  rain?: RainResponse | null;
   now?: Date;
 }
 
@@ -177,16 +180,48 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
     water.actionEn = water.level === "critical" || water.level === "alert" ? "Check locations around the gauge and official notices; confirm the duty contact" : "Monitor the gauge and official notices; check unmeasured areas";
   } else stale(water, [...ping.map(g => g.observedAt), ...(measured?.provenance === "live" ? [measured.observed_at] : [])]);
 
+  // Measured rain. A river gauge sees a flood once it reaches the river;
+  // flash floods in the hill districts start as very heavy rain on slopes
+  // far from any gauge. Heavy rain raises the water tile — never lowers it.
+  const rain = input.rain?.provenance === "live" ? input.rain : null;
+  const wet = rain?.districts[0];
+  if (rain && wet) {
+    const rainLevel: BriefLevel = wet.band === "very-heavy" ? "alert" : "watch";
+    const places = rain.districts.slice(0, 3).map(d => `${d.th} ${d.max}`).join(" · ");
+    const placesEn = rain.districts.slice(0, 3).map(d => `${d.en} ${d.max} mm`).join(", ");
+    const heavyTh = `ฝนหนัก${wet.band === "very-heavy" ? "มาก" : ""} 24 ชม. วัดได้ที่ ${places} มม. (${rain.bands["very-heavy"] + rain.bands.heavy} สถานี)`;
+    const heavyEn = `${wet.band === "very-heavy" ? "Very heavy" : "Heavy"} 24-hour rain measured: ${placesEn} (${rain.bands["very-heavy"] + rain.bands.heavy} gauges)`;
+    if (water.state !== "current") {
+      water.state = "current"; water.value = String(wet.max); water.unit = "มม. / 24 ชม. (สูงสุด)";
+      water.observedAt = rain.wettest?.observedAt ?? null; water.source = "ThaiWater rain gauges";
+      water.summaryTh = heavyTh; water.summaryEn = heavyEn;
+    } else {
+      water.summaryTh = `${water.summaryTh} · ${heavyTh}`;
+      water.summaryEn = `${water.summaryEn}; ${heavyEn}`;
+      water.source = `${water.source} · ThaiWater rain gauges`;
+    }
+    if (rank[rainLevel] > rank[water.level]) {
+      water.level = rainLevel;
+      water.actionTh = `เฝ้าระวังน้ำป่า/ดินถล่มในพื้นที่ลาดชันของ อ.${wet.th} และลำห้วยท้ายน้ำ · ตรวจสอบประกาศทางการ`;
+      water.actionEn = `Watch for flash floods and landslides on slopes in ${wet.en} and downstream streams; check official notices`;
+    }
+  }
+
   const fire = blank("fire", "จุดความร้อน", "Hotspots", "NASA FIRMS · rolling 24-hour satellite detections");
   const fires = input.fires;
   if (fires?.provenance === "live" && finite(fires.totalCount) && fires.totalCount >= 0 && current(fires.generatedAt)) {
-    fire.value = String(fires.totalCount); fire.unit = "detections / 24h"; fire.state = "current";
-    fire.level = fires.totalCount > 0 ? "watch" : "good";
+    // Lead with the provincial count; the query box also spans neighbouring
+    // provinces and the Myanmar border, which matter for smoke, not for
+    // "fires in Chiang Mai".
+    const inProvince = finite(fires.provinceCount) ? fires.provinceCount : fires.totalCount;
+    const nearby = fires.totalCount - inProvince;
+    fire.value = String(inProvince); fire.unit = "detections / 24h"; fire.state = "current";
+    fire.level = inProvince > 0 ? "watch" : "good";
     fire.observedAt = fires.hotspots.map(h => h.detectedAt).filter(t => current(t, 24 * HOUR)).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
-    fire.summaryTh = "จุดที่ดาวเทียมตรวจพบใน 24 ชม. ไม่ใช่จำนวนไฟที่ยังลุกไหม้ · เมฆอาจบดบัง";
-    fire.summaryEn = "Satellite detections in a rolling 24-hour window, not active-fire count; clouds can hide detections";
-    fire.actionTh = fires.totalCount ? "ตรวจสอบตำแหน่งจุดความร้อนกับหน่วยงานภาคสนาม" : "ติดตามรอบดาวเทียมและรายงานภาคสนามต่อเนื่อง";
-    fire.actionEn = fires.totalCount ? "Verify hotspot locations with field reports" : "Continue monitoring satellite passes and field reports";
+    fire.summaryTh = `ในเขตจังหวัดเชียงใหม่ · จุดที่ดาวเทียมตรวจพบใน 24 ชม. ไม่ใช่จำนวนไฟที่ยังลุกไหม้ · เมฆอาจบดบัง${nearby > 0 ? ` · นอกเขตจังหวัดใกล้เคียงอีก ${nearby} จุด` : ""}`;
+    fire.summaryEn = `Inside Chiang Mai province; satellite detections in a rolling 24-hour window, not active-fire count; clouds can hide detections${nearby > 0 ? `; ${nearby} more just outside the province` : ""}`;
+    fire.actionTh = inProvince ? "ตรวจสอบตำแหน่งจุดความร้อนกับหน่วยงานภาคสนาม" : "ติดตามรอบดาวเทียมและรายงานภาคสนามต่อเนื่อง";
+    fire.actionEn = inProvince ? "Verify hotspot locations with field reports" : "Continue monitoring satellite passes and field reports";
   } else if (fires?.provenance === "live") {
     // generatedAt describes the window retrieval, not a satellite observation.
     if (validPast(fires.generatedAt) && !current(fires.generatedAt)) {

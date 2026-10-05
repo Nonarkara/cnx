@@ -1,5 +1,6 @@
 "use client";
 
+import type { RainResponse } from "../../lib/cnx/rain";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Check, ChevronRight, FileText, Flame, Map, Phone, Plane, Radio, Waves, Wind, type LucideIcon } from "lucide-react";
 import type { AirQualityResponse, CnxFiresResponse, SocialListeningResponse } from "../../types/cnx";
@@ -16,6 +17,7 @@ interface Props {
   twin: CnxTwinResponse | null;
   riverGauges: RiverGauge[];
   flights: FetchResult | null;
+  rain?: RainResponse | null;
   social: SocialListeningResponse | null;
   onOpenMap: () => void;
   onOpenBrief: () => void;
@@ -86,13 +88,13 @@ function RiverRhythm() {
   );
 }
 
-export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverGauges, flights, social, onOpenMap, onOpenBrief, onOpenEmergency, onOpenData, onOpenHaze }: Props) {
+export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverGauges, flights, rain = null, social, onOpenMap, onOpenBrief, onOpenEmergency, onOpenData, onOpenHaze }: Props) {
   const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const brief = useMemo(() => buildExecutiveBrief({ air, dustboy, fires, twin, riverGauges, flights, now: clock }), [air, dustboy, fires, twin, riverGauges, flights, clock]);
+  const brief = useMemo(() => buildExecutiveBrief({ air, dustboy, fires, twin, riverGauges, flights, rain, now: clock }), [air, dustboy, fires, twin, riverGauges, flights, rain, clock]);
   const news = (social?.items ?? []).filter((item) => item.tone !== "demo").slice(0, 4);
   const priority = { critical: 0, alert: 1, watch: 2, unknown: 3, good: 4 };
   const checks = brief.metrics.filter((metric) => metric.state !== "current" || metric.level === "unknown" || ["watch", "alert", "critical"].includes(metric.level))

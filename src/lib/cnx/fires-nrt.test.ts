@@ -168,7 +168,10 @@ describe("fetchFirmsInBbox failure handling", () => {
     await fetchFirmsInBbox(BOX);
     // One request per satellite archive, every one a two-day window.
     expect(urls).toHaveLength(3);
-    expect(urls.every((u) => u.includes("/2/") && !u.includes("/1/"))).toBe(true);
+    // A two-day window and NO trailing date: FIRMS reads a date as the start
+    // of the window, so /2/<today> meant today+tomorrow and read 0 every
+    // Bangkok morning. Without a date it is today and yesterday.
+    expect(urls.every((u) => u.endsWith("/2"))).toBe(true);
   });
 
   it("treats an empty published pass as unknown, never as a clear sky", async () => {

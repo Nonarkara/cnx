@@ -230,6 +230,10 @@ export interface CnxFiresResponse {
   provenance: "live" | "scenario";
   /** When provenance is scenario: why the live FIRMS request failed. */
   liveFailure?: string;
+  /** Detections inside the Chiang Mai province boundary (live only). The
+   *  query box also covers neighbouring provinces and the Myanmar border,
+   *  so `totalCount` is the area count and this is the provincial one. */
+  provinceCount?: number;
   /** Live path that answered: keyed area API, or NASA's open 24 h files. */
   liveSource?: "area-api" | "open-24h";
 }

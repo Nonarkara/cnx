@@ -7,6 +7,7 @@ import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { RiverGauge } from "../../lib/cnx/river-level";
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
 import type { FetchResult } from "../../lib/cnx/opensky";
+import type { RainResponse } from "../../lib/cnx/rain";
 import { buildExecutiveBrief } from "../../lib/cnx/executive-brief";
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
   twin: CnxTwinResponse | null;
   riverGauges: RiverGauge[];
   flights: FetchResult | null;
+  rain?: RainResponse | null;
   onOpenMetric: (id: "water" | "air" | "fire" | "mobility") => void;
 }
 const icons = { water: Waves, air: Wind, fire: Flame, mobility: Plane };

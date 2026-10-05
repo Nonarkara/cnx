@@ -5,6 +5,7 @@
 // measurement shortcut lets readers reach those panels without traversing
 // the map. The social rail appears at 1024 px; the full desk at 1280 px.
 
+import type { RainResponse } from "../../lib/cnx/rain";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -125,6 +126,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [heritage, setHeritage] = useState<CnxHeritageSite[]>([]);
   const [floodCameras, setFloodCameras] = useState<FloodCamera[]>([]);
   const [riverGauges, setRiverGauges] = useState<RiverGauge[]>([]);
+  const [rain, setRain] = useState<RainResponse | null>(null);
   const [visitorAnalytics, setVisitorAnalytics] = useState<VisitorAnalytics | null>(null);
   const [isStoryOpen, setIsStoryOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -250,6 +252,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           fetchJsonOrNull<RfdFiresResponse>("/api/cnx/fires-rfd", { signal: controller.signal }).then((d) => d && apply(() => setFiresRfd(d))),
           fetchJsonOrNull<AerosolResponse>("/api/cnx/aerosol", { signal: controller.signal }).then((d) => d && apply(() => setAerosol(d))),
           fetchJsonOrNull<RiverLevelResponse>("/api/cnx/river-level", { signal: controller.signal }).then((d) => d && apply(() => setRiverGauges(d.gauges))),
+          fetchJsonOrNull<RainResponse>("/api/cnx/rain", { signal: controller.signal }).then((d) => d && apply(() => setRain(d))),
         ]);
       } catch { /* abort-safe */ }
       void fetchJsonOrNull<OutboundAnalysis>("/api/cnx/outbound").then((o) => {
@@ -458,9 +461,9 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
       {scenarioId && <p className="border-b border-[var(--line)] px-5 py-2 text-sm text-[var(--dim)]">มีบริบทสถานการณ์จำลอง · The executive overview excludes simulated readings.</p>}
       {view === "overview" ? (
-        <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenHaze={() => setIsHazeOpen(true)} />
+        <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenHaze={() => setIsHazeOpen(true)} />
       ) : <>
-      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} onOpenMetric={(id) => {
+      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} onOpenMetric={(id) => {
         setDeskTab(id === "mobility" ? "visitors" : id);
         setMobileTab(id === "water" ? "flood" : id === "mobility" ? "visitors" : id);
         if (!layout.desktop) document.getElementById("hazard-panels")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -513,6 +516,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             weatherLayers={weatherLayers}
             cameraHaze={hazeVision?.cameras ?? []}
             citizenReports={citizen?.reports ?? []}
+            rainStations={rain?.stations ?? []}
             dustboyStations={dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.pm25 !== null) : []}
             smokeSegments={smoke?.provenance === "live" ? smoke.segments : []}
           />
@@ -620,7 +624,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
       <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
-      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} />
+      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} />
       <CnxHazeModal
         isOpen={isHazeOpen}
         onClose={() => setIsHazeOpen(false)}

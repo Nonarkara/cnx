@@ -174,3 +174,50 @@ describe("executive evidence overview", () => {
     expect(metric({ flights: { ...flights, degraded: true } }, "mobility").state).toBe("unavailable");
   });
 });
+
+describe("hotspots are counted inside the province", () => {
+  it("leads with the provincial count and names detections just outside it", () => {
+    const now = new Date("2026-10-05T06:00:00Z");
+    const brief = buildExecutiveBrief({
+      air: null,
+      dustboy: null,
+      twin: null,
+      riverGauges: [],
+      flights: null,
+      now,
+      fires: { generatedAt: now.toISOString(), hotspots: [], totalCount: 16, provinceCount: 5, provenance: "live" },
+    });
+    const fire = brief.metrics.find((m) => m.id === "fire")!;
+    expect(fire.value).toBe("5");
+    expect(fire.summaryEn).toContain("11 more just outside the province");
+  });
+});
+
+describe("measured heavy rain raises the water tile", () => {
+  const now = new Date("2026-10-05T06:00:00Z");
+  const base = { air: null, dustboy: null, fires: null, twin: null, riverGauges: [], flights: null, now };
+  const rainResponse = (max: number, band: "heavy" | "very-heavy") => ({
+    generatedAt: now.toISOString(),
+    stations: [],
+    bands: { none: 0, light: 0, moderate: 0, heavy: band === "heavy" ? 1 : 0, "very-heavy": band === "very-heavy" ? 1 : 0 },
+    wettest: null,
+    districts: [{ th: "จอมทอง", en: "Chom Thong", max, band, stations: 3 }],
+    maxAgeHours: 6,
+    provenance: "live" as const,
+    source: "ThaiWater",
+    note: "",
+  });
+
+  it("shows very heavy rain even with no river reading, and calls for flash-flood watch", () => {
+    const water = buildExecutiveBrief({ ...base, rain: rainResponse(94.5, "very-heavy") }).metrics.find((m) => m.id === "water")!;
+    expect(water.state).toBe("current");
+    expect(water.level).toBe("alert");
+    expect(water.summaryTh).toContain("จอมทอง 94.5");
+    expect(water.actionEn).toMatch(/flash floods/);
+  });
+
+  it("does nothing when the rain feed is unavailable", () => {
+    const water = buildExecutiveBrief({ ...base, rain: { ...rainResponse(94.5, "very-heavy"), provenance: "unavailable" } }).metrics.find((m) => m.id === "water")!;
+    expect(water.state).toBe("unavailable");
+  });
+});

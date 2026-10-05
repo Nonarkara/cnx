@@ -5,6 +5,7 @@
 // districts to call (worst air now, with last season's burned area beside
 // it), and "copy for LINE" / print. Logic lives in lib/cnx/governor-brief.ts.
 
+import type { RainResponse } from "../../lib/cnx/rain";
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Printer, X } from "lucide-react";
 import { useModalDialog } from "../../hooks/useModalDialog";
@@ -30,6 +31,7 @@ interface Props {
   twin: CnxTwinResponse | null;
   riverGauges: RiverGauge[];
   flights: FetchResult | null;
+  rain?: RainResponse | null;
 }
 
 const LEVEL_CLS: Record<BriefLevel, string> = {
@@ -41,7 +43,7 @@ const LEVEL_CLS: Record<BriefLevel, string> = {
 };
 const LEVEL_TH: Record<BriefLevel, string> = { good: "ปกติ", watch: "เฝ้าระวัง", alert: "แจ้งเตือน", critical: "วิกฤต", unknown: "ไม่มีข้อมูล" };
 
-export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires, twin, riverGauges, flights }: Props) {
+export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires, twin, riverGauges, flights, rain = null }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
@@ -71,7 +73,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
 
   const brief = useMemo(() => {
     const now = new Date(isOpen ? Math.max(clock, Date.now()) : clock);
-    const executive = buildExecutiveBrief({ air, dustboy, fires, twin, riverGauges, flights, now });
+    const executive = buildExecutiveBrief({ air, dustboy, fires, twin, riverGauges, flights, rain, now });
     const historicalDistricts = districtTable(dustboy?.provenance === "live" ? dustboy.stations : [], burn, now);
     const districts = historicalDistricts.length ? historicalDistricts : executive.districts.map((d) => ({ ...d, burnedLastSeasonRai: null, forestShare: null }));
     const freshDust = dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.province === "เชียงใหม่" && s.pm25 !== null && !s.suspect && isBriefObservationCurrent(s.observedAt, now)) : [];
@@ -88,7 +90,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
       worstDistrict: districts.find((d) => d.pm25 !== null) ?? null,
       fires: {
         live: fires?.provenance === "live" && isBriefObservationCurrent(fires.generatedAt, now),
-        count: fires?.provenance === "live" ? fires.totalCount : null,
+        count: fires?.provenance === "live" ? (fires.provinceCount ?? fires.totalCount) : null,
         observedAt: latestDetection,
         source: fires?.liveSource === "open-24h" ? "NASA VIIRS (open 24 h)" : "NASA FIRMS",
       },
@@ -103,7 +105,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
     if (airTile) airTile.level = airMetric.level;
     const checks = executive.metrics.filter((m) => m.level !== "good");
     return { tiles, districts, checks, text: lineText(tiles, districts, now, url, checks.map((m) => `${m.titleTh}: ${m.actionTh}`)) };
-  }, [air, dustboy, fires, twin, riverGauges, flights, arrivals, floodhub, burn, clock, isOpen]);
+  }, [air, dustboy, fires, twin, riverGauges, flights, rain, arrivals, floodhub, burn, clock, isOpen]);
 
   if (!isOpen) return null;
 
