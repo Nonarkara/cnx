@@ -140,14 +140,14 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
   const visitors: BriefTile = i.arrivals
     ? {
         key: "visitors",
-        titleTh: "นักท่องเที่ยว",
+        titleTh: "การบิน · ข้อมูลย้อนหลัง",
         level: "good",
-        th: `เที่ยวบินเข้าเชียงใหม่ ${i.arrivals.flights} เที่ยว (ต่างประเทศ ${i.arrivals.international}) ประมาณ ${i.arrivals.estimatedVisitors.toLocaleString("en-US")} คน — ${thaiDate(i.arrivals.date)}`,
+        th: `ตรวจพบเที่ยวบินเข้าเชียงใหม่ ${i.arrivals.flights} เที่ยว (ต่างประเทศ ${i.arrivals.international}) — ${thaiDate(i.arrivals.date)} · ประมาณผู้โดยสาร ${i.arrivals.estimatedVisitors.toLocaleString("en-US")} คนจากจำนวนที่นั่งและอัตราบรรทุกสมมติ ไม่ใช่ยอดผู้โดยสารจริงหรือจำนวนนักท่องเที่ยว`,
         en: `${i.arrivals.flights} arrivals (${i.arrivals.international} international), ~${i.arrivals.estimatedVisitors} passengers (estimate: seats × load factor)`,
         source: "OpenSky arrivals at VTCC",
         observedAt: null,
       }
-    : { key: "visitors", titleTh: "นักท่องเที่ยว", level: "unknown", th: "ไม่มีข้อมูลเที่ยวบินขาเข้า", en: "No arrivals data", source: "OpenSky", observedAt: null };
+    : { key: "visitors", titleTh: "การบิน · ข้อมูลย้อนหลัง", level: "unknown", th: "ไม่มีข้อมูลเที่ยวบินขาเข้า", en: "No arrivals data", source: "OpenSky", observedAt: null };
 
   return [air, fire, water, visitors];
 }

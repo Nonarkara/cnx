@@ -20,10 +20,10 @@ interface Props {
   rain?: RainResponse | null;
   social: SocialListeningResponse | null;
   onOpenMap: () => void;
+  onOpenMetric: (id: ExecutiveMetric["id"]) => void;
   onOpenBrief: () => void;
   onOpenEmergency: () => void;
   onOpenData: () => void;
-  onOpenHaze: () => void;
 }
 
 const ICONS: Record<ExecutiveMetric["id"], LucideIcon> = { water: Waves, air: Wind, fire: Flame, mobility: Plane };
@@ -88,7 +88,7 @@ function RiverRhythm() {
   );
 }
 
-export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverGauges, flights, rain = null, social, onOpenMap, onOpenBrief, onOpenEmergency, onOpenData, onOpenHaze }: Props) {
+export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverGauges, flights, rain = null, social, onOpenMap, onOpenMetric, onOpenBrief, onOpenEmergency, onOpenData }: Props) {
   const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -125,7 +125,7 @@ export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverG
       </div>
 
       <div className="mt-7 grid border-y border-[var(--line)] sm:grid-cols-2 xl:grid-cols-4">
-        {brief.metrics.map((metric) => <Metric key={metric.id} metric={metric} onOpen={metric.id === "air" ? onOpenHaze : onOpenMap} />)}
+        {brief.metrics.map((metric) => <Metric key={metric.id} metric={metric} onOpen={() => onOpenMetric(metric.id)} />)}
       </div>
 
       <div className="mt-12 grid gap-x-12 gap-y-12 lg:grid-cols-12">
@@ -133,7 +133,7 @@ export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverG
           <div className="flex items-start justify-between gap-4"><div><p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--cool)]">Decision desk</p><h2 id="executive-priorities" lang="th" className="mt-2 text-[26px] font-semibold leading-snug sm:text-[30px]">สิ่งที่ควรตรวจสอบต่อ</h2></div><ArrowDownRight aria-hidden="true" className="mt-7 h-7 w-7 shrink-0 text-[var(--sun)]" /></div>
           <p lang="th" className="mt-3 max-w-[38rem] text-[14px] leading-relaxed text-[var(--dim)]">เริ่มจากด้านที่ต้องติดตามและข้อมูลที่ยังขาด ก่อนกำหนดการดำเนินงานร่วมกับหน่วยงานเจ้าของข้อมูล</p>
           <ol className="mt-6 border-t border-[var(--line)]">
-            {nextChecks.map((metric, index) => <li key={metric.id} className="grid grid-cols-[2rem_1fr] gap-4 border-b border-[var(--line)] py-5"><span className="pt-1 font-mono text-[15px] tabular-nums text-[var(--dim)]">0{index + 1}</span><div><h3 lang="th" className="text-[17px] font-semibold">{metric.titleTh}</h3><p lang="th" className="mt-2 text-[15px] leading-relaxed text-[var(--dim)]">{metric.actionTh}</p><button type="button" onClick={metric.id === "air" ? onOpenHaze : onOpenMap} className="mt-2 inline-flex min-h-11 items-center gap-2 text-[14px] font-semibold text-[var(--cool)]">ตรวจหลักฐาน<ChevronRight aria-hidden="true" className="h-4 w-4" /></button></div></li>)}
+            {nextChecks.map((metric, index) => <li key={metric.id} className="grid grid-cols-[2rem_1fr] gap-4 border-b border-[var(--line)] py-5"><span className="pt-1 font-mono text-[15px] tabular-nums text-[var(--dim)]">0{index + 1}</span><div><h3 lang="th" className="text-[17px] font-semibold">{metric.titleTh}</h3><p lang="th" className="mt-2 text-[15px] leading-relaxed text-[var(--dim)]">{metric.actionTh}</p><button type="button" onClick={() => onOpenMetric(metric.id)} className="mt-2 inline-flex min-h-11 items-center gap-2 text-[14px] font-semibold text-[var(--cool)]">ตรวจหลักฐาน<ChevronRight aria-hidden="true" className="h-4 w-4" /></button></div></li>)}
           </ol>
           <button type="button" onClick={onOpenEmergency} className="mt-6 inline-flex min-h-12 items-center gap-3 border border-[var(--line)] px-4 py-3 text-[14px] font-semibold"><Phone aria-hidden="true" className="h-4 w-4 text-[var(--cool)]" />ติดต่อหน่วยงานและหมายเลขฉุกเฉิน<ArrowUpRight aria-hidden="true" className="h-4 w-4 text-[var(--dim)]" /></button>
         </section>

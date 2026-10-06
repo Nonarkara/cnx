@@ -92,7 +92,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
         <div className="flex items-center gap-2">
           <Radio className="h-3.5 w-3.5 text-[var(--cool)]" />
           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
-            Social Listening
+            ข่าวเชียงใหม่
           </span>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--danger)]">
@@ -103,16 +103,17 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
       <div className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg)]">
         {(
           [
-            { id: "all", label: "All", count: (data?.items.length ?? 0) },
+            { id: "all", label: "ทั้งหมด", count: (data?.items.length ?? 0) },
             { id: "th", label: "TH", count: counts.th },
             { id: "en", label: "EN", count: counts.en },
-            { id: "alert", label: "Alert", count: data?.items.filter((i) => i.tone === "alert").length ?? 0 },
+            { id: "alert", label: "ประเด็น", count: data?.items.filter((i) => i.tone === "alert").length ?? 0 },
           ] as const
         ).map((f, i) => (
           <button
             key={f.id}
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={`flex min-h-[32px] flex-1 items-center justify-center gap-1.5 border-r px-2 text-[9px] font-bold uppercase tracking-[0.16em] transition-colors last:border-r-0 ${
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1 border-r px-1 text-[11px] font-bold transition-colors last:border-r-0 ${
               i === 3 ? "border-r-0" : "border-r border-[var(--line)]"
             } ${filter === f.id ? "bg-[var(--bg-raised)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
@@ -121,6 +122,8 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
           </button>
         ))}
       </div>
+
+      <p className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[var(--dim)]">ข่าวจากสื่อเพื่อใช้ตรวจสอบต่อ ไม่ใช่การยืนยันเหตุการณ์หรือผลสำรวจความคิดเห็นประชาชน</p>
 
       {data && data.items.length > 0 && data.unavailableReason && (
         <details className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[#f59e0b]">

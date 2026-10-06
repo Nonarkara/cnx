@@ -100,7 +100,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
         ? { date: yesterday.date, flights: yesterday.totalFlights, international: yesterday.internationalFlights, estimatedVisitors: yesterday.estimatedVisitors }
         : null,
     });
-    const url = typeof window === "undefined" ? "https://cnx.nonarkara.org/cnx" : `${window.location.origin}/cnx`;
+    const url = "https://cnx.nonarkara.org/cnx";
     const airTile = tiles.find((tile) => tile.key === "air");
     if (airTile) airTile.level = airMetric.level;
     const checks = executive.metrics.filter((m) => m.level !== "good");
@@ -160,7 +160,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
               <p className="mt-2 text-[13px] text-[var(--dim)]">{t.en}</p>
               <p className="mt-3 text-[12px] text-[var(--dim)]">
                 {/* DataAge prints the source itself; without a time, print it plainly. */}
-                {t.observedAt ? <DataAge observedAt={t.observedAt} source={t.key === "fire" ? `${t.source} · latest detection` : t.source} staleAfterMs={t.key === "fire" ? 24 * 3600_000 : 3 * 3600_000} /> : t.source}
+                {t.observedAt ? <DataAge observedAt={t.observedAt} source={t.key === "fire" ? `${t.source} · latest detection` : t.source} staleAfterMs={(t.key === "fire" ? 24 : t.key === "water" && t.source.includes("rain gauges") ? 6 : 3) * 3600_000} className="!text-[12px] !tracking-normal" /> : t.source}
               </p>
             </div>
           ))}
@@ -171,16 +171,15 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
           <ol className="mt-3 space-y-3">{brief.checks.map((m) => <li key={m.id} className="text-sm leading-relaxed"><span className="font-semibold">{m.titleTh} · </span>{m.actionTh}</li>)}</ol>
         </section>}
         <section className="mt-6 overflow-x-auto">
-          <h3 lang="th" className="text-[13px] font-bold text-[var(--ink)]">อำเภอที่ควรติดตาม · Districts to call</h3>
+          <h3 lang="th" className="text-[13px] font-bold text-[var(--ink)]">อำเภอที่มีหลักฐานสำหรับติดตาม</h3>
           <p className="text-[11px] text-[var(--dim)]">
-            PM2.5 now = average of CMU DustBoy ground sensors in the district (suspect sensors excluded). Burned last season = HII
-            Tamroypao, monthly sums (a field burned twice counts twice).
+            PM2.5 คือค่าเฉลี่ยสถานี DustBoy ที่ใช้ได้ในอำเภอ ไม่ครอบคลุมทุกพื้นที่ ส่วนพื้นที่เผาปีก่อนมาจาก HII Tamroypao และอาจนับพื้นที่เดิมซ้ำเมื่อเผาหลายครั้ง ไม่ใช่เหตุการณ์วันนี้
           </p>
           <table className="mt-2 w-full border-collapse text-[12px] tabular-nums">
             <thead>
               <tr className="text-left font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--dim)]">
                 <th className="py-1 font-normal">อำเภอ</th>
-                <th className="py-1 text-right font-normal">PM2.5 now</th>
+                <th className="py-1 text-right font-normal">PM2.5 (µg/m³)</th>
                 <th className="py-1 text-right font-normal">Sensors</th>
                 <th className="py-1 text-right font-normal">Burned 2569 (rai)</th>
                 <th className="py-1 text-right font-normal">Forest share</th>

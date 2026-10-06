@@ -309,13 +309,18 @@ export default function CnxTopBar(props: TopBarProps) {
 
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           {officeNotice && (
-            <button
-              className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] sm:min-h-0 sm:px-2 sm:py-1 sm:text-[9px]"
-              title={officeNotice.title}
-            >
+            <details className="relative">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 text-[12px] font-semibold text-[var(--danger)]">
               <Bell className="h-3 w-3" />
-              {officeNotice.level.toUpperCase()}
-            </button>
+              ประกาศหน่วยงาน ⌄
+              </summary>
+              <div className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,85vw)] border border-[var(--line)] bg-[var(--bg-raised)] p-4 text-[13px] leading-relaxed shadow-xl">
+                <p className="font-semibold">{officeNotice.title}</p>
+                {officeNotice.detail && <p className="mt-2">{officeNotice.detail}</p>}
+                <p className="mt-2 text-[var(--dim)]">{officeNotice.source}</p>
+                {officeNotice.url && /^https?:\/\//i.test(officeNotice.url) && <a href={officeNotice.url} target="_blank" rel="noreferrer" className="mt-2 flex min-h-11 items-center text-[var(--cool)] underline">ตรวจสอบประกาศต้นฉบับ ↗</a>}
+              </div>
+            </details>
           )}
           <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span lang="th">{view === "map" ? "ภาพรวมจังหวัด" : "ห้องปฏิบัติการ"}</span></button>
 <button
@@ -324,14 +329,14 @@ export default function CnxTopBar(props: TopBarProps) {
             className="hidden min-h-11 items-center gap-1.5 border border-[var(--wada-counter)] sm:flex bg-[var(--wada-counter)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-white hover:opacity-90 "
           >
             <FileText className="h-3 w-3" />
-            <span lang="th"><span className="sm:hidden">สรุปผู้ว่าฯ</span><span className="hidden sm:inline">Brief ผู้ว่าฯ</span></span>
+              <span lang="th">สรุปผู้ว่าฯ</span>
           </button>
 <button
             onClick={onOpenEmergency}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
           >
             <PhoneCall className="h-3 w-3" />
-            <span lang="th" className="sm:hidden">ฉุกเฉิน</span><span className="hidden sm:inline">Emergency</span>
+            <span lang="th">ติดต่อฉุกเฉิน</span>
           </button>
           <details className="relative">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">เมนู</span><span className="hidden sm:inline">เครื่องมือ</span> <span aria-hidden="true">⌄</span></summary>
@@ -340,31 +345,31 @@ export default function CnxTopBar(props: TopBarProps) {
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <Database className="h-3 w-3" />
-            Data
+            คลังข้อมูล
           </button><button
             onClick={onOpenHaze}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <Wind className="h-3 w-3" />
-            Haze
+            ตรวจสอบฝุ่นและภาพกล้อง
           </button><button
             onClick={onOpenStory}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] "
           >
             <BookOpen className="h-3 w-3" />
-            Story
+            เรื่องราวจังหวัด
           </button><button
             onClick={onOpenManual}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <BookOpen className="h-3 w-3" />
-            Manual
+            วิธีใช้งาน
           </button><button
             onClick={onOpenResearch}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] "
           >
             <FlaskConical className="h-3 w-3" />
-            Research
+            แหล่งข้อมูลและข้อจำกัด
           </button>
           <a href="/cnx/about#web-app" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">เว็บแอป · Android &amp; iPhone</a>
       {!compact && <details className="border-t border-[var(--line)]">

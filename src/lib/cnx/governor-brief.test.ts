@@ -61,6 +61,13 @@ const inputs = (over: Partial<BriefInputs> = {}): BriefInputs => ({
 });
 
 describe("buildTiles", () => {
+  it("labels historical aviation and passenger estimates explicitly in Thai", () => {
+    const tile = buildTiles(inputs()).find(t => t.key === "visitors")!;
+    expect(tile.titleTh).toContain("ย้อนหลัง");
+    expect(tile.th).toContain("อัตราบรรทุกสมมติ");
+    expect(tile.th).toContain("ไม่ใช่ยอดผู้โดยสารจริงหรือจำนวนนักท่องเที่ยว");
+    expect(tile.th).toContain("2 ต.ค. 2569");
+  });
   it("uses the rain observation window without extending river freshness", () => {
     const now = new Date("2026-10-05T06:00:00Z");
     const water = { th: "ฝนหนัก 102 มม.", en: "Heavy measured rain", level: "alert" as const, observedAt: "2026-10-05T02:00:00Z" };
