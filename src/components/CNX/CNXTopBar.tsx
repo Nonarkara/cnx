@@ -301,6 +301,7 @@ export default function CnxTopBar(props: TopBarProps) {
             title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"} · ${now}`}
           >
             v{process.env.NEXT_PUBLIC_APP_VERSION}
+            {process.env.NEXT_PUBLIC_LIVE_PREVIEW === "1" && <span title="Local frontend preview using deployed public data"> · PREVIEW</span>}
             {process.env.NEXT_PUBLIC_GIT_SHA ? `·${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}
           </span>
         </div>
@@ -322,7 +323,7 @@ export default function CnxTopBar(props: TopBarProps) {
               </div>
             </details>
           )}
-          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span lang="th">{view === "map" ? "ภาพรวมจังหวัด" : "ห้องปฏิบัติการ"}</span></button>
+          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span lang="th" className="sm:hidden">{view === "map" ? "ภาพรวม" : "แผนที่"}</span><span lang="th" className="hidden sm:inline">{view === "map" ? "ภาพรวมจังหวัด" : "ห้องปฏิบัติการ"}</span></button>
 <button
             onClick={onOpenBrief}
             title="One-screen summary for the governor — copy to LINE or print"
@@ -336,7 +337,7 @@ export default function CnxTopBar(props: TopBarProps) {
             className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
           >
             <PhoneCall className="h-3 w-3" />
-            <span lang="th">ติดต่อฉุกเฉิน</span>
+            <span lang="th" className="sm:hidden">ฉุกเฉิน</span><span lang="th" className="hidden sm:inline">ติดต่อฉุกเฉิน</span>
           </button>
           <details className="relative">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">เมนู</span><span className="hidden sm:inline">เครื่องมือ</span> <span aria-hidden="true">⌄</span></summary>
@@ -505,7 +506,7 @@ export default function CnxTopBar(props: TopBarProps) {
       </div>
 
       <a href="/cnx/about#web-app" className="mt-1 w-fit text-[11px] sm:hidden leading-5 text-[var(--dim)] hover:text-[var(--cool)] hover:underline">
-        Available on Android &amp; iPhone as a web app · Add to Home Screen
+        เว็บแอป Android &amp; iPhone · เพิ่มในหน้าจอหลัก
       </a>
 
 

@@ -2,9 +2,18 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import CnxTicker from "./CNXTicker";
-import type { AirQualityResponse, CctvFeedResponse } from "../../types/cnx";
+import type { AirQualityResponse, CctvFeedResponse, CnxFiresResponse } from "../../types/cnx";
 
 describe("operational feed summary", () => {
+  it("distinguishes a provincial zero from nearby detections", () => {
+    const html = renderToStaticMarkup(createElement(CnxTicker, {
+      air: null, flood: null, social: null, story: null, flights: null, cctv: null,
+      fires: { provenance: "live", totalCount: 3, provinceCount: 0 } as CnxFiresResponse,
+    }));
+    expect(html).toContain("FIRMS · เชียงใหม่");
+    expect(html).toContain("0 จุด / 24 ชม. · นอกจังหวัด 3");
+    expect(html).not.toContain("3 hotspots");
+  });
   it("exposes one reachable-camera summary through keyboard-accessible scroll, without animation", () => {
     const html = renderToStaticMarkup(createElement(CnxTicker, {
       air: null, flood: null, fires: null, social: null, story: null, flights: null,

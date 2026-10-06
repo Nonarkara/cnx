@@ -29,7 +29,7 @@ function relative(iso: string): string {
 
 function sourceBadge(item: SocialItem) {
   if (item.source === "google-news") {
-    return item.lang === "th" ? { label: "TH", className: "bg-[var(--sun)] text-white" } : { label: "EN", className: "bg-[var(--cool)] text-white" };
+    return { label: item.lang.toUpperCase(), className: item.lang === "th" ? "bg-[var(--sun)] text-white" : "bg-[var(--cool)] text-white" };
   }
   if (item.source === "gdelt") return { label: "GDELT", className: "bg-[var(--ink)] text-[var(--bg)]" };
   if (item.source === "twitter") return { label: "X", className: "bg-black text-white" };
@@ -84,7 +84,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
     return all.filter((i) => i.lang === filter);
   }, [data, filter]);
 
-  const counts = data?.counts ?? { th: 0, en: 0 };
+  const counts = { th: data?.items.filter(i => i.lang === "th").length ?? 0, en: data?.items.filter(i => i.lang === "en").length ?? 0 };
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--bg-raised)]">

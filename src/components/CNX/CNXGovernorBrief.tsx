@@ -82,7 +82,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
     const airGround = { avg: airMetric.state === "current" ? Number(airMetric.value) : null, stations: pcd.length || freshDust.length, observedAt: airMetric.observedAt, source: airMetric.source };
     const water = executive.metrics.find((m) => m.id === "water")!;
     const river = water.state === "current" ? { th: `${water.value} ${water.unit} · ${water.summaryTh}`, en: `${water.value} ${water.unit} · ${water.summaryEn}`, level: water.level, observedAt: water.observedAt, source: water.source, kind: water.source === "ThaiWater rain gauges" ? "rain" as const : "river" as const } : null;
-    const latestDetection = (fires?.hotspots ?? []).map((h) => h.detectedAt).filter((t) => Number.isFinite(Date.parse(t)) && Date.parse(t) <= now.getTime() + 300_000).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
+    const latestDetection = executive.metrics.find(m => m.id === "fire")!.observedAt;
     const yesterday = arrivals?.days[1];
     const tiles = buildTiles({
       now,
@@ -154,7 +154,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
             <div key={t.key} className={`border-l-4 ${LEVEL_CLS[t.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
               <div className="flex items-baseline justify-between gap-2">
                 <span lang="th" className="text-[14px] font-bold text-[var(--ink)]">{t.titleTh}</span>
-                <span lang="th" className="font-mono text-[10px] uppercase text-[var(--dim)]">{LEVEL_TH[t.level]}</span>
+                <span lang="th" className="font-mono text-[10px] uppercase text-[var(--dim)]">{t.key === "visitors" && t.level === "good" ? "ข้อมูลย้อนหลัง" : LEVEL_TH[t.level]}</span>
               </div>
               <p lang="th" className="mt-1 text-[17px] leading-relaxed text-[var(--ink)]">{t.th}</p>
               <p className="mt-2 text-[13px] text-[var(--dim)]">{t.en}</p>
@@ -180,9 +180,9 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
               <tr className="text-left font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--dim)]">
                 <th className="py-1 font-normal">อำเภอ</th>
                 <th className="py-1 text-right font-normal">PM2.5 (µg/m³)</th>
-                <th className="py-1 text-right font-normal">Sensors</th>
-                <th className="py-1 text-right font-normal">Burned 2569 (rai)</th>
-                <th className="py-1 text-right font-normal">Forest share</th>
+                <th className="py-1 text-right font-normal">สถานี</th>
+                <th className="py-1 text-right font-normal">พื้นที่เผาย้อนหลัง (ไร่)</th>
+                <th className="py-1 text-right font-normal">สัดส่วนป่า</th>
               </tr>
             </thead>
             <tbody>

@@ -158,7 +158,7 @@ describe("executive evidence overview", () => {
 
   it("uses hotspot detection time without treating an earlier satellite pass as a dead feed", () => {
     const result = metric({ fires: { generatedAt: now.toISOString(), provenance: "live", totalCount: 1,
-      hotspots: [{ id: "h", latitude: 18, longitude: 99, brightness: null, confidence: 90, satellite: "NOAA-20", detectedAt: "2026-10-04T00:00:00Z", severity: "watch" }] } }, "fire");
+      hotspots: [{ id: "h", latitude: 18.79, longitude: 98.98, brightness: null, confidence: 90, satellite: "NOAA-20", detectedAt: "2026-10-04T00:00:00Z", severity: "watch" }] } }, "fire");
     expect(result.state).toBe("current");
     expect(result.observedAt).toBe("2026-10-04T00:00:00Z");
     expect(result.level).toBe("watch");
@@ -176,6 +176,13 @@ describe("executive evidence overview", () => {
 });
 
 describe("hotspots are counted inside the province", () => {
+  it("does not attach a nearby detection time to a provincial zero", () => {
+    const result = metric({ fires: { generatedAt: now.toISOString(), provenance: "live", provinceCount: 0, totalCount: 1,
+      hotspots: [{ id: "nearby", latitude: 20, longitude: 100, brightness: null, confidence: 90, satellite: "NOAA-20", detectedAt: "2026-10-04T05:00:00Z", severity: "watch" }] } }, "fire");
+    expect(result.value).toBe("0");
+    expect(result.observedAt).toBeNull();
+    expect(result.summaryEn).toContain("1 more just outside");
+  });
   it("leads with the provincial count and names detections just outside it", () => {
     const now = new Date("2026-10-05T06:00:00Z");
     const brief = buildExecutiveBrief({

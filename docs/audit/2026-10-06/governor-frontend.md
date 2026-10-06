@@ -1,5 +1,7 @@
 # Governor-facing frontend audit — 6 October 2026
 
+The browser limitation from this first pass was subsequently resolved. See the [7 October visual follow-up](../2026-10-07/governor-frontend-followup.md) for actual desktop/phone checks and further corrections.
+
 The landing page remains the map-based operation room. This pass repairs the path from a headline to evidence and a next check; it does not substitute a presentation page for the working map.
 
 ## Defects corrected

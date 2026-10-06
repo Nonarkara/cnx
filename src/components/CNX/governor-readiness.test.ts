@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CnxExecutiveOverview from "./CNXExecutiveOverview";
 import CnxGovernorBrief from "./CNXGovernorBrief";
 import CnxMetricEvidence from "./CNXMetricEvidence";
+import CnxFirePanel from "./CNXFirePanel";
+import CnxSocialSidebar from "./CNXSocialSidebar";
+import type { CnxFiresResponse, SocialListeningResponse } from "../../types/cnx";
 import { buildExecutiveBrief } from "../../lib/cnx/executive-brief";
 
 const empty = { air: null, dustboy: null, fires: null, twin: null, riverGauges: [], flights: null };
@@ -25,6 +28,27 @@ afterEach(async () => {
 });
 
 describe("governor evidence paths", () => {
+  it("does not count or badge other languages as English", async () => {
+    const initialData = { generatedAt: "2026-10-07T00:00:00Z", provenance: "live", counts: { th: 1, en: 2 }, items: ["th", "en", "zh"].map(lang => ({
+      id: lang, lang, title: lang, source: "google-news", tone: "info", publishedAt: "2026-10-07T00:00:00Z",
+    })) } as SocialListeningResponse;
+    await act(async () => root.render(createElement(CnxSocialSidebar, { initialData, scenarioId: null })));
+    const labels = Array.from(container.querySelectorAll("button")).map(button => button.textContent?.replace(/\s/g, ""));
+    expect(labels).toContain("TH1");
+    expect(labels).toContain("EN1");
+    expect(container.querySelectorAll("article")[2].textContent).toContain("ZH");
+  });
+  it("opens the satellite evidence first and distinguishes nearby detections", async () => {
+    const firms = { generatedAt: "2026-10-07T00:00:00Z", provenance: "live", provinceCount: 0, totalCount: 1, hotspots: [
+      { id: "outside", longitude: 100, latitude: 20, brightness: null, satellite: "NOAA-20", severity: "watch", confidence: 90, detectedAt: "2026-10-06T23:00:00Z" },
+    ] } as CnxFiresResponse;
+    await act(async () => root.render(createElement(CnxFirePanel, { firms, rfd: null, aerosol: null })));
+    expect(container.textContent).toContain("ในจังหวัดเชียงใหม่ 0 จุด · นอกจังหวัดในพื้นที่ติดตาม 1 จุด");
+    expect(container.textContent).toContain("นอกจังหวัดเชียงใหม่");
+    expect(container.textContent).not.toContain("loading RFD");
+    const selected = container.querySelector('button[aria-pressed="true"]');
+    expect(selected?.textContent).toContain("FIRMS");
+  });
   it("opens the relevant operational topic from every overview metric", async () => {
     const openMetric = vi.fn();
     const openMap = vi.fn();

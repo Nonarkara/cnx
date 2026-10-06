@@ -19,6 +19,7 @@ import { Flame, Wind, ExternalLink, MapPin, Satellite } from "lucide-react";
 import type { CnxFiresResponse } from "../../types/cnx";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
+import { inChiangMaiProvince } from "../../lib/cnx/province-boundary";
 
 type Tab = "rfd" | "firms" | "aerosol";
 
@@ -55,7 +56,7 @@ interface PanelProps {
 }
 
 export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
-  const [tab, setTab] = useState<Tab>("rfd");
+  const [tab, setTab] = useState<Tab>("firms");
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-b border-[var(--line)] bg-[var(--bg-raised)]">
@@ -63,7 +64,7 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
         <div className="flex items-center gap-2">
           <Flame className="h-3.5 w-3.5 text-[var(--danger)]" />
           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
-            Fire / Aerosol
+            จุดความร้อนและละอองลอย
           </span>
         </div>
         {aerosol && (
@@ -79,14 +80,15 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
         {(
           [
             { id: "rfd", label: "RFD", count: rfd?.provenance === "live" ? rfd.totalCount : undefined },
-            { id: "firms", label: "FIRMS", count: firms?.provenance === "live" ? firms.totalCount : undefined },
+            { id: "firms", label: "FIRMS · 24 ชม.", count: firms?.provenance === "live" ? (firms.provinceCount ?? firms.totalCount) : undefined },
             { id: "aerosol", label: "AOD", count: undefined },
           ] as const
         ).map((t, i) => (
           <button
             key={t.id}
+            aria-pressed={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`flex min-h-[34px] flex-1 items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] ${
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1 text-[11px] font-semibold ${
               i < 2 ? "border-r border-[var(--line)]" : ""
             } ${tab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
@@ -196,12 +198,11 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
 }
 
 function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
-  if (!firms) return <div className="p-3 text-[10px] text-[var(--dim)]">loading FIRMS…</div>;
+  if (!firms) return <div className="p-3 text-[12px] text-[var(--dim)]">กำลังอ่านข้อมูลดาวเทียม NASA…</div>;
   if (firms.provenance !== "live") {
     return (
       <div className="p-3 text-[11px] leading-relaxed text-[var(--dim)]">
-        NASA FIRMS did not return a live pass. Illustrated hotspots are not listed as detections.
-        The smoke map stays empty until <span className="font-mono">FIRMS_MAP_KEY</span> answers.
+        ยังไม่มีข้อมูลดาวเทียมปัจจุบันที่ยืนยันได้ จึงไม่แสดงจุดจำลองเป็นเหตุการณ์จริง · ข้อมูลที่ขาดไม่ได้แปลว่าไม่มีไฟ
       </div>
     );
   }
@@ -209,15 +210,16 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
         <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-          FIRMS Hotspots (NASA)
+          จุดตรวจจับ NASA · 24 ชม.
         </span>
         <div className="text-right">
-          <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{firms.totalCount}</div>
+          <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{firms.provinceCount ?? firms.totalCount}</div>
           <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
             forest tenure {firms.forestShare === undefined ? "unknown" : `${(firms.forestShare * 100).toFixed(0)}%`}
           </div>
         </div>
       </div>
+      <p className="mb-3 text-[12px] leading-relaxed text-[var(--dim)]">{firms.provinceCount != null ? `ในจังหวัดเชียงใหม่ ${firms.provinceCount} จุด · นอกจังหวัดในพื้นที่ติดตาม ${firms.totalCount - firms.provinceCount} จุด` : "จุดตรวจจับในพื้นที่ติดตาม · ยังไม่แยกขอบเขตจังหวัด"} · ไม่ใช่จำนวนไฟที่ยังลุกไหม้</p>
       <div className="space-y-1">
         {firms.hotspots.slice(0, 10).map((h) => (
           <div
@@ -226,6 +228,7 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
           >
             <div className="min-w-0">
               <div className="truncate font-mono text-[9px] text-[var(--ink)]">{h.id.slice(0, 14)}</div>
+              <p className="text-[11px] text-[var(--dim)]">{inChiangMaiProvince(h.longitude, h.latitude) ? "ในจังหวัดเชียงใหม่" : "นอกจังหวัดเชียงใหม่"}</p>
               <div className="font-mono text-[8px] text-[var(--dim)]">
                 {h.latitude.toFixed(3)}, {h.longitude.toFixed(3)} · {h.satellite}
               </div>

@@ -419,10 +419,10 @@ export default function CNXMap({
   useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const currentRainStations = useMemo(() => summariseRain(rainStations, rainClock).stations, [rainStations, rainClock]);
   const wetStations = useMemo(() => currentRainStations.filter((s) => s.band === "moderate" || s.band === "heavy" || s.band === "very-heavy"), [currentRainStations]);
-  const [busesOn, setBusesOn] = useState(true);
-  const [cmuShuttleOn, setCmuShuttleOn] = useState(true);
+  const [busesOn, setBusesOn] = useState(false);
+  const [cmuShuttleOn, setCmuShuttleOn] = useState(false);
   const cmuBuses = useCmuTransitBuses(cmuShuttleOn);
-  const [airportBusOn, setAirportBusOn] = useState(true);
+  const [airportBusOn, setAirportBusOn] = useState(false);
   const airportBuses = useRtcBusSim(rtcLines, airportBusOn);
   // Off by default — supplementary weather context, not core-view clutter.
   // Image overlays are mutually exclusive: infrared cloud and aerosol cover

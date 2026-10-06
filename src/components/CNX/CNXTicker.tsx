@@ -55,12 +55,13 @@ export default function CnxTicker({
       });
     }
     if (fires) {
+      const count = fires.provinceCount ?? fires.totalCount;
       out.push({
         key: "fires",
         icon: "🔥",
-        label: "FIRMS",
-        value: fires.provenance === "live" ? `${fires.totalCount} hotspots` : "no live pass",
-        level: fires.provenance === "live" && fires.totalCount > 30 ? "alert" : undefined,
+        label: fires.provinceCount != null ? "FIRMS · เชียงใหม่" : "FIRMS · พื้นที่ติดตาม",
+        value: fires.provenance === "live" ? `${count} จุด / 24 ชม.${fires.provinceCount != null && fires.totalCount > count ? ` · นอกจังหวัด ${fires.totalCount - count}` : ""}` : "ไม่มีข้อมูลดาวเทียมปัจจุบัน",
+        level: fires.provenance === "live" && count > 30 ? "alert" : undefined,
       });
     }
     if (cctv) {

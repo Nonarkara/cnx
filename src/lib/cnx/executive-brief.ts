@@ -5,6 +5,7 @@ import type { RiverGauge } from "./river-level";
 import type { CnxTwinResponse } from "./twin";
 import type { RainResponse } from "./rain";
 import { currentRainSummary } from "./rain-core";
+import { inChiangMaiProvince } from "./province-boundary";
 
 export type BriefLevel = "good" | "watch" | "alert" | "critical" | "unknown";
 export interface ExecutiveMetric {
@@ -225,7 +226,7 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
     const nearby = fires.totalCount - inProvince;
     fire.value = String(inProvince); fire.unit = "detections / 24h"; fire.state = "current";
     fire.level = inProvince > 0 ? "watch" : "good";
-    fire.observedAt = fires.hotspots.map(h => h.detectedAt).filter(t => current(t, 24 * HOUR)).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
+    fire.observedAt = inProvince === 0 ? null : fires.hotspots.filter(h => inChiangMaiProvince(h.longitude, h.latitude)).map(h => h.detectedAt).filter(t => current(t, 24 * HOUR)).sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
     fire.summaryTh = `ในเขตจังหวัดเชียงใหม่ · จุดที่ดาวเทียมตรวจพบใน 24 ชม. ไม่ใช่จำนวนไฟที่ยังลุกไหม้ · เมฆอาจบดบัง${nearby > 0 ? ` · นอกเขตจังหวัดใกล้เคียงอีก ${nearby} จุด` : ""}`;
     fire.summaryEn = `Inside Chiang Mai province; satellite detections in a rolling 24-hour window, not active-fire count; clouds can hide detections${nearby > 0 ? `; ${nearby} more just outside the province` : ""}`;
     fire.actionTh = inProvince ? "ตรวจสอบตำแหน่งจุดความร้อนกับหน่วยงานภาคสนาม" : "ติดตามรอบดาวเทียมและรายงานภาคสนามต่อเนื่อง";
