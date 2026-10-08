@@ -52,6 +52,7 @@ import type { WallFeature } from "./CNXMap";
 import CnxExecutiveOverview from "./CNXExecutiveOverview";
 import CnxOperationalPulse from "./CNXOperationalPulse";
 import CnxMetricEvidence from "./CNXMetricEvidence";
+import CnxWatchBoard from "./CNXWatchBoard";
 import { buildExecutiveBrief, type ExecutiveMetric } from "../../lib/cnx/executive-brief";
 
 const CNXMap = dynamic(() => import("./CNXMap"), { ssr: false, loading: () => <div role="status" className="flex h-full items-center justify-center text-sm text-[var(--dim)]">กำลังเปิดแผนที่ · Opening operational map…</div> });
@@ -87,7 +88,7 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
-  const [deskTab, setDeskTab] = useState<"water" | "air" | "fire" | "model" | "visitors" | "cameras" | "data" | "ask">("water");
+  const [deskTab, setDeskTab] = useState<"watch" | "water" | "air" | "fire" | "model" | "visitors" | "cameras" | "data" | "ask">("watch");
   const [view, setView] = useState<"overview" | "map">("map");
   const [layout, setLayout] = useState({ desktop: false, socialRail: false });
   useEffect(() => {
@@ -428,13 +429,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
   // Mobile + tablet panel tab state
   const [mobileTab, setMobileTab] = useState<
-    "fire" | "air" | "flood" | "visitors" | "social" | "data" | "ask"
-  >("air");
+    "watch" | "fire" | "air" | "flood" | "visitors" | "social" | "data" | "ask"
+  >("watch");
 
   const [pendingEvidence, setPendingEvidence] = useState(false);
-  const openMetric = (id: ExecutiveMetric["id"]) => {
+  const openMetric = (id: ExecutiveMetric["id"] | "model" | "watch") => {
     setDeskTab(id === "mobility" ? "visitors" : id);
-    setMobileTab(id === "water" ? "flood" : id === "mobility" ? "visitors" : id);
+    setMobileTab(id === "water" || id === "model" ? "flood" : id === "mobility" ? "visitors" : id);
     setView("map");
     setPendingEvidence(true);
   };
@@ -546,6 +547,16 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
         {/* The desk changes topic without burying other hazards below long gauge lists. */}
         {layout.desktop && <aside aria-label="Operations desk" className="hidden min-h-0 w-[300px] shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-raised)] xl:flex 2xl:w-[360px]">
+          <button
+            type="button"
+            aria-pressed={deskTab === "watch"}
+            onClick={() => setDeskTab("watch")}
+            className={`flex min-h-11 w-full shrink-0 items-center justify-center gap-2 border-b border-[var(--line)] px-1 py-1.5 ${deskTab === "watch" ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
+          >
+            <span aria-hidden="true">🛰</span>
+            <span lang="th" className="text-[13px] font-semibold">เฝ้าระวังทั้งจังหวัด</span>
+            <span className="text-[10px]">Watch</span>
+          </button>
           <div role="group" aria-label="Operations desk topics" className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
             {([
               { id: "water", label: "น้ำ", en: "Water" }, { id: "air", label: "อากาศ", en: "Air" },
@@ -555,6 +566,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span lang="th" className="text-[13px] font-semibold">{topic.label}</span><span className="text-[10px]">{topic.en}</span></button>)}
           </div>
           <div id="operation-evidence" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
+            {deskTab === "watch" && <CnxWatchBoard metrics={metrics} firesRfd={firesRfd} aerosol={aerosol} smoke={smoke} hazeVision={hazeVision} dustboy={dustboy} weatherLayers={weatherLayers} riverGauges={riverGauges} rain={rain} onOpenMetric={openMetric} />}
             {deskMetric && <CnxMetricEvidence metric={deskMetric} />}
             {deskTab === "water" && <><CnxRainPanel rain={rain} /><div className="min-h-[350px]"><CnxRiverLevelPanel /></div></>}
             {deskTab === "air" && <div className="h-full min-h-[300px]"><CnxAirQualityPanel /></div>}
@@ -585,6 +597,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         >
           {(
             [
+              { id: "watch", label: "เฝ้าระวัง", icon: "🛰" },
               { id: "air", label: "อากาศ", icon: "🌫" },
               { id: "flood", label: "น้ำและฝน", icon: "🌊" },
               { id: "fire", label: "ไฟป่า", icon: "🔥" },
@@ -609,6 +622,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--bg-raised)]">
+          {mobileTab === "watch" && <CnxWatchBoard metrics={metrics} firesRfd={firesRfd} aerosol={aerosol} smoke={smoke} hazeVision={hazeVision} dustboy={dustboy} weatherLayers={weatherLayers} riverGauges={riverGauges} rain={rain} onOpenMetric={openMetric} />}
           {mobileMetric && <CnxMetricEvidence metric={mobileMetric} />}
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
