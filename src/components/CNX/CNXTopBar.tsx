@@ -12,6 +12,7 @@ import { useLang } from "../../hooks/useLang";
 import CNXLogoRow from "./CNXLogoRow";
 import { lookupAircraft } from "../../lib/cnx/aircraft";
 import CnxTimezoneStrip, { type TimezoneOrigin } from "./CNXTimezoneStrip";
+import CnxFeedFreshness from "./CNXFeedFreshness";
 import type {
   AirQualityResponse,
   CctvFeedResponse,
@@ -345,6 +346,8 @@ export default function CnxTopBar(props: TopBarProps) {
             <PhoneCall className="h-3 w-3" />
             <span className="sm:hidden">{t("ฉุกเฉิน", "Emergency")}</span><span className="hidden sm:inline">{t("ติดต่อฉุกเฉิน", "Emergency contacts")}</span>
           </button>
+          {/* Per-feed freshness against each feed's declared SLO (twin manifest). */}
+          <CnxFeedFreshness />
           <details className="relative">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">{t("เมนู", "Menu")}</span><span className="hidden sm:inline">{t("เครื่องมือ", "Tools")}</span> <span aria-hidden="true">⌄</span></summary>
             <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--ink)] bg-[var(--bg-raised)] p-3"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">{t("สรุปสำหรับผู้ว่าฯ", "Governor brief")}</button><button
