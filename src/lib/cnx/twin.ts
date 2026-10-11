@@ -43,7 +43,7 @@ export interface CnxTwinResponse {
       /** Measurement or scenario fill. Always present — mirrors
        *  `haze.smoke_provenance`, and exists precisely for the consumer
        *  who forgets to check. */
-      provenance: "live" | "scenario";
+      provenance: "live" | "scenario" | "unavailable";
       /** Null whenever `provenance !== "live"`, so a scenario gauge ratio
        *  cannot be quoted as a river level downstream. */
       ping_capacity_ratio: number | null;
@@ -296,12 +296,10 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   });
 
   // Provenance: live if at least flood + air are live-fetched, scenario otherwise.
-  // Read `flood.provenance` — NOT `process.env.CNX_FLOOD_LIVE`. The env var is
-  // only the *gate*; `fetchCnxFlood()` sets provenance to "live" solely when
-  // `fetchLive()` actually returned a payload, and that function is still a
-  // `return null` placeholder. Keying off the gate would mean that setting
-  // CNX_FLOOD_LIVE=1 today publishes hash-seeded scenario numbers labelled
-  // live — the exact failure this file's header claims cannot happen.
+  // Read `flood.provenance` — never an env var. Since 2026-10-11
+  // `fetchCnxFlood()` (called here without a scenario id) returns
+  // "unavailable" with empty arrays: no scenario number can reach the
+  // verdict, and the measured river reaches it through `pingMeasured` above.
   const floodLive = flood.provenance === "live";
   const airLive = pm25_now !== null;
   const dustboyLive = dustboyPm !== null;

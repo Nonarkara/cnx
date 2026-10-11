@@ -287,7 +287,7 @@ export interface VerdictInputs {
    * into the verdict. Making it required turns that mistake into a
    * compile error instead of a fabricated evacuation checklist.
    */
-  flood_provenance: "live" | "scenario";
+  flood_provenance: "live" | "scenario" | "unavailable";
   /** Chiang Mai DustBoy average, µg/m³. Omit when the feed is not live. */
   dustboy_pm25?: number | null;
   /** Plumes whose 6 h endpoint falls inside the province bbox. */
@@ -631,7 +631,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
       th: measured && !isCurrentGaugeReading(measured.observedAt) ? "ค่าระดับน้ำล่าสุดเก่าหรือเวลาไม่ถูกต้อง — ยังยืนยันสภาพน้ำปัจจุบันไม่ได้" : "ยังไม่มีค่าระดับน้ำจากสถานีวัดจริง — ไม่ใช่หลักฐานว่าน้ำปลอดภัย ดูค่าที่สถานีวัดในพื้นที่",
       en: measured && !isCurrentGaugeReading(measured.observedAt) ? `Supplied river-gauge reading is not current (stale, future or undated; stamp ${measured.observedAt}) — current river conditions are unverified` : "No live river-gauge reading — this is not evidence the river is safe; read the station gauges in your area",
       evidence: floodIsScenario
-        ? "flood_provenance=scenario"
+        ? `flood_provenance=${input.flood_provenance}`
         : "ping_capacity_ratio=null",
       isCaveat: true,
     });

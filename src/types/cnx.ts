@@ -79,10 +79,22 @@ export interface CnxFloodResponse {
    * "scenario" is not a placeholder to be quietly tolerated: it means the
    * flood axis of the province verdict is NOT evidence, and the panel
    * must not be used to judge whether water is rising.
+   *
+   * Since 2026-10-11 the module produces only two values:
+   *   "unavailable" — the normal answer, with EMPTY arrays. Live hydrology
+   *     is not bundled here; the flood desk composes it from
+   *     /api/cnx/river-level, /api/cnx/rain, /api/cnx/dam, /api/cnx/floodhub
+   *     and the forecast outlook, each with its own provenance and age.
+   *   "scenario" — ONLY for an explicit `?scenario=<id>` drill, with `drill`
+   *     set so every surface can label it as one.
+   * "live" stays in the union so existing `=== "live"` gates keep compiling
+   * and keep failing closed; nothing produces it.
    */
-  provenance: "live" | "scenario";
+  provenance: "live" | "scenario" | "unavailable";
   /** Set when provenance !== "live": why, and what to do instead. */
   provenanceNote: { th: string; en: string } | null;
+  /** Present only on a drill (`?scenario=<id>`): the label every surface must show. */
+  drill?: { id: string; th: string; en: string } | null;
   gauges: CnxFloodGauge[];
   rainfall: CnxRainfallStation[];
   reservoirs: CnxReservoir[];

@@ -1,346 +1,207 @@
 "use client";
 
-// CNX flood / air-quality / fires operations panel — right rail.
+// CNX flood / air / fires panel — the "model" desk tab.
 //
-// One panel, three sub-tabs:
-//   1. Flood  — Ping basin gauges + Bhumibol / Sirikit storage
-//   2. Air    — Open-Meteo CAMS stations, province-average PM2.5
-//   3. Fires  — NASA FIRMS hotspots, forest-edge share
-//
-// Lopburi's panel uses a single stream; Chiang Mai's burning-season
-// story demands Air + Fires on the same desk, so we keep them
-// one panel with three sub-views.
+// The flood sub-tab is the flood desk (CNXFloodDesk): it composes five live
+// parts, each fetched on its own and shown with its own source and age —
+//   /api/cnx/river-level  measured river gauges
+//   /api/cnx/dam          reservoir storage (RID daily report)
+//   /api/cnx/rain         measured rain gauges
+//   /api/cnx/floodhub     Google Flood Hub river forecast (model)
+//   outlook prop          48 h district rain forecast (model), built in CNXApp
+// The old /api/cnx/flood scenario is shown only in drill mode
+// (?scenario=<id>), labelled "ซ้อมแผน / DRILL" — see flood.ts.
 
 import { useEffect, useState } from "react";
-import { fetchJsonOrNull } from "../../lib/client-requests";
-import type { FloodHubResponse } from "../../lib/cnx/floodhub";
-import { DataAge, newest } from "./CNXDataAge";
 import { Droplets, Wind, Flame } from "lucide-react";
-import type {
-  CnxFloodResponse,
-  AirQualityResponse,
-  CnxFiresResponse,
-  SeverityLevel,
-} from "../../types/cnx";
+import { fetchJsonOrNull } from "../../lib/client-requests";
+import { useLang } from "../../hooks/useLang";
+import { ageText, type Feed } from "../../lib/cnx/flood-desk";
+import type { RiverLevelResponse } from "../../lib/cnx/river-level";
+import type { DamResponse } from "../../lib/cnx/dam";
+import type { RainResponse } from "../../lib/cnx/rain";
+import type { FloodHubResponse } from "../../lib/cnx/floodhub";
+import type { ProvinceOutlook } from "../../lib/cnx/outlook";
+import { newest } from "./CNXDataAge";
+import { FloodDesk } from "./CNXFloodDesk";
+import type { CnxFloodResponse, AirQualityResponse, CnxFiresResponse, SeverityLevel } from "../../types/cnx";
 
 type Tab = "flood" | "air" | "fires";
+type T = (th: string, en: string | null | undefined) => string;
+
+const MIN = 60_000;
 
 const SEVERITY_CLASSES: Record<SeverityLevel, string> = {
   // "unknown" must never inherit the green of a confirmed cool reading.
-  unknown: "bg-[var(--line)] text-[var(--dim)]",
+  unknown: "border border-[var(--line)] text-status-unknown",
   good: "sev-fill-good",
   watch: "sev-fill-watch",
   alert: "sev-fill-alert",
   critical: "sev-fill-critical",
 };
 
-function severityLabel(s: SeverityLevel): string {
-  return { good: "OK", watch: "WATCH", alert: "ALERT", critical: "CRIT", unknown: "UNKNOWN" }[s];
+function severityLabel(t: T, s: SeverityLevel): string {
+  return { good: t("ปกติ", "OK"), watch: t("เฝ้าระวัง", "Watch"), alert: t("เตือนภัย", "Alert"), critical: t("วิกฤต", "Critical"), unknown: t("ไม่ทราบ", "Unknown") }[s];
+}
+
+/** One part of the desk: polls, and remembers a failure as a failure — not as "nothing to report". */
+function useFeed<D>(url: string, everyMs: number): Feed<D> {
+  const [feed, setFeed] = useState<Feed<D>>({ status: "loading" });
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchJsonOrNull<D>(url);
+      if (cancelled) return;
+      // A failed refresh keeps the last answer: it carries its own
+      // observation time, so its age keeps counting and goes stale on screen.
+      setFeed((prev) => (next ? { status: "ok", data: next } : prev.status === "ok" ? prev : { status: "failed" }));
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), everyMs);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [url, everyMs]);
+  return feed;
+}
+
+function useClock(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), MIN);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
 }
 
 interface PanelProps {
   flood: CnxFloodResponse | null;
   air: AirQualityResponse | null;
   fires: CnxFiresResponse | null;
+  outlook?: ProvinceOutlook | null;
 }
 
-export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
+export default function CnxFloodPanel({ flood, air, fires, outlook = null }: PanelProps) {
+  const { t } = useLang();
   const [tab, setTab] = useState<Tab>("flood");
+  const tabs = [
+    { id: "flood", Icon: Droplets, label: t("น้ำท่วม", "Flood"), count: undefined },
+    { id: "air", Icon: Wind, label: t("อากาศ", "Air"), count: air?.stations.length },
+    { id: "fires", Icon: Flame, label: t("ไฟ", "Fires"), count: fires?.provenance === "live" ? fires.totalCount : undefined },
+  ] as const;
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-b border-[var(--line)] bg-[var(--bg-raised)]">
-      <div className="flex shrink-0 border-b border-[var(--line)]">
-        {(
-          [
-            { id: "flood", Icon: Droplets, label: "Flood", count: flood?.gauges.length },
-            { id: "air", Icon: Wind, label: "Air", count: air?.stations.length },
-            { id: "fires", Icon: Flame, label: "Fires", count: fires?.provenance === "live" ? fires.totalCount : undefined },
-          ] as const
-        ).map((t, i) => (
+      <div role="tablist" className="flex shrink-0 border-b border-[var(--line)]">
+        {tabs.map((x, i) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex min-h-[34px] flex-1 items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] ${
-              i < 2 ? "border-r border-[var(--line)]" : ""
-            } ${tab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
+            key={x.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === x.id}
+            onClick={() => setTab(x.id)}
+            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.12em] ${
+              i < tabs.length - 1 ? "border-r border-[var(--line)]" : ""
+            } ${tab === x.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
-            <t.Icon className="h-3 w-3" />
-            {t.label}
-            {typeof t.count === "number" && (
-              <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{t.count}</span>
-            )}
+            <x.Icon className="h-3 w-3" aria-hidden="true" />
+            {x.label}
+            {typeof x.count === "number" && <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{x.count}</span>}
           </button>
         ))}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === "flood" && <FloodTab data={flood} />}
-        {tab === "air" && <AirTab data={air} />}
-        {tab === "fires" && <FiresTab data={fires} />}
+        {tab === "flood" && <FloodTab flood={flood} outlook={outlook} />}
+        {tab === "air" && <AirTab data={air} t={t} />}
+        {tab === "fires" && <FiresTab data={fires} t={t} />}
       </div>
     </div>
   );
 }
 
-const FH_LABEL: Record<string, { text: string; cls: string }> = {
-  EXTREME: { text: "Extreme flood forecast", cls: "sev-fill-critical" },
-  SEVERE: { text: "Severe flood forecast", cls: "sev-fill-alert" },
-  ABOVE_NORMAL: { text: "Above-normal water forecast", cls: "sev-fill-watch" },
-  NO_FLOODING: { text: "No flooding forecast", cls: "bg-[var(--line)] text-[var(--ink)]" },
-  UNKNOWN: { text: "No forecast", cls: "bg-[var(--line)] text-[var(--dim)]" },
-};
-
-/** Google Flood Hub model forecasts for the Ping at Chiang Mai. Deliberately
- *  never green: "no flooding forecast" is not an all-clear. */
-function FloodHubStrip() {
-  const [fh, setFh] = useState<FloodHubResponse | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      const next = await fetchJsonOrNull<FloodHubResponse>("/api/cnx/floodhub");
-      if (!cancelled && next) setFh(next);
-    };
-    void load();
-    const t = window.setInterval(() => void load(), 30 * 60_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(t);
-    };
-  }, []);
-  if (!fh) return null;
-  const worst = FH_LABEL[fh.worst ?? "UNKNOWN"];
-  const rising = fh.points.filter((p) => p.trend === "RISE").length;
-  const forecastDay = fh.points.find((p) => p.forecastStart)?.forecastStart?.slice(0, 10);
-  return (
-    <div className="border-b border-[var(--line)] px-3 py-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <a href="https://sites.research.google/floodforecasting/" target="_blank" rel="noopener noreferrer" title="Google Flood Hub — data licensed CC BY 4.0" className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)] underline decoration-dotted underline-offset-2 hover:text-[var(--ink)]">Google Flood Hub · Ping</a>
-        <span className={`px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] ${fh.provenance === "live" ? worst.cls : FH_LABEL.UNKNOWN.cls}`}>
-          {fh.provenance === "live" ? worst.text : "Unavailable"}
-        </span>
-        {/* A daily model run. Age it from the newest issuance, not from
-            the 30-minute poll that fetched it. */}
-        <DataAge
-          source="issued"
-          observedAt={newest(fh.points, "issuedTime")}
-          staleAfterMs={30 * 3_600_000}
-          missing="no forecast issued"
-        />
-      </div>
-      {fh.provenance === "live" && (
-        <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]">
-          {fh.points.length} model points within 30 km of the city (nearest {fh.points[0]?.kmFromCity} km)
-          {rising > 0 ? ` · ${rising} rising` : ""}
-          {forecastDay ? ` · forecast for ${forecastDay}` : ""}
-        </p>
-      )}
-      <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--dim)]">{fh.note}</p>
-    </div>
-  );
+function FloodTab({ flood, outlook }: { flood: CnxFloodResponse | null; outlook: ProvinceOutlook | null }) {
+  const river = useFeed<RiverLevelResponse>("/api/cnx/river-level", 5 * MIN);
+  const dams = useFeed<DamResponse>("/api/cnx/dam", 30 * MIN);
+  const rain = useFeed<RainResponse>("/api/cnx/rain", 5 * MIN);
+  const floodHub = useFeed<FloodHubResponse>("/api/cnx/floodhub", 30 * MIN);
+  const nowMs = useClock();
+  return <FloodDesk flood={flood} river={river} dams={dams} rain={rain} floodHub={floodHub} outlook={outlook} nowMs={nowMs} />;
 }
 
-function FloodTab({ data }: { data: CnxFloodResponse | null }) {
-  if (!data) return <div className="p-3 text-[11px] text-[var(--dim)]">loading flood data…</div>;
-  const isScenario = data.provenance === "scenario";
-  return (
-    <div>
-      {isScenario && (
-        <div className="border-b border-[var(--sev-watch)] bg-[var(--sev-watch)]/10 px-3 py-2">
-          <div className="flex items-center gap-1.5">
-            <span className="sev-fill-watch px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em]">
-              Demo
-            </span>
-            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--sev-watch)]">
-              Illustrative — not measured
-            </span>
-          </div>
-          {data.provenanceNote && (
-            <>
-              <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]" lang="th">
-                {data.provenanceNote.th}
-              </p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--dim)]">
-                {data.provenanceNote.en}
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      <FloodHubStrip />
-
-      {data.reservoirs.length > 0 && (
-        <div className="border-b border-[var(--line)] px-3 py-2">
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-            Northern Dams
-          </div>
-          <div className="space-y-1.5">
-            {data.reservoirs.map((r) => (
-              <div key={r.damId} className="flex items-center gap-2">
-                <span className="w-[110px] truncate text-[11px] font-semibold text-[var(--ink)]">
-                  {r.name}
-                </span>
-                <div className="relative h-2 flex-1 border border-[var(--line)] bg-[var(--bg)]">
-                  <div
-                    className={`h-full ${r.severity === "alert" ? "bg-[var(--sev-alert)]" : r.severity === "watch" ? "bg-[var(--sev-watch)]" : "bg-[var(--sev-good)]"}`}
-                    style={{ width: `${Math.min(100, r.fillFraction * 100)}%` }}
-                  />
-                </div>
-                <span className="w-[40px] text-right font-mono text-[11px] tabular-nums text-[var(--ink)]">
-                  {(r.fillFraction * 100).toFixed(0)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="px-3 py-2">
-        <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-            Ping Basin Gauges
-          </span>
-          {typeof data.pingCapacityFraction === "number" && (
-            <span
-              className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] ${
-                data.pingCapacityFraction > 0.85
-                  ? SEVERITY_CLASSES.critical
-                  : data.pingCapacityFraction > 0.7
-                  ? SEVERITY_CLASSES.alert
-                  : SEVERITY_CLASSES.good
-              }`}
-            >
-              {Math.round(data.pingCapacityFraction * 100)}% capacity
-            </span>
-          )}
-        </div>
-        <div className="space-y-1">
-          {data.gauges.map((g) => (
-            <div
-              key={g.stationId}
-              className="grid grid-cols-[1fr,auto,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[11px] font-semibold text-[var(--ink)]">{g.name}</div>
-                <div className="font-mono text-[11px] text-[var(--dim)]">{g.stationId} · {g.river}</div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
-                  {g.levelM.toFixed(2)}
-                </div>
-                <div className="font-mono text-[11px] text-[var(--dim)]">
-                  {g.bankFullM ? `/ ${g.bankFullM.toFixed(2)} m` : ""}
-                </div>
-              </div>
-              <span className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[g.severity]}`}>
-                {severityLabel(g.severity)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AirTab({ data }: { data: AirQualityResponse | null }) {
-  if (!data) return <div className="p-3 text-[11px] text-[var(--dim)]">loading air quality…</div>;
+function AirTab({ data, t }: { data: AirQualityResponse | null; t: T }) {
+  if (!data) return <div className="p-3 text-[12px] text-[var(--dim)]">{t("กำลังอ่านคุณภาพอากาศ…", "Loading air quality…")}</div>;
   return (
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
-        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-          Province Average PM2.5
-        </span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">{t("ค่าเฉลี่ย PM2.5 ทั้งจังหวัด", "Province average PM2.5")}</span>
         <div className="text-right">
-          <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">
-            {data.provinceAvgPm25 ?? "—"}
-          </div>
+          <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{data.provinceAvgPm25 ?? "—"}</div>
           <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">µg/m³</div>
         </div>
       </div>
-      <div className="space-y-1">
-        {data.stations.map((s) => {
-          const pm = s.pm25 ?? 0;
-          return (
-            <div
-              key={s.stationId}
-              className="grid grid-cols-[1fr,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[11px] font-semibold text-[var(--ink)]">{s.name}</div>
-                <div className="font-mono text-[11px] text-[var(--dim)]">
-                  PM10 {s.pm10?.toFixed(0) ?? "—"} · O₃ {s.o3?.toFixed(0) ?? "—"}
-                </div>
-              </div>
-              <div className="text-right">
-                <span
-                  className={`px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${SEVERITY_CLASSES[s.aqiLevel ?? "good"]}`}
-                >
-                  {pm.toFixed(0)}
-                </span>
-              </div>
+      <ul className="space-y-1">
+        {data.stations.map((s) => (
+          <li key={s.stationId} className="grid grid-cols-[1fr,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0">
+            <div className="min-w-0">
+              <div className="truncate text-[12px] font-semibold text-[var(--ink)]">{s.name}</div>
+              <div className="font-mono text-[11px] text-[var(--dim)]">PM10 {s.pm10?.toFixed(0) ?? "—"} · O₃ {s.o3?.toFixed(0) ?? "—"}</div>
             </div>
-          );
-        })}
-      </div>
+            {/* A missing reading is unknown, not a green zero. */}
+            <span className={`px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${SEVERITY_CLASSES[typeof s.pm25 === "number" ? (s.aqiLevel ?? "unknown") : "unknown"]}`}>
+              {typeof s.pm25 === "number" ? s.pm25.toFixed(0) : "—"}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function FiresTab({ data }: { data: CnxFiresResponse | null }) {
-  if (!data) return <div className="p-3 text-[11px] text-[var(--dim)]">loading fires…</div>;
+function FiresTab({ data, t }: { data: CnxFiresResponse | null; t: T }) {
+  const { lang } = useLang();
+  const nowMs = useClock();
+  if (!data) return <div className="p-3 text-[12px] text-[var(--dim)]">{t("กำลังอ่านจุดความร้อน…", "Loading fires…")}</div>;
   if (data.provenance !== "live") {
     return (
-      <div className="p-3 text-[11px] leading-relaxed text-[var(--dim)]">
-        NASA FIRMS did not return a live pass. Illustrated hotspots are not listed as detections.
+      <div className="p-3 text-[12px] leading-relaxed text-[var(--dim)]">
+        {t("NASA FIRMS ไม่ส่งข้อมูลรอบล่าสุด — ไม่แสดงจุดตัวอย่างเป็นการตรวจพบ", "NASA FIRMS did not return a live pass. Illustrated hotspots are not listed as detections.")}
       </div>
     );
   }
+  // Age of the newest detection, not of our response. Zero detections is a
+  // real answer and says so, never a silent number.
+  const observedAt = newest(data.hotspots, "detectedAt");
+  const age = ageText({ observedAt: typeof observedAt === "number" ? new Date(observedAt).toISOString() : observedAt, ageMode: "time", staleAfterMs: 6 * 3_600_000 }, nowMs, lang);
   return (
     <div className="px-3 py-2">
-      <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
-        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-          FIRMS Hotspots (24 h)
-        </span>
-        {/* Age of the newest detection, not of our response. Zero
-            detections is a real answer and gets "no detection in window",
-            never a silent number. */}
-        <DataAge
-          source="VIIRS"
-          observedAt={newest(data.hotspots, "detectedAt")}
-          staleAfterMs={6 * 3_600_000}
-          missing="no detection in window"
-        />
+      <div className="mb-2 flex items-center justify-between gap-2 border-b border-[var(--line)] pb-2">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">{t("จุดความร้อน FIRMS 24 ชม.", "FIRMS hotspots, 24 h")}</div>
+          <div className={`font-mono text-[11px] ${age?.stale ? "text-status-watch" : "text-[var(--dim)]"}`}>
+            VIIRS · {age ? age.text : t("ไม่มีการตรวจพบในช่วงนี้", "no detection in window")}
+          </div>
+        </div>
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{data.totalCount}</div>
           <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-            forest {Math.round((data.forestShare ?? 0) * 100)}%
+            {t("ในป่า", "forest")} {Math.round((data.forestShare ?? 0) * 100)}%
           </div>
         </div>
       </div>
-      <div className="space-y-1">
+      <ul className="space-y-1">
         {data.hotspots.slice(0, 8).map((h) => (
-          <div
-            key={h.id}
-            className="grid grid-cols-[1fr,auto,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
-          >
+          <li key={h.id} className="grid grid-cols-[1fr,auto,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0">
             <div className="min-w-0">
               <div className="truncate font-mono text-[11px] text-[var(--ink)]">{h.id.slice(0, 16)}</div>
-              <div className="font-mono text-[11px] text-[var(--dim)]">
-                {h.latitude.toFixed(3)}, {h.longitude.toFixed(3)}
-              </div>
+              <div className="font-mono text-[11px] text-[var(--dim)]">{h.latitude.toFixed(3)}, {h.longitude.toFixed(3)}</div>
             </div>
-            <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">
-              {h.brightness === null ? "\u2014" : `${h.brightness.toFixed(0)}K`}
-            </span>
-            <span
-              className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}
-            >
-              {severityLabel(h.severity)}
-            </span>
-          </div>
+            <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">{h.brightness === null ? "—" : `${h.brightness.toFixed(0)}K`}</span>
+            <span className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}>{severityLabel(t, h.severity)}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

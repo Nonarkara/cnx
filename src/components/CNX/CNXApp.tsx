@@ -567,7 +567,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             riverGauges={riverGauges}
             airStations={air?.stations ?? []}
             fireHotspots={allFireHotspots}
-            floodGauges={flood?.gauges ?? []}
+            floodGauges={flood?.provenance === "live" ? flood.gauges : []}
             cctv={cctv?.slots ?? []}
             busRoutes={busRoutes}
             walls={walls}
@@ -618,7 +618,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             {deskTab === "water" && <><CnxRainPanel rain={rain} /><div className="min-h-[350px]"><CnxRiverLevelPanel /></div></>}
             {deskTab === "air" && <div className="h-full min-h-[300px]"><CnxAirQualityPanel /></div>}
             {deskTab === "fire" && <div className="h-full min-h-[230px]"><CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} /></div>}
-            {deskTab === "model" && <div className="h-full min-h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} /></div>}
+            {deskTab === "model" && <div className="h-full min-h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} outlook={outlook} /></div>}
             {deskTab === "visitors" && <><div className="h-[320px]"><CnxVisitorPanel onData={setVisitorAnalytics} /></div><CnxArrivalsPanel />{outbound && <CnxOutboundPanel snapshot={outbound} />}</>}
             {deskTab === "cameras" && <div className="h-full min-h-[240px]"><CnxFloodCamerasPanel /></div>}
             {deskTab === "data" && <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />}

@@ -64,12 +64,47 @@ tells operators "NASA did not answer" on a day when NASA answered clearly.
 | Source | Endpoint | Key | Gives | Failure mode |
 |---|---|---|---|---|
 | **ThaiWater v3** | `api-v3.thaiwater.net/api/v1/thaiwater30/public/waterlevel` | **none** | **Measured** gauge levels: 43 Ping-basin gauges reporting in Chiang Mai, 8 on the mainstem. **Wired 2026-10-02** at `/api/cnx/river-level` | Values arrive as **strings**; `waterlevel_m` is null on every row while `waterlevel_msl` carries the reading. Shapes are not uniform (`river_name` is a bare string on 38 rows, null on 8). The bare path `…/thaiwater30` 404s — the router needs a sub-path |
+| **ThaiWater v3 rain** | `…/thaiwater30/public/rain_24h?province_code=50` via the relay (`scripts/rain-relay.mjs`, every 15 min) | none | **Measured** 24 h rainfall at ~340 Chiang Mai gauges (DWR, RID, TMD, HII…), banded on TMD classes at `/api/cnx/rain` | Rate-limits Cloudflare egress, so it is relayed. Relay silent > 60 min, or no gauge reading inside 6 h → `provenance: "unavailable"`, "rainfall is unknown, not zero" |
+| **ThaiWater v3 dams** | `…/thaiwater30/analyst/dam` via the relay (`scripts/dam-relay.mjs`, hourly). **Wired 2026-10-11** at `/api/cnx/dam` | none | **RID daily report**: Ping-basin large dams (แม่งัดสมบูรณ์ชล, แม่กวงอุดมธารา, ภูมิพล) and Chiang Mai's medium reservoirs — storage MCM, % of normal storage, inflow/release/spill MCM per day | `public/dam`, `public/dam_daily`, `public/dam_hourly` all **404** (probed 2026-10-11). Large dams appear twice — RID today, EGAT yesterday with `dam_storage_percent: 0` — deduped per dam, newest then RID. Never-reported medium reservoirs carry `dam_date: 1970-01-01`; reports older than 2 days are dropped. Relay silent > 3 h → `unavailable`, "storage is unknown, not normal" |
 | **Google Flood Hub** | `floodforecasting.googleapis.com` | `CNX_FLOODHUB_KEY` ✅ set | 7-day riverine model forecast at virtual gauges | Model only — 337 upper-north points, all HYBAS virtual, only 5 quality-verified, **none** of the 12 nearest Chiang Mai. No physical gauge |
 | **JAXA GCOM-C SGLI AOT** | `s3.ap-northeast-1.wasabisys.com` (static STAC COG) | none | Newest scene, walked back from today, at `/api/cnx/jaxa-aot`. **Wired 2026-10-02 by operator decision** — see below. `license: proprietary` travels with the response |
 
-**Measured river levels arrived on 2026-10-02.** Everything below this line
-records what was believed before, and why it was wrong, because the error
-is the reusable part.
+**Measured river levels arrived on 2026-10-02; reservoirs on 2026-10-11, and
+with them the scenario stopped being the flood desk's default.**
+
+### The flood desk, as of 11 October 2026
+
+The flood desk (`CNXFloodPanel` → `CNXFloodDesk`, the "model" desk tab)
+composes five parts, each fetched separately and shown with its own source,
+kind (measured / report / model) and age:
+
+| Part | Route | Kind | Ages from |
+|---|---|---|---|
+| River levels | `/api/cnx/river-level` | measured | gauge observation, stale > 3 h |
+| Reservoirs | `/api/cnx/dam` | RID daily report | report day, dropped after 2 days |
+| Rain gauges | `/api/cnx/rain` | measured | gauge observation, dropped after 6 h |
+| Rain forecast | `/api/cnx/forecast-field` (outlook) | model | model fetch time |
+| River forecast | `/api/cnx/floodhub` | model | newest issuance, stale > 30 h |
+
+It answers first — any gauge within 1 m of its bank, any dam near or above
+normal storage, heavy rain measured or forecast where — then lists the
+evidence. A part that failed or answered `unavailable` is a line that says
+so, with its reason; the headline then reads "incomplete", never calm.
+"Below threshold" is never green.
+
+`/api/cnx/flood` **no longer returns scenario numbers by default**: without
+`?scenario=` it answers `provenance: "unavailable"` with empty arrays and a
+note naming the five routes above. With `?scenario=<id>` (e.g.
+`monsoon-flood-watch`) it returns the old hash-seeded scenario with a `drill`
+label, rendered as **"ซ้อมแผน — ข้อมูลจำลอง" / "DRILL — simulated data"**,
+every row tagged simulated; the map never draws drill gauges and the top
+bar's Ping pill appears only in a drill, uncoloured. The route used to drop
+`?scenario=` (audit 2026-10-09); it reads it now. Because the twin, story,
+RAG and ticker call `fetchCnxFlood()` without an id, they receive the empty
+payload and cannot pick up a scenario number.
+
+Everything below this line records what was believed before, and why it was
+wrong, because the error is the reusable part.
 
 ### The feed that was written off as dead
 
@@ -214,10 +249,12 @@ Measured against the live feed, not against documentation:
   was first appended inside the flood block, which put a river sitting
   comfortably below its bank at the top of the card, above a measured
   PM2.5 of 155 µg/m³.
-- The scenario module survives as a last-resort fallback behind
-  `provenance: "scenario"`, barred from the RAG corpus, the keystone
-  story, and the flood↔air correlation. **`flood.ts:fetchLive()` is still a
-  `return null` placeholder** — it is not what now carries the flood axis.
+- ~~The scenario module survives as a last-resort fallback~~ — retired on
+  2026-10-11. `flood.ts` is now a drill generator only (`?scenario=<id>`),
+  and `fetchLive()` / `CNX_FLOOD_LIVE` are gone. The verdict's flood axis is
+  carried by the measured gauge (`ping_measured`) and measured rain
+  (`rain_measured`); live reservoir storage is on the desk but does not yet
+  feed the verdict.
 
 FloodHub remains escalate-only by construction: a forecast of flooding
 raises the level, and the absence of one is never rendered as an all-clear.
