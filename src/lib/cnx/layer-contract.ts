@@ -116,7 +116,7 @@ export const LAYER_CONTRACTS: Record<string, LayerContract> = {
   // ── The Ping river gauge set. Instrument readings, not classification.
   "ping-gauges": {
     id: "ping-gauges",
-    labelTh: "สถานีวัดน้ำลำปาง",
+    labelTh: "สถานีวัดระดับน้ำลุ่มน้ำปิง",
     labelEn: "Ping basin gauges",
     measures: {
       th: "ระดับน้ำที่สถานีวัดจริง (เมตร) เทียบกับระดับตลิ่ง",

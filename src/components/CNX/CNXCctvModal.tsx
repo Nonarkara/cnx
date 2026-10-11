@@ -194,6 +194,9 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
               className="aspect-video w-full"
               allow="autoplay; fullscreen"
               allowFullScreen
+              sandbox="allow-scripts allow-same-origin allow-presentation"
+              referrerPolicy="no-referrer"
+              loading="lazy"
             />
           ) : slot.posterUrl ? (
             <SnapshotView slot={slot} />

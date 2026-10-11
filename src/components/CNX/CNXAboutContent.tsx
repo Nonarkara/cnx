@@ -400,6 +400,8 @@ function PartnersSection({ th }: { th: boolean }) {
           src="https://public.tableau.com/views/Accident_17206129265280/Accident?:showVizHome=no&:embed=true&:language=en-US"
           className="h-[600px] w-full"
           loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          referrerPolicy="no-referrer"
         />
       </div>
       <p className="mt-2 font-mono text-[11px] text-[var(--dim)]">
@@ -418,22 +420,10 @@ function PartnersSection({ th }: { th: boolean }) {
 
 const DOWNLOADS: { href: string; file: string; title: [string, string]; desc: [string, string] }[] = [
   {
-    href: "/docs/cnx-sources.md",
-    file: "cnx-sources.md",
-    title: ["แหล่งข้อมูลทั้งหมด", "All data sources"],
-    desc: ["ทุกฟีด ทุกลิงก์ ทุกสัญญาอนุญาต — ตารางเดียวครบ", "Every feed, every link, every licence — one table."],
-  },
-  {
     href: "/docs/cnx-methodology.md",
     file: "cnx-methodology.md",
     title: ["ระบบคิดอย่างไร", "Methodology"],
     desc: ["ทุกเกณฑ์ ทุกสูตร: ระดับน้ำ, AQI ไทย 2566, จุดความร้อน, บัญชีน้ำปิง", "Every threshold and formula: river levels, Thai AQI 2023, hotspots, the Ping ledger."],
-  },
-  {
-    href: "/docs/cnx-setup.md",
-    file: "cnx-setup.md",
-    title: ["ติดตั้งระบบเอง", "Clone & run"],
-    desc: ["โคลนจาก GitHub → ดึงข้อมูล → ดีพลอยฟรีบน Cloudflare — ทีละขั้น", "Clone from GitHub → fetch the data → deploy free on Cloudflare — step by step."],
   },
 ];
 

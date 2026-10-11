@@ -12,10 +12,12 @@
 //   1. **Mountain-basin PM2.5 trap** — Chiang Mai sits in a bowl. The
 //      wind-direction-aware `danger_score` weights PM2.5 higher when
 //      wind is calm/light (smoke doesn't disperse → stays in basin).
-//   2. **Ping-basin cascade** — when upstream Bhumibol or Sirikit dam
-//      releases rise, the Ping gauge ETA compresses. The verdict engine
-//      reads the reservoir outflow, not just the gauge level, so a
-//      dam-release flood is "prepare" before the gauge shows it.
+//   2. **Ping-basin cascade** — when the dam UPSTREAM of the city (Mae
+//      Ngat Somboon Chon, on the Mae Ngat above its confluence with the
+//      Ping) spills or releases extra water, the Ping at Chiang Mai rises
+//      before the city gauge shows it. Bhumibol is downstream in Tak and
+//      Sirikit is on the Nan — neither raises the Ping at Chiang Mai, so
+//      neither may trigger this rule. (An earlier version named them.)
 //
 // Cross-domain join (the FloodDash / AirDash "twins" pattern): when
 // flood is prepare/danger AND air is prepare/danger, we surface the
@@ -469,8 +471,8 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
       floodScore += 15;
       reasons.push({
         domain: "flood",
-        th: "เขื่อนภูมิพล/สิริกิติ์ ระบายน้ำเพิ่ม — ระดับน้ำปิงจะสูงขึ้นภายใน 24 ชม.",
-        en: "Bhumibol/Sirikit dam releasing extra water — Ping level will rise within 24h",
+        th: "เขื่อนแม่งัดฯ (เหนือตัวเมือง) ระบายน้ำเพิ่ม — ระดับน้ำปิงในเมืองอาจสูงขึ้น ติดตามสถานี P.1",
+        en: "Mae Ngat dam (upstream of the city) releasing extra water — the Ping in the city may rise; watch gauge P.1",
         evidence: "reservoir_surge=true",
       });
     }

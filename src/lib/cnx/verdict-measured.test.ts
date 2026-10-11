@@ -193,7 +193,7 @@ describe("a measured gauge never launders the scenario numbers", () => {
     const v = computeVerdict({ ...catastrophicScenario, flood_provenance: "live" });
     const text = floodReasons(v).map((r) => r.en).join(" | ");
     expect(text).toMatch(/Ping river overflowing/);
-    expect(text).toMatch(/dam releasing/);
+    expect(text).toMatch(/Mae Ngat dam .*releasing/);
   });
 
   it("lets a real air reading dominate the headline over a quiet gauge", () => {
