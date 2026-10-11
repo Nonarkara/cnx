@@ -28,7 +28,7 @@ export function relaySecretMatches(headerValue: string | null, secret: string): 
 
 type Guard<T> = (v: unknown) => v is T;
 
-async function kv() {
+export async function cnxKv() {
   const { getCloudflareContext } = await import("@opennextjs/cloudflare");
   const { env } = await getCloudflareContext({ async: true });
   return env.CNX_FLIGHTS_KV ?? null;
@@ -79,7 +79,7 @@ export async function ingestRelayJson<T>(request: Request, key: string, isValid:
   if ("response" in parsed) return parsed.response;
   const { body } = parsed;
   if (!isValid(body)) return NextResponse.json({ error: "payload failed validation" }, { status: 422 });
-  const store = await kv();
+  const store = await cnxKv();
   if (!store) return NextResponse.json({ error: "CNX_FLIGHTS_KV binding missing" }, { status: 500 });
   await store.put(key, JSON.stringify(body), { expirationTtl: ttlSeconds });
   return NextResponse.json({ ok: true });
@@ -88,7 +88,7 @@ export async function ingestRelayJson<T>(request: Request, key: string, isValid:
 /** Last relay copy, or null when absent, invalid, or older than maxAgeMs. */
 export async function readRelayJson<T extends { generatedAt: string }>(key: string, maxAgeMs: number, isValid: Guard<T>): Promise<T | null> {
   try {
-    const store = await kv();
+    const store = await cnxKv();
     if (!store) return null;
     const raw = await store.get(key);
     if (!raw) return null;

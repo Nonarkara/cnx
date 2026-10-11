@@ -3,7 +3,7 @@
 // Run: `npx vitest run src/lib/cnx/smoke-trajectory.test.ts`
 
 import { describe, it, expect } from "vitest";
-import { computeTrajectories, presentForOperator, transportBbox, type HotspotPoint } from "./smoke-trajectory";
+import { computeFieldTrajectories, computeTrajectories, presentForOperator, transportBbox, type HotspotPoint } from "./smoke-trajectory";
 
 // CNX province centre from config.ts: lat 18.788, lng 98.985, bbox
 // 97.5–100.5 / 17.5–20.5. The trajectory engine uses these to flag
@@ -171,5 +171,31 @@ describe("computeTrajectories — weight", () => {
     );
     expect(r.segments[0].weight).toBeGreaterThanOrEqual(0.2);
     expect(r.segments[0].weight).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("computeFieldTrajectories — through the forecast wind field", () => {
+  const grid = { lon0: 95.5, lat0: 15.5, d: 0.75, nx: 10, ny: 10 };
+  const n = grid.nx * grid.ny;
+  const T0 = 1_791_698_400;
+  const times = Array.from({ length: 13 }, (_, i) => T0 + i * 3600);
+  const frames = (v: number) => times.map(() => Array.from({ length: n }, () => v));
+
+  it("carries a Chiang Rai-side fire west into the province on an east wind aloft", () => {
+    // 850 hPa wind from the east at 8 m/s ≈ 173 km in 6 h.
+    const field = { grid, times, u10: frames(0), v10: frames(0), u850: frames(-8), v850: frames(0) };
+    const r = computeFieldTrajectories([{ id: "cri", latitude: 19.4, longitude: 100.6, frp: 20 }], [field], T0 * 1000);
+    expect(r.method).toBe("forecast-field");
+    expect(r.segments[0].points).toHaveLength(6);
+    expect(r.segments[0].points[5].longitude).toBeLessThan(99.2);
+    expect(r.segments[0].hitsCnxBbox).toBe(true);
+    expect(r.methodology_en).toMatch(/850 hPa/);
+  });
+
+  it("drops nothing silently: a fire outside every grid draws no line but still counts", () => {
+    const field = { grid, times, u10: frames(0), v10: frames(0), u850: frames(5), v850: frames(0) };
+    const r = computeFieldTrajectories([{ id: "far", latitude: 10, longitude: 90 }], [field], T0 * 1000);
+    expect(r.segments).toHaveLength(0);
+    expect(r.summary.total).toBe(1);
   });
 });

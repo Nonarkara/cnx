@@ -27,6 +27,7 @@ import type { WeatherLayerUrls } from "./weather-layers";
 import type { RiverGauge } from "./river-level";
 import type { RainResponse } from "./rain";
 import { currentRainSummary } from "./rain-core";
+import { outlookWatchItems, type ProvinceOutlook } from "./outlook";
 
 export type WatchKind = "measured" | "satellite" | "model" | "vision" | "imagery";
 export type WatchDomain = "water" | "air" | "fire" | "haze" | "mobility";
@@ -71,6 +72,8 @@ export interface WatchListInput {
   weatherLayers: WeatherLayerUrls | null;
   riverGauges: RiverGauge[];
   rain: RainResponse | null;
+  /** The 48 h forecast outlook; absent = the board did not ask for it. */
+  outlook?: ProvinceOutlook | null;
   now?: Date;
 }
 
@@ -598,6 +601,7 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
     ...metricItems(input.metrics),
     riverItem(input.riverGauges),
     rainItem(rainSummary),
+    ...(input.outlook ? outlookWatchItems(input.outlook) : []),
     gistdaItem(input.gistda),
     dustboyItem(input.dustboy),
     aerosolItem(input.aerosol),

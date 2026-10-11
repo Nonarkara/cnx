@@ -31,6 +31,7 @@ import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { WeatherLayerUrls } from "../../lib/cnx/weather-layers";
 import type { RiverGauge } from "../../lib/cnx/river-level";
 import type { RainResponse } from "../../lib/cnx/rain";
+import type { ProvinceOutlook } from "../../lib/cnx/outlook";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import { buildWatchList, type WatchItem, type WatchKind } from "../../lib/cnx/watch-list";
 import { DataAge } from "./CNXDataAge";
@@ -59,6 +60,7 @@ interface Props {
   weatherLayers: WeatherLayerUrls | null;
   riverGauges: RiverGauge[];
   rain: RainResponse | null;
+  outlook?: ProvinceOutlook | null;
   onOpenMetric: (id: "water" | "air" | "fire" | "mobility" | "model" | "watch") => void;
 }
 
@@ -85,6 +87,7 @@ export default function CnxWatchBoard({
   weatherLayers,
   riverGauges,
   rain,
+  outlook = null,
   onOpenMetric,
 }: Props) {
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
@@ -111,8 +114,8 @@ export default function CnxWatchBoard({
   }, []);
 
   const board = useMemo(
-    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain }),
-    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain],
+    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook }),
+    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook],
   );
 
   return (

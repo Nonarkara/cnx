@@ -6,7 +6,9 @@
 // would tell the operator smoke is arriving when no satellite said so.
 
 import { fetchFirmsInBbox } from "./fires";
+import { trajectoryWind } from "./wind-field";
 import {
+  computeFieldTrajectories,
   computeTrajectories,
   presentForOperator,
   transportBbox,
@@ -80,7 +82,10 @@ export async function fetchSmokeTrajectory(): Promise<SmokeTrajectoryResponse> {
     frp: h.frp,
     detectedAt: h.detectedAt,
   }));
-  const full = computeTrajectories(hotspots, wind);
+  // Follow the forecast wind field when the model answered; one city wind as
+  // a straight line is the stated fallback, never the silent default.
+  const field = await trajectoryWind();
+  const full = field ? { ...computeFieldTrajectories(hotspots, field), wind } : computeTrajectories(hotspots, wind);
   const data = presentForOperator({
     ...full,
     provenance: "live",

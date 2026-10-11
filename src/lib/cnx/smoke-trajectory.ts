@@ -46,6 +46,7 @@
 
 import { CNX_PROVINCE } from "./config";
 import { inChiangMaiProvince } from "./province-boundary";
+import { traceTrajectory, type WindSource } from "./wind-field-core";
 
 export interface HotspotPoint {
   id: string;
@@ -112,6 +113,9 @@ export interface SmokeTrajectoryResponse {
   provenance: "live" | "unavailable";
   hotspotSource: "firms" | "none";
   note: string | null;
+  /** How the plume lines were made: integrated through the hourly forecast
+   *  wind field (curves with the flow), or one city wind as a straight line. */
+  method?: "forecast-field" | "straight-line";
 }
 
 /** How far from Chiang Mai we look for fires that can feed the basin.
@@ -331,5 +335,63 @@ export function computeTrajectories(
     provenance: "live",
     hotspotSource: hotspots.length > 0 ? "firms" : "none",
     note: null,
+    method: "straight-line",
+  };
+}
+
+/** Height the plumes are carried at: 850 hPa (~1.5 km), the transport layer
+ *  daytime mixing lifts burning-season smoke into; 10 m wind is too local
+ *  and too weak to carry it across ranges. */
+export const PLUME_LEVEL = "850hPa" as const;
+
+/**
+ * Plume centrelines integrated through the hourly forecast wind (RK2,
+ * 10-minute steps) — each parcel follows the wind as it changes along the
+ * way, so plumes bend around a turning flow. A line that ends before 6 h
+ * left the model grid; it is not extended by guesswork.
+ */
+export function computeFieldTrajectories(
+  hotspots: HotspotPoint[],
+  field: WindSource[],
+  nowMs: number = Date.now(),
+): SmokeTrajectoryResponse {
+  const t0 = nowMs / 1000;
+  const segments: TrajectorySegment[] = [];
+  for (const h of hotspots) {
+    const origin = { latitude: h.latitude, longitude: h.longitude };
+    const points: TrajectoryPoint[] = traceTrajectory(field, PLUME_LEVEL, h.longitude, h.latitude, t0, 6);
+    if (points.length === 0) continue;
+    const end = points[points.length - 1];
+    segments.push({
+      hotspotId: h.id,
+      origin,
+      points,
+      hitsCnxBbox: inCnxBbox(end),
+      nearCnx: inCnxCore(end),
+      travelKm6h: distKm(origin, end),
+      weight: Math.min(1, Math.max(0.2, (h.frp ?? 5) / 30)),
+    });
+  }
+  const origin = describeOrigin(segments.map((s) => s.origin));
+  return {
+    generatedAt: new Date(nowMs).toISOString(),
+    wind: null,
+    segments,
+    summary: {
+      total: hotspots.length,
+      shown: segments.length,
+      hitsCnx: segments.filter((s) => s.hitsCnxBbox).length,
+      nearCnx: segments.filter((s) => s.nearCnx).length,
+      origin_th: hotspots.length ? origin.th : "ไม่มีจุดความร้อน",
+      origin_en: hotspots.length ? origin.en : "no hotspots",
+    },
+    methodology_th:
+      "แนวควันคำนวณตามลมพยากรณ์รายชั่วโมงระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนไปตามเวลาและตำแหน่ง — เป็นเส้นแกนกลาง ไม่รวมการแผ่กระจายหรือการตกสะสม",
+    methodology_en:
+      "Plume centrelines integrated through the hourly 850 hPa (~1.5 km) forecast wind field (advection, RK2) — they bend as the wind turns. No spread, mixing or deposition.",
+    provenance: "live",
+    hotspotSource: hotspots.length > 0 ? "firms" : "none",
+    note: null,
+    method: "forecast-field",
   };
 }

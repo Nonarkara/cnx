@@ -34,7 +34,7 @@ import type { DustboyStation } from "../../lib/cnx/dustboy";
 import type { TrajectorySegment } from "../../lib/cnx/smoke-trajectory";
 import dynamic from "next/dynamic";
 import type { MapViewState } from "@deck.gl/core";
-import { IconLayer, PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { IconLayer, PathLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import type { BusRoute } from "../../types/cnx";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Map as MaplibreMap, MapLayerMouseEvent } from "maplibre-gl";
@@ -51,6 +51,9 @@ import { useCmuTransitBuses } from "../../hooks/useCmuTransit";
 import { useRtcBusSim } from "../../hooks/useRtcBusSim";
 import { RTC_LINE_COLOURS, SIM_SPEED_KMH, type RtcLine, type SimBus } from "../../lib/cnx/rtc-bus-sim";
 import type { WeatherLayerUrls } from "../../lib/cnx/weather-layers";
+import CNXForecastLayer from "./CNXForecastLayer";
+import type { ForecastFieldResponse } from "../../lib/cnx/wind-field";
+import { precisionLabel, sameAmphoe, type Shelter } from "../../lib/cnx/shelters";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
@@ -357,6 +360,14 @@ interface MapProps {
   dustboyStations?: DustboyStation[];
   /** Live plume polylines. Empty when FIRMS did not answer. */
   smokeSegments?: TrajectorySegment[];
+  /** 48 h model field (wind, rain, PM2.5) for the animated forecast layer. */
+  forecast?: ForecastFieldResponse | null;
+  /** Fly-to request from outside the map (e.g. a warned district). */
+  focus?: { longitude: number; latitude: number; zoom: number; key: number } | null;
+  /** Official temporary flood shelters (geocoded; precision on each). */
+  shelters?: Shelter[];
+  /** Turn shelters on and emphasise one district's (null = all). */
+  shelterFocus?: { amphoeTh: string | null; key: number } | null;
 }
 
 const NO_CAMERA_HAZE: CameraHaze[] = [];
@@ -364,6 +375,7 @@ const NO_REPORTS: CitizenReport[] = [];
 const NO_RAIN: RainStation[] = [];
 const NO_DUSTBOY: DustboyStation[] = [];
 const NO_PLUMES: TrajectorySegment[] = [];
+const NO_SHELTERS: Shelter[] = [];
 const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
   "haze-likely": [220, 38, 38, 235],
   "some-haze": [234, 179, 8, 230],
@@ -403,6 +415,10 @@ export default function CNXMap({
   rainAvailable = false,
   dustboyStations = NO_DUSTBOY,
   smokeSegments = NO_PLUMES,
+  forecast = null,
+  focus = null,
+  shelters = NO_SHELTERS,
+  shelterFocus = null,
 }: MapProps) {
   // Street labels lead the operational landing view. Terrain, satellite and
   // the heavier 3D city remain explicit choices in Layers.
@@ -456,6 +472,57 @@ export default function CNXMap({
   });
 
   const wideBuildings = (viewState.zoom ?? CITY_ZOOM) < 13;
+
+  // An outside fly-to (a warned district, a shelter) re-centres once per key.
+  useEffect(() => {
+    if (!focus) return;
+    setViewState((vs) => clampView({ ...vs, longitude: focus.longitude, latitude: focus.latitude, zoom: focus.zoom }));
+  }, [focus]);
+
+  // Shelters: off until asked for, on whenever a warning points at them.
+  const [sheltersOn, setSheltersOn] = useState(false);
+  useEffect(() => {
+    if (shelterFocus) setSheltersOn(true);
+  }, [shelterFocus]);
+  const shelterLayers = useMemo(() => {
+    if (!sheltersOn) return [];
+    const placed = shelters.filter((s) => s.lat !== null && s.lon !== null && !s.duplicateOf);
+    const focusAmphoe = shelterFocus?.amphoeTh ?? null;
+    const inFocus = (s: Shelter) => focusAmphoe !== null && sameAmphoe(s.amphoeTh, focusAmphoe);
+    // A ring, never a status colour: a shelter is a destination, not a level.
+    // Solid = the building itself is mapped; hollow = approximate location.
+    const dots = new ScatterplotLayer<Shelter>({
+      id: "cnx-shelters",
+      data: placed,
+      getPosition: (d) => [d.lon as number, d.lat as number],
+      getRadius: (d) => (inFocus(d) ? 2 : 0) + 4 + Math.min(6, Math.sqrt(d.capacity ?? 100) / 12),
+      radiusUnits: "pixels",
+      stroked: true,
+      filled: true,
+      getFillColor: (d) => (d.precision === "place" ? [255, 255, 255, 245] : [255, 255, 255, 70]),
+      getLineColor: (d) => (inFocus(d) || focusAmphoe === null ? [18, 53, 78, 255] : [18, 53, 78, 150]),
+      getLineWidth: (d) => (inFocus(d) ? 3 : 2),
+      lineWidthUnits: "pixels",
+      pickable: true,
+      updateTriggers: { getRadius: focusAmphoe, getLineColor: focusAmphoe, getLineWidth: focusAmphoe },
+    });
+    const labels = new TextLayer<Shelter>({
+      id: "cnx-shelter-labels",
+      data: placed.filter(inFocus),
+      getPosition: (d) => [d.lon as number, d.lat as number],
+      getText: (d) => `${d.nameTh}${d.capacity ? ` · ${d.capacity.toLocaleString("th-TH")} คน` : ""}`,
+      getSize: 13,
+      getColor: [17, 17, 17, 255],
+      getPixelOffset: [0, -16],
+      background: true,
+      getBackgroundColor: [255, 255, 255, 230],
+      backgroundPadding: [4, 2],
+      characterSet: "auto",
+      fontFamily: '"IBM Plex Sans Thai", "Noto Sans Thai", sans-serif',
+      pickable: false,
+    });
+    return [dots, labels];
+  }, [shelters, sheltersOn, shelterFocus]);
 
   const handleToggle3D = () => {
     setBuildingsOn((prev) => {
@@ -1162,6 +1229,7 @@ export default function CNXMap({
         }}
         layers={[
           ...layers,
+          ...shelterLayers,
           ...busLayers,
           ...(rtcRouteLayer ? [rtcRouteLayer] : []),
           ...(rtcBusLayer ? [rtcBusLayer] : []),
@@ -1223,6 +1291,11 @@ export default function CNXMap({
             const hazeLine = haze ? `\nHaze: ${haze.verdict}${haze.score !== null ? ` (${haze.score.toFixed(2)})` : ""} · frame ${haze.observedAt.slice(11, 16)} UTC` : "";
             return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? "วิดีโอสด" : "ภาพนิ่งรีเฟรช") : "OFFLINE"} — เปิดดูในแถบ CCTV ด้านบน${hazeLine}`;
           }
+          if (layer.id === "cnx-shelters") {
+            const sh = object as Shelter;
+            const utilities = [sh.electricity ? "ไฟฟ้า" : null, sh.water ? "ประปา" : null].filter(Boolean).join(" · ");
+            return `ศูนย์พักพิง: ${sh.nameTh}\nต.${sh.tambonTh ?? "—"} อ.${sh.amphoeTh} · รับได้ ${sh.capacity?.toLocaleString("th-TH") ?? "ไม่ระบุ"} คน\n${utilities}${utilities ? " · " : ""}ห้องน้ำ ${sh.toilets ?? "ไม่ระบุ"}\nตำแหน่ง: ${precisionLabel[sh.precision].th}\nรายชื่อ: สำนักงานจังหวัดเชียงใหม่`;
+          }
           if (layer.id === "cnx-rain") {
             const r = object as RainStation;
             return `ฝน 24 ชม. ${r.rain24h} มม. · ${RAIN_BAND_TH[r.band]}\n${r.station} · ต.${r.tambonTh} อ.${r.amphoeTh}\n${r.agency} · ${r.at} น. (ThaiWater)`;
@@ -1238,7 +1311,7 @@ export default function CNXMap({
           if (layer.id === "cnx-smoke") {
             const s = object as TrajectorySegment;
             const where = s.nearCnx ? "within 50 km of the city at 6 h" : s.hitsCnxBbox ? "enters the province at 6 h" : "misses the city at 6 h";
-            return `Plume ${s.hotspotId}\n${where}\nStraight-line advection — not a forecast`;
+            return `Plume ${s.hotspotId}\n${where}\nCentreline along the forecast 850 hPa wind (~1.5 km) — no spread or deposition`;
           }
           return null;
         }}
@@ -1258,6 +1331,8 @@ export default function CNXMap({
           <AttributionControl compact position="bottom-left" />
         </Map>
       </DeckGL>
+
+      <CNXForecastLayer map={mlMapRef.current} mapReady={mapReady} styleKey={basemap} forecast={forecast} tone={basemap === "satellite" ? "light" : "dark"} />
 
       {/* Native disclosure keeps controls available without obscuring the operational map. */}
       <details className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] rounded-sm border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)] shadow-sm" onKeyDown={(event) => {
@@ -1364,6 +1439,17 @@ export default function CNXMap({
           {burnScarOn ? "Burn scars 2569: on" : "Burn scars 2569: off"}
         </MapToggleButton>
 
+        <ToggleGroupLabel>ศูนย์พักพิง · Shelters</ToggleGroupLabel>
+        <MapToggleButton
+          pressed={sheltersOn}
+          onClick={() => setSheltersOn((v) => !v)}
+          activeClassName="border-[var(--cool)] bg-[var(--cool)] text-[var(--bg)]"
+          disabled={shelters.length === 0}
+          title="Official temporary flood shelters (Chiang Mai Provincial Office). Solid ring = building mapped; hollow = approximate location."
+        >
+          {shelters.length ? (sheltersOn ? `ศูนย์พักพิง: แสดง (${shelters.length})` : "ศูนย์พักพิง: ซ่อน") : "ศูนย์พักพิง: ไม่มีข้อมูล"}
+        </MapToggleButton>
+
         <ToggleGroupLabel>Weather &amp; Air</ToggleGroupLabel>
         <MapToggleButton
           pressed={rainOn}
@@ -1388,7 +1474,7 @@ export default function CNXMap({
           onClick={() => setPlumesOn((v) => !v)}
           activeClassName="border-[#c2410c] bg-[#c2410c] text-white"
           disabled={smokeSegments.length === 0}
-          title="Where smoke is heading in 6 hours. Straight-line wind advection from a live VIIRS pass — not a forecast. Red reaches the city."
+          title="Where smoke from a live VIIRS fire is carried in the next 6 hours, following the forecast wind at ~1.5 km as it turns. A centreline — no spread or deposition. Red reaches the city."
         >
           {smokeSegments.length ? (plumesOn ? `Plumes: on (${smokeSegments.length})` : "Plumes: off") : "Plumes: none"}
         </MapToggleButton>
