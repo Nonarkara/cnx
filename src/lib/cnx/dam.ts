@@ -4,7 +4,7 @@
 // grading (percent of normal storage, bands, staleness) runs here at the edge
 // in dam-core.ts, so the relay cannot push a verdict.
 
-import { summariseDams, damReportTime, DAM_RELAY_MAX_AGE_MS, type DamRow, type DamSummary } from "./dam-core";
+import { summariseDams, damReportTime, correctEnglishName, DAM_RELAY_MAX_AGE_MS, type DamRow, type DamSummary } from "./dam-core";
 import { isNum, isNumOrNull, isObj, isStr, readRelayJson } from "./relay-kv";
 
 export const DAM_KV_KEY = "dam-daily-latest";
@@ -60,7 +60,18 @@ export const NOTE =
 
 export async function fetchCnxDam(nowMs: number = Date.now()): Promise<DamResponse> {
   const data = await readRelayJson(DAM_KV_KEY, DAM_RELAY_MAX_AGE_MS, isDamPayload);
-  const summary = summariseDams(data?.rows ?? [], nowMs);
+  // Re-apply the romanisation correction ON READ. The rows arrive from KV,
+  // written by the laptop relay — a separate long-running process. Fixing
+  // compactDamRow alone corrects the relay only after it is restarted, and
+  // every row already sitting in KV keeps the publisher's misspelling
+  // until then. Shipping this fix and watching the board still say
+  // "Mae Ngud" is the same lesson as the blank country label: a durable
+  // store preserves old defects, so the reader has to be defended too.
+  const rows = (data?.rows ?? []).map((r) => {
+    const nameEn = correctEnglishName(r.nameTh, r.nameEn);
+    return nameEn === r.nameEn ? r : { ...r, nameEn };
+  });
+  const summary = summariseDams(rows, nowMs);
   if (data && (summary.large.length > 0 || summary.medium.length > 0)) {
     return { ...summary, collectedAt: data.generatedAt, provenance: "live", source: SOURCE, note: NOTE, unavailableReason: null };
   }

@@ -12,7 +12,7 @@
 // never mistakes our spelling for the publisher's.
 
 import { describe, expect, it } from "vitest";
-import { compactDamRow, selectDamRows, UPSTREAM_EN_CORRECTIONS } from "./dam-core";
+import { compactDamRow, correctEnglishName, selectDamRows, UPSTREAM_EN_CORRECTIONS } from "./dam-core";
 import { NOTE } from "./dam";
 
 const row = (over: Record<string, unknown> = {}) => ({
@@ -76,5 +76,31 @@ describe("reservoir names: the publisher's romanisation is corrected, and said s
 
   it("keeps the correction map keyed on Thai, so a wrong English key cannot drift", () => {
     expect(Object.keys(UPSTREAM_EN_CORRECTIONS)).toContain("แม่งัดสมบูรณ์ชล");
+  });
+});
+
+describe("the relay is a separate process, so the READ boundary is defended too", () => {
+  // Deployed the compactDamRow fix, re-read /api/cnx/dam, and it still
+  // said "Mae Ngud": the rows come from KV, written by the long-running
+  // laptop relay, which was started before the fix and still held the old
+  // code. Every archived row keeps the misspelling until it is restarted.
+  // A durable store preserves old defects; the reader has to be defended.
+  const staleRelayRow = {
+    ...compactDamRow(row() as never, "large")!,
+    nameEn: "Mae Ngud", // as the pre-fix relay pushed it into KV
+  };
+
+  it("relabels a row that arrived from the relay already misspelt", () => {
+    expect(correctEnglishName(staleRelayRow.nameTh, staleRelayRow.nameEn)).toBe("Mae Ngat");
+  });
+
+  it("leaves a correctly-spelled row untouched", () => {
+    expect(correctEnglishName("ภูมิพล", "Bhumibol")).toBe("Bhumibol");
+  });
+
+  it("changes no number on the read path", () => {
+    const fixed = { ...staleRelayRow, nameEn: correctEnglishName(staleRelayRow.nameTh, staleRelayRow.nameEn) };
+    expect(fixed.storageMcm).toBe(staleRelayRow.storageMcm);
+    expect(fixed.upstreamPct).toBe(staleRelayRow.upstreamPct);
   });
 });

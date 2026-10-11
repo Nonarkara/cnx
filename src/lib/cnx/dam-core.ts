@@ -162,7 +162,7 @@ export const UPSTREAM_EN_CORRECTIONS: Readonly<Record<string, string>> = {
 };
 
 /** Prefer the corrected romanisation; otherwise pass the publisher's through. */
-function correctEnglishName(nameTh: string, nameEn: string): string {
+export function correctEnglishName(nameTh: string, nameEn: string): string {
   return UPSTREAM_EN_CORRECTIONS[nameTh] ?? nameEn;
 }
 
