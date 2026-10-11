@@ -82,7 +82,11 @@ for (let i = 0; i < routes.length; i += 4) {
   const batch = await Promise.all(routes.slice(i, i + 4).map(async (entry) => ({ ...entry, res: await get(`/api/cnx/${entry.route}`) })));
   for (const { route, status, res, post } of batch) {
     if (res.status !== status) fail(`${route} → ${res.status}, expected ${status}`);
-    else if (status === 200) {
+    else if (status === 200 && /\.(xml|atom)$/.test(route)) {
+      // CAP 1.2 and Atom are XML by standard: well-formed root, not JSON.
+      if (/^\s*<\?xml[^>]*>\s*<(alerts|alert|feed)\b/.test(res.text)) ok(`${route} → 200 XML`);
+      else fail(`${route} returned no XML document`);
+    } else if (status === 200) {
       try { JSON.parse(res.text); ok(`${route} → 200 JSON`); }
       catch { fail(`${route} returned non-JSON`); }
     } else ok(`${route} → ${status}`);

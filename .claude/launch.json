@@ -4,8 +4,20 @@
     {
       "name": "cnx-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "cnx-prod-preview",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Volumes/Data/Projects/.cnx-work && npx wrangler dev -c wrangler.cnx.jsonc --port 8799 --ip 127.0.0.1"
+      ],
+      "port": 8799
     }
   ]
 }
