@@ -13,8 +13,10 @@ export async function GET(request: Request) {
   if (q.length > 500) {
     return NextResponse.json({ error: "Query exceeds 500 characters" }, { status: 400 });
   }
-  const result = await answerQuestion(q);
-  return NextResponse.json(result, {
-    headers: { "Cache-Control": "no-store" },
-  });
+  try {
+    const result = await answerQuestion(q);
+    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ error: "The question index is unavailable right now." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
 }

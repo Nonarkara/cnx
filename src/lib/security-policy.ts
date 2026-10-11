@@ -69,6 +69,6 @@ export const SECURITY_HEADERS: Record<string, string> = {
  */
 export function rateLimitClass(pathname: string, method: string): { binding: "CNX_RL_INGEST" | "CNX_RL_HEAVY" | "CNX_RL_API" } {
   if (pathname.endsWith("/ingest") || method === "POST") return { binding: "CNX_RL_INGEST" };
-  if (/^\/api\/cnx\/(ask|forecast-field|aircraft|social|smoke-trajectory|twin|story|og|visitors|outbound)(\/|$)/.test(pathname)) return { binding: "CNX_RL_HEAVY" };
+  if (/^\/api\/cnx\/(ask|forecast-field|social|smoke-trajectory|twin|story|og|visitors|outbound)(\/|$)/.test(pathname)) return { binding: "CNX_RL_HEAVY" };
   return { binding: "CNX_RL_API" };
 }

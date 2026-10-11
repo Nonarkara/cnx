@@ -11,7 +11,7 @@ const { version } = JSON.parse(readFileSync(new URL("./package.json", import.met
 const MAPLIBRE_ESM = fileURLToPath(import.meta.resolve("maplibre-gl"));
 const livePreview = process.env.NODE_ENV === "development" && process.env.CNX_PREVIEW_USE_LIVE_API === "1";
 // Exact public read paths only: no ingest, chat, credentials or build identity.
-const previewFeeds = ["aerosol", "air-quality", "aqi-amphoe", "asmc", "cctv", "citizen", "dustboy", "fires", "fires-rfd", "flights", "flood", "flood-cameras", "haze-vision", "heritage", "outbound", "rain", "river-level", "smoke-trajectory", "social", "story", "twin", "weather-layers", "arrivals", "floodhub", "aeronet", "open-data", "snapshot-trend", "visitors", "aircraft"];
+const previewFeeds = ["aerosol", "air-quality", "aqi-amphoe", "asmc", "cctv", "citizen", "dustboy", "fires", "fires-rfd", "flights", "flood", "flood-cameras", "haze-vision", "heritage", "outbound", "rain", "river-level", "smoke-trajectory", "social", "story", "twin", "weather-layers", "arrivals", "floodhub", "aeronet", "open-data", "snapshot-trend", "visitors"];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

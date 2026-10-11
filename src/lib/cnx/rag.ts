@@ -46,7 +46,7 @@ const CNX_HERITAGE: CnxHeritageSite[] = [
   { id: "doi-inthanon", name: "Doi Inthanon NP", nameTh: "อุทยานแห่งชาติดอยอินทนนท์", category: "natural", longitude: 98.4867, latitude: 18.5883, brief: "Thailand's highest peak at 2,565 m." },
 ];
 
-let cached: { at: number; corpus: Corpus[] } | null = null;
+let cached: { at: number; corpus: Document[] } | null = null;
 const TTL_MS = 5 * 60_000;
 
 function tokenize(s: string): string[] {
@@ -205,27 +205,29 @@ async function buildAsyncCorpus(): Promise<Document[]> {
   return docs;
 }
 
+/** Tokenised documents and document frequencies, built once per corpus
+ *  refresh — re-tokenising the whole corpus on every question made each
+ *  request a CPU lever for anyone hammering /ask. */
+let indexed: { at: number; docs: Document[]; df: Map<string, number> } | null = null;
+
+async function getIndex(): Promise<{ docs: Document[]; df: Map<string, number> }> {
+  if (indexed && cached && indexed.at === cached.at && Date.now() - cached.at < TTL_MS) return indexed;
+  const docs = await getCorpus();
+  const df = new Map<string, number>();
+  for (const d of docs) {
+    for (const t of new Set(d.terms)) df.set(t, (df.get(t) ?? 0) + 1);
+  }
+  indexed = { at: cached?.at ?? Date.now(), docs, df };
+  return indexed;
+}
+
 async function getCorpus(): Promise<Document[]> {
-  if (cached && Date.now() - cached.at < TTL_MS) return cached.corpus.map(toDocument);
+  if (cached && Date.now() - cached.at < TTL_MS) return cached.corpus;
   const docs = await buildAsyncCorpus();
   cached = { at: Date.now(), corpus: docs };
   return docs;
 }
 
-function toDocument(c: Corpus): Document {
-  return {
-    id: c.id,
-    title: c.title,
-    body: c.body,
-    tags: c.tags,
-    terms: tokenize(`${c.title} ${c.body} ${c.tags.join(" ")}`),
-    source: c.source,
-    url: c.url,
-    longitude: c.longitude,
-    latitude: c.latitude,
-    ts: c.ts,
-  };
-}
 
 export interface RagResult {
   id: string;
@@ -239,15 +241,9 @@ export interface RagResult {
 export async function searchCorpus(query: string, limit = 8): Promise<RagResult[]> {
   const queryTerms = tokenize(query);
   if (queryTerms.length === 0) return [];
-  const docs = await getCorpus();
-
   // IDF over the corpus — frequent terms (e.g. "chiang", "mai") get
   // discounted, rare terms (e.g. "Nawarat Bridge") dominate.
-  const df = new Map<string, number>();
-  for (const d of docs) {
-    const seen = new Set(d.terms);
-    for (const t of seen) df.set(t, (df.get(t) ?? 0) + 1);
-  }
+  const { docs, df } = await getIndex();
   const idf = (term: string) => Math.log(1 + (docs.length + 1) / ((df.get(term) ?? 0) + 1));
 
   const scored: { doc: Document; score: number }[] = [];

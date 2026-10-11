@@ -341,7 +341,7 @@ export interface AircraftMeta {
   model?: string;
 }
 
-/** Shared aircraft-metadata lookup — used by /api/cnx/aircraft and the
+/** Shared aircraft-metadata lookup — used by the
  *  arrivals visitor-estimate pipeline. Authenticated when OpenSky
  *  credentials are configured (see getAccessToken), same as states. */
 export async function fetchAircraftMetadata(icao24List: string[]): Promise<AircraftMeta[]> {

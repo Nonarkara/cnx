@@ -110,7 +110,7 @@ export function summariseOutbound(states: FlightState[]): OutboundAnalysis {
     };
     existing.count += 1;
     // FlightState.spec is set when the API resolved the typecode via
-    // /api/cnx/aircraft. Anonymous-tier OpenSky returns only the
+    // the arrivals metadata lookup. Anonymous-tier OpenSky returns only the
     // callsign + icao24, so the bucket is "narrow" by default until
     // the lookup completes — see lib/cnx/opensky for the resolution
     // path.
