@@ -15,24 +15,34 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useModalDialog } from "../../hooks/useModalDialog";
 import type { CctvSlot } from "../../types/cnx";
+import { useLang } from "../../hooks/useLang";
 
 interface Props {
   slot: CctvSlot | null;
   onClose: () => void;
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  windy: "Windy.com",
-  longdo: "Longdo",
-  municipal: "เทศบาล/อบจ.",
-  itic: "iTIC",
-  doh: "กรมทางหลวง",
-  youtube: "YouTube",
-  private: "Private",
-  lanta: "Lanta",
+const SOURCE_LABEL: Record<string, { th: string; en: string }> = {
+  windy: { th: "Windy.com", en: "Windy.com" },
+  longdo: { th: "Longdo", en: "Longdo" },
+  municipal: { th: "เทศบาล/อบจ.", en: "Municipality / PAO" },
+  itic: { th: "iTIC", en: "iTIC" },
+  doh: { th: "กรมทางหลวง", en: "Department of Highways" },
+  youtube: { th: "YouTube", en: "YouTube" },
+  private: { th: "เอกชน", en: "Private" },
+  lanta: { th: "Lanta", en: "Lanta" },
+};
+
+const CATEGORY_LABEL: Record<CctvSlot["category"], { th: string; en: string }> = {
+  heritage: { th: "โบราณสถาน", en: "heritage" },
+  traffic: { th: "จราจร", en: "traffic" },
+  highway: { th: "ทางหลวง", en: "highway" },
+  flood: { th: "น้ำท่วม", en: "flood" },
+  tourism: { th: "ท่องเที่ยว", en: "tourism" },
 };
 
 function HlsVideo({ src, label }: { src: string; label: string }) {
+  const { t } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
 
@@ -74,7 +84,7 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
   if (failed) {
     return (
       <div className="flex aspect-video items-center justify-center bg-[var(--bg)] font-mono text-[11px] text-[var(--dim)]">
-        วิดีโอเล่นไม่ได้ในเบราว์เซอร์นี้ — <a className="ml-1 underline" href={src} target="_blank" rel="noreferrer">เปิดสตรีมโดยตรง</a>
+        {t("วิดีโอเล่นไม่ได้ในเบราว์เซอร์นี้", "This browser cannot play the video")} — <a className="ml-1 underline" href={src} target="_blank" rel="noreferrer">{t("เปิดสตรีมโดยตรง", "open the stream directly")}</a>
       </div>
     );
   }
@@ -85,18 +95,19 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
       muted
       playsInline
       className="aspect-video w-full bg-black"
-      aria-label={`ภาพสด: ${label}`}
+      aria-label={`${t("ภาพสด", "Live video")}: ${label}`}
       onError={() => setFailed(true)}
     />
   );
 }
 
 function SnapshotView({ slot }: { slot: CctvSlot }) {
+  const { t } = useLang();
   const [ts, setTs] = useState(() => Date.now());
   const refreshMs = Math.max(30, slot.snapshotRefreshSec ?? 150) * 1000;
   useEffect(() => {
-    const t = window.setInterval(() => setTs(Date.now()), refreshMs);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => setTs(Date.now()), refreshMs);
+    return () => window.clearInterval(timer);
   }, [refreshMs, slot.id]);
   const sep = (slot.posterUrl ?? "").includes("?") ? "&" : "?";
   return (
@@ -106,7 +117,7 @@ function SnapshotView({ slot }: { slot: CctvSlot }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`${slot.posterUrl}${sep}_ts=${ts}`}
-      alt={`ภาพล่าสุด: ${slot.label}`}
+      alt={`${t("ภาพล่าสุด", "Latest image")}: ${slot.label}`}
       className="aspect-video w-full bg-black object-contain"
       decoding="async"
     />
@@ -116,9 +127,12 @@ function SnapshotView({ slot }: { slot: CctvSlot }) {
 export default function CnxCctvModal({ slot, onClose }: Props) {
   const titleId = useId();
   const dialogRef = useModalDialog(slot !== null, onClose);
+  const { t } = useLang();
 
   if (!slot) return null;
-  const sourceLabel = SOURCE_LABEL[slot.source] ?? slot.source;
+  const source = SOURCE_LABEL[slot.source];
+  const sourceLabel = source ? t(source.th, source.en) : slot.source;
+  const category = CATEGORY_LABEL[slot.category];
 
   return (
     <div
@@ -144,14 +158,14 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
         <header className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <div>
             <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-              CCTV · {slot.category} · {sourceLabel}
+              CCTV · {category ? t(category.th, category.en) : slot.category} · {sourceLabel}
             </div>
-            <h2 id={titleId} lang="th" className="font-display text-xl font-bold text-[var(--ink)]">
+            <h2 id={titleId} className="font-display text-xl font-bold text-[var(--ink)]">
               {slot.label}
             </h2>
             <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--dim)]">
               {slot.latitude.toFixed(4)}, {slot.longitude.toFixed(4)}
-              {!slot.reachable && <span className="ml-2 font-bold text-[var(--danger)]">OFFLINE — อาจดูไม่ได้</span>}
+              {!slot.reachable && <span className="ml-2 font-bold text-[var(--danger)]">{t("ออฟไลน์ — อาจดูไม่ได้", "OFFLINE — may not load")}</span>}
             </div>
           </div>
           <button
@@ -162,7 +176,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             // reachable to escape the dialog.
             className="flex min-h-11 shrink-0 items-center border border-[var(--line)] px-4 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--ink)] hover:border-[var(--ink)]"
           >
-            ปิด ✕
+            {t("ปิด", "Close")} ✕
           </button>
         </header>
 
@@ -176,7 +190,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             <iframe
               key={slot.id}
               src={slot.playerUrl}
-              title={`ภาพกล้อง: ${slot.label}`}
+              title={`${t("ภาพกล้อง", "Camera view")}: ${slot.label}`}
               className="aspect-video w-full"
               allow="autoplay; fullscreen"
               allowFullScreen
@@ -185,21 +199,21 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             <SnapshotView slot={slot} />
           ) : (
             <div className="flex aspect-video items-center justify-center font-mono text-[11px] text-[var(--dim)]">
-              กล้องนี้ไม่มีสตรีม — {sourceLabel}
+              {t("กล้องนี้ไม่มีสตรีม", "This camera has no stream")} — {sourceLabel}
             </div>
           )}
         </div>
 
         <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] px-4 py-2 font-mono text-[11px] text-[var(--dim)]">
           <span>
-            ที่มา: {sourceLabel}
-            {slot.source === "windy" && " · ภาพนิ่งรีเฟรชทุก ~2 นาที (ไม่ใช่ไลฟ์วิดีโอ)"}
-            {slot.source === "longdo" && " · สตรีม HLS จากกรมทางหลวงผ่าน Longdo"}
-            {slot.source === "municipal" && " · เครือข่ายกล้องเทศบาล/อบจ."}
+            {t("ที่มา", "Source")}: {sourceLabel}
+            {slot.source === "windy" && ` · ${t("ภาพนิ่งรีเฟรชทุก ~2 นาที (ไม่ใช่ไลฟ์วิดีโอ)", "still image refreshed every ~2 min (not live video)")}`}
+            {slot.source === "longdo" && ` · ${t("สตรีม HLS จากกรมทางหลวงผ่าน Longdo", "HLS stream from the Department of Highways via Longdo")}`}
+            {slot.source === "municipal" && ` · ${t("เครือข่ายกล้องเทศบาล/อบจ.", "municipal / PAO camera network")}`}
           </span>
           {slot.upstreamUrl && (
             <a href={slot.upstreamUrl} target="_blank" rel="noreferrer" className="underline hover:text-[var(--ink)]">
-              เปิดต้นทาง ↗
+              {t("เปิดต้นทาง", "Open source")} ↗
             </a>
           )}
         </footer>

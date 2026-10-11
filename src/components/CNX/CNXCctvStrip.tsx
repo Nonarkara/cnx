@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { Cctv } from "lucide-react";
 import type { CctvFeedResponse, CctvSlot } from "../../types/cnx";
 import CnxCctvModal from "./CNXCctvModal";
+import { useLang } from "../../hooks/useLang";
+import { pick, type Lang } from "../../lib/i18n";
 
 const CATEGORY_COLORS: Record<CctvSlot["category"], string> = {
   heritage: "var(--cool)",
@@ -16,12 +18,12 @@ const CATEGORY_COLORS: Record<CctvSlot["category"], string> = {
   tourism: "var(--cool)",
 };
 
-const SOURCE_BADGE: Record<string, string> = {
-  windy: "Windy",
-  longdo: "Longdo",
-  municipal: "เทศบาล",
-  itic: "iTIC",
-  doh: "ทล.",
+const SOURCE_BADGE: Record<string, { th: string; en: string }> = {
+  windy: { th: "Windy", en: "Windy" },
+  longdo: { th: "Longdo", en: "Longdo" },
+  municipal: { th: "เทศบาล", en: "Municipality" },
+  itic: { th: "iTIC", en: "iTIC" },
+  doh: { th: "ทล.", en: "DOH" },
 };
 
 function tileRefreshMs(slots: CctvSlot[]): number {
@@ -30,17 +32,18 @@ function tileRefreshMs(slots: CctvSlot[]): number {
 }
 
 /** Age of the image itself (camera capture time), not of our fetch. */
-function capturedLabel(capturedAt: string | undefined, now: number): string {
-  const t = Date.parse(capturedAt ?? "");
-  if (!Number.isFinite(t)) return "ไม่ทราบเวลาถ่าย";
-  if (t > now + 300_000) return "เวลาถ่ายคลาดเคลื่อน";
-  const min = Math.max(0, Math.round((now - t) / 60_000));
-  if (min < 60) return `ภาพเมื่อ ${min} นาทีที่แล้ว`;
-  if (min < 48 * 60) return `ภาพเมื่อ ${Math.round(min / 60)} ชม.ที่แล้ว`;
-  return `ภาพเมื่อ ${Math.round(min / 1440)} วันที่แล้ว`;
+function capturedLabel(capturedAt: string | undefined, now: number, lang: Lang): string {
+  const at = Date.parse(capturedAt ?? "");
+  if (!Number.isFinite(at)) return pick(lang, "ไม่ทราบเวลาถ่าย", "Capture time unknown");
+  if (at > now + 300_000) return pick(lang, "เวลาถ่ายคลาดเคลื่อน", "Capture time is off");
+  const min = Math.max(0, Math.round((now - at) / 60_000));
+  if (min < 60) return pick(lang, `ภาพเมื่อ ${min} นาทีที่แล้ว`, `Image from ${min} min ago`);
+  if (min < 48 * 60) return pick(lang, `ภาพเมื่อ ${Math.round(min / 60)} ชม.ที่แล้ว`, `Image from ${Math.round(min / 60)} h ago`);
+  return pick(lang, `ภาพเมื่อ ${Math.round(min / 1440)} วันที่แล้ว`, `Image from ${Math.round(min / 1440)} d ago`);
 }
 
 export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }) {
+  const { lang, t } = useLang();
   const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState<CctvSlot | null>(null);
   const [ts, setTs] = useState(() => Date.now());
@@ -49,20 +52,20 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
 
   useEffect(() => {
     if (slots.length === 0) return;
-    const t = window.setInterval(() => {
+    const tile = window.setInterval(() => {
       setTs(Date.now());
       setNow(Date.now());
     }, tileRefreshMs(slots));
     const clock = window.setInterval(() => setNow(Date.now()), 10_000);
     return () => {
-      window.clearInterval(t);
+      window.clearInterval(tile);
       window.clearInterval(clock);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feed?.generatedAt]);
 
   return (
-    <section aria-label="CNX CCTV — กล้องจริงทั้งหมด" className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
+    <section aria-label={t("CNX CCTV — กล้องจริงทั้งหมด", "CNX CCTV — all real cameras")} className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
       <div className="flex items-stretch">
         <div className="flex w-[104px] sm:w-[128px] shrink-0 flex-col justify-center border-r border-[var(--line)] px-3 py-2">
           <div className="flex items-center gap-1.5">
@@ -72,9 +75,9 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
             </span>
           </div>
           <div className="mt-1 text-[12px] tabular-nums text-[var(--dim)]">
-            {feed ? `${slots.filter((slot) => slot.reachable && !failedImages.has(slot.id)).length}/${feed.totalCount} ใช้ได้` : "กำลังโหลด…"}
+            {feed ? `${slots.filter((slot) => slot.reachable && !failedImages.has(slot.id)).length}/${feed.totalCount} ${t("ใช้ได้", "usable")}` : t("กำลังโหลด…", "Loading…")}
           </div>
-          <div className="text-[12px] text-[var(--dim)]">ภาพ / วิดีโอ</div>
+          <div className="text-[12px] text-[var(--dim)]">{t("ภาพ / วิดีโอ", "Stills / video")}</div>
         </div>
 
         <div className="flex min-w-0 flex-1 overflow-x-auto">
@@ -84,7 +87,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
             ))
           ) : slots.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--dim)]">
-              <span lang="th">ยังไม่มีกล้องที่ดูได้ในขณะนี้</span>
+              <span>{t("ยังไม่มีกล้องที่ดูได้ในขณะนี้", "No viewable cameras right now")}</span>
             </div>
           ) : (
             slots.map((s) => {
@@ -100,7 +103,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                     reachable ? "" : "opacity-70"
                   }`}
                   style={{ borderTop: `2px solid ${reachable ? color : "var(--dim)"}` }}
-                  title={`${s.label} — คลิกดูภาพใหญ่`}
+                  title={`${s.label} — ${t("คลิกดูภาพใหญ่", "click for a larger view")}`}
                 >
                   <div className="relative h-[64px] w-[96px] shrink-0 overflow-hidden bg-black">
                     {s.posterUrl ? (
@@ -123,19 +126,19 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center font-mono text-[11px] text-white/70">
-                        {s.hlsUrl ? "▶ วิดีโอ" : "ไม่มีภาพ"}
+                        {s.hlsUrl ? `▶ ${t("วิดีโอ", "Video")}` : t("ไม่มีภาพ", "No image")}
                       </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div lang="th" className="line-clamp-2 text-[14px] font-semibold leading-snug text-[var(--ink)]">
+                    <div className="line-clamp-2 text-[14px] font-semibold leading-snug text-[var(--ink)]">
                       {s.label}
                     </div>
                     <div className="mt-1 text-[12px] leading-snug text-[var(--dim)]">
-                      {SOURCE_BADGE[s.source] ?? s.source} · {reachable ? (s.hlsUrl ? "วิดีโอ" : "ภาพนิ่ง") : "ภาพไม่พร้อม"}
+                      {SOURCE_BADGE[s.source] ? t(SOURCE_BADGE[s.source].th, SOURCE_BADGE[s.source].en) : s.source} · {reachable ? (s.hlsUrl ? t("วิดีโอ", "Video") : t("ภาพนิ่ง", "Still image")) : t("ภาพไม่พร้อม", "Image unavailable")}
                     </div>
                     <div className="mt-1 text-[12px] leading-snug tabular-nums text-[var(--dim)]">
-                      {s.posterUrl ? capturedLabel(s.capturedAt, now) : "ไม่ทราบเวลาถ่าย"}
+                      {s.posterUrl ? capturedLabel(s.capturedAt, now, lang) : t("ไม่ทราบเวลาถ่าย", "Capture time unknown")}
                     </div>
                   </div>
                 </button>
