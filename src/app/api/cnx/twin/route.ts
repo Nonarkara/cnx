@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchCnxTwin } from "../../../../lib/cnx/twin";
+import { inBackground, recordWarnings, verdictObservation } from "../../../../lib/cnx/warning-log";
 import { edgeCached } from "../../../../lib/edge-cache";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,8 @@ export const revalidate = 0;
  */
 async function handle(): Promise<Response> {
   const data = await fetchCnxTwin();
+  // Verification log (WMO-No. 1150): a level change is recorded after the response.
+  await inBackground(recordWarnings({ verdict: verdictObservation(data.verdict) }));
   return NextResponse.json(data, {
     headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=120" },
   });
