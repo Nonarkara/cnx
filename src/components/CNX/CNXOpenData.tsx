@@ -52,12 +52,12 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <div className="flex items-center gap-2">
           <Database className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
             Open Data · data.go.th
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
+          <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">
             {data ? `${data.fetched}/${data.totalDatasets}` : "loading…"}
           </span>
           {/* Age the BAKE, not the poll. The panel re-fetches every 30 min
@@ -89,7 +89,7 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="filter datasets…"
-          className="min-w-0 flex-1 bg-transparent text-[10px] text-[var(--ink)] outline-none placeholder:text-[var(--dim)]"
+          className="min-w-0 flex-1 bg-transparent text-[11px] text-[var(--ink)] outline-none placeholder:text-[var(--dim)]"
         />
       </div>
       {onOpenWorkbench && (
@@ -99,10 +99,10 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
           className="flex w-full shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--cool-dim)] px-3 py-1.5 text-left hover:bg-[var(--cool-dim)]/70"
         >
           <div className="min-w-0">
-            <div className="truncate text-[10px] font-semibold text-[var(--ink)]">Open the full data workbench</div>
-            <div className="font-mono text-[8px] text-[var(--dim)]">tables parsed · previews · tourism statistics · every file linked</div>
+            <div className="truncate text-[11px] font-semibold text-[var(--ink)]">Open the full data workbench</div>
+            <div className="font-mono text-[11px] text-[var(--dim)]">tables parsed · previews · tourism statistics · every file linked</div>
           </div>
-          <span className="font-mono text-[10px] text-[var(--cool)]">→</span>
+          <span className="font-mono text-[11px] text-[var(--cool)]">→</span>
         </button>
       )}
       {/* Pinned external reference — not a data.go.th dataset, kept
@@ -112,13 +112,13 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
         href="https://changpuakmagazine.com/en-article/EMERGENCY/751083/"
         target="_blank"
         rel="noreferrer"
-        className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--sun-dim)] px-3 py-1.5 hover:bg-[var(--sun-dim)]/70"
+        className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--cool-dim)] px-3 py-1.5 hover:bg-[var(--cool-dim)]/70"
       >
         <div className="min-w-0">
-          <div className="truncate text-[10px] font-semibold text-[var(--ink)]">
+          <div className="truncate text-[11px] font-semibold text-[var(--ink)]">
             Emergency phone numbers — Chiang Mai
           </div>
-          <div className="font-mono text-[8px] text-[var(--dim)]">
+          <div className="font-mono text-[11px] text-[var(--dim)]">
             Not a data.go.th record — curated reference, ChangPuak Magazine
           </div>
         </div>
@@ -143,15 +143,15 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
                 href={href ?? "#"}
                 target={href ? "_blank" : undefined}
                 rel="noreferrer"
-                className="flex flex-col border-b border-[var(--line)] px-3 py-1.5 hover:bg-[var(--sun-dim)]"
+                className="flex flex-col border-b border-[var(--line)] px-3 py-1.5 hover:bg-[var(--cool-dim)]"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[10px] font-semibold text-[var(--ink)]">
+                  <span className="truncate text-[11px] font-semibold text-[var(--ink)]">
                     {d.titleEn ?? d.titleTh ?? d.id}
                   </span>
                   <ExternalLink className="h-2.5 w-2.5 shrink-0 text-[var(--dim)]" />
                 </div>
-                <div className="flex items-center gap-2 font-mono text-[8px] text-[var(--dim)]">
+                <div className="flex items-center gap-2 font-mono text-[11px] text-[var(--dim)]">
                   <span>{d.publisher.slice(0, 30)}</span>
                   <span>{d.format}</span>
                   {d.tags.slice(0, 2).map((t, i) => (

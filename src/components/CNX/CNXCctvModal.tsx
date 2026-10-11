@@ -143,13 +143,13 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
       >
         <header className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <div>
-            <div className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+            <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
               CCTV · {slot.category} · {sourceLabel}
             </div>
             <h2 id={titleId} lang="th" className="font-display text-xl font-bold text-[var(--ink)]">
               {slot.label}
             </h2>
-            <div className="mt-0.5 font-mono text-[9px] tabular-nums text-[var(--dim)]">
+            <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--dim)]">
               {slot.latitude.toFixed(4)}, {slot.longitude.toFixed(4)}
               {!slot.reachable && <span className="ml-2 font-bold text-[var(--danger)]">OFFLINE — อาจดูไม่ได้</span>}
             </div>
@@ -160,7 +160,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             // 44px minimum touch target (Apple HIG / WCAG 2.5.5). Was
             // px-3 py-1.5, a ~28px target on the one control that has to be
             // reachable to escape the dialog.
-            className="flex min-h-11 shrink-0 items-center border border-[var(--line)] px-4 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ink)] hover:border-[var(--ink)]"
+            className="flex min-h-11 shrink-0 items-center border border-[var(--line)] px-4 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--ink)] hover:border-[var(--ink)]"
           >
             ปิด ✕
           </button>
@@ -190,7 +190,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
           )}
         </div>
 
-        <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] px-4 py-2 font-mono text-[9px] text-[var(--dim)]">
+        <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] px-4 py-2 font-mono text-[11px] text-[var(--dim)]">
           <span>
             ที่มา: {sourceLabel}
             {slot.source === "windy" && " · ภาพนิ่งรีเฟรชทุก ~2 นาที (ไม่ใช่ไลฟ์วิดีโอ)"}

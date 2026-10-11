@@ -40,13 +40,13 @@ export default function CnxBurnSeason() {
           { label: "Farmland burned", now: latest.totals.farmRai, pct: c.farmPct },
         ].map((s) => (
           <div key={s.label} className="border border-[var(--line)] bg-[var(--bg-surface)] p-3">
-            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">{s.label}</div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">{s.label}</div>
             <div className="mt-1 text-[20px] font-bold tabular-nums text-[var(--ink)]">{fmt(s.now)}</div>
             <div className="text-[11px] text-[var(--dim)]">rai · {signed(s.pct)} vs {prior.labelBE}</div>
           </div>
         ))}
         <div className="border border-[var(--line)] bg-[var(--bg-surface)] p-3">
-          <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">Days PM2.5 over standard</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">Days PM2.5 over standard</div>
           <div className="mt-1 text-[20px] font-bold tabular-nums text-[var(--ink)]">{c.pm25DaysOver.latest}</div>
           <div className="text-[11px] text-[var(--dim)]">
             vs {c.pm25DaysOver.prior} in {prior.labelBE} ({c.pm25DaysOver.months.map((k) => MONTHS[k]).join("–")} only)
@@ -56,7 +56,7 @@ export default function CnxBurnSeason() {
 
       <table className="mt-3 w-full border-collapse text-[11px] tabular-nums">
         <thead>
-          <tr className="text-left font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">
+          <tr className="text-left font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
             <th className="py-1 pr-2 font-normal">Month</th>
             <th className="py-1 pr-2 font-normal">Forest burned (rai) · {latest.labelBE} / {prior.labelBE}</th>
             <th className="py-1 pr-2 font-normal">Farmland (rai)</th>
@@ -71,12 +71,12 @@ export default function CnxBurnSeason() {
               <tr key={m.month} className="border-t border-[var(--line)]">
                 <td className="py-1 pr-2 font-mono">{MONTHS[m.month.slice(4)]}</td>
                 <td className="py-1 pr-2">
-                  <div className="h-1.5 bg-[#b45309]" style={{ width: `${((m.forestRai ?? 0) / maxForest) * 100}%` }} title={`${fmt(m.forestRai ?? 0)} rai`} />
+                  <div className="h-1.5 bg-[var(--cool)]" style={{ width: `${((m.forestRai ?? 0) / maxForest) * 100}%` }} title={`${fmt(m.forestRai ?? 0)} rai`} />
                   <div className="mt-0.5 h-1 bg-[var(--line)]" style={{ width: `${((p?.forestRai ?? 0) / maxForest) * 100}%` }} title={`${prior.labelBE}: ${fmt(p?.forestRai ?? 0)} rai`} />
                   <span className="text-[var(--dim)]">{fmt(m.forestRai ?? 0)} / {fmt(p?.forestRai ?? 0)}</span>
                 </td>
                 <td className="py-1 pr-2">
-                  <div className="h-1.5 bg-[#ca8a04]" style={{ width: `${(farm(m) / maxFarm) * 100}%` }} />
+                  <div className="h-1.5 bg-[var(--cool)]" style={{ width: `${(farm(m) / maxFarm) * 100}%` }} />
                   <span className="text-[var(--dim)]">{fmt(farm(m))} / {fmt(p ? farm(p) : 0)}</span>
                 </td>
                 <td className="py-1 pr-2 text-right">{m.hotspots ?? "—"} / {p?.hotspots ?? "—"}</td>
@@ -89,7 +89,7 @@ export default function CnxBurnSeason() {
         </tbody>
       </table>
 
-      <div className="mt-3 font-mono text-[9px] uppercase tracking-[0.14em] text-[var(--dim)]">Most burned districts, {latest.labelBE}</div>
+      <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">Most burned districts, {latest.labelBE}</div>
       <ol className="mt-1 grid gap-x-4 gap-y-0.5 text-[11px] sm:grid-cols-2">
         {doc.districtsLatest.slice(0, 8).map((d, i) => (
           <li key={d.code} className="flex justify-between gap-2 tabular-nums">

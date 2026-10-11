@@ -15,7 +15,7 @@ export default function CNXDataPage() {
           <a href="/cnx" className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--cool)] hover:underline">
             ← Chiang Mai War Room
           </a>
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--dim)]">Data workbench</span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">Data workbench</span>
         </div>
       </header>
       <CNXDataLibrary />

@@ -48,12 +48,12 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
       <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
         <div className="flex items-center gap-1.5">
           <Plane className="h-3 w-3 text-[var(--cool)]" />
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
             Aircraft headings — route unconfirmed
           </span>
         </div>
         {trend && (
-          <span className="flex items-center gap-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+          <span className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
             <Database className="h-2.5 w-2.5" />
             {trend.totalSnapshots} snaps · {trend.days}d
           </span>
@@ -61,7 +61,7 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div className="border border-[var(--line)] bg-[var(--bg)] p-2">
-          <div className="mb-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
+          <div className="mb-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
             Heading
           </div>
           <div className="space-y-0.5">
@@ -69,18 +69,18 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
               const meta = QUADRANT_LABEL[q.quadrant];
               return (
                 <div key={q.quadrant} className="flex items-center justify-between">
-                  <span className="font-mono text-[9px] text-[var(--ink)]">
+                  <span className="font-mono text-[11px] text-[var(--ink)]">
                     <span className="mr-1 inline-block w-3 text-center">{meta?.emoji ?? "?"}</span>
                     {meta?.name ?? q.quadrant}
                   </span>
-                  <span className="font-mono text-[9px] tabular-nums text-[var(--ink)]">{q.count}</span>
+                  <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">{q.count}</span>
                 </div>
               );
             })}
           </div>
         </div>
         <div className="border border-[var(--line)] bg-[var(--bg)] p-2">
-          <div className="mb-1 flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
+          <div className="mb-1 flex items-center gap-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
             <Globe2 className="h-2.5 w-2.5" />
             Registration countries
           </div>
@@ -96,15 +96,15 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
               .slice(0, 5)
               .map((o) => (
                 <div key={o.country} className="flex items-center justify-between">
-                  <span className="truncate font-mono text-[9px] text-[var(--ink)]">{o.country}</span>
-                  <span className="font-mono text-[9px] tabular-nums text-[var(--ink)]">{o.count}</span>
+                  <span className="truncate font-mono text-[11px] text-[var(--ink)]">{o.country}</span>
+                  <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">{o.count}</span>
                 </div>
               ))}
           </div>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-1.5 border-t border-[var(--line)] pt-2 font-mono text-[9px] text-[var(--dim)]">
-        <MapPin className="h-3 w-3 text-[var(--sun)]" />
+      <div className="mt-2 flex items-center gap-1.5 border-t border-[var(--line)] pt-2 font-mono text-[11px] text-[var(--dim)]">
+        <MapPin className="h-3 w-3 text-[var(--cool)]" />
         Heading-based guess (not a flight plan): <span className="ml-1 font-bold text-[var(--ink)]">{snapshot.inferredTopDestination}</span>
       </div>
     </div>

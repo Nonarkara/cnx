@@ -52,7 +52,7 @@ function Metric({ metric, onOpen }: { metric: ExecutiveMetric; onOpen: () => voi
     <article className="flex min-w-0 flex-col border-b border-[var(--line)] py-6 sm:px-6 xl:border-b-0 xl:border-r xl:last:border-r-0">
       <div className="flex items-start justify-between gap-3">
         <Icon aria-hidden="true" className="h-6 w-6 shrink-0 text-[var(--cool)]" strokeWidth={1.5} />
-        <span className={`rounded-full border px-2.5 py-1 text-[12px] ${metric.state !== "current" ? "border-[var(--line)] text-[var(--dim)]" : concern ? "border-[var(--sun)] bg-[var(--sun-dim)] text-[var(--ink)]" : "border-[var(--line)] text-[var(--dim)]"}`}>{state}</span>
+        <span className={`border px-2.5 py-1 text-[12px] ${metric.state !== "current" ? "border-[var(--line)] text-[var(--dim)]" : concern ? "border-[var(--sev-watch)] text-[var(--ink)]" : "border-[var(--line)] text-[var(--dim)]"}`}>{state}</span>
       </div>
       <h2 lang="th" className="mt-5 text-[17px] font-semibold leading-snug">{metric.titleTh}</h2>
       <p className="mt-1 text-[12px] uppercase tracking-[0.1em] text-[var(--dim)]">{metric.titleEn}</p>
@@ -78,12 +78,12 @@ function RiverRhythm() {
     <svg aria-hidden="true" viewBox="0 0 360 380" fill="none" className="h-full w-full" focusable="false">
       <circle cx="195" cy="182" r="130" stroke="white" strokeOpacity="0.12" />
       <circle cx="195" cy="182" r="91" stroke="white" strokeOpacity="0.12" />
-      <path d="M-20 87C75 8 163 33 140 117C115 208 312 173 254 262C230 299 287 331 372 345" stroke="var(--sun)" strokeWidth="2.5" />
+      <path d="M-20 87C75 8 163 33 140 117C115 208 312 173 254 262C230 299 287 331 372 345" stroke="white" strokeWidth="2.5" />
       <path d="M-20 103C66 32 141 55 119 120C92 211 284 195 236 261C205 305 259 350 356 363" stroke="white" strokeOpacity="0.28" />
       <path d="M-20 120C55 58 119 77 98 125C69 215 256 216 214 261C185 295 225 366 333 380" stroke="white" strokeOpacity="0.12" />
       <path d="M65 180H320M195 52V311" stroke="white" strokeOpacity="0.09" strokeDasharray="3 7" />
-      <circle cx="195" cy="182" r="5" fill="var(--sun)" />
-      <path d="M191 178L199 186M199 178L191 186" stroke="var(--wada-counter,#12354e)" />
+      <circle cx="195" cy="182" r="5" fill="white" />
+      <path d="M191 178L199 186M199 178L191 186" stroke="var(--wada-counter)" />
     </svg>
   );
 }
@@ -104,14 +104,14 @@ export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverG
 
   return (
     <section aria-label="ภาพรวมเชียงใหม่เพื่อการตัดสินใจ" className="mx-auto w-full max-w-[1600px] px-5 pb-12 pt-5 text-[var(--ink)] sm:px-8 sm:pt-6 lg:px-12">
-      <div className="relative grid overflow-hidden rounded-[2px] bg-[var(--wada-counter,#12354e)] text-white lg:grid-cols-12">
+      <div className="relative grid overflow-hidden bg-[var(--wada-counter)] text-white lg:grid-cols-12">
         <div className="relative z-10 px-6 py-5 sm:px-8 sm:py-7 lg:col-span-8 lg:px-10 lg:py-7">
-          <div className="mb-3 flex items-center gap-3"><span className="h-px w-10 bg-[var(--sun)]" /><p lang="th" className="text-[13px] tracking-wide text-white/75">ข้อมูลเพื่อการตัดสินใจของจังหวัด</p></div>
+          <div className="mb-3 flex items-center gap-3"><span className="h-px w-10 bg-white/60" /><p lang="th" className="text-[13px] tracking-wide text-white/75">ข้อมูลเพื่อการตัดสินใจของจังหวัด</p></div>
           <h1 lang="th" className="font-display text-[28px] font-semibold leading-[1.22] tracking-[-0.025em] sm:text-[42px] lg:text-[46px]">เชียงใหม่ ในภาพเดียว</h1>
           <p lang="th" className="mt-3 max-w-[40rem] text-[16px] leading-relaxed text-white/90 sm:text-[19px]">{brief.headlineTh}</p>
           <p className="mt-2 hidden max-w-[36rem] text-[13px] leading-relaxed text-white/65 sm:block">{brief.headlineEn}</p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button type="button" onClick={onOpenBrief} className="inline-flex min-h-12 items-center justify-center gap-3 bg-[var(--sun)] px-5 py-3 text-[15px] font-semibold text-[#111]"><FileText aria-hidden="true" className="h-5 w-5" />เปิดรายงานสำหรับผู้ว่าฯ<ArrowUpRight aria-hidden="true" className="h-4 w-4" /></button>
+            <button type="button" onClick={onOpenBrief} className="inline-flex min-h-12 items-center justify-center gap-3 bg-white px-5 py-3 text-[15px] font-semibold text-[var(--wada-counter)]"><FileText aria-hidden="true" className="h-5 w-5" />เปิดรายงานสำหรับผู้ว่าฯ<ArrowUpRight aria-hidden="true" className="h-4 w-4" /></button>
             <button type="button" onClick={onOpenMap} className="inline-flex min-h-12 items-center justify-center gap-3 border border-white/35 px-5 py-3 text-[15px] font-semibold text-white hover:bg-white/10"><Map aria-hidden="true" className="h-5 w-5" />สำรวจบนแผนที่</button>
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function CNXExecutiveOverview({ air, dustboy, fires, twin, riverG
 
       <div className="mt-12 grid gap-x-12 gap-y-12 lg:grid-cols-12">
         <section aria-labelledby="executive-priorities" className="lg:col-span-7">
-          <div className="flex items-start justify-between gap-4"><div><p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--cool)]">Decision desk</p><h2 id="executive-priorities" lang="th" className="mt-2 text-[26px] font-semibold leading-snug sm:text-[30px]">สิ่งที่ควรตรวจสอบต่อ</h2></div><ArrowDownRight aria-hidden="true" className="mt-7 h-7 w-7 shrink-0 text-[var(--sun)]" /></div>
+          <div className="flex items-start justify-between gap-4"><div><p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--cool)]">Decision desk</p><h2 id="executive-priorities" lang="th" className="mt-2 text-[26px] font-semibold leading-snug sm:text-[30px]">สิ่งที่ควรตรวจสอบต่อ</h2></div><ArrowDownRight aria-hidden="true" className="mt-7 h-7 w-7 shrink-0 text-[var(--cool)]" /></div>
           <p lang="th" className="mt-3 max-w-[38rem] text-[14px] leading-relaxed text-[var(--dim)]">เริ่มจากด้านที่ต้องติดตามและข้อมูลที่ยังขาด ก่อนกำหนดการดำเนินงานร่วมกับหน่วยงานเจ้าของข้อมูล</p>
           <ol className="mt-6 border-t border-[var(--line)]">
             {nextChecks.map((metric, index) => <li key={metric.id} className="grid grid-cols-[2rem_1fr] gap-4 border-b border-[var(--line)] py-5"><span className="pt-1 font-mono text-[15px] tabular-nums text-[var(--dim)]">0{index + 1}</span><div><h3 lang="th" className="text-[17px] font-semibold">{metric.titleTh}</h3><p lang="th" className="mt-2 text-[15px] leading-relaxed text-[var(--dim)]">{metric.actionTh}</p><button type="button" onClick={() => onOpenMetric(metric.id)} className="mt-2 inline-flex min-h-11 items-center gap-2 text-[14px] font-semibold text-[var(--cool)]">ตรวจหลักฐาน<ChevronRight aria-hidden="true" className="h-4 w-4" /></button></div></li>)}

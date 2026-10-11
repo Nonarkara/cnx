@@ -28,10 +28,10 @@ type Tab = "flood" | "air" | "fires";
 const SEVERITY_CLASSES: Record<SeverityLevel, string> = {
   // "unknown" must never inherit the green of a confirmed cool reading.
   unknown: "bg-[var(--line)] text-[var(--dim)]",
-  good: "bg-[var(--success)] text-white",
-  watch: "bg-[#f99d1b] text-black",
-  alert: "bg-[#fb923c] text-black",
-  critical: "bg-[var(--danger)] text-white",
+  good: "sev-fill-good",
+  watch: "sev-fill-watch",
+  alert: "sev-fill-alert",
+  critical: "sev-fill-critical",
 };
 
 function severityLabel(s: SeverityLevel): string {
@@ -60,14 +60,14 @@ export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex min-h-[34px] flex-1 items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] ${
+            className={`flex min-h-[34px] flex-1 items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] ${
               i < 2 ? "border-r border-[var(--line)]" : ""
             } ${tab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
             <t.Icon className="h-3 w-3" />
             {t.label}
             {typeof t.count === "number" && (
-              <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">{t.count}</span>
+              <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{t.count}</span>
             )}
           </button>
         ))}
@@ -83,9 +83,9 @@ export default function CnxFloodPanel({ flood, air, fires }: PanelProps) {
 }
 
 const FH_LABEL: Record<string, { text: string; cls: string }> = {
-  EXTREME: { text: "Extreme flood forecast", cls: "bg-[var(--danger)] text-white" },
-  SEVERE: { text: "Severe flood forecast", cls: "bg-[#fb923c] text-black" },
-  ABOVE_NORMAL: { text: "Above-normal water forecast", cls: "bg-[#f99d1b] text-black" },
+  EXTREME: { text: "Extreme flood forecast", cls: "sev-fill-critical" },
+  SEVERE: { text: "Severe flood forecast", cls: "sev-fill-alert" },
+  ABOVE_NORMAL: { text: "Above-normal water forecast", cls: "sev-fill-watch" },
   NO_FLOODING: { text: "No flooding forecast", cls: "bg-[var(--line)] text-[var(--ink)]" },
   UNKNOWN: { text: "No forecast", cls: "bg-[var(--line)] text-[var(--dim)]" },
 };
@@ -114,8 +114,8 @@ function FloodHubStrip() {
   return (
     <div className="border-b border-[var(--line)] px-3 py-2">
       <div className="flex flex-wrap items-center gap-1.5">
-        <a href="https://sites.research.google/floodforecasting/" target="_blank" rel="noopener noreferrer" title="Google Flood Hub — data licensed CC BY 4.0" className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)] underline decoration-dotted underline-offset-2 hover:text-[var(--ink)]">Google Flood Hub · Ping</a>
-        <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.12em] ${fh.provenance === "live" ? worst.cls : FH_LABEL.UNKNOWN.cls}`}>
+        <a href="https://sites.research.google/floodforecasting/" target="_blank" rel="noopener noreferrer" title="Google Flood Hub — data licensed CC BY 4.0" className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)] underline decoration-dotted underline-offset-2 hover:text-[var(--ink)]">Google Flood Hub · Ping</a>
+        <span className={`px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] ${fh.provenance === "live" ? worst.cls : FH_LABEL.UNKNOWN.cls}`}>
           {fh.provenance === "live" ? worst.text : "Unavailable"}
         </span>
         {/* A daily model run. Age it from the newest issuance, not from
@@ -128,38 +128,38 @@ function FloodHubStrip() {
         />
       </div>
       {fh.provenance === "live" && (
-        <p className="mt-1 text-[10px] leading-relaxed text-[var(--ink)]">
+        <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]">
           {fh.points.length} model points within 30 km of the city (nearest {fh.points[0]?.kmFromCity} km)
           {rising > 0 ? ` · ${rising} rising` : ""}
           {forecastDay ? ` · forecast for ${forecastDay}` : ""}
         </p>
       )}
-      <p className="mt-0.5 text-[9px] leading-relaxed text-[var(--dim)]">{fh.note}</p>
+      <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--dim)]">{fh.note}</p>
     </div>
   );
 }
 
 function FloodTab({ data }: { data: CnxFloodResponse | null }) {
-  if (!data) return <div className="p-3 text-[10px] text-[var(--dim)]">loading flood data…</div>;
+  if (!data) return <div className="p-3 text-[11px] text-[var(--dim)]">loading flood data…</div>;
   const isScenario = data.provenance === "scenario";
   return (
     <div>
       {isScenario && (
-        <div className="border-b border-[#f99d1b] bg-[#f99d1b]/10 px-3 py-2">
+        <div className="border-b border-[var(--sev-watch)] bg-[var(--sev-watch)]/10 px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="rounded-sm bg-[#f99d1b] px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-black">
+            <span className="sev-fill-watch px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em]">
               Demo
             </span>
-            <span className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[#f99d1b]">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--sev-watch)]">
               Illustrative — not measured
             </span>
           </div>
           {data.provenanceNote && (
             <>
-              <p className="mt-1 text-[10px] leading-relaxed text-[var(--ink)]" lang="th">
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--ink)]" lang="th">
                 {data.provenanceNote.th}
               </p>
-              <p className="mt-0.5 text-[9px] leading-relaxed text-[var(--dim)]">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--dim)]">
                 {data.provenanceNote.en}
               </p>
             </>
@@ -171,22 +171,22 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
 
       {data.reservoirs.length > 0 && (
         <div className="border-b border-[var(--line)] px-3 py-2">
-          <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
             Northern Dams
           </div>
           <div className="space-y-1.5">
             {data.reservoirs.map((r) => (
               <div key={r.damId} className="flex items-center gap-2">
-                <span className="w-[110px] truncate text-[10px] font-semibold text-[var(--ink)]">
+                <span className="w-[110px] truncate text-[11px] font-semibold text-[var(--ink)]">
                   {r.name}
                 </span>
                 <div className="relative h-2 flex-1 border border-[var(--line)] bg-[var(--bg)]">
                   <div
-                    className={`h-full ${r.severity === "alert" ? "bg-[#fb923c]" : r.severity === "watch" ? "bg-[#f99d1b]" : "bg-[var(--success)]"}`}
+                    className={`h-full ${r.severity === "alert" ? "bg-[var(--sev-alert)]" : r.severity === "watch" ? "bg-[var(--sev-watch)]" : "bg-[var(--sev-good)]"}`}
                     style={{ width: `${Math.min(100, r.fillFraction * 100)}%` }}
                   />
                 </div>
-                <span className="w-[40px] text-right font-mono text-[10px] tabular-nums text-[var(--ink)]">
+                <span className="w-[40px] text-right font-mono text-[11px] tabular-nums text-[var(--ink)]">
                   {(r.fillFraction * 100).toFixed(0)}%
                 </span>
               </div>
@@ -197,12 +197,12 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
 
       <div className="px-3 py-2">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+          <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
             Ping Basin Gauges
           </span>
           {typeof data.pingCapacityFraction === "number" && (
             <span
-              className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] ${
+              className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] ${
                 data.pingCapacityFraction > 0.85
                   ? SEVERITY_CLASSES.critical
                   : data.pingCapacityFraction > 0.7
@@ -221,18 +221,18 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
               className="grid grid-cols-[1fr,auto,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
             >
               <div className="min-w-0">
-                <div className="truncate text-[10px] font-semibold text-[var(--ink)]">{g.name}</div>
-                <div className="font-mono text-[9px] text-[var(--dim)]">{g.stationId} · {g.river}</div>
+                <div className="truncate text-[11px] font-semibold text-[var(--ink)]">{g.name}</div>
+                <div className="font-mono text-[11px] text-[var(--dim)]">{g.stationId} · {g.river}</div>
               </div>
               <div className="text-right">
                 <div className="font-mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
                   {g.levelM.toFixed(2)}
                 </div>
-                <div className="font-mono text-[8px] text-[var(--dim)]">
+                <div className="font-mono text-[11px] text-[var(--dim)]">
                   {g.bankFullM ? `/ ${g.bankFullM.toFixed(2)} m` : ""}
                 </div>
               </div>
-              <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[g.severity]}`}>
+              <span className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[g.severity]}`}>
                 {severityLabel(g.severity)}
               </span>
             </div>
@@ -244,18 +244,18 @@ function FloodTab({ data }: { data: CnxFloodResponse | null }) {
 }
 
 function AirTab({ data }: { data: AirQualityResponse | null }) {
-  if (!data) return <div className="p-3 text-[10px] text-[var(--dim)]">loading air quality…</div>;
+  if (!data) return <div className="p-3 text-[11px] text-[var(--dim)]">loading air quality…</div>;
   return (
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
           Province Average PM2.5
         </span>
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">
             {data.provinceAvgPm25 ?? "—"}
           </div>
-          <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">µg/m³</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">µg/m³</div>
         </div>
       </div>
       <div className="space-y-1">
@@ -267,14 +267,14 @@ function AirTab({ data }: { data: AirQualityResponse | null }) {
               className="grid grid-cols-[1fr,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
             >
               <div className="min-w-0">
-                <div className="truncate text-[10px] font-semibold text-[var(--ink)]">{s.name}</div>
-                <div className="font-mono text-[9px] text-[var(--dim)]">
+                <div className="truncate text-[11px] font-semibold text-[var(--ink)]">{s.name}</div>
+                <div className="font-mono text-[11px] text-[var(--dim)]">
                   PM10 {s.pm10?.toFixed(0) ?? "—"} · O₃ {s.o3?.toFixed(0) ?? "—"}
                 </div>
               </div>
               <div className="text-right">
                 <span
-                  className={`rounded-sm px-1.5 py-0.5 font-mono text-[9px] tabular-nums ${SEVERITY_CLASSES[s.aqiLevel ?? "good"]}`}
+                  className={`px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${SEVERITY_CLASSES[s.aqiLevel ?? "good"]}`}
                 >
                   {pm.toFixed(0)}
                 </span>
@@ -288,7 +288,7 @@ function AirTab({ data }: { data: AirQualityResponse | null }) {
 }
 
 function FiresTab({ data }: { data: CnxFiresResponse | null }) {
-  if (!data) return <div className="p-3 text-[10px] text-[var(--dim)]">loading fires…</div>;
+  if (!data) return <div className="p-3 text-[11px] text-[var(--dim)]">loading fires…</div>;
   if (data.provenance !== "live") {
     return (
       <div className="p-3 text-[11px] leading-relaxed text-[var(--dim)]">
@@ -299,7 +299,7 @@ function FiresTab({ data }: { data: CnxFiresResponse | null }) {
   return (
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
           FIRMS Hotspots (24 h)
         </span>
         {/* Age of the newest detection, not of our response. Zero
@@ -313,7 +313,7 @@ function FiresTab({ data }: { data: CnxFiresResponse | null }) {
         />
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{data.totalCount}</div>
-          <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
             forest {Math.round((data.forestShare ?? 0) * 100)}%
           </div>
         </div>
@@ -325,16 +325,16 @@ function FiresTab({ data }: { data: CnxFiresResponse | null }) {
             className="grid grid-cols-[1fr,auto,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
           >
             <div className="min-w-0">
-              <div className="truncate font-mono text-[9px] text-[var(--ink)]">{h.id.slice(0, 16)}</div>
-              <div className="font-mono text-[8px] text-[var(--dim)]">
+              <div className="truncate font-mono text-[11px] text-[var(--ink)]">{h.id.slice(0, 16)}</div>
+              <div className="font-mono text-[11px] text-[var(--dim)]">
                 {h.latitude.toFixed(3)}, {h.longitude.toFixed(3)}
               </div>
             </div>
-            <span className="font-mono text-[10px] tabular-nums text-[var(--ink)]">
+            <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">
               {h.brightness === null ? "\u2014" : `${h.brightness.toFixed(0)}K`}
             </span>
             <span
-              className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}
+              className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}
             >
               {severityLabel(h.severity)}
             </span>

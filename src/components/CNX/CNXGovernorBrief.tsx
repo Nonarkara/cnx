@@ -35,10 +35,10 @@ interface Props {
 }
 
 const LEVEL_CLS: Record<BriefLevel, string> = {
-  good: "border-[var(--success)]",
-  watch: "border-[#f59e0b]",
-  alert: "border-[#fb923c]",
-  critical: "border-[var(--danger)]",
+  good: "border-[var(--sev-good)]",
+  watch: "border-[var(--sev-watch)]",
+  alert: "border-[var(--sev-alert)]",
+  critical: "border-[var(--sev-critical)]",
   unknown: "border-[var(--line)]",
 };
 const LEVEL_TH: Record<BriefLevel, string> = { good: "ปกติ", watch: "เฝ้าระวัง", alert: "แจ้งเตือน", critical: "วิกฤต", unknown: "ไม่มีข้อมูล" };
@@ -125,7 +125,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
         role="dialog"
         aria-modal="true"
         aria-label="Governor brief"
-        className="relative my-6 w-full max-w-[1040px] rounded-lg border border-[var(--line)] bg-[var(--bg)] p-5 shadow-2xl sm:p-8 print:my-0 print:border-0 print:shadow-none"
+        className="relative my-6 w-full max-w-[1040px] border border-[var(--line)] bg-[var(--bg)] p-5 sm:p-8 print:my-0 print:border-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-start justify-between gap-5 border-b border-[var(--line)] pb-6 sm:flex-row">
@@ -135,14 +135,14 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
             <p lang="th" className="text-[12px] text-[var(--dim)]">{brief.text.split("\n")[0].replace("สรุปสถานการณ์จังหวัดเชียงใหม่ ", "")}</p>
           </div>
           <div className="flex w-full shrink-0 flex-wrap gap-2 print:hidden sm:w-auto">
-            <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 rounded-md border px-4 text-[13px] font-semibold">
+            <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 border px-4 text-[13px] font-semibold">
               <Copy className="h-3.5 w-3.5" />
               {copyState === "copied" ? "คัดลอกแล้ว" : "คัดลอกส่ง LINE"}
             </button>
             <button type="button" onClick={() => window.print()} className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] px-3 text-[12px]">
               <Printer className="h-3.5 w-3.5" /> พิมพ์
             </button>
-            <button type="button" onClick={onClose} aria-label="Close governor brief" className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-md border border-[var(--line)]">
+            <button type="button" onClick={onClose} aria-label="Close governor brief" className="ml-auto flex min-h-11 min-w-11 items-center justify-center border border-[var(--line)]">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -154,7 +154,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
             <div key={t.key} className={`border-l-4 ${LEVEL_CLS[t.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
               <div className="flex items-baseline justify-between gap-2">
                 <span lang="th" className="text-[14px] font-bold text-[var(--ink)]">{t.titleTh}</span>
-                <span lang="th" className="font-mono text-[10px] uppercase text-[var(--dim)]">{t.key === "visitors" && t.level === "good" ? "ข้อมูลย้อนหลัง" : LEVEL_TH[t.level]}</span>
+                <span lang="th" className="font-mono text-[11px] uppercase text-[var(--dim)]">{t.key === "visitors" && t.level === "good" ? "ข้อมูลย้อนหลัง" : LEVEL_TH[t.level]}</span>
               </div>
               <p lang="th" className="mt-1 text-[17px] leading-relaxed text-[var(--ink)]">{t.th}</p>
               <p className="mt-2 text-[13px] text-[var(--dim)]">{t.en}</p>
@@ -177,7 +177,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
           </p>
           <table className="mt-2 w-full border-collapse text-[12px] tabular-nums">
             <thead>
-              <tr className="text-left font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--dim)]">
+              <tr className="text-left font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)]">
                 <th className="py-1 font-normal">อำเภอ</th>
                 <th className="py-1 text-right font-normal">PM2.5 (µg/m³)</th>
                 <th className="py-1 text-right font-normal">สถานี</th>

@@ -100,7 +100,7 @@ export default function CNXVisitorPanel({
       >
         <header className="flex items-center gap-1.5 border-b border-[var(--line)] px-3 py-1.5">
           <Plane className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+          <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
             ที่นั่งโดยประมาณ · Seat capacity
           </h2>
         </header>
@@ -129,14 +129,14 @@ export default function CNXVisitorPanel({
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1.5">
         <div className="flex items-center gap-1.5">
           <Plane className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+          <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
             ที่นั่งโดยประมาณ · Seat capacity
           </h2>
         </div>
         {isEstimate && (
           <span
             title={data?.methodology ?? ""}
-            className="font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--sun)]"
+            className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--sev-watch)]"
           >
             EST · seats × flights
           </span>
@@ -163,7 +163,7 @@ export default function CNXVisitorPanel({
       </div>
 
       <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
-        <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
           Carrier / registration countries
         </div>
         {/* Prefer the day-scoped list. The instant list is empty overnight
@@ -175,19 +175,19 @@ export default function CNXVisitorPanel({
           const list = useDay ? dayList : topOrigins;
           if (list.length === 0) {
             return (
-              <p className="mt-1 font-mono text-[10px] text-[var(--dim)]">
+              <p className="mt-1 font-mono text-[11px] text-[var(--dim)]">
                 No aircraft heading toward the airport so far today.
               </p>
             );
           }
           return (
             <>
-              <p className="mt-0.5 font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
+              <p className="mt-0.5 font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
                 {useDay ? "Today so far" : "In this snapshot"} — registration country, not passenger nationality.
                 {useDay ? " Largest single poll per country, not a distinct-flight count." : ""}
               </p>
               {history && history.provenance !== "complete" ? (
-                <p className="mt-1 flex items-start gap-1 border-l-2 border-[var(--warn,#f99d1b)] pl-1.5 font-mono text-[8px] leading-[1.5] text-[var(--warn,#f99d1b)]">
+                <p className="mt-1 flex items-start gap-1 border-l-2 border-[var(--sev-watch)] pl-1.5 font-mono text-[11px] leading-[1.5] text-[var(--sev-watch)]">
                   <AlertTriangle className="mt-px h-2.5 w-2.5 shrink-0" aria-hidden />
                   <span>
                     {history.reason ??
@@ -200,7 +200,7 @@ export default function CNXVisitorPanel({
               ) : null}
               <ul className="mt-1 space-y-1">
                 {list.slice(0, 5).map((o) => (
-                  <li key={o.country} className="flex items-baseline justify-between gap-2 text-[10px]">
+                  <li key={o.country} className="flex items-baseline justify-between gap-2 text-[11px]">
                     <span className="truncate font-medium text-[var(--ink)]">{o.country}</span>
                     <span className="font-mono tabular-nums text-[var(--dim)]">
                       {o.visitors.toLocaleString()} · {o.flights}×{" "}
@@ -216,19 +216,19 @@ export default function CNXVisitorPanel({
 
       <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
         <div className="flex items-center justify-between">
-          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
             Social-listening languages
           </div>
           <Globe className="h-3 w-3 text-[var(--dim)]" />
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {langs.length === 0 ? (
-            <span className="font-mono text-[10px] text-[var(--dim)]">EN (default)</span>
+            <span className="font-mono text-[11px] text-[var(--dim)]">EN (default)</span>
           ) : (
             langs.map((l) => (
               <span
                 key={l}
-                className="rounded-sm border border-[var(--cool)] bg-[var(--cool-dim)] px-1.5 py-px font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--cool)]"
+                className="border border-[var(--cool)] bg-[var(--cool-dim)] px-1.5 py-px font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--cool)]"
               >
                 {LANG_LABELS[l] ?? l.toUpperCase()}
               </span>
@@ -236,14 +236,14 @@ export default function CNXVisitorPanel({
           )}
         </div>
         {data?.socialCountries && data.socialCountries.length > 0 && (
-          <p className="mt-1 font-mono text-[8px] text-[var(--dim)]">
+          <p className="mt-1 font-mono text-[11px] text-[var(--dim)]">
             → {data.socialCountries.join(", ")}
           </p>
         )}
       </div>
 
       <div className="shrink-0 px-3 py-2">
-        <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
           24-h hourly trend
         </div>
         <div className="mt-1 flex h-12 items-end gap-px">
@@ -258,7 +258,7 @@ export default function CNXVisitorPanel({
                 className="flex-1"
               >
                 <div
-                  className={`mx-px ${isCurrent ? "bg-[var(--sun)]" : "bg-[var(--cool)]"}`}
+                  className={`mx-px ${isCurrent ? "bg-[var(--ink)]" : "bg-[var(--cool)]"}`}
                   style={{ height: `${pct}%` }}
                   data-current={isCurrent ? "true" : undefined}
                 />
@@ -266,7 +266,7 @@ export default function CNXVisitorPanel({
             );
           })}
         </div>
-        <div className="mt-1 flex justify-between font-mono text-[8px] text-[var(--dim)]">
+        <div className="mt-1 flex justify-between font-mono text-[11px] text-[var(--dim)]">
           <span>0h</span>
           <span>12h</span>
           <span>23h</span>
@@ -275,7 +275,7 @@ export default function CNXVisitorPanel({
 
       {airlineMix.length > 0 && (
         <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
-          <div className="font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
             Carrier mix
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -283,7 +283,7 @@ export default function CNXVisitorPanel({
               <span
                 key={a.airline}
                 title={`${a.airline} (${a.country}): ${a.flights} flights, ${a.visitors} est. visitors`}
-                className="rounded-sm border border-[var(--line)] px-1 py-px font-mono text-[8px] text-[var(--ink)]"
+                className="border border-[var(--line)] px-1 py-px font-mono text-[11px] text-[var(--ink)]"
               >
                 {a.airline.split(" ")[0]} · {a.flights}
               </span>
@@ -310,7 +310,7 @@ function Stat({
     <div className="border-r border-[var(--line)] px-2 py-1.5 last:border-r-0">
       <div className="flex items-center gap-1">
         {icon}
-        <span className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
           {label}
         </span>
       </div>
@@ -318,7 +318,7 @@ function Stat({
         {value}
       </div>
       {sub && (
-        <div className="mt-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--dim)]">
+        <div className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)]">
           {sub}
         </div>
       )}

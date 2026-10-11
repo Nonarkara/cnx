@@ -121,11 +121,11 @@ export function DataAge({
   const { text, tone } = ageVerdict(observedAt, now, staleAfterMs, missing);
 
   if (text === null) {
-    return <span className={`font-mono text-[9px] tracking-[0.08em] ${tone} ${className}`.trim()}>{source}</span>;
+    return <span className={`font-mono text-[11px] tracking-[0.08em] ${tone} ${className}`.trim()}>{source}</span>;
   }
 
   return (
-    <span className={`font-mono text-[9px] tracking-[0.08em] ${tone} ${className}`.trim()}>
+    <span className={`font-mono text-[11px] tracking-[0.08em] ${tone} ${className}`.trim()}>
       {source} · {text}
     </span>
   );

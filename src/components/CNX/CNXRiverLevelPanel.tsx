@@ -30,10 +30,10 @@ import { DataAge } from "./CNXDataAge";
 import type { RiverLevelResponse, RiverGauge, RiverSeverity } from "../../lib/cnx/river-level";
 
 const SEV_CLS: Record<RiverSeverity, string> = {
-  good: "text-[#10b981]",
-  watch: "text-[var(--sun)]",
-  alert: "text-[#f97316]",
-  critical: "text-[#ef4444]",
+  good: "text-[var(--sev-good)]",
+  watch: "text-[var(--sev-watch)]",
+  alert: "text-[var(--sev-alert)]",
+  critical: "text-[var(--sev-critical)]",
 };
 
 /** Thai name is authoritative; the code is what an operator looks up. */
@@ -65,12 +65,12 @@ function GaugeRow({ g, rank, now }: { g: RiverGauge; rank: number; now: number |
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 text-[12px] font-semibold text-[var(--ink)]">
           {rank}. {gaugeLabel(g)}
-          {g.code && <span className="ml-1 font-mono text-[10px] text-[var(--dim)]">{g.code}</span>}
+          {g.code && <span className="ml-1 font-mono text-[11px] text-[var(--dim)]">{g.code}</span>}
         </div>
         <DataAge observedAt={g.observedAt} source="observed" staleAfterMs={3 * 3600_000} missing="undated" />
       </div>
       <div className={`mt-1 text-[13px] font-bold ${colour}`}>{evidence.bank}</div>
-      {now !== null && !evidence.current && <p className="mt-1 text-[11px] font-semibold text-[var(--sun)]">Historical / timestamp unverified — excluded from current verdict</p>}
+      {now !== null && !evidence.current && <p className="mt-1 text-[11px] font-semibold text-[var(--sev-watch)]">Historical / timestamp unverified — excluded from current verdict</p>}
       {evidence.critical && <p className={`mt-1 text-[11px] ${colour}`}>{evidence.critical}. A critical threshold does not itself confirm overtopping.</p>}
       <details className="mt-1 text-[11px] text-[var(--dim)]">
         <summary className="cursor-pointer py-1">Gauge measurements &amp; source</summary>
@@ -122,8 +122,8 @@ export default function CnxRiverLevelPanel() {
   return (
     <div className="flex h-full flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)]">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-1.5">
-        <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
-          <Waves className="h-3.5 w-3.5 text-[#38bdf8]" />
+        <span className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+          <Waves className="h-3.5 w-3.5 text-[var(--cool)]" />
           Ping basin — gauge evidence
         </span>
         <span className="flex flex-wrap items-center gap-2">
@@ -131,14 +131,14 @@ export default function CnxRiverLevelPanel() {
             <button
               type="button"
               onClick={() => setOnlyMainstem((v) => !v)}
-              className={`min-h-11 px-2 font-mono text-[10px] uppercase tracking-[0.12em] ${
-                onlyMainstem ? "text-[#38bdf8]" : "text-[var(--dim)] hover:text-[var(--ink)]"
+              className={`min-h-11 px-2 font-mono text-[11px] uppercase tracking-[0.12em] ${
+                onlyMainstem ? "text-[var(--cool)]" : "text-[var(--dim)] hover:text-[var(--ink)]"
               }`}
             >
               {onlyMainstem ? "● mainstem" : `○ mainstem (${mainstem})`}
             </button>
           )}
-          <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
+          <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">
             {data ? `${data.gaugeCount} observations` : "loading…"}
           </span>
           <DataAge
@@ -152,17 +152,17 @@ export default function CnxRiverLevelPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
         <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">อ่านสถานีใกล้พื้นที่และประกาศทางการ · ค่าสถานีไม่ยืนยันน้ำท่วมถนน</p>
-        {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sun)]">Unable to refresh gauge data. {data ? "Showing the last received observations; check each timestamp." : "Current river conditions are unknown. The next poll will retry."}</p>}
+        {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sev-watch)]">Unable to refresh gauge data. {data ? "Showing the last received observations; check each timestamp." : "Current river conditions are unknown. The next poll will retry."}</p>}
         {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{currentCount} สถานีใน 3 ชม. · ค่าที่เก่ากว่านี้แสดงเป็นประวัติ</p>}
 
         {down && data && (
-          <div className="mb-2 border border-[#ef4444]/40 bg-[#ef4444]/10 px-2 py-1.5 text-[10px] leading-[1.5] text-[#ef4444]">
+          <div className="mb-2 border border-[var(--sev-critical)]/40 bg-[var(--sev-critical)]/10 px-2 py-1.5 text-[11px] leading-[1.5] text-[var(--sev-critical)]">
             ไม่สามารถอ่านค่าจากสถานีวัด — ไม่ใช่หลักฐานว่าน้ำปลอดภัย
-            <div className="mt-0.5 font-mono text-[9px] opacity-90">
+            <div className="mt-0.5 font-mono text-[11px] opacity-90">
               {data.unavailableReason ?? "upstream read failed"}
             </div>
             {/rate limit|429/i.test(data.unavailableReason ?? "") && (
-              <div className="mt-1 text-[9px] italic opacity-90">
+              <div className="mt-1 text-[11px] italic opacity-90">
                 แหล่งข้อมูลจำกัดอัตราการเรียกใช้ชั่วคราว (ไม่ใช่สถานะของแม่น้ำ) — ค่าจริงยังมีอยู่ที่สถานีวัด
                 <br />
                 A temporary read throttle on our side, not a change in the river — the gauges are still reporting,
@@ -184,20 +184,20 @@ export default function CnxRiverLevelPanel() {
                 reporting" would be arithmetic across two populations
                 and would call ~85 out-of-basin stations "silent". */}
             {data && data.catalogueCount !== null && (
-              <p className="mt-2 font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
+              <p className="mt-2 font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
                 For context, the province&apos;s telemetry catalogue lists {data.catalogueCount} stations
                 across all basins; only Ping-basin gauges feed this panel, so this is not a
                 &quot;N of 128 reporting&quot; figure.
               </p>
             )}
             {data && data.catalogueCount === null && (
-              <p className="mt-2 font-mono text-[8px] leading-[1.5] text-[var(--sun)]">
+              <p className="mt-2 font-mono text-[11px] leading-[1.5] text-[var(--sev-watch)]">
                 Station catalogue could not be read — coverage against the network is unknown, not complete.
               </p>
             )}
           </>
         ) : data ? (
-          <p className="text-[10px] italic text-[var(--dim)]">
+          <p className="text-[11px] italic text-[var(--dim)]">
             {onlyMainstem ? "No Ping mainstem observation is available in this response." : "No Ping-basin gauge observation is available."} Current river conditions are unverified.
           </p>
         ) : refreshFailed ? null : (
@@ -217,7 +217,7 @@ export default function CnxRiverLevelPanel() {
         <footer className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3">
           <details><summary className="min-h-11 cursor-pointer py-3 text-[12px] text-[var(--dim)]">ThaiWater · แหล่งข้อมูลและเงื่อนไข</summary>
           <div className="max-h-48 overflow-y-auto pb-3">
-          <div className="font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
+          <div className="font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
             Levels via{" "}
             <a href={data.credit.publisherUrl} target="_blank" rel="noreferrer" className="underline">
               {data.credit.publisher}
@@ -227,11 +227,11 @@ export default function CnxRiverLevelPanel() {
             board&apos;s reading of published bank geometry, not an upstream warning class.
           </div>
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)] hover:text-[var(--ink)]">
+            <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)] hover:text-[var(--ink)]">
               <Scale className="h-2.5 w-2.5" />
               Intended use &amp; terms
             </summary>
-            <div className="mt-1 space-y-1 font-mono text-[8px] leading-[1.6] text-[var(--dim)]">
+            <div className="mt-1 space-y-1 font-mono text-[11px] leading-[1.6] text-[var(--dim)]">
               <p>{data.legal.intendedUse}</p>
               <p>{data.legal.terms}</p>
             </div>

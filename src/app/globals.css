@@ -2,42 +2,71 @@
 
 /* ─── The CNX palette ─────────────────────────────────────────────
  *
- * Museum-white surfaces (NST discipline): black and white carry the
- * interface; colour is reserved for data and status, never decoration.
- * Hierarchy comes from size and weight, not tint or ornament.
+ * Authority: Palette design core (github.com/Nonarkara/palette) — the
+ * cockpit rule. Two closed systems that never borrow from each other:
  *
- * Chiang Mai's own colours survive as chrome only:
- *   Lanna blue       — deep blue-violet, Doi Suthep's roofs at dusk.
- *                      The province's flag chrome: wordmark, links.
- *                      Re-anchored 2026-10-02 to Wada plate 002's
- *                      Dark Tyrian Blue (#12354e) — the same royal
- *                      navy, now with a named source.
- *   Doi Suthep gold  — the gilding on the chedi. Accents only, never
- *                      a status role (it sits near watch-amber on the
- *                      wheel, so the separation is positional).
+ *   1. SIGNAL — the severity ramp. Frozen in meaning, kept OUTSIDE any
+ *      decorative palette, used only where a level is being reported.
+ *      A recoloured warning is a lie.
+ *   2. STRUCTURE — ground, raised plane, hairline, ink, quiet ink and ONE
+ *      action colour. A Wada chord governs this, and only this.
  *
- * The status ramp (green/amber/orange/red) is load-bearing and
- * untouched, so brand colours own chrome only and never a status role.
- * The watch level carries Wada plate 002's Yellow Orange (#f99d1b) —
- * the amber the system already used was its unrecognized cousin, and
- * it now wears its source. Alert stays the deepened orange; the
- * separation is the wheel's, not the plate's.
+ * One job per colour. Colour is never the only status carrier: every
+ * level also prints its word (เฝ้าระวัง / WATCH …).
+ *
+ * ── Structure ──
+ * Light: museum white (NST discipline) is a reading ground, not a Wada
+ *   swatch. The single action colour is plate 002's Dark Tyrian Blue
+ *   #12354e — Lanna blue, Doi Suthep's roofs at dusk — the wordmark,
+ *   links, focus and the primary button.
+ * Dark: Wada plate 139 — Deep Indigo #051230 · Salvia Blue #97acc8 ·
+ *   Neutral Gray #b6bfc1 (colors.nonarkara.org/#plate-139). Chosen for a
+ *   functional reason: all three are cool, so none can be read as a
+ *   warning hue. Roles, by proportion:
+ *     Deep Indigo  — dominant field: the instrument ground (--bg).
+ *     Salvia Blue  — the one action colour (--cool): links, focus, buttons.
+ *     Neutral Gray — quiet ink (--dim).
+ *   The raised plane and hairline are Deep Indigo moved 8% and 30%
+ *   toward Salvia Blue — tones of the chord, not new colours. Ink is a
+ *   near-white chosen by measured contrast.
+ *   Sanzo Wada's combinations; hex values are the credited digital
+ *   conversion (Matt DesLauriers / Dain M. Blodorn Kim, MIT), not
+ *   measurements of printed ink.
+ *
+ * ── Signal ──
+ * good · watch · alert · critical · unknown, per theme. Every value
+ * clears 4.5:1 as text on that theme's --bg and --bg-raised (fills put
+ * --bg-coloured text on the severity colour, which is the same ratio).
+ * Watch (yellow) and alert (orange-red) sit ≥25° apart in hue — the old
+ * #f99d1b / #fb923c pair was 8° apart and read as one colour on the dark
+ * ground. Unknown is a true neutral: no data can never look like good.
+ * The action colour sits ≥30° from every severity hue and is less
+ * chromatic than all of them. src/app/design-tokens.test.ts measures all
+ * of this; change a value and the test tells you what broke.
+ *
+ *   token           light             dark
+ *   --sev-good      #15803d  5.0:1    #4ade80 10.6:1
+ *   --sev-watch     #7f6300  5.7:1    #facc15 12.1:1
+ *   --sev-alert     #b53c0a  5.8:1    #fb7f4b  7.3:1
+ *   --sev-critical  #b91c1c  6.5:1    #ff6b6b  6.7:1
+ *   --sev-unknown   #636363  6.0:1    #a6a6a6  7.6:1   (ratios on --bg)
+ *
+ * Retired 2026-10-11: plate 002's Yellow Orange #f99d1b as the watch
+ * colour (a decorative-palette colour carrying a warning, and 2.1:1 on
+ * white), and the Doi Suthep gold accent #b8860b (hue 43°, inside the
+ * watch band — gold "accents" taught readers to ignore amber). --sun and
+ * --sun-dim remain only as aliases of the action colour so older markup
+ * cannot render transparent; do not use them in new code.
  *
  * Type: Sao Chingcha (Thai display) + Libre Franklin (Latin display)
  * via the "CNX Display" composite in fonts.css; IBM Plex Sans Thai
- * body; IBM Plex Mono for numerals and tracked labels.
+ * body; IBM Plex Mono for numerals and tracked labels. Floor: 11px.
  */
 
 :root {
-  /* The colour authority — Wada plate 002: Yellow Orange · Dark
-   * Tyrian Blue (colors.nonarkara.org/#plate-002). Sanzo Wada's
-   * combination; digital interpretation, roles and reading Dr Non
-   * Arkaraprasertkul. Dominant carries the warm signal surface (about
-   * 62%), counter the cool (about 38%), golden-ratio apart (1.618/1).
-   * Ink on each field is chosen by measured contrast, not inherited:
-   * black on the dominant clears 9.9:1, white on the counter 13.6:1.
-   * License: MIT. */
-  --wada-dominant: #f99d1b; /* Yellow Orange */
+  /* Reference only — plate 002 is no longer assigned to a UI role except
+   * its counter (the light action colour). */
+  --wada-dominant: #f99d1b; /* Yellow Orange — retired from the UI */
   --wada-counter: #12354e;  /* Dark Tyrian Blue */
 
   /* Light theme — museum white */
@@ -50,17 +79,24 @@
   --accent: #111111;
   --accent-soft: #6b6b6b;
 
-  /* Lanna blue — flag chrome */
+  /* The one action colour — Lanna blue (plate 002 Dark Tyrian Blue) */
   --cool: #12354e;
   --cool-dim: rgba(18, 53, 78, 0.1);
 
-  /* Doi Suthep gold — accent only */
-  --sun: #b8860b;
-  --sun-dim: rgba(184, 134, 11, 0.1);
+  /* Signal — frozen meanings, outside the decorative palette */
+  --sev-good: #15803d;
+  --sev-watch: #7f6300;
+  --sev-alert: #b53c0a;
+  --sev-critical: #b91c1c;
+  --sev-unknown: #636363;
 
-  /* Status ramp — load-bearing, untouched */
-  --danger: #ef4444;
-  --success: #22c55e;
+  /* Legacy names, kept so existing markup follows the signal tokens */
+  --danger: var(--sev-critical);
+  --success: var(--sev-good);
+  --warn: var(--sev-watch);
+  --sun: var(--cool);
+  --sun-dim: var(--cool-dim);
+
   --shadow: none;
   --glow: none;
 }
@@ -71,45 +107,45 @@
  *   2. The in-app toggle (data-theme="dark" on <html>), which always
  *      wins regardless of OS preference.
  * useDarkMode.ts sets/clears `data-theme` on <html> and persists the
- * choice to localStorage; both selectors below must stay in sync.
+ * choice to localStorage; both selectors below must stay in sync
+ * (design-tokens.test.ts fails if they drift).
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1117;
-    --bg-raised: #161b22;
-    --bg-surface: #0d1117;
-    --line: #30363d;
-    --ink: #e6edf3;
-    --dim: #8b949e;
-    --accent: #e6edf3;
-    --accent-soft: #8b949e;
-    /* The Wada counter lifted to carry on the instrument ground: the
-       same royal hue as the light token (plate 002's Dark Tyrian
-       Blue), raised until it clears AA against #0d1117. */
-    --cool: #6688c2;
-    --cool-dim: rgba(102, 136, 194, 0.15);
-    --sun: #e6b85c;
-    --sun-dim: rgba(230, 184, 92, 0.15);
-    --danger: #f85149;
-    --success: #3fb950;
+    --bg: #051230;         /* Deep Indigo — plate 139 */
+    --bg-raised: #111e3c;  /* Deep Indigo → Salvia Blue 8% */
+    --bg-surface: #051230;
+    --line: #31405e;       /* Deep Indigo → Salvia Blue 30% */
+    --ink: #eef1f4;
+    --dim: #b6bfc1;        /* Neutral Gray — plate 139 */
+    --accent: #eef1f4;
+    --accent-soft: #b6bfc1;
+    --cool: #97acc8;       /* Salvia Blue — plate 139, the action colour */
+    --cool-dim: rgba(151, 172, 200, 0.16);
+    --sev-good: #4ade80;
+    --sev-watch: #facc15;
+    --sev-alert: #fb7f4b;
+    --sev-critical: #ff6b6b;
+    --sev-unknown: #a6a6a6;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0d1117;
-  --bg-raised: #161b22;
-  --bg-surface: #0d1117;
-  --line: #30363d;
-  --ink: #e6edf3;
-  --dim: #8b949e;
-  --accent: #e6edf3;
-  --accent-soft: #8b949e;
-  --cool: #6688c2;
-  --cool-dim: rgba(102, 136, 194, 0.15);
-  --sun: #e6b85c;
-  --sun-dim: rgba(230, 184, 92, 0.15);
-  --danger: #f85149;
-  --success: #3fb950;
+  --bg: #051230;
+  --bg-raised: #111e3c;
+  --bg-surface: #051230;
+  --line: #31405e;
+  --ink: #eef1f4;
+  --dim: #b6bfc1;
+  --accent: #eef1f4;
+  --accent-soft: #b6bfc1;
+  --cool: #97acc8;
+  --cool-dim: rgba(151, 172, 200, 0.16);
+  --sev-good: #4ade80;
+  --sev-watch: #facc15;
+  --sev-alert: #fb7f4b;
+  --sev-critical: #ff6b6b;
+  --sev-unknown: #a6a6a6;
 }
 
 html {
@@ -135,9 +171,9 @@ body {
   .cnx-executive-header .cnx-header-secondary { display: none; }
 }
 .cnx-primary-action {
-  background: var(--wada-counter);
-  color: #fff;
-  border-color: var(--wada-counter);
+  background: var(--cool);
+  color: var(--bg);
+  border-color: var(--cool);
 }
 
 @media print {
@@ -160,6 +196,17 @@ body {
     --dim: #444;
     --line: #ccc;
     --cool: #12354e;
+    --cool-dim: rgba(18, 53, 78, 0.1);
+    --sev-good: #15803d;
+    --sev-watch: #7f6300;
+    --sev-alert: #b53c0a;
+    --sev-critical: #b91c1c;
+    --sev-unknown: #636363;
+    --danger: var(--sev-critical);
+    --success: var(--sev-good);
+    --warn: var(--sev-watch);
+    --sun: var(--cool);
+    --sun-dim: var(--cool-dim);
     position: static !important;
     display: block !important;
     overflow: visible !important;
@@ -189,7 +236,7 @@ samp {
   font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
 }
 
-/* Sharper rendering on small Thai text — the dashboard has 9px Thai. */
+/* Sharper rendering on small Thai text. Nothing renders below 11px. */
 * {
   -webkit-text-stroke: 0.2px;
   text-rendering: optimizeLegibility;
@@ -202,24 +249,25 @@ samp {
 }
 .cnx-flag {
   background: var(--cool);
-  color: white;
+  color: var(--bg);
 }
 .cnx-flag-text {
   color: var(--cool);
 }
-.cnx-gold {
-  color: var(--sun);
-}
-.cnx-gold-bg {
-  background: var(--sun);
-  color: white;
-}
 
-/* Status classes — same palette, untouched */
-.text-status-good { color: var(--success); }
-.text-status-watch { color: #f99d1b; }
-.text-status-alert { color: #fb923c; }
-.text-status-critical { color: var(--danger); }
+/* Status classes — the signal tokens, nothing else. Text sits on the
+ * ground; a fill carries ground-coloured text (same measured ratio).
+ * Always pair with the level's word — colour is never the only carrier. */
+.text-status-good { color: var(--sev-good); }
+.text-status-watch { color: var(--sev-watch); }
+.text-status-alert { color: var(--sev-alert); }
+.text-status-critical { color: var(--sev-critical); }
+.text-status-unknown { color: var(--sev-unknown); }
+.sev-fill-good { background: var(--sev-good); color: var(--bg); }
+.sev-fill-watch { background: var(--sev-watch); color: var(--bg); }
+.sev-fill-alert { background: var(--sev-alert); color: var(--bg); }
+.sev-fill-critical { background: var(--sev-critical); color: var(--bg); }
+.sev-fill-unknown { background: var(--sev-unknown); color: var(--bg); }
 
 /* Transparent brand artwork: never blend pixels into the page or stretch it.
  * A pale backing keeps the navy originals legible in both themes; PNG holes

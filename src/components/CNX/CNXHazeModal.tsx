@@ -35,7 +35,7 @@ interface Props {
 
 const VERDICT: Record<HazeLabel, { th: string; en: string; cls: string }> = {
   "haze-likely": { th: "น่าจะมีหมอกควัน", en: "Haze likely", cls: "border-[var(--danger)] text-[var(--danger)]" },
-  "some-haze": { th: "มีหมอกควันบ้าง", en: "Some haze", cls: "border-[var(--sun)] text-[var(--ink)]" },
+  "some-haze": { th: "มีหมอกควันบ้าง", en: "Some haze", cls: "border-[var(--sev-watch)] text-[var(--ink)]" },
   clear: { th: "หมอกควันในภาพต่ำ", en: "Low visual haze", cls: "border-[var(--cool)] text-[var(--cool)]" },
   "too-dark": { th: "มืดเกินประเมิน", en: "Too dark to judge", cls: "border-[var(--line)] text-[var(--dim)]" },
   "no-colour": { th: "ภาพไม่มีสี — ไม่ประเมิน", en: "No colour — not scored", cls: "border-[var(--line)] text-[var(--dim)]" },
@@ -54,7 +54,7 @@ function ago(iso: string | undefined | null): string {
 function Stat({ label, value, sub, extra }: { label: string; value: string; sub: string; extra?: React.ReactNode }) {
   return (
     <div className="border border-[var(--line)] bg-[var(--bg-surface)] p-3">
-      <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">{label}</div>
+      <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">{label}</div>
       <div className="mt-1 text-[22px] font-bold tabular-nums text-[var(--ink)]">{value}</div>
       <div className="mt-0.5 text-[11px] leading-snug text-[var(--dim)]">{sub}</div>
       {extra}
@@ -71,7 +71,7 @@ function CameraCard({ cam }: { cam: CameraHaze }) {
       <figcaption className="space-y-1 p-2 text-[11px]">
         <div className="truncate font-bold text-[var(--ink)]" title={cam.label}>{cam.label}</div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] ${v.cls}`}>
+          <span className={`border px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${v.cls}`}>
             {v.en} · <span lang="th">{v.th}</span>
           </span>
           {cam.score !== null && <span className="font-mono tabular-nums text-[var(--dim)]">score {cam.score.toFixed(2)}</span>}
@@ -129,18 +129,18 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
       onClick={onClose}
     >
       <div
-        className="relative my-6 w-full max-w-[1100px] border border-[var(--line)] bg-[var(--bg)] p-5 shadow-2xl"
+        className="relative my-6 w-full max-w-[1100px] border border-[var(--line)] bg-[var(--bg)] p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Close haze watch"
-          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:text-[var(--ink)]"
+          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--cool)]">Haze watch</div>
+        <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--cool)]">Haze watch</div>
         <h2 lang="th" className="mt-1 text-[22px] font-bold text-[var(--ink)]">เฝ้าระวังหมอกควัน — ทุกแหล่งข้อมูลเทียบกัน</h2>
         <p className="mt-1 max-w-[80ch] text-[13px] leading-relaxed text-[var(--dim)]">
           Every haze signal side by side with its source and age. They are not merged into one number: ground
@@ -198,7 +198,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
         </section>
 
         {dustboy?.caveat && (
-          <p className="mt-3 border-l-2 border-[var(--warn,#f99d1b)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] leading-relaxed text-[var(--dim)]">
+          <p className="mt-3 border-l-2 border-[var(--sev-watch)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] leading-relaxed text-[var(--dim)]">
             <span className="font-semibold text-[var(--ink)]" lang="th">
               ตรวจสอบเครื่องก่อน
             </span>{" "}
@@ -270,7 +270,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
             <ul className="mt-2 divide-y divide-[var(--line)] border border-[var(--line)]">
               {reports.slice(0, 60).map((r) => (
                 <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 text-[12px]">
-                  <span className="font-mono text-[9px] uppercase text-[var(--cool)]">{r.source === "reddit" ? "Reddit" : "News"}</span>
+                  <span className="font-mono text-[11px] uppercase text-[var(--cool)]">{r.source === "reddit" ? "Reddit" : "News"}</span>
                   <a href={r.url} target="_blank" rel="noopener noreferrer" lang="th" className="min-w-0 flex-1 text-[var(--ink)] hover:underline">
                     {r.title} <ExternalLink className="inline h-3 w-3" />
                   </a>
@@ -287,7 +287,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
             <p className="mt-2 text-[12px] text-[var(--dim)]">No haze reports in the last 7 days.</p>
           )}
           {citizen && citizen.sources.length > 0 && (
-            <p className="mt-2 font-mono text-[10px] text-[var(--dim)]">
+            <p className="mt-2 font-mono text-[11px] text-[var(--dim)]">
               Sources this cycle: {citizen.sources.map((s) => `${s.label} ${s.ok ? `✓ ${s.items}` : "✗ failed"}`).join(" · ")}
             </p>
           )}

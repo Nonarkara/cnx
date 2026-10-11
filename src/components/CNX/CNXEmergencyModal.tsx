@@ -86,13 +86,13 @@ export default function CnxEmergencyModal({ isOpen, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative max-h-[88vh] w-full max-w-[640px] overflow-y-auto border-2 border-[var(--danger)] bg-[var(--bg-raised)] p-6 shadow-2xl"
+        className="relative max-h-[88vh] w-full max-w-[640px] overflow-y-auto border-2 border-[var(--danger)] bg-[var(--bg-raised)] p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Close emergency numbers"
-          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] text-[var(--dim)] hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center border border-[var(--line)] text-[var(--dim)] hover:bg-[var(--cool-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -110,10 +110,10 @@ export default function CnxEmergencyModal({ isOpen, onClose }: Props) {
           {GROUPS.map((g) => (
             <div key={g.title}>
               <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--cool)]">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--cool)]">
                   {g.title}
                 </h3>
-                <span className="truncate font-mono text-[8px] text-[var(--dim)]">{g.source}</span>
+                <span className="truncate font-mono text-[11px] text-[var(--dim)]">{g.source}</span>
               </div>
               <ul className="divide-y divide-[var(--line)] border border-[var(--line)]">
                 {g.entries.map((e) => (
@@ -132,7 +132,7 @@ export default function CnxEmergencyModal({ isOpen, onClose }: Props) {
           ))}
         </div>
 
-        <div className="mt-6 flex items-center justify-between border-t border-[var(--line)] pt-3 font-mono text-[8px] uppercase tracking-[0.14em] text-[var(--dim)]">
+        <div className="mt-6 flex items-center justify-between border-t border-[var(--line)] pt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">
           <span>Verify before publishing to the public — numbers can go stale</span>
           <span>Press ESC to close</span>
         </div>
