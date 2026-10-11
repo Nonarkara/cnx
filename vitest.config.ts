@@ -22,7 +22,7 @@ export default defineConfig({
     env: {
       CNX_SKIP_DISK_LOAD: "1",
     },
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     testTimeout: 15_000,
     pool: "forks",
     poolOptions: {

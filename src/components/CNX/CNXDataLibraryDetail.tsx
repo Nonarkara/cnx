@@ -4,22 +4,54 @@
 // resource with its source link, and a typed preview of each parsed table.
 // Row previews are capped by the build script; the cap and the real total
 // are always shown so a truncated table never reads as a complete one.
+//
+// One language per mode. Dataset titles, column names, cell values and
+// publisher names stay as published on data.go.th. The build script's
+// English notes and unreadable reasons are translated here by pattern;
+// anything unrecognised is shown as written.
 
 import { useEffect, useMemo, useState } from "react";
 import { Download, ExternalLink } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
+import { useLang } from "../../hooks/useLang";
 import {
   compactCount,
   formatBytes,
   pickChartSeries,
   tableToCsv,
+  type ColumnKind,
   type LibraryDataset,
   type LibraryTable,
 } from "../../lib/cnx/data-library";
 
 const PAGE = 25;
 
-function BarChart({ table }: { table: LibraryTable }) {
+type T = (th: string, en: string | null | undefined) => string;
+
+const KIND_TH: Record<ColumnKind, string> = { number: "ตัวเลข", text: "ข้อความ", time: "เวลา", geo: "พิกัด" };
+
+/** Thai for the build script's per-table note ("3 sheets — largest shown"). */
+function noteTh(note: string): string {
+  const sheets = note.match(/^(\d+) sheets — largest shown$/);
+  return sheets ? `มี ${sheets[1]} ชีต — แสดงชีตที่ใหญ่ที่สุด` : note;
+}
+
+/** Thai for the build script's unreadable-resource reasons. */
+function reasonTh(reason: string): string {
+  const preview = reason.match(/^preview limit — first (\d+) tables shown/);
+  if (preview) return `เกินจำนวนตัวอย่าง — แสดง ${preview[1]} ตารางแรก ที่เหลือเปิดดูที่ต้นทาง`;
+  const failed = reason.match(/^download\/parse failed: (.+)$/);
+  if (failed) return `ดาวน์โหลดหรืออ่านไฟล์ไม่สำเร็จ (${failed[1]})`;
+  const known: Record<string, string> = {
+    "JSON is not a flat list of records": "JSON ไม่ได้เป็นรายการระเบียนแบบตารางเดียว",
+    "legacy binary .xls — open at source": "ไฟล์ .xls รุ่นเก่า — เปิดดูที่ต้นทาง",
+    "no downloadable URL": "ไม่มีลิงก์ให้ดาวน์โหลด",
+    "no rows found": "ไม่พบแถวข้อมูล",
+  };
+  return known[reason] ?? reason;
+}
+
+function BarChart({ table, t }: { table: LibraryTable; t: T }) {
   const series = useMemo(() => pickChartSeries(table), [table]);
   if (!series) return null;
   const max = Math.max(...series.values, 0) || 1;
@@ -27,12 +59,11 @@ function BarChart({ table }: { table: LibraryTable }) {
   const h = 120;
   const gap = 3;
   const bw = Math.max(2, (w - gap * (series.values.length - 1)) / series.values.length);
+  const caption = t(`${series.value} · ตาม ${series.label}`, `${series.value} · by ${series.label}`);
   return (
     <figure className="mt-3 border border-[var(--line)] bg-[var(--bg-raised)] p-3">
-      <figcaption className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">
-        {series.value} · by {series.label}
-      </figcaption>
-      <svg viewBox={`0 0 ${w} ${h + 18}`} className="w-full" role="img" aria-label={`${series.value} by ${series.label}`}>
+      <figcaption className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">{caption}</figcaption>
+      <svg viewBox={`0 0 ${w} ${h + 18}`} className="w-full" role="img" aria-label={caption}>
         {series.values.map((v, i) => {
           const bh = Math.max(1, (v / max) * h);
           const x = i * (bw + gap);
@@ -53,7 +84,7 @@ function BarChart({ table }: { table: LibraryTable }) {
   );
 }
 
-function TableView({ table }: { table: LibraryTable }) {
+function TableView({ table, t }: { table: LibraryTable; t: T }) {
   const [shown, setShown] = useState(PAGE);
   const rows = table.rows.slice(0, shown);
 
@@ -67,30 +98,35 @@ function TableView({ table }: { table: LibraryTable }) {
     URL.revokeObjectURL(url);
   };
 
+  const total = table.totalRows.toLocaleString();
+  const preview = table.previewRows.toLocaleString();
+
   return (
     <div className="mt-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-        <span>
-          {table.columns.length} fields · {table.totalRows.toLocaleString()} rows
-        </span>
+        <span>{t(`${table.columns.length} คอลัมน์ · ${total} แถว`, `${table.columns.length} fields · ${total} rows`)}</span>
         {table.truncated && (
           <span className="border border-[var(--cool)] bg-[var(--cool-dim)] px-1.5 py-0.5 text-[var(--ink)]">
-            preview: first {table.previewRows.toLocaleString()} of {table.totalRows.toLocaleString()} rows
+            {t(`ตัวอย่าง: ${preview} แถวแรกจาก ${total} แถว`, `preview: first ${preview} of ${total} rows`)}
           </span>
         )}
-        {table.columnsTruncated && <span>showing first {table.columns.length} columns</span>}
-        {table.note && <span>{table.note}</span>}
+        {table.columnsTruncated && (
+          <span>{t(`แสดง ${table.columns.length} คอลัมน์แรก`, `showing first ${table.columns.length} columns`)}</span>
+        )}
+        {table.note && <span>{t(noteTh(table.note), table.note)}</span>}
         <button
           type="button"
           onClick={downloadPreview}
           className="ml-auto flex items-center gap-1 border border-[var(--line)] bg-[var(--bg-raised)] px-2 py-1 hover:border-[var(--cool)] hover:text-[var(--cool)]"
         >
           <Download className="h-3 w-3" />
-          Preview CSV{table.truncated ? ` (${table.previewRows.toLocaleString()} rows)` : ""}
+          {table.truncated
+            ? t(`CSV ตัวอย่าง (${preview} แถว)`, `Preview CSV (${preview} rows)`)
+            : t("CSV ตัวอย่าง", "Preview CSV")}
         </button>
       </div>
 
-      <BarChart table={table} />
+      <BarChart table={table} t={t} />
 
       <div className="mt-3 max-h-[420px] overflow-auto border border-[var(--line)] bg-[var(--bg-raised)]">
         <table className="w-full border-collapse text-[12px]">
@@ -100,7 +136,7 @@ function TableView({ table }: { table: LibraryTable }) {
               {table.columns.map((c, i) => (
                 <th key={i} className="whitespace-nowrap border-b border-[var(--line)] px-2 py-1.5 text-left align-bottom font-bold">
                   <div lang="th">{c.name}</div>
-                  <div className="font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-[var(--cool)]">{c.kind}</div>
+                  <div className="font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-[var(--cool)]">{t(KIND_TH[c.kind] ?? c.kind, c.kind)}</div>
                 </th>
               ))}
             </tr>
@@ -130,7 +166,7 @@ function TableView({ table }: { table: LibraryTable }) {
           onClick={() => setShown((n) => Math.min(table.rows.length, n + 50))}
           className="mt-2 border border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] hover:border-[var(--cool)]"
         >
-          Show more ({rows.length} / {table.rows.length.toLocaleString()})
+          {t("แสดงเพิ่ม", "Show more")} ({rows.length} / {table.rows.length.toLocaleString()})
         </button>
       )}
     </div>
@@ -141,6 +177,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
   const [data, setData] = useState<LibraryDataset | null>(null);
   const [failed, setFailed] = useState(false);
   const [tableIdx, setTableIdx] = useState(0);
+  const { t } = useLang();
 
   useEffect(() => {
     let cancelled = false;
@@ -157,8 +194,8 @@ export default function DataLibraryDetail({ name }: { name: string }) {
     };
   }, [name]);
 
-  if (failed) return <p className="p-4 text-[13px] text-[var(--danger)]">Could not load this dataset&rsquo;s detail file.</p>;
-  if (!data) return <p className="p-4 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">Loading…</p>;
+  if (failed) return <p className="p-4 text-[13px] text-[var(--danger)]">{t("โหลดรายละเอียดของชุดข้อมูลนี้ไม่สำเร็จ", "Could not load this dataset’s detail file.")}</p>;
+  if (!data) return <p className="p-4 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">{t("กำลังโหลด…", "Loading…")}</p>;
 
   const table = data.tables[tableIdx];
   return (
@@ -169,56 +206,62 @@ export default function DataLibraryDetail({ name }: { name: string }) {
         </p>
       )}
       <dl className="mt-3 grid gap-x-6 gap-y-1 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)] sm:grid-cols-2">
-        <div><dt className="inline">Publisher: </dt><dd lang="th" className="inline normal-case tracking-normal text-[var(--ink)]">{data.org || "—"}</dd></div>
-        <div><dt className="inline">License: </dt><dd className="inline normal-case tracking-normal text-[var(--ink)]">{data.license || "—"}</dd></div>
-        <div><dt className="inline">Updated: </dt><dd className="inline text-[var(--ink)]">{data.modified?.slice(0, 10) ?? "—"}</dd></div>
-        <div><dt className="inline">Years: </dt><dd className="inline text-[var(--ink)]">{data.firstYear || "—"}{data.lastYear && data.lastYear !== data.firstYear ? ` – ${data.lastYear}` : ""}</dd></div>
-        {data.dataSource && <div className="sm:col-span-2"><dt className="inline">Source: </dt><dd lang="th" className="inline normal-case tracking-normal text-[var(--ink)]">{data.dataSource}</dd></div>}
+        <div><dt className="inline">{t("หน่วยงาน", "Publisher")}: </dt><dd lang="th" className="inline normal-case tracking-normal text-[var(--ink)]">{data.org || "—"}</dd></div>
+        <div><dt className="inline">{t("สัญญาอนุญาต", "License")}: </dt><dd className="inline normal-case tracking-normal text-[var(--ink)]">{data.license || "—"}</dd></div>
+        <div><dt className="inline">{t("ปรับปรุงล่าสุด", "Updated")}: </dt><dd className="inline text-[var(--ink)]">{data.modified?.slice(0, 10) ?? "—"}</dd></div>
+        <div><dt className="inline">{t("ปีข้อมูล", "Years")}: </dt><dd className="inline text-[var(--ink)]">{data.firstYear || "—"}{data.lastYear && data.lastYear !== data.firstYear ? ` – ${data.lastYear}` : ""}</dd></div>
+        {data.dataSource && <div className="sm:col-span-2"><dt className="inline">{t("แหล่งที่มา", "Source")}: </dt><dd lang="th" className="inline normal-case tracking-normal text-[var(--ink)]">{data.dataSource}</dd></div>}
       </dl>
 
       {data.tables.length > 0 ? (
         <div className="mt-4">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-            Tables ({data.tables.length})
+            {t("ตาราง", "Tables")} ({data.tables.length})
           </div>
           {data.tables.length > 1 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {data.tables.map((t, i) => (
+              {data.tables.map((tb, i) => (
                 <button
-                  key={t.resourceId}
+                  key={tb.resourceId}
                   type="button"
                   onClick={() => setTableIdx(i)}
                   aria-pressed={i === tableIdx}
                   lang="th"
                   className={`max-w-[280px] truncate border px-2 py-1 text-[11px] ${i === tableIdx ? "border-[var(--cool)] bg-[var(--cool-dim)] font-bold" : "border-[var(--line)] bg-[var(--bg-raised)]"}`}
-                  title={t.name}
+                  title={tb.name}
                 >
-                  {t.name.replace(/\.[a-z0-9]+$/i, "")} · {compactCount(t.totalRows)}
+                  {tb.name.replace(/\.[a-z0-9]+$/i, "")} · {compactCount(tb.totalRows)}
                 </button>
               ))}
             </div>
           )}
-          {table && <TableView key={table.resourceId} table={table} />}
+          {table && <TableView key={table.resourceId} table={table} t={t} />}
         </div>
       ) : (
         <p className="mt-4 border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[12px] text-[var(--dim)]">
-          No machine-readable table could be prepared for this dataset — its files are listed below and open at the publisher.
+          {t(
+            "ชุดข้อมูลนี้ไม่มีตารางที่เครื่องอ่านได้ — ไฟล์ทั้งหมดแสดงไว้ด้านล่าง และเปิดได้ที่หน่วยงานต้นทาง",
+            "No machine-readable table could be prepared for this dataset — its files are listed below and open at the publisher.",
+          )}
         </p>
       )}
 
       {data.unreadable.length > 0 && (
         <div className="mt-4">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-            Not readable here ({data.unreadable.length}) — listed, not hidden
+            {t(
+              `อ่านที่นี่ไม่ได้ (${data.unreadable.length}) — แสดงไว้ ไม่ซ่อน`,
+              `Not readable here (${data.unreadable.length}) — listed, not hidden`,
+            )}
           </div>
           <ul className="mt-1 space-y-1 text-[12px]">
             {data.unreadable.map((u) => (
               <li key={u.resourceId} className="flex flex-wrap items-baseline gap-2">
                 <span className="font-mono text-[11px] uppercase text-[var(--cool)]">{u.format}</span>
                 <span lang="th" className="truncate">{u.name}</span>
-                <span className="text-[var(--dim)]">— {u.reason}</span>
+                <span className="text-[var(--dim)]">— {t(reasonTh(u.reason), u.reason)}</span>
                 {u.sourceUrl && (
-                  <a href={u.sourceUrl} target="_blank" rel="noreferrer" className="text-[var(--cool)] hover:underline">open ↗</a>
+                  <a href={u.sourceUrl} target="_blank" rel="noreferrer" className="text-[var(--cool)] hover:underline">{t("เปิด ↗", "open ↗")}</a>
                 )}
               </li>
             ))}
@@ -229,7 +272,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
       {data.files.length > 0 && (
         <div className="mt-4">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-            Other files &amp; links ({data.files.length})
+            {t("ไฟล์และลิงก์อื่น", "Other files & links")} ({data.files.length})
           </div>
           <ul className="mt-1 grid gap-1 sm:grid-cols-2">
             {data.files.slice(0, 40).map((f) => (
@@ -246,7 +289,11 @@ export default function DataLibraryDetail({ name }: { name: string }) {
               </li>
             ))}
           </ul>
-          {data.files.length > 40 && <p className="mt-1 text-[11px] text-[var(--dim)]">…and {data.files.length - 40} more at the publisher.</p>}
+          {data.files.length > 40 && (
+            <p className="mt-1 text-[11px] text-[var(--dim)]">
+              {t(`…และอีก ${data.files.length - 40} ไฟล์ที่หน่วยงานต้นทาง`, `…and ${data.files.length - 40} more at the publisher.`)}
+            </p>
+          )}
         </div>
       )}
 
@@ -256,7 +303,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
         rel="noreferrer"
         className="mt-4 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--cool)] hover:underline"
       >
-        Open on data.go.th <ExternalLink className="h-3 w-3" />
+        {t("เปิดที่ data.go.th", "Open on data.go.th")} <ExternalLink className="h-3 w-3" />
       </a>
     </div>
   );

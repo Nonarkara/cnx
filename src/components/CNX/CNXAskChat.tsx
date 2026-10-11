@@ -16,6 +16,8 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import { Search, Send, ExternalLink } from "lucide-react";
+import { useLang } from "../../hooks/useLang";
+import type { Lang } from "../../lib/i18n";
 
 interface Reference {
   id: string;
@@ -26,16 +28,17 @@ interface Reference {
   score: number;
 }
 
-const SUGGESTIONS = [
-  "Mae On จุดความร้อน",
-  "Bhumibol storage",
-  "PM2.5 today",
-  "Wat Phra Singh",
-  "datasets about การศึกษา",
-  "inbound flights today",
-];
+// Suggested queries per mode. They are sent to the keyword index as
+// typed, so the Thai list only carries terms the corpus holds in Thai
+// (RFD amphoe names, heritage nameTh, data.go.th titles); dam and flight
+// documents are indexed in English only.
+const SUGGESTIONS: Record<Lang, string[]> = {
+  th: ["จุดความร้อน แม่ออน", "วัดพระสิงห์", "PM2.5 วันนี้", "วัดเจดีย์หลวง", "ชุดข้อมูล การศึกษา"],
+  en: ["Mae On hotspots", "Bhumibol storage", "PM2.5 today", "Wat Phra Singh", "datasets about education", "inbound flights today"],
+};
 
 export default function CnxAskChat() {
+  const { lang, t } = useLang();
   const controllerRef = useRef<AbortController | null>(null);
   useEffect(() => () => controllerRef.current?.abort(), []);
   const [query, setQuery] = useState("");
@@ -55,10 +58,10 @@ export default function CnxAskChat() {
         `/api/cnx/ask?q=${encodeURIComponent(q.trim())}`, { signal: controller.signal },
       );
       if (controller.signal.aborted) return;
-      if (!json) throw new Error("Search is unavailable. Please try again.");
+      if (!json) throw new Error(t("ระบบค้นหาไม่พร้อมใช้งาน กรุณาลองใหม่", "Search is unavailable. Please try again."));
       setAnswer(json);
     } catch (e) {
-      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Search failed. Please try again.");
+      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : t("ค้นหาไม่สำเร็จ กรุณาลองใหม่", "Search failed. Please try again."));
     } finally {
       controllerRef.current = null;
       if (!controller.signal.aborted) setBusy(false);
@@ -70,10 +73,10 @@ export default function CnxAskChat() {
       <header className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <Search className="h-3.5 w-3.5 text-[var(--cool)]" />
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
-          ถามเชียงใหม่ · Ask
+          {t("ถามเชียงใหม่", "Ask Chiang Mai")}
         </span>
         <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-          RAG · source corpus
+          {t("ค้นจากคลังแหล่งข้อมูล", "RAG · source corpus")}
         </span>
       </header>
       <form
@@ -85,15 +88,15 @@ export default function CnxAskChat() {
         }}
       >
         <input
-          aria-label="Ask about Chiang Mai"
+          aria-label={t("ถามเรื่องเชียงใหม่", "Ask about Chiang Mai")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask: 'Mae On จุดความร้อน' / 'Wat Phra Singh' / 'PM2.5 today'"
+          placeholder={t("ลองถาม: 'จุดความร้อน แม่ออน' / 'วัดพระสิงห์' / 'PM2.5'", "Ask: 'Mae On hotspots' / 'Wat Phra Singh' / 'PM2.5 today'")}
           className="min-w-0 flex-1 bg-transparent text-[11px] text-[var(--ink)] outline-none placeholder:text-[var(--dim)]"
           disabled={busy}
         />
         <button
-          aria-label="Search Chiang Mai data"
+          aria-label={t("ค้นหาข้อมูลเชียงใหม่", "Search Chiang Mai data")}
           type="submit"
           disabled={busy}
           className="flex h-6 w-6 items-center justify-center border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--cool)] hover:bg-[var(--cool-dim)] disabled:opacity-40"
@@ -102,7 +105,7 @@ export default function CnxAskChat() {
         </button>
       </form>
       <div className="flex shrink-0 flex-wrap gap-1 border-b border-[var(--line)] px-3 py-1.5">
-        {SUGGESTIONS.map((s) => (
+        {SUGGESTIONS[lang].map((s) => (
           <button
             key={s}
             disabled={busy}
@@ -115,19 +118,19 @@ export default function CnxAskChat() {
       </div>
       <div aria-live="polite" aria-busy={busy} className="min-h-0 flex-1 overflow-y-auto px-3 py-2 text-[11px] text-[var(--ink)]">
         {error && <p role="alert" className="text-[var(--danger)]">{error}</p>}
-        {busy && <p className="text-[var(--dim)]">Searching…</p>}
+        {busy && <p className="text-[var(--dim)]">{t("กำลังค้นหา…", "Searching…")}</p>}
         {!busy && !answer && !error && (
           <p className="text-[var(--dim)]">
-            Try a question in Thai or English. The bot searches across
-            the available open-data catalogue, fire / flood /
-            air / flight evidence, and curated heritage references. Source labels
-            distinguish measurements, models and scenarios. Top-5
-            documents are returned as a bulleted answer.
+            {t(
+              "ถามเป็นภาษาไทยหรืออังกฤษก็ได้ ระบบค้นจากแค็ตตาล็อกข้อมูลเปิด หลักฐานเรื่องไฟป่า น้ำท่วม อากาศ และเที่ยวบิน รวมถึงข้อมูลโบราณสถานที่คัดไว้ ป้ายแหล่งที่มาแยกค่าที่วัดจริง แบบจำลอง และสถานการณ์จำลองออกจากกัน แล้วตอบเป็นรายการ 5 เอกสารที่ตรงที่สุด",
+              "Try a question in Thai or English. The bot searches across the available open-data catalogue, fire / flood / air / flight evidence, and curated heritage references. Source labels distinguish measurements, models and scenarios. Top-5 documents are returned as a bulleted answer.",
+            )}
           </p>
         )}
         {answer && (
           <>
-            <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed">{answer.answer}</pre>
+            {/* The answer summary is composed in English by the API. */}
+            <pre lang="en" className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed">{answer.answer}</pre>
             <ul className="mt-3 space-y-1">
               {answer.references.map((r) => (
                 <li key={r.id} className="border-l-2 border-l-[var(--cool)] bg-[var(--bg)] px-2 py-1">
@@ -137,7 +140,7 @@ export default function CnxAskChat() {
                     </span>
                     {r.url && (
                       <a href={r.url} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 font-mono text-[11px] text-[var(--dim)] hover:text-[var(--ink)]">
-                        <ExternalLink className="h-2.5 w-2.5" /> open
+                        <ExternalLink className="h-2.5 w-2.5" /> {t("เปิด", "open")}
                       </a>
                     )}
                   </div>
