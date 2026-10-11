@@ -383,12 +383,14 @@ export default function CnxTopBar(props: TopBarProps) {
         <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-3 text-[12px] font-semibold">{t("สถานะแหล่งข้อมูล", "Feed status")}</summary>
         <div className="min-w-0 max-w-full border border-[var(--line)] p-3">{twin && <VerdictChip twin={twin} />}      <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Pill label="PM2.5" value={air?.provinceAvgPm25 != null ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
-        <Pill
-          label={flood?.provenance === "scenario" ? t("ปิง (จำลอง)", "Scenario Ping") : t("แบบจำลองปิง", "Ping model")}
-          value={typeof flood?.pingCapacityFraction === "number" ? `${((flood?.pingCapacityFraction ?? 0) * 100).toFixed(0)}%` : "—"}
-          title={t("บริบทแบบจำลอง/สถานการณ์จำลองน้ำท่วม ระดับน้ำที่วัดจริงแสดงแยกต่างหาก", "Flood-model/scenario context; measured river levels are listed separately")}
-          level={flood?.provenance === "live" ? (flood.pingCapacityFraction ?? 0) > 0.85 ? "critical" : (flood.pingCapacityFraction ?? 0) > 0.7 ? "alert" : undefined : undefined}
-        />
+        {/* Drill only (?scenario=): the flood payload carries no figures otherwise. Never coloured — it is not a measurement. */}
+        {flood?.provenance === "scenario" && (
+          <Pill
+            label={t("ซ้อมแผน · ปิง", "DRILL · Ping")}
+            value={typeof flood.pingCapacityFraction === "number" ? `${(flood.pingCapacityFraction * 100).toFixed(0)}%` : "—"}
+            title={t("ตัวเลขจำลองสำหรับซ้อมแผน ไม่ใช่ค่าที่วัดได้", "Simulated drill figure, not a measurement")}
+          />
+        )}
         <Pill
           label="DustBoy"
           title={

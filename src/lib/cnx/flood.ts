@@ -1,45 +1,53 @@
-// CNX flood / hydrology data module.
+// CNX flood module — since 2026-10-11, a DRILL generator and nothing else.
 //
-// ── THIS HEADER WAS WRONG UNTIL 2026-10-02. BOTH HALVES. ──────────
-// It previously read:
+// ── WHERE THE LIVE FLOOD PICTURE COMES FROM ─────────────────────────
+// Not from here. Every part of the flood desk is now a measured or
+// forecast feed with its own provenance and its own age:
 //
-//   "The upstream ThaiWater/HII API requires a key we don't have on
-//    Cloudflare Workers" … "GET ThaiWater realtime (water.rid.go.th)"
+//   river levels   river-level.ts   /api/cnx/river-level  ThaiWater waterlevel (relay)
+//   rain gauges    rain.ts          /api/cnx/rain         ThaiWater rain_24h (relay)
+//   reservoirs     dam.ts           /api/cnx/dam          ThaiWater analyst/dam (relay)
+//   river forecast floodhub.ts      /api/cnx/floodhub     Google Flood Hub (model)
+//   rain forecast  outlook.ts       /api/cnx/forecast-field  Open-Meteo 48 h (model)
 //
-// Neither was true. There is no key: the feed this board now reads is
-// keyless and public. And `water.rid.go.th` is a 1996 HTML frameset that
-// was never an API. The service name `thaiwater30` was never dead either
-// — the router dispatches on the FULL sub-path, so the bare path 404s
-// while `…/thaiwater30/public/waterlevel` answers 200.
+// CNXFloodPanel composes those five. They are deliberately not merged into
+// one payload here: this response carries ONE provenance flag, and bundling
+// a measured river with a model forecast under it would force a single word
+// onto evidence of different kinds and ages.
 //
-// MEASURED RIVER LEVELS NOW LIVE IN `river-level.ts`, at
-// `/api/cnx/river-level`. They are deliberately NOT here: this payload
-// bundles gauges, rainfall and reservoirs under ONE provenance flag, and
-// two of those three are still scenario. Moving the real gauges in would
-// have forced that flag to "live" and quietly asserted that the rainfall
-// and reservoir numbers are measured too. So the measurement sits beside
-// this module, and this module keeps its scenario label where an operator
-// can still see it.
+// ── WHAT THIS MODULE STILL DOES ────────────────────────────────────
+// Without `?scenario=<id>`, `fetchCnxFlood()` returns provenance
+// "unavailable" with EMPTY arrays and a note saying where the live parts
+// are. That is the payload the twin, story, RAG and ticker read, so none of
+// them can pick up a scenario number: they gate on `provenance === "live"`,
+// which nothing produces, and the arrays they would read are empty.
 //
-// WHAT THIS MODULE STILL IS: the scenario fallback, and the reservoir and
-// rainfall series. `fetchLive()` remains `return null` — it is not what
-// carries the flood axis, and nothing imports it.
+// With `?scenario=<id>` (drill mode, e.g. ?scenario=monsoon-flood-watch)
+// it returns the old hash-seeded scenario, provenance "scenario", and a
+// `drill` label — "ซ้อมแผน / DRILL — ข้อมูลจำลอง" — that every surface
+// showing it must carry. The scenario used to be the DEFAULT payload of
+// the flood panel; the client sent `?scenario=` and the route dropped it
+// (audit 2026-10-09). Both are fixed: the route reads the parameter, and
+// the default no longer contains invented numbers.
 //
-// The scenario numbers come from public monthly ThaiWater reports:
-//   - Ping river bank-full at Nawarat Bridge ~3.5 m
-//   - Bhumibol dam capacity 13,462 MCM
-//   - Sirikit dam capacity 9,510 MCM
-//   - Mae Kuang 263 MCM
-//
-// For what it's worth, that guessed 3.5 m turned out to be close: the
-// station publishes a real critical level of 3.7 m above its zero
-// (304.20 m above sea level). The guess was still a guess, and the
-// published figure is what the board now shows.
+// ── HISTORY WORTH KEEPING ───────────────────────────────────────────
+// Until 2026-10-02 this header claimed ThaiWater needed a key and that
+// `water.rid.go.th` was the upstream. Neither was true: the v3 API is
+// keyless, and that host is a 1996 HTML frameset. The scenario's guessed
+// 3.5 m bank-full at Nawarat Bridge turned out close to the station's real
+// published critical level of 3.7 m (304.20 m MSL) — still a guess, and the
+// published figure is what the board shows.
 
 import { CNX_PROVINCE } from "./config";
-import type { CnxFloodResponse, CnxRainfallStation, CnxReservoir, CnxFloodGauge, OfficeNotice, SeverityLevel } from "../../types/cnx";
+import type { CnxFloodResponse, CnxRainfallStation, CnxReservoir, CnxFloodGauge, SeverityLevel } from "../../types/cnx";
 
 const TRENDING_RANDOMNESS = 0.15;
+/** Drill ids are URL input: short lowercase slugs only. */
+const DRILL_ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
+/** The drill that rehearses high water; every other id gets ordinary levels. */
+const HIGH_WATER_DRILLS = new Set(["monsoon-flood-watch"]);
+
+export const DRILL_LABEL = { th: "ซ้อมแผน — ข้อมูลจำลอง", en: "DRILL — simulated data" } as const;
 
 function hashSeed(s: string): number {
   let h = 2166136261;
@@ -63,23 +71,11 @@ function severityForLevel(level: number, bankFull: number | undefined): Severity
   return "good";
 }
 
-// ─── Live upstream hooks ─────────────────────────────────────────
-// STILL a placeholder, and now honestly labelled as one. It is not
-// waiting on a key — there was never a key requirement, and the intended
-// source (water.rid.go.th) is a 1996 frameset. The measured feed is
-// `river-level.ts`; this function exists only so the module's shape
-// contract is preserved, and nothing imports it.
-//
-//   1. GET ThaiWater v3 /public/waterlevel?province_code=50
-//   2. filter to basin_code 6 (Ping)
-//   3. project, dedupe, attach observedAt
-// See `river-level.ts` for all three, done.
-
-async function fetchLive(): Promise<CnxFloodResponse | null> {
-  return null;
+export function isDrillId(id: string | null | undefined): id is string {
+  return typeof id === "string" && DRILL_ID.test(id);
 }
 
-// ─── Scenario fallback ───────────────────────────────────────────
+// ─── Drill scenario ──────────────────────────────────────────────
 
 const PING_STATIONS: Omit<CnxFloodGauge, "levelM" | "trend" | "severity" | "observedAt">[] = [
   { stationId: "P.1", name: "Nawarat Bridge", river: "Ping", basin: "Ping", longitude: 99.0, latitude: 18.79 },
@@ -98,102 +94,94 @@ const RAINFALL: Omit<CnxRainfallStation, "rainfall24hMm" | "rainfallNowMmHr" | "
   { stationId: "50105", name: "Doi Inthanon", longitude: 98.49, latitude: 18.59 },
 ];
 
-const RESERVOIRS: Omit<CnxReservoir, "fillFraction" | "storageMCM" | "observedAt" | "severity">[] = [
-  { damId: "BHM", name: "Bhumibol Dam" },
-  { damId: "SKT", name: "Sirikit Dam" },
-  { damId: "MKT", name: "Mae Kuang Udomthara" },
+const RESERVOIRS: (Omit<CnxReservoir, "fillFraction" | "storageMCM" | "observedAt" | "severity"> & { capacityMCM: number; fill: number })[] = [
+  { damId: "MNG", name: "Mae Ngat Somboon Chon", capacityMCM: 265, fill: 0.82 },
+  { damId: "MKT", name: "Mae Kuang Udom Thara", capacityMCM: 263, fill: 0.62 },
+  { damId: "BHM", name: "Bhumibol", capacityMCM: 13_462, fill: 0.7 },
 ];
 
-function buildScenario(nowIso: string): CnxFloodResponse {
+export function buildDrill(id: string, nowIso: string): CnxFloodResponse {
+  const high = HIGH_WATER_DRILLS.has(id);
+  const seed = (s: string) => `${id}-${s}-${nowIso}`;
   const gauges: CnxFloodGauge[] = PING_STATIONS.map((s, i) => {
     const bankFull = 3.5 + i * 0.3;
-    const base = 1.4 + i * 0.15;
-    const levelM = jitter(base, TRENDING_RANDOMNESS, `${s.stationId}-${nowIso}`);
-    const trend: CnxFloodGauge["trend"] =
-      hashSeed(`trend-${s.stationId}-${nowIso}`) > 0.5 ? "rising" : "falling";
+    const base = high ? bankFull * (0.82 + i * 0.025) : 1.4 + i * 0.15;
+    const levelM = jitter(base, TRENDING_RANDOMNESS, seed(s.stationId));
     return {
       ...s,
       levelM: Math.round(levelM * 100) / 100,
       bankFullM: Math.round(bankFull * 100) / 100,
-      dischargeM3s: Math.round(jitter(40 + i * 12, 8, `q-${s.stationId}-${nowIso}`)),
-      trend,
+      dischargeM3s: Math.round(jitter((high ? 180 : 40) + i * 12, 8, seed(`q-${s.stationId}`))),
+      trend: high || hashSeed(seed(`trend-${s.stationId}`)) > 0.5 ? "rising" : "falling",
       severity: severityForLevel(levelM, bankFull),
       observedAt: nowIso,
     };
   });
 
-  const rainfall: CnxRainfallStation[] = RAINFALL.map((s, i) => {
-    const r24 = 14 - i * 1.8;
-    const rNow = 0.6 - i * 0.08;
-    return {
-      ...s,
-      rainfall24hMm: Math.max(0, Math.round(jitter(r24, 6, `r24-${s.stationId}`) * 10) / 10),
-      rainfallNowMmHr: Math.max(0, Math.round(jitter(rNow, 0.5, `rnow-${s.stationId}`) * 100) / 100),
-      observedAt: nowIso,
-    };
-  });
+  const rainfall: CnxRainfallStation[] = RAINFALL.map((s, i) => ({
+    ...s,
+    rainfall24hMm: Math.max(0, Math.round(jitter((high ? 70 : 14) - i * 1.8, 6, seed(`r24-${s.stationId}`)) * 10) / 10),
+    rainfallNowMmHr: Math.max(0, Math.round(jitter((high ? 6 : 0.6) - i * 0.08, 0.5, seed(`rnow-${s.stationId}`)) * 100) / 100),
+    observedAt: nowIso,
+  }));
 
-  const reservoirs: CnxReservoir[] = RESERVOIRS.map((r, i) => {
-    const storageMCM = r.damId === "BHM" ? 10_900 + i * 400 : r.damId === "SKT" ? 7_100 + i * 220 : 165 + i * 8;
-    const fill = r.damId === "BHM" ? 0.81 : r.damId === "SKT" ? 0.74 : 0.62;
+  const reservoirs: CnxReservoir[] = RESERVOIRS.map(({ capacityMCM, fill: baseFill, ...r }) => {
+    const fill = Math.min(1.05, baseFill + (high ? 0.15 : 0));
     return {
       ...r,
-      storageMCM: Math.round(storageMCM),
+      storageMCM: Math.round(capacityMCM * fill),
       fillFraction: fill,
-      inflowM3s: Math.round(jitter(28, 6, `i-${r.damId}`)),
-      outflowM3s: Math.round(jitter(22, 4, `o-${r.damId}`)),
+      inflowM3s: Math.round(jitter(high ? 90 : 28, 6, seed(`i-${r.damId}`))),
+      outflowM3s: Math.round(jitter(high ? 70 : 22, 4, seed(`o-${r.damId}`))),
       observedAt: nowIso,
       severity: fill >= 0.9 ? "alert" : fill >= 0.7 ? "watch" : "good",
     };
   });
 
-  // Ping river capacity fraction (max of the bank-full ratios)
-  const pingCapacity = Math.max(
-    0,
-    ...gauges
-      .filter((g) => g.basin === "Ping")
-      .map((g) => (g.bankFullM ? g.levelM / g.bankFullM : 0)),
-  );
+  const pingCapacity = Math.max(0, ...gauges.map((g) => (g.bankFullM ? g.levelM / g.bankFullM : 0)));
 
-  // No `office` notice is minted here, deliberately.
-  //
-  // This builder used to emit one attributed to "Royal Irrigation
-  // Department Region 1" whenever the jittered ratio crossed 0.9. That is
-  // us putting a Thai government agency's name on a number produced by a
-  // hash function. Nothing above the payload's `provenance: "scenario"`
-  // tag protects it: a notice reads as an official communication, and the
-  // tag is one field away in a JSON object. A real notice belongs to the
-  // live path, where there is an agency to attribute it to.
-  const office: OfficeNotice | undefined = undefined;
-
+  // No `office` notice, ever. A notice reads as an official communication;
+  // putting a Thai agency's name on a hash-seeded number would outrank every
+  // label around it the moment it is quoted on its own.
   return {
     generatedAt: nowIso,
     provenance: "scenario",
     provenanceNote: {
-      th: "ตัวเลขชุดนี้เป็นข้อมูลจำลอง ไม่ใช่ค่าที่วัดได้ — ห้ามใช้ตัดสินว่าน้ำกำลังเพิ่มหรือลด ดูค่าจริงที่สถานีวัดในพื้นที่",
-      en: "These figures are a scenario fill, not measurements — do not use them to judge whether water is rising or falling. Read the live station gauges for your area.",
+      th: `${DRILL_LABEL.th} (${id}) — ตัวเลขทั้งหมดสร้างขึ้นเพื่อซ้อมแผน ไม่ใช่ค่าที่วัดได้ ห้ามใช้ตัดสินสถานการณ์จริง`,
+      en: `${DRILL_LABEL.en} (${id}) — every figure is generated for an exercise, not measured. Do not use it to judge the real situation.`,
     },
+    drill: { id, ...DRILL_LABEL },
     gauges,
     rainfall,
     reservoirs,
     pingCapacityFraction: pingCapacity,
-    office,
+    office: undefined,
+  };
+}
+
+// ─── Normal payload: no invented numbers ─────────────────────────
+
+export function noScenarioPayload(nowIso: string): CnxFloodResponse {
+  return {
+    generatedAt: nowIso,
+    provenance: "unavailable",
+    provenanceNote: {
+      th: "ไม่มีข้อมูลรวมในชุดนี้ — ระดับน้ำ ฝน เขื่อน และพยากรณ์ อ่านจากแหล่งจริงแยกกัน แต่ละแหล่งมีที่มาและเวลาของตัวเอง",
+      en: "This payload carries no figures. River levels, rain, reservoirs and forecasts are read from their own live feeds — /api/cnx/river-level, /api/cnx/rain, /api/cnx/dam, /api/cnx/floodhub, /api/cnx/forecast-field — each with its own provenance and age.",
+    },
+    drill: null,
+    gauges: [],
+    rainfall: [],
+    reservoirs: [],
   };
 }
 
 // ─── Public API ──────────────────────────────────────────────────
 
-let cache: { at: number; data: CnxFloodResponse } | null = null;
-const TTL_MS = 60_000;
-
-export async function fetchCnxFlood(): Promise<CnxFloodResponse> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.data;
-  const live = process.env.CNX_FLOOD_LIVE === "1" ? await fetchLive() : null;
-  const data: CnxFloodResponse = live
-    ? { ...live, provenance: "live", provenanceNote: null }
-    : buildScenario(new Date().toISOString());
-  cache = { at: Date.now(), data };
-  return data;
+/** Drill payload for a valid `?scenario=<id>`; otherwise the empty, honest default. */
+export async function fetchCnxFlood(scenarioId?: string | null): Promise<CnxFloodResponse> {
+  const nowIso = new Date().toISOString();
+  return isDrillId(scenarioId) ? buildDrill(scenarioId, nowIso) : noScenarioPayload(nowIso);
 }
 
 export function inCnxBbox(lat: number, lon: number): boolean {

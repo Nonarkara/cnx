@@ -103,10 +103,10 @@ export async function buildCnxStory(
     sktFraction: floodLive && skt ? Math.round(skt.fillFraction * 100) : 0,
     rain24: floodLive ? Math.round(avgRain * 10) / 10 : 0,
     wideCount: null, // No arrival-history feed is loaded by this story.
-    // `flood.office` is generated inside buildScenario() and attributed to
-    // "Royal Irrigation Department Region 1". Never quote a government
-    // agency on the strength of a hash seed — it outranks everything else
-    // on this wall.
+    // `flood.office` used to be minted by the scenario builder and attributed
+    // to "Royal Irrigation Department Region 1". The drill no longer mints
+    // one, and the gate stays: never quote a government agency on the
+    // strength of a hash seed — it outranks everything else on this wall.
     officeNotices: [air.office, floodLive ? flood.office : null].filter(Boolean) as OfficeNotice[],
     floodLive,
     measuredGauge: river.provenance === "live" ? river.gauges.filter((g) => isPingMainstem(g) && isCurrentGaugeReading(g.observedAt)).sort((a, b) => (a.belowBankM ?? Infinity) - (b.belowBankM ?? Infinity))[0] ?? null : null,
