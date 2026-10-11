@@ -30,7 +30,7 @@ export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneO
 
   return (
     <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--bg)] px-2 py-1">
-      <span className="mr-1 shrink-0 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+      <span className="mr-1 shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
         Carrier clocks
       </span>
       {clocks.map((c) => {
@@ -41,16 +41,16 @@ export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneO
             title={`${c.country} — ${c.timezone}`}
             className={`flex shrink-0 items-center gap-1 border px-1.5 py-0.5 ${
               isBusiest
-                ? "border-[var(--sun)] bg-[var(--sun-dim)]"
+                ? "border-[var(--cool)] bg-[var(--cool-dim)]"
                 : "border-[var(--line)] bg-[var(--bg-raised)]"
             }`}
           >
-            <span className="font-mono text-[9px] font-bold tabular-nums text-[var(--ink)]">
+            <span className="font-mono text-[11px] font-bold tabular-nums text-[var(--ink)]">
               {c.localTime}
             </span>
-            <span className="truncate text-[9px] text-[var(--dim)]">{c.country}</span>
+            <span className="truncate text-[11px] text-[var(--dim)]">{c.country}</span>
             {isBusiest && (
-              <span className="ml-0.5 font-mono text-[8px] font-bold text-[var(--sun)]">
+              <span className="ml-0.5 font-mono text-[11px] font-bold text-[var(--cool)]">
                 · {busiest.visitors.toLocaleString()} est. seats
               </span>
             )}

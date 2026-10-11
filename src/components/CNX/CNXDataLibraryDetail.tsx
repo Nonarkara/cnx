@@ -29,7 +29,7 @@ function BarChart({ table }: { table: LibraryTable }) {
   const bw = Math.max(2, (w - gap * (series.values.length - 1)) / series.values.length);
   return (
     <figure className="mt-3 border border-[var(--line)] bg-[var(--bg-raised)] p-3">
-      <figcaption className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--dim)]">
+      <figcaption className="mb-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">
         {series.value} · by {series.label}
       </figcaption>
       <svg viewBox={`0 0 ${w} ${h + 18}`} className="w-full" role="img" aria-label={`${series.value} by ${series.label}`}>
@@ -69,12 +69,12 @@ function TableView({ table }: { table: LibraryTable }) {
 
   return (
     <div className="mt-2">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--dim)]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
         <span>
           {table.columns.length} fields · {table.totalRows.toLocaleString()} rows
         </span>
         {table.truncated && (
-          <span className="border border-[var(--sun)] bg-[var(--sun-dim)] px-1.5 py-0.5 text-[var(--ink)]">
+          <span className="border border-[var(--cool)] bg-[var(--cool-dim)] px-1.5 py-0.5 text-[var(--ink)]">
             preview: first {table.previewRows.toLocaleString()} of {table.totalRows.toLocaleString()} rows
           </span>
         )}
@@ -96,11 +96,11 @@ function TableView({ table }: { table: LibraryTable }) {
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 bg-[var(--bg-surface)]">
             <tr>
-              <th className="border-b border-[var(--line)] px-2 py-1.5 text-right font-mono text-[9px] font-normal text-[var(--dim)]">#</th>
+              <th className="border-b border-[var(--line)] px-2 py-1.5 text-right font-mono text-[11px] font-normal text-[var(--dim)]">#</th>
               {table.columns.map((c, i) => (
                 <th key={i} className="whitespace-nowrap border-b border-[var(--line)] px-2 py-1.5 text-left align-bottom font-bold">
                   <div lang="th">{c.name}</div>
-                  <div className="font-mono text-[8px] font-normal uppercase tracking-[0.14em] text-[var(--cool)]">{c.kind}</div>
+                  <div className="font-mono text-[11px] font-normal uppercase tracking-[0.14em] text-[var(--cool)]">{c.kind}</div>
                 </th>
               ))}
             </tr>
@@ -108,7 +108,7 @@ function TableView({ table }: { table: LibraryTable }) {
           <tbody>
             {rows.map((r, ri) => (
               <tr key={ri} className="odd:bg-[var(--bg-surface)]/60">
-                <td className="px-2 py-1 text-right font-mono text-[9px] text-[var(--dim)]">{ri + 1}</td>
+                <td className="px-2 py-1 text-right font-mono text-[11px] text-[var(--dim)]">{ri + 1}</td>
                 {r.map((v, ci) => (
                   <td
                     key={ci}
@@ -128,7 +128,7 @@ function TableView({ table }: { table: LibraryTable }) {
         <button
           type="button"
           onClick={() => setShown((n) => Math.min(table.rows.length, n + 50))}
-          className="mt-2 border border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] hover:border-[var(--cool)]"
+          className="mt-2 border border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.12em] hover:border-[var(--cool)]"
         >
           Show more ({rows.length} / {table.rows.length.toLocaleString()})
         </button>
@@ -168,7 +168,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
           {data.notes.length > 700 ? `${data.notes.slice(0, 700)}…` : data.notes}
         </p>
       )}
-      <dl className="mt-3 grid gap-x-6 gap-y-1 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--dim)] sm:grid-cols-2">
+      <dl className="mt-3 grid gap-x-6 gap-y-1 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)] sm:grid-cols-2">
         <div><dt className="inline">Publisher: </dt><dd lang="th" className="inline normal-case tracking-normal text-[var(--ink)]">{data.org || "—"}</dd></div>
         <div><dt className="inline">License: </dt><dd className="inline normal-case tracking-normal text-[var(--ink)]">{data.license || "—"}</dd></div>
         <div><dt className="inline">Updated: </dt><dd className="inline text-[var(--ink)]">{data.modified?.slice(0, 10) ?? "—"}</dd></div>
@@ -178,7 +178,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
 
       {data.tables.length > 0 ? (
         <div className="mt-4">
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
             Tables ({data.tables.length})
           </div>
           {data.tables.length > 1 && (
@@ -208,13 +208,13 @@ export default function DataLibraryDetail({ name }: { name: string }) {
 
       {data.unreadable.length > 0 && (
         <div className="mt-4">
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
             Not readable here ({data.unreadable.length}) — listed, not hidden
           </div>
           <ul className="mt-1 space-y-1 text-[12px]">
             {data.unreadable.map((u) => (
               <li key={u.resourceId} className="flex flex-wrap items-baseline gap-2">
-                <span className="font-mono text-[9px] uppercase text-[var(--cool)]">{u.format}</span>
+                <span className="font-mono text-[11px] uppercase text-[var(--cool)]">{u.format}</span>
                 <span lang="th" className="truncate">{u.name}</span>
                 <span className="text-[var(--dim)]">— {u.reason}</span>
                 {u.sourceUrl && (
@@ -228,13 +228,13 @@ export default function DataLibraryDetail({ name }: { name: string }) {
 
       {data.files.length > 0 && (
         <div className="mt-4">
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
             Other files &amp; links ({data.files.length})
           </div>
           <ul className="mt-1 grid gap-1 sm:grid-cols-2">
             {data.files.slice(0, 40).map((f) => (
               <li key={f.id} className="flex items-baseline gap-2 text-[12px]">
-                <span className="w-9 shrink-0 font-mono text-[9px] uppercase text-[var(--cool)]">{f.format}</span>
+                <span className="w-9 shrink-0 font-mono text-[11px] uppercase text-[var(--cool)]">{f.format}</span>
                 {f.url ? (
                   <a href={f.url} target="_blank" rel="noreferrer" lang="th" className="truncate hover:underline" title={f.name}>
                     {f.name || f.url}
@@ -242,7 +242,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
                 ) : (
                   <span lang="th" className="truncate">{f.name}</span>
                 )}
-                <span className="ml-auto shrink-0 font-mono text-[9px] text-[var(--dim)]">{formatBytes(f.size)}</span>
+                <span className="ml-auto shrink-0 font-mono text-[11px] text-[var(--dim)]">{formatBytes(f.size)}</span>
               </li>
             ))}
           </ul>
@@ -254,7 +254,7 @@ export default function DataLibraryDetail({ name }: { name: string }) {
         href={data.portalUrl}
         target="_blank"
         rel="noreferrer"
-        className="mt-4 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--cool)] hover:underline"
+        className="mt-4 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--cool)] hover:underline"
       >
         Open on data.go.th <ExternalLink className="h-3 w-3" />
       </a>

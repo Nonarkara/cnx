@@ -14,7 +14,7 @@ const CnxApp = dynamic(() => import("../../components/CNX/CNXApp"), {
         <div className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
           CNX War Room
         </div>
-        <div className="mt-2 font-mono text-[10px] text-[var(--dim)]">loading map engine…</div>
+        <div className="mt-2 font-mono text-[11px] text-[var(--dim)]">loading map engine…</div>
       </div>
     </div>
   ),

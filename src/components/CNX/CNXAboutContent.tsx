@@ -102,7 +102,7 @@ export default function CNXAboutContent() {
 
         <section id="web-app" className="my-6 scroll-mt-20 border border-[var(--line)] bg-[var(--bg-surface)] p-5">
           <div className="flex items-center gap-3">
-            <div className="cnx-brand-plate flex h-14 w-14 shrink-0 items-center justify-center rounded-xl">
+            <div className="cnx-brand-plate flex h-14 w-14 shrink-0 items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logos/cnx-app-mark.png" alt="" width={48} height={48} className="block h-12 w-12 object-contain" />
             </div>
@@ -148,7 +148,7 @@ export default function CNXAboutContent() {
               Taken from the live feeds at 01:07 ICT on 29 September 2026. This is not peak burning season. The sources disagreed, and the disagreement is the finding.
             </p>
             <div className="mt-3 border-l-2 border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
-              <div className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
+              <div className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
                 Archived snapshot &middot; not the current state
               </div>
               <p className="mt-1 text-[12px] leading-[1.6] text-[var(--dim)]" lang="th">
@@ -163,7 +163,7 @@ export default function CNXAboutContent() {
           </div>
           <div className="mt-4 overflow-x-auto border border-[var(--line)]">
             <table className="w-full min-w-[640px] text-left text-[13px]">
-              <thead className="bg-[var(--bg-raised)] font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--dim)]">
+              <thead className="bg-[var(--bg-raised)] font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Signal</th>
                   <th className="px-3 py-2 font-semibold">What came back</th>
@@ -361,7 +361,7 @@ export default function CNXAboutContent() {
           </div>
 
           <div className="mt-5 overflow-x-auto border border-[var(--line)] bg-[var(--bg-surface)] p-4">
-            <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">
               Diagram 1 · Five different fallback shapes, not one uniform tier system
             </div>
             <svg viewBox="0 0 960 460" className="w-full min-w-[720px]" role="img" aria-label="CNX data pipeline diagram">
@@ -474,7 +474,7 @@ export default function CNXAboutContent() {
           </div>
 
           <div className="mt-5 overflow-x-auto border border-[var(--line)] bg-[var(--bg-surface)] p-4">
-            <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">
               Diagram 2 · Why flights need an off-Cloudflare relay
             </div>
             <svg viewBox="0 0 960 260" className="w-full min-w-[720px]" role="img" aria-label="Flight data relay diagram">
@@ -543,7 +543,7 @@ export default function CNXAboutContent() {
           </div>
 
           <div className="mt-5 overflow-x-auto border border-[var(--line)] bg-[var(--bg-surface)] p-4">
-            <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.16em] text-[var(--dim)]">
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">
               Diagram 3 · Where this system sits on the ISO/IEC 30173:2023 spectrum
             </div>
             <svg viewBox="0 0 960 200" className="w-full min-w-[720px]" role="img" aria-label="Digital twin maturity ladder diagram">
@@ -593,14 +593,14 @@ export default function CNXAboutContent() {
           </div>
           <div className="mt-4 border border-[var(--line)]">
             <div className="flex items-center justify-between border-b border-[var(--line)] bg-[var(--bg-surface)] px-3 py-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
                 Accident — CMU SCMC
               </span>
               <a
                 href="https://public.tableau.com/app/profile/scmc/viz/Accident_17206129265280/Accident"
                 target="_blank"
                 rel="noreferrer"
-                className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--cool)] hover:underline"
+                className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--cool)] hover:underline"
               >
                 Open on Tableau Public ↗
               </a>
@@ -612,7 +612,7 @@ export default function CNXAboutContent() {
               loading="lazy"
             />
           </div>
-          <p className="mt-2 font-mono text-[10px] text-[var(--dim)]" lang="th">
+          <p className="mt-2 font-mono text-[11px] text-[var(--dim)]" lang="th">
             แหล่งอื่นจาก SCMC:{" "}
             <a
               href="https://public.tableau.com/app/profile/scmc/viz/Accident_17206129265280"
@@ -655,7 +655,7 @@ export default function CNXAboutContent() {
                 <div className="text-[14px] font-bold" lang="th">
                   แหล่งข้อมูลทั้งหมด
                 </div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--cool)]">
+                <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--cool)]">
                   All data sources (.md)
                 </div>
                 <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--dim)]" lang="th">
@@ -670,7 +670,7 @@ export default function CNXAboutContent() {
                 <div className="text-[14px] font-bold" lang="th">
                   ระบบคิดอย่างไร
                 </div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--cool)]">
+                <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--cool)]">
                   Methodology (.md)
                 </div>
                 <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--dim)]" lang="th">
@@ -685,7 +685,7 @@ export default function CNXAboutContent() {
                 <div className="text-[14px] font-bold" lang="th">
                   ติดตั้งระบบเอง
                 </div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--cool)]">
+                <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--cool)]">
                   Clone &amp; run (.md)
                 </div>
                 <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--dim)]" lang="th">
@@ -720,7 +720,7 @@ export default function CNXAboutContent() {
             {/* RCAD — project sponsor */}
             <div className="border border-[var(--line)] bg-[var(--bg-surface)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
+                <div className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
                   Project Sponsor
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -761,7 +761,7 @@ export default function CNXAboutContent() {
 
             {/* Dr Non — system architect */}
             <div className="border border-[var(--line)] bg-[var(--bg-surface)] p-5">
-              <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
+              <div className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
                 Digital Twin &amp; Smart City Architecture Lead
               </div>
               <h3 className="mt-1 text-[20px] font-bold text-[var(--ink)]" lang="th">
@@ -785,7 +785,7 @@ export default function CNXAboutContent() {
           </div>
         </section>
 
-        <footer className="border-t border-[var(--line)] py-6 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--dim)]">
+        <footer className="border-t border-[var(--line)] py-6 font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/cnx-monochrome.png" alt="CNX War Room" width={64} height={48} className="cnx-brand-mono mb-3 block h-10 w-16 object-contain" />
           จังหวัดเชียงใหม่ · RCAD · สำนักงานส่งเสริมเศรษฐกิจดิจิทัล (depa) · Smart City Thailand — ข้อมูลจากหน่วยงานที่ระบุในเอกสารแหล่งข้อมูล

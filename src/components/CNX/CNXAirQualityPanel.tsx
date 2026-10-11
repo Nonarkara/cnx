@@ -24,10 +24,10 @@ import type { GistdaPm25Response } from "../../lib/cnx/gistda-pm25";
 
 const SEVERITY_CLASSES: Record<string, string> = {
   unknown: "bg-[var(--line)] text-[var(--dim)]",
-  good: "bg-[var(--success)] text-white",
-  watch: "bg-[#f99d1b] text-black",
-  alert: "bg-[#fb923c] text-black",
-  critical: "bg-[var(--danger)] text-white",
+  good: "sev-fill-good",
+  watch: "sev-fill-watch",
+  alert: "sev-fill-alert",
+  critical: "sev-fill-critical",
 };
 
 function severityLabel(s: string) {
@@ -56,12 +56,12 @@ function Sparkline({ points }: { points: { pm25: number; ts: string }[] }) {
     .join(" ");
   const last = values[values.length - 1];
   const lastColor =
-    last < 25 ? "var(--success)" : last < 50 ? "#f99d1b" : last < 90 ? "#fb923c" : "var(--danger)";
+    last < 25 ? "var(--sev-good)" : last < 50 ? "var(--sev-watch)" : last < 90 ? "var(--sev-alert)" : "var(--sev-critical)";
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="h-6 w-full" preserveAspectRatio="none" role="img" aria-label={`${points.length} PM2.5 observations; latest ${last} micrograms per cubic metre${points.length === 1 ? "; insufficient samples to show a trend" : ""}`}>
       <path d={path} fill="none" stroke="var(--cool)" strokeWidth="1.4" />
       <circle cx={values.length === 1 ? width / 2 : width} cy={height - ((last - min) / Math.max(1, max - min)) * height} r="2.4" fill={lastColor} />
-      <line x1="0" y1={height - ((50 - min) / Math.max(1, max - min)) * height} x2={width} y2={height - ((50 - min) / Math.max(1, max - min)) * height} stroke="#f99d1b" strokeWidth="0.5" strokeDasharray="3 2" />
+      <line x1="0" y1={height - ((50 - min) / Math.max(1, max - min)) * height} x2={width} y2={height - ((50 - min) / Math.max(1, max - min)) * height} stroke="var(--sev-watch)" strokeWidth="0.5" strokeDasharray="3 2" />
     </svg>
   );
 }
@@ -109,12 +109,12 @@ export default function CnxAirQualityPanel() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <div className="flex items-center gap-2">
           <Wind className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
             Air quality · {pm25.amphoe.length} districts
           </span>
         </div>
         {criticalAmphoe.length > 0 && (
-          <span className="flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--danger)]">
+          <span className="flex items-center gap-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--sev-critical)]">
             <AlertTriangle className="h-3 w-3" />
             {criticalAmphoe.length} {criticalAmphoe.length === 1 ? "amphoe" : "amphoes"} ≥ 50 µg/m³
           </span>
@@ -123,20 +123,20 @@ export default function CnxAirQualityPanel() {
 
       <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-[var(--line)] px-3 py-2">
         <span
-          className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] ${SEVERITY_CLASSES[pm25.severity]}`}
+          className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] ${SEVERITY_CLASSES[pm25.severity]}`}
         >
           {severityLabel(pm25.severity)}
         </span>
         <span className="font-mono text-[22px] font-bold tabular-nums text-[var(--ink)]">{pm25.pm25?.toFixed(0) ?? "—"}</span>
-        <span className="font-mono text-[9px] text-[var(--dim)]">µg/m³</span>
-        <span className="font-mono text-[10px] text-[var(--dim)]">
+        <span className="font-mono text-[11px] text-[var(--dim)]">µg/m³</span>
+        <span className="font-mono text-[11px] text-[var(--dim)]">
           | AQI {pm25.pm25Aqi ?? "—"} | 24h mean {pm25.pm25Avg24hrs?.toFixed(0) ?? "—"} | province avg {pm25.provinceAveragePm25?.toFixed(1) ?? "—"}
         </span>
       </div>
 
       <div className="shrink-0 border-b border-[var(--line)] bg-[var(--bg)] px-3 py-2">
         <DataAge observedAt={pm25.observedAt} source="GISTDA / Longdo" staleAfterMs={3 * 3_600_000} className="mb-1 block" />
-        <div className="mb-0.5 flex flex-wrap items-center justify-between gap-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+        <div className="mb-0.5 flex flex-wrap items-center justify-between gap-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
           <span>24h trend · {pm25.locName.en} ({pm25.locName.th})</span>
           <span>GISTDA / Longdo · 50 µg/m³ threshold</span>
         </div>
@@ -147,16 +147,16 @@ export default function CnxAirQualityPanel() {
         <table aria-label="District PM2.5 in micrograms per cubic metre" className="w-full border-collapse text-[11px]">
           <thead className="sticky top-0 bg-[var(--bg-raised)]">
             <tr className="border-b border-[var(--line)]">
-              <th className="px-3 py-1.5 text-left font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">
+              <th className="px-3 py-1.5 text-left font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">
                 Amphoe
               </th>
-              <th className="px-2 py-1.5 text-right font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">
+              <th className="px-2 py-1.5 text-right font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">
                 PM2.5
               </th>
-              <th className="hidden px-2 py-1.5 text-right font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--dim)] md:table-cell">
+              <th className="hidden px-2 py-1.5 text-right font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--dim)] md:table-cell">
                 24 h
               </th>
-              <th className="px-3 py-1.5 text-left font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">
+              <th className="px-3 py-1.5 text-left font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--dim)]">
                 Level
               </th>
             </tr>
@@ -168,18 +168,18 @@ export default function CnxAirQualityPanel() {
                 <tr key={a.ap_idn} className="border-b border-[var(--line)]">
                   <td className="px-3 py-1">
                     <div className="font-semibold text-[var(--ink)]">{a.ap_en}</div>
-                    <div className="font-mono text-[8px] text-[var(--dim)]">{a.ap_tn}</div>
+                    <div className="font-mono text-[11px] text-[var(--dim)]">{a.ap_tn}</div>
                   </td>
                   <td className="px-2 py-1 text-right">
-                    <span className={`rounded-sm px-1.5 py-0.5 font-mono text-[9px] tabular-nums ${SEVERITY_CLASSES[a.severity]}`}>
+                    <span className={`px-1.5 py-0.5 font-mono text-[11px] tabular-nums ${SEVERITY_CLASSES[a.severity]}`}>
                       {a.pm25.toFixed(0)}
                     </span>
                   </td>
-                  <td className="hidden px-2 py-1 text-right font-mono text-[9px] tabular-nums text-[var(--dim)] md:table-cell">
+                  <td className="hidden px-2 py-1 text-right font-mono text-[11px] tabular-nums text-[var(--dim)] md:table-cell">
                     {a.pm25Avg24hr.toFixed(1)}
                   </td>
                   <td className="px-3 py-1">
-                    <span className="mb-1 block text-[10px]">{severityLabel(a.severity)}</span>
+                    <span className="mb-1 block text-[11px]">{severityLabel(a.severity)}</span>
                     <div aria-hidden="true" className="relative h-2 w-full bg-[var(--bg)]">
                       <div
                         className={`h-full ${SEVERITY_CLASSES[a.severity].split(" ")[0]}`}
@@ -194,7 +194,7 @@ export default function CnxAirQualityPanel() {
         </table>
       </div>
 
-      <footer className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5 font-mono text-[8px] text-[var(--dim)]">
+      <footer className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5 font-mono text-[11px] text-[var(--dim)]">
         {cnAqi.bbox.length > 0 && (
           <span>
             AQI cross-check (index, separate scale) · aqicn.org {cnAqi.bbox.length} stations ·

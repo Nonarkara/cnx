@@ -39,10 +39,10 @@ const TENURE_LABEL: Record<string, { th: string; en: string }> = {
 
 const SEVERITY_CLASSES: Record<string, string> = {
   unknown: "bg-[var(--line)] text-[var(--dim)]",
-  good: "bg-[var(--success)] text-white",
-  watch: "bg-[#f99d1b] text-black",
-  alert: "bg-[#fb923c] text-black",
-  critical: "bg-[var(--danger)] text-white",
+  good: "sev-fill-good",
+  watch: "sev-fill-watch",
+  alert: "sev-fill-alert",
+  critical: "sev-fill-critical",
 };
 
 function severityLabel(s: string) {
@@ -63,13 +63,13 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <div className="flex items-center gap-2">
           <Flame className="h-3.5 w-3.5 text-[var(--danger)]" />
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
             จุดความร้อนและละอองลอย
           </span>
         </div>
         {aerosol && (
           <span
-            className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}
+            className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}
           >
             AOD {aerosol.aod550 ?? "—"}
           </span>
@@ -97,7 +97,7 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
             {t.id === "aerosol" && <Wind className="h-3 w-3" />}
             {t.label}
             {typeof t.count === "number" && (
-              <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">{t.count}</span>
+              <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{t.count}</span>
             )}
           </button>
         ))}
@@ -120,18 +120,18 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
       .slice(0, 6)
       .map(([type, count]) => ({ type, count }));
   }, [rfd]);
-  if (!rfd) return <div className="p-3 text-[10px] text-[var(--dim)]">loading RFD hotspots…</div>;
+  if (!rfd) return <div className="p-3 text-[11px] text-[var(--dim)]">loading RFD hotspots…</div>;
   if (rfd.provenance === "unavailable") return <div className="p-3 text-[11px] text-[var(--dim)]">RFD hotspot count: —. {rfd.note ?? "Feed unavailable; this does not establish zero hotspots."}</div>;
   return (
     <div>
       <div className="border-b border-[var(--line)] px-3 py-2">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+          <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
             RFD Hotspots (7 d)
           </span>
           <div className="text-right">
             <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{rfd.totalCount}</div>
-            <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
               forest {(rfd.forestShare * 100).toFixed(0)}%
             </div>
           </div>
@@ -139,29 +139,29 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
         <div className="space-y-1">
           {topTypes.map((t) => (
             <div key={t.type} className="flex items-center gap-2">
-              <span className="w-[110px] truncate text-[10px] font-semibold text-[var(--ink)]">
+              <span className="w-[110px] truncate text-[11px] font-semibold text-[var(--ink)]">
                 {TENURE_LABEL[t.type]?.en ?? t.type}
               </span>
               <div className="relative h-2 flex-1 border border-[var(--line)] bg-[var(--bg)]">
                 <div
                   className={`h-full ${
                     t.type === "DNP" || t.type === "NRF"
-                      ? "bg-[var(--danger)]"
+                      ? "bg-[var(--sev-critical)]"
                       : t.type === "ALOW" || t.type === "CMF"
-                      ? "bg-[#fb923c]"
-                      : "bg-[#f99d1b]"
+                      ? "bg-[var(--sev-alert)]"
+                      : "bg-[var(--sev-watch)]"
                   }`}
                   style={{ width: `${Math.min(100, (t.count / Math.max(1, rfd.totalCount)) * 100)}%` }}
                 />
               </div>
-              <span className="w-[28px] text-right font-mono text-[10px] tabular-nums text-[var(--ink)]">{t.count}</span>
+              <span className="w-[28px] text-right font-mono text-[11px] tabular-nums text-[var(--ink)]">{t.count}</span>
             </div>
           ))}
         </div>
       </div>
       <div className="px-3 py-2">
         {rfd.hotspots.length === 0 ? (
-          <p className="text-[10px] text-[var(--dim)]">
+          <p className="text-[11px] text-[var(--dim)]">
             No RFD hotspots in the CNX bbox for the last 7 days. (Possibly the
             upstream service is offline or the province is in a quiet period.)
           </p>
@@ -173,16 +173,16 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
                 href={`https://wildfire.forest.go.th/firemap?datestart=${h.yymmdd}&dateend=${h.yymmdd}&province=${encodeURIComponent("เชียงใหม่")}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex flex-col border-b border-[var(--line)] py-1 last:border-b-0 hover:bg-[var(--sun-dim)]"
+                className="flex flex-col border-b border-[var(--line)] py-1 last:border-b-0 hover:bg-[var(--cool-dim)]"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1 truncate text-[10px] font-semibold text-[var(--ink)]">
+                  <span className="flex items-center gap-1 truncate text-[11px] font-semibold text-[var(--ink)]">
                     <MapPin className="h-2.5 w-2.5 text-[var(--danger)]" />
                     {h.aumper} · {h.tumbon}
                   </span>
                   <ExternalLink className="h-2.5 w-2.5 shrink-0 text-[var(--dim)]" />
                 </div>
-                <div className="flex items-center gap-2 font-mono text-[8px] text-[var(--dim)]">
+                <div className="flex items-center gap-2 font-mono text-[11px] text-[var(--dim)]">
                   <span>{h.yymmdd} {h.time}</span>
                   <span>{TENURE_LABEL[h.type]?.th ?? h.type}</span>
                   <span>{h.confidence}%</span>
@@ -209,12 +209,12 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
   return (
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
-        <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
           จุดตรวจจับ NASA · 24 ชม.
         </span>
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{firms.provinceCount ?? firms.totalCount}</div>
-          <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+          <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
             forest tenure {firms.forestShare === undefined ? "unknown" : `${(firms.forestShare * 100).toFixed(0)}%`}
           </div>
         </div>
@@ -227,17 +227,17 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
             className="grid grid-cols-[1fr,auto,auto] items-center gap-2 border-b border-[var(--line)] py-1 last:border-b-0"
           >
             <div className="min-w-0">
-              <div className="truncate font-mono text-[9px] text-[var(--ink)]">{h.id.slice(0, 14)}</div>
+              <div className="truncate font-mono text-[11px] text-[var(--ink)]">{h.id.slice(0, 14)}</div>
               <p className="text-[11px] text-[var(--dim)]">{inChiangMaiProvince(h.longitude, h.latitude) ? "ในจังหวัดเชียงใหม่" : "นอกจังหวัดเชียงใหม่"}</p>
-              <div className="font-mono text-[8px] text-[var(--dim)]">
+              <div className="font-mono text-[11px] text-[var(--dim)]">
                 {h.latitude.toFixed(3)}, {h.longitude.toFixed(3)} · {h.satellite}
               </div>
             </div>
-            <span className="font-mono text-[10px] tabular-nums text-[var(--ink)]">
+            <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">
               {h.brightness === null ? "\u2014" : `${h.brightness.toFixed(0)}K`}
             </span>
             <span
-              className={`rounded-sm px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}
+              className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}
             >
               {severityLabel(h.severity)}
             </span>
@@ -249,15 +249,15 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
 }
 
 function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
-  if (!aerosol) return <div className="p-3 text-[10px] text-[var(--dim)]">loading AOD…</div>;
+  if (!aerosol) return <div className="p-3 text-[11px] text-[var(--dim)]">loading AOD…</div>;
   return (
     <div className="px-3 py-2">
       <div className="mb-3 border-b border-[var(--line)] pb-2">
         <div className="flex items-center justify-between">
-          <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
+          <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
             CAMS model AOD (550 nm)
           </span>
-          <span className={`rounded-sm px-2 py-0.5 font-mono text-[10px] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}>
+          <span className={`px-2 py-0.5 font-mono text-[11px] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}>
             {aerosol.level ? severityLabel(aerosol.level) : "unavailable"}
           </span>
         </div>
@@ -265,12 +265,12 @@ function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
           <span className="font-mono text-[22px] font-bold tabular-nums text-[var(--ink)]">
             {aerosol.aod550?.toFixed(3) ?? "—"}
           </span>
-          <span className="font-mono text-[9px] text-[var(--dim)]">
+          <span className="font-mono text-[11px] text-[var(--dim)]">
             range {aerosol.aodMin?.toFixed(3) ?? "—"}–{aerosol.aodMax?.toFixed(3) ?? "—"}
           </span>
         </div>
       </div>
-      <p className="mb-2 text-[10px] text-[var(--dim)]">
+      <p className="mb-2 text-[11px] text-[var(--dim)]">
         Aerosol Optical Depth at 550 nm from Copernicus Atmosphere
         Monitoring Service (CAMS) on Open-Meteo: sampled model grid points,
         not a measured province average. Display bands describe column
@@ -280,15 +280,15 @@ function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
         href="https://air-quality-api.open-meteo.com/"
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-1.5 text-[10px] text-[var(--cool)] hover:underline"
+        className="flex items-center gap-1.5 text-[11px] text-[var(--cool)] hover:underline"
       >
         <ExternalLink className="h-2.5 w-2.5" />
         Open-Meteo CAMS source
       </a>
-      <div className="mt-3 text-[8px] font-mono uppercase tracking-[0.12em] text-[var(--dim)]">
+      <div className="mt-3 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--dim)]">
         Map overlay tile
       </div>
-      <div className="mt-1 truncate font-mono text-[9px] text-[var(--dim)]">{aerosol.tileUrl}</div>
+      <div className="mt-1 truncate font-mono text-[11px] text-[var(--dim)]">{aerosol.tileUrl}</div>
     </div>
   );
 }

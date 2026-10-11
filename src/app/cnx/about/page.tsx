@@ -29,7 +29,7 @@ export default function CNXAboutPage() {
       className="min-h-[100dvh] bg-[var(--bg)] text-[var(--ink)]"
     >
       {/* ─── Header ─────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 w-full border-b border-[var(--line)] bg-[var(--bg-surface)] backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--line)] bg-[var(--bg-surface)]">
         <div className="flex h-12 w-full items-stretch justify-between">
           <div className="flex items-stretch">
             {/* Logo plate: wordmark + partner logos (matches dashboard) */}
@@ -50,7 +50,7 @@ export default function CNXAboutPage() {
                   />
                   <span
                     aria-hidden="true"
-                    className="hidden h-6 w-px shrink-0 bg-[#12354e]/35 lg:inline-block"
+                    className="hidden h-6 w-px shrink-0 bg-[var(--cool)]/35 lg:inline-block"
                   />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -84,7 +84,7 @@ export default function CNXAboutPage() {
             <div className="relative flex min-w-0 items-center gap-2 py-1 pl-3 pr-3 md:min-w-[190px]">
               <span
                 aria-hidden="true"
-                className="absolute bottom-0 left-0 top-0 w-1 bg-[#12354e]"
+                className="absolute bottom-0 left-0 top-0 w-1 bg-[var(--cool)]"
               />
               <div className="flex min-w-0 flex-col justify-center leading-none">
                 <a className="hover:opacity-90" href="/cnx">
@@ -95,7 +95,7 @@ export default function CNXAboutPage() {
                     ห้องปฏิบัติการเชียงใหม่
                   </h1>
                 </a>
-                <span className="mt-0.5 truncate text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+                <span className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
                   Chiang Mai Operations · v{process.env.NEXT_PUBLIC_APP_VERSION}
                 </span>
               </div>
@@ -111,7 +111,7 @@ export default function CNXAboutPage() {
                 href="/cnx"
               >
                 <span lang="th">แผนที่</span>
-                <span className="ml-1 hidden text-[9px] font-normal opacity-60 xl:inline">
+                <span className="ml-1 hidden text-[11px] font-normal opacity-60 xl:inline">
                   Map
                 </span>
               </a>
@@ -121,7 +121,7 @@ export default function CNXAboutPage() {
                 href="/cnx/about"
               >
                 <span lang="th">เกี่ยวกับ</span>
-                <span className="ml-1 hidden text-[9px] font-normal opacity-60 xl:inline">
+                <span className="ml-1 hidden text-[11px] font-normal opacity-60 xl:inline">
                   About
                 </span>
               </a>
@@ -134,7 +134,7 @@ export default function CNXAboutPage() {
                 href="/cnx"
                 title="กลับไปแผนที่ · Back to the war room"
                 aria-label="กลับไปแผนที่ · Back to the war room"
-                className="inline-flex min-h-[44px] items-center gap-1 border border-[var(--line)] px-2.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[var(--dim)] transition-colors hover:border-[var(--cool)] hover:text-[var(--cool)] sm:px-3"
+                className="inline-flex min-h-[44px] items-center gap-1 border border-[var(--line)] px-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--dim)] transition-colors hover:border-[var(--cool)] hover:text-[var(--cool)] sm:px-3"
                 lang="th"
               >
                 <svg

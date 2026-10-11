@@ -29,7 +29,7 @@ function Stat({ value, th, en }: { value: string; th: string; en: string }) {
     <div className="border-b border-r border-[var(--line)] p-4">
       <div className="text-[30px] font-black leading-none tracking-[-0.02em]">{value}</div>
       <div lang="th" className="mt-1.5 text-[13px] font-bold">{th}</div>
-      <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">{en}</div>
+      <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">{en}</div>
     </div>
   );
 }
@@ -41,7 +41,7 @@ function StatusBadge({ d }: { d: LibraryDatasetSummary }) {
     link: ["links only", "border-[var(--line)] text-[var(--dim)]"],
   } as const;
   const [label, cls] = map[d.status];
-  return <span className={`border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] ${cls}`}>{label}</span>;
+  return <span className={`border px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${cls}`}>{label}</span>;
 }
 
 export default function CNXDataLibrary() {
@@ -105,11 +105,11 @@ export default function CNXDataLibrary() {
           </p>
         </div>
         <aside className="self-start border border-[var(--line)] bg-[var(--bg-raised)] p-4">
-          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">Preparation rule</div>
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">Preparation rule</div>
           <p lang="th" className="mt-2 text-[12px] leading-[1.7]">
             “พร้อมใช้” คือตารางที่อ่านได้จริง ตารางใหญ่แสดงตัวอย่างสูงสุด {index.previewRowCap.toLocaleString()} แถว พร้อมจำนวนแถวทั้งหมดและป้ายตัดตอนชัดเจน — ดาวน์โหลดไฟล์เต็มได้จากต้นทางเสมอ
           </p>
-          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
             Prepared {index.generatedAt.slice(0, 10)} · source data.go.th
           </p>
         </aside>
@@ -129,10 +129,10 @@ export default function CNXDataLibrary() {
 
       {/* ─── Tourism spotlight ────────────────────────────────── */}
       {tourism.length > 0 && (
-        <section className="mt-8 border border-[var(--sun)] bg-[var(--sun-dim)] p-4">
+        <section className="mt-8 border border-[var(--cool)] bg-[var(--cool-dim)] p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
-              <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">Tourism statistics</div>
+              <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">Tourism statistics</div>
               <div lang="th" className="text-[15px] font-bold">สถิติการท่องเที่ยวเชียงใหม่ (ข้อมูลทางการ)</div>
             </div>
             <button
@@ -141,7 +141,7 @@ export default function CNXDataLibrary() {
                 setDomain("tourism");
                 setTab("ready");
               }}
-              className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--cool)] hover:underline"
+              className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--cool)] hover:underline"
             >
               All {domainByKey.get("tourism")?.datasets ?? tourism.length} tourism datasets →
             </button>
@@ -159,7 +159,7 @@ export default function CNXDataLibrary() {
                   className="w-full border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-left hover:border-[var(--cool)]"
                 >
                   <div lang="th" className="text-[13px] font-bold leading-snug">{d.title}</div>
-                  <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--dim)]">
+                  <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)]">
                     {d.rows.toLocaleString()} rows · {d.fields} fields{d.hasTime ? " · time series" : ""}
                   </div>
                 </button>
@@ -171,7 +171,7 @@ export default function CNXDataLibrary() {
 
       {/* ─── Domains ──────────────────────────────────────────── */}
       <section className="mt-8">
-        <div className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">Data domains</div>
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">Data domains</div>
         <div className="mt-2 border border-[var(--line)]">
           <button
             type="button"
@@ -191,13 +191,13 @@ export default function CNXDataLibrary() {
               className={`block w-full border-t border-[var(--line)] px-3 py-2 text-left ${domain === d.key ? "bg-[var(--cool-dim)]" : "hover:bg-[var(--bg-surface)]"}`}
             >
               <div className="flex items-baseline justify-between">
-                <span className="text-[14px] font-bold"><span lang="th">{d.th}</span> <span className="font-mono text-[9px] font-normal uppercase tracking-[0.1em] text-[var(--dim)]">{d.en}</span></span>
+                <span className="text-[14px] font-bold"><span lang="th">{d.th}</span> <span className="font-mono text-[11px] font-normal uppercase tracking-[0.1em] text-[var(--dim)]">{d.en}</span></span>
                 <span className="font-mono text-[12px] text-[var(--dim)]">{d.datasets}</span>
               </div>
               <div className="mt-1.5 h-1.5 bg-[var(--line)]">
                 <div className="h-full bg-[var(--cool)]" style={{ width: `${(d.datasets / maxDomain) * 100}%` }} />
               </div>
-              <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--dim)]">
+              <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)]">
                 {compactCount(d.rows)} rows · {d.spatial} spatial
               </div>
             </button>
@@ -257,7 +257,7 @@ export default function CNXDataLibrary() {
             </button>
           ))}
           {domain && (
-            <button type="button" onClick={() => setDomain(null)} className="border border-[var(--sun)] bg-[var(--sun-dim)] px-2 py-1 text-[11px]">
+            <button type="button" onClick={() => setDomain(null)} className="border border-[var(--cool)] bg-[var(--cool-dim)] px-2 py-1 text-[11px]">
               <span lang="th">{domainByKey.get(domain)?.th}</span> ✕
             </button>
           )}
@@ -279,17 +279,17 @@ export default function CNXDataLibrary() {
                     <div lang="th" className="text-[15px] font-bold leading-snug">{d.title}</div>
                     <div lang="th" className="mt-0.5 text-[12px] text-[var(--dim)]">{d.org}</div>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {dom && <span lang="th" className="border border-[var(--line)] px-1.5 py-0.5 text-[10px] text-[var(--dim)]">{dom.th}</span>}
+                      {dom && <span lang="th" className="border border-[var(--line)] px-1.5 py-0.5 text-[11px] text-[var(--dim)]">{dom.th}</span>}
                       <StatusBadge d={d} />
-                      {d.hasLocation && <span className="border border-[var(--cool)] px-1.5 py-0.5 font-mono text-[9px] uppercase text-[var(--cool)]">location</span>}
-                      {d.hasTime && <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[9px] uppercase text-[var(--dim)]">time</span>}
-                      {d.numericCount > 0 && <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[9px] uppercase text-[var(--dim)]">{d.numericCount} numeric</span>}
+                      {d.hasLocation && <span className="border border-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--cool)]">location</span>}
+                      {d.hasTime && <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">time</span>}
+                      {d.numericCount > 0 && <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">{d.numericCount} numeric</span>}
                       {d.formats.slice(0, 5).map((f) => (
-                        <span key={f} className="px-1 py-0.5 font-mono text-[9px] uppercase text-[var(--dim)]">{f}</span>
+                        <span key={f} className="px-1 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">{f}</span>
                       ))}
                     </div>
                   </div>
-                  <div className="shrink-0 text-right font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--dim)]">
+                  <div className="shrink-0 text-right font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--dim)]">
                     {d.tableCount > 0 ? (
                       <>
                         <div>{d.rows.toLocaleString()} rows</div>

@@ -64,24 +64,24 @@ export default function FlightPanel({ snapshot }: PanelProps) {
   return (
     <aside className="flex h-full w-full flex-col gap-3 overflow-y-auto bg-[var(--bg-surface)] p-3 text-[11px]">
       <header>
-        <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
           Chiang Mai · live
         </div>
         <div className="mt-0.5 flex items-baseline gap-2">
-          <span className="text-[28px] font-bold leading-none text-[#12354e]">
+          <span className="text-[28px] font-bold leading-none text-[var(--cool)]">
             {snapshot.airborne.length}
           </span>
-          <span className="text-[10px] uppercase tracking-[0.14em] text-[var(--dim)]">
+          <span className="text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">
             {snapshot.airborne.length === 1 ? "airborne" : "airborne"}
           </span>
         </div>
-        <div className="mt-1 text-[9px] uppercase tracking-[0.14em] text-[var(--dim)]">
+        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">
           ≈ {totalSeats.toLocaleString("th-TH")} seats · {onGround.toLocaleString("th-TH")} on ground
         </div>
       </header>
 
       <section>
-        <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
           ต้นทาง · origin country
         </div>
         <ul className="mt-1 space-y-1">
@@ -89,8 +89,8 @@ export default function FlightPanel({ snapshot }: PanelProps) {
             <li key={country} className="flex items-center justify-between gap-2 border-b border-dotted border-[var(--line)] py-1">
               <span className="truncate text-[var(--ink)]">{country}</span>
               <span className="flex shrink-0 items-center gap-2">
-                <span className="text-[9px] text-[var(--dim)]">≈ {v.seats.toLocaleString("th-TH")}</span>
-                <span className="font-bold tabular-nums text-[#12354e]">{v.flights}</span>
+                <span className="text-[11px] text-[var(--dim)]">≈ {v.seats.toLocaleString("th-TH")}</span>
+                <span className="font-bold tabular-nums text-[var(--cool)]">{v.flights}</span>
               </span>
             </li>
           ))}
@@ -101,7 +101,7 @@ export default function FlightPanel({ snapshot }: PanelProps) {
       </section>
 
       <section>
-        <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
           ขนาดเครื่อง · plane size
         </div>
         <ul className="mt-1 space-y-1">
@@ -109,15 +109,15 @@ export default function FlightPanel({ snapshot }: PanelProps) {
             <li key={row.size} className="flex items-center justify-between gap-2 border-b border-dotted border-[var(--line)] py-1">
               <span className="text-[var(--ink)]">{labelForSize(row.size)}</span>
               <span className="flex shrink-0 items-center gap-2">
-                <span className="text-[9px] text-[var(--dim)]">≈ {row.seats.toLocaleString("th-TH")}</span>
-                <span className="font-bold tabular-nums text-[#12354e]">{row.count}</span>
+                <span className="text-[11px] text-[var(--dim)]">≈ {row.seats.toLocaleString("th-TH")}</span>
+                <span className="font-bold tabular-nums text-[var(--cool)]">{row.count}</span>
               </span>
             </li>
           ))}
         </ul>
       </section>
 
-      <footer className="mt-auto text-[9px] uppercase tracking-[0.14em] text-[var(--dim)]">
+      <footer className="mt-auto text-[11px] uppercase tracking-[0.14em] text-[var(--dim)]">
         Source: OpenSky Network · refreshed every ~30 s
       </footer>
     </aside>

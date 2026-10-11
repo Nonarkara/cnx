@@ -29,13 +29,13 @@ export default function CnxAboutModal({ isOpen, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative my-6 max-h-[88vh] w-full max-w-[920px] overflow-y-auto border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
+        className="relative my-6 max-h-[88vh] w-full max-w-[920px] overflow-y-auto border border-[var(--line)] bg-[var(--bg)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Close research"
-          className="fixed right-6 top-6 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] shadow hover:bg-[var(--sun-dim)] hover:text-[var(--ink)]"
+          className="fixed right-6 top-6 z-10 flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:bg-[var(--cool-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
         </button>

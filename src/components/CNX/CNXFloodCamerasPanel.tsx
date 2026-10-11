@@ -33,24 +33,24 @@ function CameraRow({ c }: { c: FloodCamera }) {
     <li className="flex items-start gap-2 border-b border-[var(--line)] py-1.5 last:border-b-0">
       <span className="mt-0.5 shrink-0">
         {c.live ? (
-          <Video className="h-3 w-3 text-[#10b981]" />
+          <Video className="h-3 w-3 text-[var(--cool)]" />
         ) : (
           <VideoOff className="h-3 w-3 text-[var(--dim)]" />
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[10px] font-semibold text-[var(--ink)]">{c.name}</div>
-        <div className="font-mono text-[8px] text-[var(--dim)]">
+        <div className="truncate text-[11px] font-semibold text-[var(--ink)]">{c.name}</div>
+        <div className="font-mono text-[11px] text-[var(--dim)]">
           {c.source}
           {c.region ? ` · ${c.region}` : ""} · {kind}
         </div>
         {!c.live && (
-          <div className="mt-0.5 text-[9px] italic text-[var(--sun)]">
+          <div className="mt-0.5 text-[11px] italic text-[var(--sev-watch)]">
             ไม่ตอบสนอง — ยืนยันสภาพถนนจากกล้องนี้ไม่ได้ (offline — cannot confirm this road)
           </div>
         )}
       </div>
-      <span className="shrink-0 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)]">
+      <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
         {c.live ? "live" : "offline"}
       </span>
     </li>
@@ -82,12 +82,12 @@ export default function CnxFloodCamerasPanel() {
   return (
     <div className="flex h-full flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)]">
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-1.5">
-        <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
-          <Video className="h-3.5 w-3.5 text-[#10b981]" />
+        <span className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+          <Video className="h-3.5 w-3.5 text-[var(--cool)]" />
           Public Cameras
         </span>
         <span className="flex items-center gap-2">
-          <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
+          <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">
             {data ? `${live}/${total} live` : "loading…"}
           </span>
           {/* Ages the CATALOGUE, not the poll. The response is fresh on
@@ -105,7 +105,7 @@ export default function CnxFloodCamerasPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
         {data && (
-          <p className="mb-2 text-[10px] leading-[1.5] text-[var(--dim)]">{data.note}</p>
+          <p className="mb-2 text-[11px] leading-[1.5] text-[var(--dim)]">{data.note}</p>
         )}
         {data && data.cameras.length > 0 ? (
           <ul>
@@ -114,7 +114,7 @@ export default function CnxFloodCamerasPanel() {
             ))}
           </ul>
         ) : data ? (
-          <p className="text-[10px] italic text-[var(--dim)]">No cameras listed.</p>
+          <p className="text-[11px] italic text-[var(--dim)]">No cameras listed.</p>
         ) : (
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -132,7 +132,7 @@ export default function CnxFloodCamerasPanel() {
           without the three copies drifting apart. */}
       {data && (
         <footer className="shrink-0 space-y-1.5 border-t border-[var(--line)] bg-[var(--bg)] px-3 py-2">
-          <div className="font-mono text-[8px] leading-[1.5] text-[var(--dim)]">
+          <div className="font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
             Cameras via{" "}
             <a href={data.credit.aggregatorUrl} target="_blank" rel="noreferrer" className="underline">
               {data.credit.aggregator}
@@ -140,11 +140,11 @@ export default function CnxFloodCamerasPanel() {
             . Operated by {data.credit.agencies.length > 0 ? data.credit.agencies.join(", ") : "—"}. Video stays with the source agency; this panel does not mirror it.
           </div>
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--dim)] hover:text-[var(--ink)]">
+            <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)] hover:text-[var(--ink)]">
               <Scale className="h-2.5 w-2.5" />
               Intended use &amp; terms
             </summary>
-            <div className="mt-1 space-y-1 font-mono text-[8px] leading-[1.6] text-[var(--dim)]">
+            <div className="mt-1 space-y-1 font-mono text-[11px] leading-[1.6] text-[var(--dim)]">
               <p>{data.legal.intendedUse}</p>
               <p>{data.legal.terms}</p>
             </div>

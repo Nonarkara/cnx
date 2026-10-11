@@ -103,18 +103,18 @@ export default function CnxTicker({
   if (segments.length === 0) return null;
 
   return (
-    <div className="flex min-h-[36px] shrink-0 items-stretch overflow-hidden border-t border-[var(--line)] bg-[var(--bg)] font-mono text-[10px]">
+    <div className="flex min-h-[36px] shrink-0 items-stretch overflow-hidden border-t border-[var(--line)] bg-[var(--bg)] font-mono text-[11px]">
       <div className="flex shrink-0 items-center gap-1.5 border-r border-[var(--line)] bg-[var(--cool)] px-3 text-white">
         <Activity aria-hidden="true" className="h-3 w-3" />
-        <span className="text-[9px] font-bold uppercase tracking-[0.16em]">CNX OPS</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.16em]">CNX OPS</span>
       </div>
       <div role="region" aria-label="Operational feed summary; scroll horizontally to read all items" tabIndex={0} className="relative flex min-w-0 flex-1 items-center overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--cool)]">
         <div className="flex w-max items-center gap-6 whitespace-nowrap px-4">
           {segments.map((s) => (
             <span key={s.key} className="flex items-center gap-1.5 text-[var(--ink)]">
-              <span aria-hidden="true" className="text-[10px]">{s.icon}</span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">{s.label}</span>
-              <span className={`tabular-nums ${s.level === "critical" ? "text-[var(--danger)]" : s.level === "alert" ? "text-[#fb923c]" : ""}`}>
+              <span aria-hidden="true" className="text-[11px]">{s.icon}</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">{s.label}</span>
+              <span className={`tabular-nums ${s.level === "critical" ? "text-[var(--sev-critical)]" : s.level === "alert" ? "text-[var(--sev-alert)]" : ""}`}>
                 {s.value}
               </span>
               <span className="text-[var(--dim)]">·</span>

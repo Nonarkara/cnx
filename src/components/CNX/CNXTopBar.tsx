@@ -70,23 +70,23 @@ function Pill({
 }) {
   const colour =
     level === "critical"
-      ? "bg-[var(--danger)] text-white"
+      ? "sev-fill-critical"
       : level === "alert"
-      ? "bg-[#fb923c] text-black"
+      ? "sev-fill-alert"
       : level === "watch"
-      ? "bg-[#f99d1b] text-black"
+      ? "sev-fill-watch"
       : "bg-[var(--bg-raised)] text-[var(--ink)] border border-[var(--line)]";
   return (
     // These are read, not tapped, so the touch-target rule does not apply —
-    // legibility does. 9px/8px type is fine on a desk monitor and
-    // unreadable on a phone held at arm's length, which is how the governor
-    // will actually read a PM2.5 number. Step both up on small screens and
-    // let the row wrap rather than shrink.
+    // legibility does. The governor reads a PM2.5 number on a phone held at
+    // arm's length, so nothing here drops below the 11px floor; the row
+    // wraps rather than shrinks. On a filled level the label takes the
+    // fill's own text colour — quiet ink on a signal fill fails contrast.
     <div
       title={title}
-      className={`flex items-center gap-1.5 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] min-h-8 sm:min-h-0 text-[11px] sm:text-[9px] ${colour}`}
+      className={`flex min-h-8 items-center gap-1.5 px-2 py-1 font-mono text-[11px] uppercase tracking-[0.14em] sm:min-h-0 ${colour}`}
     >
-      <span className="text-[8px] text-[var(--dim)] sm:text-[8px] text-[9px]">{label}</span>
+      <span className={level === "critical" || level === "alert" || level === "watch" ? "" : "text-[var(--dim)]"}>{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
   );
@@ -116,11 +116,11 @@ export function VerdictStrip({
   // part of the same chrome, not a foreign block.
   const colour =
     level === "danger"
-      ? "border-[var(--danger)] bg-[var(--sun-dim)] text-[var(--danger)]"
+      ? "border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 text-[var(--sev-critical)]"
       : level === "prepare"
-      ? "border-[#fb923c] bg-[#fb923c]/10 text-[#fb923c]"
+      ? "border-[var(--sev-alert)] bg-[var(--sev-alert)]/10 text-[var(--sev-alert)]"
       : level === "watch"
-      ? "border-[#f99d1b] bg-[#f99d1b]/10 text-[#f99d1b]"
+      ? "border-[var(--sev-watch)] bg-[var(--sev-watch)]/10 text-[var(--sev-watch)]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
   const chipLabel =
     level === "danger"
@@ -192,20 +192,20 @@ export function VerdictStrip({
             {v.checklist.map((item) => <li key={item.en}>{item.th}<br /><span className="opacity-80">{item.en}</span></li>)}
           </ul>
           <p className="mt-3 text-[11px] opacity-70">Dashboard heuristic score {v.score}/100; {v.band} band. This is not an event probability or an official warning.</p>
-          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[10px] opacity-70">{reason.domain}: {reason.evidence}</p>)}
+          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[11px] opacity-70">{reason.domain}: {reason.evidence}</p>)}
         </details>
       </div>
   </>;
   return (
     <div className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em]">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
           {compact && level === "safe" ? "สถานการณ์ · CONTEXT" : chipLabel}
         </span>
         <span className="text-[11px] leading-relaxed opacity-80">
           {evidenceLabel}
         </span>
-        <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[9px] uppercase tracking-[0.14em] opacity-70`}>
+        <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[11px] uppercase tracking-[0.14em] opacity-70`}>
           {twin.province_en} · ปภ. {HOTLINES.ddpm} · EMS {HOTLINES.ems}
         </span>
       </div>
@@ -231,11 +231,11 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
   const level = v.level;
   const colour =
     level === "danger"
-      ? "border-[var(--danger)] bg-[var(--danger)] text-white"
+      ? "sev-fill-critical border-[var(--sev-critical)]"
       : level === "prepare"
-      ? "border-[#fb923c] bg-[#fb923c] text-black"
+      ? "sev-fill-alert border-[var(--sev-alert)]"
       : level === "watch"
-      ? "border-[#f99d1b] bg-[#f99d1b] text-black"
+      ? "sev-fill-watch border-[var(--sev-watch)]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
   const chipLabel =
     level === "danger"
@@ -250,8 +250,8 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
       className={`flex h-7 shrink-0 items-center gap-1.5 border px-2 ${colour}`}
       title={v.head_th || v.head_en || chipLabel}
     >
-      <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em]">{chipLabel}</span>
-      <span className="hidden max-w-[22ch] truncate font-mono text-[9px] uppercase tracking-[0.1em] opacity-80 sm:inline">
+      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">{chipLabel}</span>
+      <span className="hidden max-w-[22ch] truncate font-mono text-[11px] uppercase tracking-[0.1em] opacity-80 sm:inline">
         {v.head_th || v.head_en || ""}
       </span>
     </div>
@@ -292,12 +292,12 @@ export default function CnxTopBar(props: TopBarProps) {
           </a>
           <div className="min-w-0 leading-none">
             <div className="font-display text-[13px] font-bold text-[var(--ink)]">
-              เชียงใหม่ · <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[var(--cool)]">War Room</span>
+              เชียงใหม่ · <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--cool)]">War Room</span>
             </div>
           </div>
           <CNXLogoRow size={16} />
           <span
-            className="shrink-0 bg-[var(--ink)] px-1 py-0.5 font-mono text-[9px] font-bold tracking-[0.12em] text-[var(--bg)]"
+            className="shrink-0 bg-[var(--ink)] px-1 py-0.5 font-mono text-[11px] font-bold tracking-[0.12em] text-[var(--bg)]"
             title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"} · ${now}`}
           >
             v{process.env.NEXT_PUBLIC_APP_VERSION}
@@ -311,11 +311,11 @@ export default function CnxTopBar(props: TopBarProps) {
         <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           {officeNotice && (
             <details className="relative">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--danger)] bg-[var(--sun-dim)] px-3 text-[12px] font-semibold text-[var(--danger)]">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
               <Bell className="h-3 w-3" />
               ประกาศหน่วยงาน ⌄
               </summary>
-              <div className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,85vw)] border border-[var(--line)] bg-[var(--bg-raised)] p-4 text-[13px] leading-relaxed shadow-xl">
+              <div className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,85vw)] border border-[var(--ink)] bg-[var(--bg-raised)] p-4 text-[13px] leading-relaxed">
                 <p className="font-semibold">{officeNotice.title}</p>
                 {officeNotice.detail && <p className="mt-2">{officeNotice.detail}</p>}
                 <p className="mt-2 text-[var(--dim)]">{officeNotice.source}</p>
@@ -341,7 +341,7 @@ export default function CnxTopBar(props: TopBarProps) {
           </button>
           <details className="relative">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">เมนู</span><span className="hidden sm:inline">เครื่องมือ</span> <span aria-hidden="true">⌄</span></summary>
-            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--line)] bg-[var(--bg-raised)] p-3 shadow-xl"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">สรุปสำหรับผู้ว่าฯ</button><button
+            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--ink)] bg-[var(--bg-raised)] p-3"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">สรุปสำหรับผู้ว่าฯ</button><button
             onClick={onOpenData}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
@@ -355,7 +355,7 @@ export default function CnxTopBar(props: TopBarProps) {
             ตรวจสอบฝุ่นและภาพกล้อง
           </button><button
             onClick={onOpenStory}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] "
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <BookOpen className="h-3 w-3" />
             เรื่องราวจังหวัด
@@ -367,7 +367,7 @@ export default function CnxTopBar(props: TopBarProps) {
             วิธีใช้งาน
           </button><button
             onClick={onOpenResearch}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--sun)] hover:bg-[var(--sun-dim)] "
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <FlaskConical className="h-3 w-3" />
             แหล่งข้อมูลและข้อจำกัด

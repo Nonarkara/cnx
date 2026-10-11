@@ -9,11 +9,11 @@ import type { CctvFeedResponse, CctvSlot } from "../../types/cnx";
 import CnxCctvModal from "./CNXCctvModal";
 
 const CATEGORY_COLORS: Record<CctvSlot["category"], string> = {
-  heritage: "var(--sun)",
+  heritage: "var(--cool)",
   traffic: "var(--cool)",
   highway: "var(--cool)",
-  flood: "var(--danger)",
-  tourism: "var(--success)",
+  flood: "var(--cool)",
+  tourism: "var(--cool)",
 };
 
 const SOURCE_BADGE: Record<string, string> = {
@@ -102,7 +102,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                   style={{ borderTop: `2px solid ${reachable ? color : "var(--dim)"}` }}
                   title={`${s.label} — คลิกดูภาพใหญ่`}
                 >
-                  <div className="relative h-[64px] w-[96px] shrink-0 overflow-hidden rounded-sm bg-black">
+                  <div className="relative h-[64px] w-[96px] shrink-0 overflow-hidden bg-black">
                     {s.posterUrl ? (
                       // Live CCTV snapshots rotate on a _ts cache-buster —
                       // next/image would re-optimize a new frame each refresh.
@@ -122,7 +122,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                         className={`h-full w-full object-cover ${reachable ? "" : "grayscale"}`}
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center font-mono text-[9px] text-white/70">
+                      <div className="flex h-full items-center justify-center font-mono text-[11px] text-white/70">
                         {s.hlsUrl ? "▶ วิดีโอ" : "ไม่มีภาพ"}
                       </div>
                     )}

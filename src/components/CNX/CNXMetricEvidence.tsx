@@ -10,7 +10,7 @@ export default function CnxMetricEvidence({ metric }: { metric: ExecutiveMetric 
   return <section aria-label={`${metric.titleTh} · ความหมายและขั้นตอนถัดไป`} className="border-b border-[var(--line)] bg-[var(--bg-surface)] p-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-[15px] font-semibold">{metric.titleTh} · หลักฐานเพื่อปฏิบัติการ</h2>
-      <span className={`text-[12px] font-semibold ${metric.state === "current" && ["alert", "critical"].includes(metric.level) ? "text-[var(--danger)]" : "text-[var(--dim)]"}`}>{state}</span>
+      <span className={`text-[12px] font-semibold ${metric.state === "current" && metric.level === "critical" ? "text-[var(--sev-critical)]" : metric.state === "current" && metric.level === "alert" ? "text-[var(--sev-alert)]" : "text-[var(--dim)]"}`}>{state}</span>
     </div>
     <p className="mt-2 text-[13px] leading-relaxed">{metric.summaryTh}</p>
     <p className="mt-3 border-l-2 border-[var(--cool)] pl-3 text-[13px] leading-relaxed"><strong>ตรวจสอบต่อ: </strong>{metric.actionTh}</p>

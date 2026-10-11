@@ -24,16 +24,16 @@ function DayCard({ day, index }: { day: DayArrivals; index: number }) {
   return (
     <div className="border border-[var(--line)] bg-[var(--bg)] p-2">
       <div className="mb-1 flex items-center justify-between">
-        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
           {dayLabel(index)}
         </span>
-        <span className="font-mono text-[8px] text-[var(--dim)]">{day.date}</span>
+        <span className="font-mono text-[11px] text-[var(--dim)]">{day.date}</span>
       </div>
       <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">
         {day.estimatedVisitors.toLocaleString()}
       </div>
-      <div className="font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--dim)]">est. overseas visitors</div>
-      <div className="mt-1 font-mono text-[9px] text-[var(--dim)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)]">est. overseas visitors</div>
+      <div className="mt-1 font-mono text-[11px] text-[var(--dim)]">
         {day.internationalFlights} intl · {day.domesticFlights} domestic arrivals
       </div>
     </div>
@@ -73,7 +73,7 @@ export default function CnxArrivalsPanel() {
       <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
         <div className="flex items-center gap-1.5">
           <PlaneLanding className="h-3 w-3 text-[var(--cool)]" />
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
             Overseas Arrivals — VTCC
           </span>
         </div>
@@ -88,15 +88,15 @@ export default function CnxArrivalsPanel() {
       </div>
       {topCountries.length > 0 && (
         <div className="mt-2 border border-[var(--line)] bg-[var(--bg)] p-2">
-          <div className="mb-1 flex items-center gap-1 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
+          <div className="mb-1 flex items-center gap-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--dim)]">
             <Globe2 className="h-2.5 w-2.5" />
             Top countries today
           </div>
           <div className="space-y-0.5">
             {topCountries.map((c) => (
               <div key={c.country} className="flex items-center justify-between">
-                <span className="truncate font-mono text-[9px] text-[var(--ink)]">{c.country}</span>
-                <span className="font-mono text-[9px] tabular-nums text-[var(--ink)]">
+                <span className="truncate font-mono text-[11px] text-[var(--ink)]">{c.country}</span>
+                <span className="font-mono text-[11px] tabular-nums text-[var(--ink)]">
                   {c.estimatedVisitors.toLocaleString()} · {c.flights} fl.
                 </span>
               </div>
@@ -104,7 +104,7 @@ export default function CnxArrivalsPanel() {
           </div>
         </div>
       )}
-      <div className="mt-2 border-t border-[var(--line)] pt-1.5 font-mono text-[8px] leading-relaxed text-[var(--dim)]">
+      <div className="mt-2 border-t border-[var(--line)] pt-1.5 font-mono text-[11px] leading-relaxed text-[var(--dim)]">
         {data.methodology}
       </div>
     </div>

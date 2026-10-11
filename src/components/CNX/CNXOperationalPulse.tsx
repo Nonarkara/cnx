@@ -21,6 +21,8 @@ interface Props {
   onOpenMetric: (id: "water" | "air" | "fire" | "mobility") => void;
 }
 const icons = { water: Waves, air: Wind, fire: Flame, mobility: Plane };
+/** Each concern level keeps its own signal colour; the word beside it carries the meaning. */
+const LEVEL_TEXT: Record<string, string> = { watch: "text-[var(--sev-watch)]", alert: "text-[var(--sev-alert)]", critical: "text-[var(--sev-critical)]" };
 const time = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false });
 
 export default function CnxOperationalPulse({ onOpenMetric, ...input }: Props) {
@@ -37,10 +39,10 @@ export default function CnxOperationalPulse({ onOpenMetric, ...input }: Props) {
       const observed = metric.observedAt ? Date.parse(metric.observedAt) : NaN;
       const state = metric.state === "stale" ? "ข้อมูลเก่า" : metric.state === "unavailable" ? "ยังไม่มีข้อมูล" : metric.level === "critical" ? "วิกฤต" : metric.level === "alert" ? "ตรวจสอบเร่งด่วน" : metric.level === "watch" ? "เฝ้าระวัง" : metric.level === "unknown" ? "ยังประเมินไม่ได้" : "ติดตามต่อเนื่อง";
       return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${metric.summaryTh} · ${metric.source}${Number.isFinite(observed) ? ` · ${time.format(observed)} น.` : ""}`} className="flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0 border-r border-[var(--line)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--bg-surface)]">
-        <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 self-center ${concern ? "text-[var(--sun)]" : "text-[var(--cool)]"}`} />
+        <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 self-center ${concern ? LEVEL_TEXT[metric.level] : "text-[var(--cool)]"}`} />
         <span lang="th" className="text-[12px] text-[var(--dim)]">{metric.titleTh}</span>
         <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metric.unit}</span>
-        <span className={`text-[11px] ${concern ? "font-semibold text-[var(--danger)]" : "text-[var(--dim)]"}`}>{state}</span>
+        <span className={`text-[11px] ${concern ? `font-semibold ${LEVEL_TEXT[metric.level]}` : "text-[var(--dim)]"}`}>{state}</span>
         <span className="sr-only">{metric.summaryTh} · {metric.source}{Number.isFinite(observed) && <> · <time dateTime={metric.observedAt!}>{time.format(observed)} น.</time></>}</span>
       </button>;
     })}

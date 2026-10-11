@@ -29,11 +29,11 @@ function relative(iso: string): string {
 
 function sourceBadge(item: SocialItem) {
   if (item.source === "google-news") {
-    return { label: item.lang.toUpperCase(), className: item.lang === "th" ? "bg-[var(--sun)] text-white" : "bg-[var(--cool)] text-white" };
+    return { label: item.lang.toUpperCase(), className: item.lang === "th" ? "bg-[var(--cool)] text-[var(--bg)]" : "border border-[var(--cool)] text-[var(--cool)]" };
   }
   if (item.source === "gdelt") return { label: "GDELT", className: "bg-[var(--ink)] text-[var(--bg)]" };
-  if (item.source === "twitter") return { label: "X", className: "bg-black text-white" };
-  return { label: "RD", className: "bg-orange-600 text-white" };
+  if (item.source === "twitter") return { label: "X", className: "bg-[var(--ink)] text-[var(--bg)]" };
+  return { label: "RD", className: "border border-[var(--line)] text-[var(--ink)]" };
 }
 
 function sentimentBorder(item: SocialItem): string {
@@ -91,11 +91,11 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <div className="flex items-center gap-2">
           <Radio className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
             ข่าวเชียงใหม่
           </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--danger)]">
+        <span className={`inline-flex items-center gap-1.5 border border-[var(--line)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.15em] ${refreshFailed ? "text-[var(--sev-watch)]" : "text-[var(--dim)]"}`}>
           {refreshFailed ? "REFRESH FAILED" : data?.items.some((item) => item.tone === "demo") ? "SCENARIO" : "NEWS"}
         </span>
       </header>
@@ -118,7 +118,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
             } ${filter === f.id ? "bg-[var(--bg-raised)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
             {f.label}
-            <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">{f.count}</span>
+            <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{f.count}</span>
           </button>
         ))}
       </div>
@@ -126,7 +126,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
       <p className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[var(--dim)]">ข่าวจากสื่อเพื่อใช้ตรวจสอบต่อ ไม่ใช่การยืนยันเหตุการณ์หรือผลสำรวจความคิดเห็นประชาชน</p>
 
       {data && data.items.length > 0 && data.unavailableReason && (
-        <details className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[#f59e0b]">
+        <details className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[var(--sev-watch)]">
           <summary className="cursor-pointer">Some news sources are unavailable · แหล่งข่าวบางแห่งไม่พร้อมใช้งาน</summary>
           <p className="mt-1 text-[var(--dim)]">{data.unavailableReason}</p>
         </details>
@@ -155,15 +155,15 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
             </p>
             {data.provenance === "unavailable" ? (
               <>
-                <p className="mt-1 text-[10px] italic text-[#f59e0b]">
+                <p className="mt-1 text-[11px] italic text-[var(--sev-watch)]">
                   Could not read the news feeds. This rail is blind, not empty.
                 </p>
                 {data.unavailableReason && (
-                  <p className="mt-1.5 font-mono text-[9px] leading-[1.5] text-[var(--dim)]">{data.unavailableReason}</p>
+                  <p className="mt-1.5 font-mono text-[11px] leading-[1.5] text-[var(--dim)]">{data.unavailableReason}</p>
                 )}
               </>
             ) : (
-              <p className="mt-1 text-[10px] italic text-[var(--dim)]">
+              <p className="mt-1 text-[11px] italic text-[var(--dim)]">
                 Sources may be unavailable; this does not mean no events occurred.
               </p>
             )}
@@ -175,21 +175,21 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
             return (
               <article
                 key={`${item.id}:${item.url ?? ""}`}
-                className={`border-b border-l-2 ${sentimentBorder(item)} border-b-[var(--line)] px-3 py-2 transition-colors hover:bg-[var(--sun-dim)]`}
+                className={`border-b border-l-2 ${sentimentBorder(item)} border-b-[var(--line)] px-3 py-2 transition-colors hover:bg-[var(--cool-dim)]`}
               >
                 <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex items-center rounded-sm px-1.5 py-px text-[8px] font-bold uppercase tracking-[0.12em] ${badge.className}`}>
+                  <span className={`inline-flex items-center px-1.5 py-px text-[11px] font-bold uppercase tracking-[0.12em] ${badge.className}`}>
                     {badge.label}
                   </span>
                   {item.tone === "demo" && (
                     <span
                       title="Baseline placeholder — headline copy + URL are scenario, not live news. Swapped for real feeds once Overpass / GDELT return."
-                      className="inline-flex items-center rounded-sm border border-[var(--sun)] bg-[var(--sun-dim)] px-1.5 py-px text-[8px] font-bold uppercase tracking-[0.12em] text-[var(--sun)]"
+                      className="inline-flex items-center border border-[var(--sev-watch)] px-1.5 py-px text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--sev-watch)]"
                     >
                       DEMO
                     </span>
                   )}
-                  <span className="font-mono text-[9px] tabular-nums text-[var(--dim)]">
+                  <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">
                     {relative(item.publishedAt)}
                   </span>
                 </div>
@@ -204,7 +204,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
                   )}
                 </h3>
                 {item.topics?.filter(Boolean).slice(0, 2).map((t, i) => (
-                  <span key={i} className="mt-1 mr-1 inline-block text-[8px] text-[var(--dim)]">
+                  <span key={i} className="mt-1 mr-1 inline-block text-[11px] text-[var(--dim)]">
                     #{t.split(".")[0]}
                   </span>
                 ))}
@@ -215,10 +215,10 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
       </div>
 
       <footer className="flex shrink-0 items-center justify-between border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
           {data ? `${data.items.length} items • ${relative(data.generatedAt)}${refreshFailed ? " · cached" : ""}` : "loading…"}
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--dim)]">3-min poll</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">3-min poll</span>
       </footer>
     </div>
   );
