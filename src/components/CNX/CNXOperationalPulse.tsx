@@ -9,6 +9,9 @@ import type { CnxTwinResponse } from "../../lib/cnx/twin";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RainResponse } from "../../lib/cnx/rain";
 import { buildExecutiveBrief } from "../../lib/cnx/executive-brief";
+import { useLang } from "../../hooks/useLang";
+import type { Lang } from "../../lib/i18n";
+import { metricUnit } from "./CNXMetricEvidence";
 
 interface Props {
   air: AirQualityResponse | null;
@@ -23,7 +26,10 @@ interface Props {
 const icons = { water: Waves, air: Wind, fire: Flame, mobility: Plane };
 /** Each concern level keeps its own signal colour; the word beside it carries the meaning. */
 const LEVEL_TEXT: Record<string, string> = { watch: "text-[var(--sev-watch)]", alert: "text-[var(--sev-alert)]", critical: "text-[var(--sev-critical)]" };
-const time = new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false });
+const TIME: Record<Lang, Intl.DateTimeFormat> = {
+  th: new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false }),
+  en: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hour12: false }),
+};
 
 export default function CnxOperationalPulse({ onOpenMetric, ...input }: Props) {
   const [now, setNow] = useState(() => new Date());
@@ -31,19 +37,22 @@ export default function CnxOperationalPulse({ onOpenMetric, ...input }: Props) {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+  const { lang, t } = useLang();
   const brief = buildExecutiveBrief({ ...input, now });
-  return <section aria-label="Measured operational conditions" className="grid shrink-0 grid-cols-2 border-b border-[var(--line)] bg-[var(--bg-raised)] sm:grid-cols-4">
+  return <section lang={lang} aria-label={t("สภาพที่วัดได้ในพื้นที่", "Measured operational conditions")} className="grid shrink-0 grid-cols-2 border-b border-[var(--line)] bg-[var(--bg-raised)] sm:grid-cols-4">
     {brief.metrics.map((metric) => {
       const Icon = icons[metric.id];
       const concern = ["watch", "alert", "critical"].includes(metric.level);
       const observed = metric.observedAt ? Date.parse(metric.observedAt) : NaN;
-      const state = metric.state === "stale" ? "ข้อมูลเก่า" : metric.state === "unavailable" ? "ยังไม่มีข้อมูล" : metric.level === "critical" ? "วิกฤต" : metric.level === "alert" ? "ตรวจสอบเร่งด่วน" : metric.level === "watch" ? "เฝ้าระวัง" : metric.level === "unknown" ? "ยังประเมินไม่ได้" : "ติดตามต่อเนื่อง";
-      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${metric.summaryTh} · ${metric.source}${Number.isFinite(observed) ? ` · ${time.format(observed)} น.` : ""}`} className="flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0 border-r border-[var(--line)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--bg-surface)]">
+      const state = metric.state === "stale" ? t("ข้อมูลเก่า", "Stale data") : metric.state === "unavailable" ? t("ยังไม่มีข้อมูล", "No data yet") : metric.level === "critical" ? t("วิกฤต", "Critical") : metric.level === "alert" ? t("ตรวจสอบเร่งด่วน", "Check urgently") : metric.level === "watch" ? t("เฝ้าระวัง", "Watch") : metric.level === "unknown" ? t("ยังประเมินไม่ได้", "Cannot assess yet") : t("ติดตามต่อเนื่อง", "Keep monitoring");
+      const summary = t(metric.summaryTh, metric.summaryEn);
+      const at = Number.isFinite(observed) ? `${TIME[lang].format(observed)}${lang === "th" ? " น." : ""}` : null;
+      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${summary} · ${metric.source}${at ? ` · ${at}` : ""}`} className="flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0 border-r border-[var(--line)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--bg-surface)]">
         <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 self-center ${concern ? LEVEL_TEXT[metric.level] : "text-[var(--cool)]"}`} />
-        <span lang="th" className="text-[12px] text-[var(--dim)]">{metric.titleTh}</span>
-        <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metric.unit}</span>
+        <span className="text-[12px] text-[var(--dim)]">{t(metric.titleTh, metric.titleEn)}</span>
+        <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metricUnit(metric.unit, lang)}</span>
         <span className={`text-[11px] ${concern ? `font-semibold ${LEVEL_TEXT[metric.level]}` : "text-[var(--dim)]"}`}>{state}</span>
-        <span className="sr-only">{metric.summaryTh} · {metric.source}{Number.isFinite(observed) && <> · <time dateTime={metric.observedAt!}>{time.format(observed)} น.</time></>}</span>
+        <span className="sr-only">{summary} · {metric.source}{at && <> · <time dateTime={metric.observedAt!}>{at}</time></>}</span>
       </button>;
     })}
   </section>;

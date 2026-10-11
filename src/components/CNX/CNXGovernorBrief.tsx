@@ -15,13 +15,15 @@ import type { ArrivalsResponse } from "../../lib/cnx/arrivals";
 import type { BurnSeasonDoc } from "../../lib/cnx/burn-season";
 import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { FloodHubResponse } from "../../lib/cnx/floodhub";
-import { buildTiles, districtTable, isBriefObservationCurrent, lineText, pm25Band, type BriefLevel } from "../../lib/cnx/governor-brief";
+import { buildTiles, districtTable, isBriefObservationCurrent, lineText, pm25Band, type BriefLevel, type BriefTile } from "../../lib/cnx/governor-brief";
 import { buildExecutiveBrief } from "../../lib/cnx/executive-brief";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RiverGauge } from "../../lib/cnx/river-level";
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
 import type { AirQualityResponse, CnxFiresResponse } from "../../types/cnx";
 import { DataAge } from "./CNXDataAge";
+import { useLang } from "../../hooks/useLang";
+import { metricUnit } from "./CNXMetricEvidence";
 
 interface Props {
   isOpen: boolean;
@@ -44,10 +46,32 @@ const LEVEL_CLS: Record<BriefLevel, string> = {
   critical: "border-[var(--sev-critical)]",
   unknown: "border-[var(--line)]",
 };
-const LEVEL_TH: Record<BriefLevel, string> = { good: "ปกติ", watch: "เฝ้าระวัง", alert: "แจ้งเตือน", critical: "วิกฤต", unknown: "ไม่มีข้อมูล" };
+const LEVEL_LABEL: Record<BriefLevel, [string, string]> = {
+  good: ["ปกติ", "Normal"],
+  watch: ["เฝ้าระวัง", "Watch"],
+  alert: ["แจ้งเตือน", "Alert"],
+  critical: ["วิกฤต", "Critical"],
+  unknown: ["ไม่มีข้อมูล", "No data"],
+};
+// lib/cnx/governor-brief carries Thai-only tile titles and PM2.5 band
+// names (the LINE text is Thai); the on-screen English lives here.
+const TILE_TITLE_EN: Record<BriefTile["key"], string> = {
+  air: "Air quality",
+  fire: "Wildfire / hotspots",
+  water: "Water",
+  visitors: "Aviation · historical",
+};
+const PM25_BAND_EN: Record<string, string> = {
+  "ดีมาก": "Very good",
+  "ดี": "Good",
+  "ปานกลาง": "Moderate",
+  "เริ่มมีผลกระทบต่อสุขภาพ": "Starting to affect health",
+  "มีผลกระทบต่อสุขภาพ": "Affecting health",
+};
 
 export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
+  const { lang, t } = useLang();
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
     if (!isOpen) return;
@@ -84,7 +108,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
     const airMetric = executive.metrics.find((m) => m.id === "air")!;
     const airGround = { avg: airMetric.state === "current" ? Number(airMetric.value) : null, stations: pcd.length || freshDust.length, observedAt: airMetric.observedAt, source: airMetric.source };
     const water = executive.metrics.find((m) => m.id === "water")!;
-    const river = water.state === "current" ? { th: `${water.value} ${water.unit} · ${water.summaryTh}`, en: `${water.value} ${water.unit} · ${water.summaryEn}`, level: water.level, observedAt: water.observedAt, source: water.source, kind: water.source === "ThaiWater rain gauges" ? "rain" as const : "river" as const } : null;
+    const river = water.state === "current" ? { th: `${water.value} ${water.unit} · ${water.summaryTh}`, en: `${water.value} ${metricUnit(water.unit, "en")} · ${water.summaryEn}`, level: water.level, observedAt: water.observedAt, source: water.source, kind: water.source === "ThaiWater rain gauges" ? "rain" as const : "river" as const } : null;
     const latestDetection = executive.metrics.find(m => m.id === "fire")!.observedAt;
     const yesterday = arrivals?.days[1];
     const tiles = buildTiles({
@@ -111,7 +135,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
       ...(outlook?.rain[0] ? [`48 ชม. ฝน (แบบจำลอง): ${rainActionTh(outlook.rain[0])}`] : []),
       ...(outlook?.air[0] ? [`48 ชม. ฝุ่น (แบบจำลอง): ${airActionTh(outlook.air[0])}`] : []),
     ];
-    return { tiles, districts, checks, text: lineText(tiles, districts, now, url, [...checks.map((m) => `${m.titleTh}: ${m.actionTh}`), ...forecastActions]) };
+    return { now, tiles, districts, checks, text: lineText(tiles, districts, now, url, [...checks.map((m) => `${m.titleTh}: ${m.actionTh}`), ...forecastActions]) };
   }, [air, dustboy, fires, twin, riverGauges, flights, rain, outlook, arrivals, floodhub, burn, clock, isOpen]);
 
   if (!isOpen) return null;
@@ -131,76 +155,79 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Governor brief"
+        aria-label={t("สรุปสถานการณ์สำหรับผู้ว่าฯ", "Governor brief")}
+        lang={lang}
         className="relative my-6 w-full max-w-[1040px] border border-[var(--line)] bg-[var(--bg)] p-5 sm:p-8 print:my-0 print:border-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col items-start justify-between gap-5 border-b border-[var(--line)] pb-6 sm:flex-row">
           <div>
-            <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-[var(--cool)]">Governor brief</div>
-            <h2 lang="th" className="mt-1 text-[25px] font-semibold sm:text-[30px] text-[var(--ink)]">สรุปสถานการณ์จังหวัดเชียงใหม่</h2>
-            <p lang="th" className="text-[12px] text-[var(--dim)]">{brief.text.split("\n")[0].replace("สรุปสถานการณ์จังหวัดเชียงใหม่ ", "")}</p>
+            <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-[var(--cool)]">{t("สรุปสำหรับผู้ว่าฯ", "Governor brief")}</div>
+            <h2 className="mt-1 text-[25px] font-semibold sm:text-[30px] text-[var(--ink)]">{t("สรุปสถานการณ์จังหวัดเชียงใหม่", "Chiang Mai situation summary")}</h2>
+            <p className="text-[12px] text-[var(--dim)]">{t(brief.text.split("\n")[0].replace("สรุปสถานการณ์จังหวัดเชียงใหม่ ", ""), brief.now.toLocaleString("en-GB", { timeZone: "Asia/Bangkok", dateStyle: "long", timeStyle: "short" }))}</p>
           </div>
           <div className="flex w-full shrink-0 flex-wrap gap-2 print:hidden sm:w-auto">
             <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 border px-4 text-[13px] font-semibold">
               <Copy className="h-3.5 w-3.5" />
-              {copyState === "copied" ? "คัดลอกแล้ว" : "คัดลอกส่ง LINE"}
+              {copyState === "copied" ? t("คัดลอกแล้ว", "Copied") : t("คัดลอกส่ง LINE", "Copy Thai text for LINE")}
             </button>
             <button type="button" onClick={() => window.print()} className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] px-3 text-[12px]">
-              <Printer className="h-3.5 w-3.5" /> พิมพ์
+              <Printer className="h-3.5 w-3.5" /> {t("พิมพ์", "Print")}
             </button>
-            <button type="button" onClick={onClose} aria-label="Close governor brief" className="ml-auto flex min-h-11 min-w-11 items-center justify-center border border-[var(--line)]">
+            <button type="button" onClick={onClose} aria-label={t("ปิดสรุปผู้ว่าฯ", "Close governor brief")} className="ml-auto flex min-h-11 min-w-11 items-center justify-center border border-[var(--line)]">
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <p role="status" className="mt-3 text-sm text-[var(--dim)] print:hidden">{copyState === "failed" ? "คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง · Copy failed; select the text below to copy manually." : copyState === "copied" ? "คัดลอกข้อความพร้อมแหล่งที่มาและเวลาอ้างอิงแล้ว" : "พร้อมส่งต่อทาง LINE หรือพิมพ์ โดยคงแหล่งที่มาและเวลาอ้างอิง"}</p>
+        <p role="status" className="mt-3 text-sm text-[var(--dim)] print:hidden">{copyState === "failed" ? t("คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง", "Copy failed; open the text below and copy it manually.") : copyState === "copied" ? t("คัดลอกข้อความพร้อมแหล่งที่มาและเวลาอ้างอิงแล้ว", "Copied, with sources and reference times.") : t("พร้อมส่งต่อทาง LINE หรือพิมพ์ โดยคงแหล่งที่มาและเวลาอ้างอิง", "Ready to forward on LINE (in Thai) or print, with sources and reference times kept.")}</p>
         <section className="mt-6 grid gap-3 sm:grid-cols-2">
-          {brief.tiles.map((t) => (
-            <div key={t.key} className={`border-l-4 ${LEVEL_CLS[t.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
+          {brief.tiles.map((tile) => (
+            <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
               <div className="flex items-baseline justify-between gap-2">
-                <span lang="th" className="text-[14px] font-bold text-[var(--ink)]">{t.titleTh}</span>
-                <span lang="th" className="font-mono text-[11px] uppercase text-[var(--dim)]">{t.key === "visitors" && t.level === "good" ? "ข้อมูลย้อนหลัง" : LEVEL_TH[t.level]}</span>
+                <span className="text-[14px] font-bold text-[var(--ink)]">{t(tile.titleTh, TILE_TITLE_EN[tile.key])}</span>
+                <span className="font-mono text-[11px] uppercase text-[var(--dim)]">{tile.key === "visitors" && tile.level === "good" ? t("ข้อมูลย้อนหลัง", "Historical") : t(...LEVEL_LABEL[tile.level])}</span>
               </div>
-              <p lang="th" className="mt-1 text-[17px] leading-relaxed text-[var(--ink)]">{t.th}</p>
-              <p className="mt-2 text-[13px] text-[var(--dim)]">{t.en}</p>
+              <p className="mt-1 text-[17px] leading-relaxed text-[var(--ink)]">{t(tile.th, tile.en)}</p>
               <p className="mt-3 text-[12px] text-[var(--dim)]">
                 {/* DataAge prints the source itself; without a time, print it plainly. */}
-                {t.observedAt ? <DataAge observedAt={t.observedAt} source={t.key === "fire" ? `${t.source} · latest detection` : t.source} staleAfterMs={(t.key === "fire" ? 24 : t.key === "water" && t.source.includes("rain gauges") ? 6 : 3) * 3600_000} className="!text-[12px] !tracking-normal" /> : t.source}
+                {tile.observedAt ? <DataAge observedAt={tile.observedAt} source={tile.key === "fire" ? `${tile.source} · ${t("ตรวจพบล่าสุด", "latest detection")}` : tile.source} staleAfterMs={(tile.key === "fire" ? 24 : tile.key === "water" && tile.source.includes("rain gauges") ? 6 : 3) * 3600_000} className="!text-[12px] !tracking-normal" /> : tile.source}
               </p>
             </div>
           ))}
         </section>
 
         {brief.checks.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
-          <h3 lang="th" className="text-lg font-semibold">ประเด็นที่ควรตรวจสอบต่อ</h3>
-          <ol className="mt-3 space-y-3">{brief.checks.map((m) => <li key={m.id} className="text-sm leading-relaxed"><span className="font-semibold">{m.titleTh} · </span>{m.actionTh}</li>)}</ol>
+          <h3 className="text-lg font-semibold">{t("ประเด็นที่ควรตรวจสอบต่อ", "Points to check next")}</h3>
+          <ol className="mt-3 space-y-3">{brief.checks.map((m) => <li key={m.id} className="text-sm leading-relaxed"><span className="font-semibold">{t(m.titleTh, m.titleEn)} · </span>{t(m.actionTh, m.actionEn)}</li>)}</ol>
         </section>}
         <section className="mt-6 overflow-x-auto">
-          <h3 lang="th" className="text-[13px] font-bold text-[var(--ink)]">อำเภอที่มีหลักฐานสำหรับติดตาม</h3>
+          <h3 className="text-[13px] font-bold text-[var(--ink)]">{t("อำเภอที่มีหลักฐานสำหรับติดตาม", "Districts with evidence to follow")}</h3>
           <p className="text-[11px] text-[var(--dim)]">
-            PM2.5 คือค่าเฉลี่ยสถานี DustBoy ที่ใช้ได้ในอำเภอ ไม่ครอบคลุมทุกพื้นที่ ส่วนพื้นที่เผาปีก่อนมาจาก HII Tamroypao และอาจนับพื้นที่เดิมซ้ำเมื่อเผาหลายครั้ง ไม่ใช่เหตุการณ์วันนี้
+            {t(
+              "PM2.5 คือค่าเฉลี่ยสถานี DustBoy ที่ใช้ได้ในอำเภอ ไม่ครอบคลุมทุกพื้นที่ ส่วนพื้นที่เผาปีก่อนมาจาก HII Tamroypao และอาจนับพื้นที่เดิมซ้ำเมื่อเผาหลายครั้ง ไม่ใช่เหตุการณ์วันนี้",
+              "PM2.5 is the average of usable DustBoy stations in the district and does not cover every area. Last season's burned area comes from HII Tamroypao and may count the same land twice when it burned more than once; it is not today's event.",
+            )}
           </p>
           <table className="mt-2 w-full border-collapse text-[12px] tabular-nums">
             <thead>
               <tr className="text-left font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--dim)]">
-                <th className="py-1 font-normal">อำเภอ</th>
+                <th className="py-1 font-normal">{t("อำเภอ", "District")}</th>
                 <th className="py-1 text-right font-normal">PM2.5 (µg/m³)</th>
-                <th className="py-1 text-right font-normal">สถานี</th>
-                <th className="py-1 text-right font-normal">พื้นที่เผาย้อนหลัง (ไร่)</th>
-                <th className="py-1 text-right font-normal">สัดส่วนป่า</th>
+                <th className="py-1 text-right font-normal">{t("สถานี", "Stations")}</th>
+                <th className="py-1 text-right font-normal">{t("พื้นที่เผาย้อนหลัง (ไร่)", "Burned last season (rai)")}</th>
+                <th className="py-1 text-right font-normal">{t("สัดส่วนป่า", "Forest share")}</th>
               </tr>
             </thead>
             <tbody>
-              {brief.districts.length === 0 && <tr><td colSpan={5} className="py-5 text-sm text-[var(--dim)]">ยังไม่มีข้อมูลรายอำเภอที่ผ่านเงื่อนไข · No qualifying district evidence.</td></tr>}
+              {brief.districts.length === 0 && <tr><td colSpan={5} className="py-5 text-sm text-[var(--dim)]">{t("ยังไม่มีข้อมูลรายอำเภอที่ผ่านเงื่อนไข", "No qualifying district evidence yet.")}</td></tr>}
               {brief.districts.slice(0, 10).map((d) => (
                 <tr key={d.th} className="border-t border-[var(--line)]">
-                  <td lang="th" className="py-1">
-                    {d.th} <span className="text-[var(--dim)]">({d.en})</span>
-                    {d.observedAt && <span className="mt-1 block text-[11px] text-[var(--dim)]">{new Date(d.observedAt).toLocaleString("th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" })}</span>}
+                  <td className="py-1">
+                    {t(d.th, d.en)}
+                    {d.observedAt && <span className="mt-1 block text-[11px] text-[var(--dim)]">{new Date(d.observedAt).toLocaleString(lang === "en" ? "en-GB" : "th-TH", { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" })}</span>}
                   </td>
-                  <td className="py-1 text-right">{d.pm25 === null ? "—" : <span title={pm25Band(d.pm25).th}>{d.pm25}</span>}</td>
+                  <td className="py-1 text-right">{d.pm25 === null ? "—" : <span title={t(pm25Band(d.pm25).th, PM25_BAND_EN[pm25Band(d.pm25).th])}>{d.pm25}</span>}</td>
                   <td className="py-1 text-right text-[var(--dim)]">{d.sensors || "—"}</td>
                   <td className="py-1 text-right">{d.burnedLastSeasonRai?.toLocaleString("en-US") ?? "—"}</td>
                   <td className="py-1 text-right text-[var(--dim)]">{d.forestShare === null ? "—" : `${d.forestShare}%`}</td>
@@ -211,7 +238,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
         </section>
 
         <details className="mt-4 print:hidden">
-          <summary className="cursor-pointer text-[12px] text-[var(--dim)]">ข้อความที่จะคัดลอก (LINE)</summary>
+          <summary className="cursor-pointer text-[12px] text-[var(--dim)]">{t("ข้อความที่จะคัดลอก (LINE)", "Text that will be copied (LINE, in Thai)")}</summary>
           <pre lang="th" className="mt-2 whitespace-pre-wrap border border-[var(--line)] bg-[var(--bg-surface)] p-3 font-sans text-[12px] text-[var(--ink)]">
             {brief.text}
           </pre>

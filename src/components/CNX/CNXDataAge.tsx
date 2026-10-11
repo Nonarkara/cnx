@@ -27,6 +27,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "../../hooks/useLang";
+import type { Lang } from "../../lib/i18n";
 
 function ageMs(observedAt: string | number | null | undefined, now: number): number | null {
   if (observedAt === null || observedAt === undefined) return null;
@@ -35,20 +37,44 @@ function ageMs(observedAt: string | number | null | undefined, now: number): num
   return now - t;
 }
 
-function humanAge(ms: number): string {
+const WORDS: Record<Lang, { now: string; min: (n: number) => string; hr: (n: number) => string; day: (n: number) => string; missing: string; unreadable: string; future: string; stale: string }> = {
+  th: {
+    now: "เมื่อสักครู่",
+    min: (n) => `${n} นาทีก่อน`,
+    hr: (n) => `${n} ชม.ก่อน`,
+    day: (n) => `${n} วันก่อน`,
+    missing: "ไม่มีค่าสังเกต",
+    unreadable: "อ่านเวลาไม่ได้",
+    future: "เวลาอยู่ในอนาคต",
+    stale: "ข้อมูลเก่า",
+  },
+  en: {
+    now: "just now",
+    min: (n) => `${n} min ago`,
+    hr: (n) => `${n} h ago`,
+    day: (n) => `${n} d ago`,
+    missing: "no observation",
+    unreadable: "timestamp unreadable",
+    future: "timestamp is in the future",
+    stale: "stale",
+  },
+};
+
+function humanAge(ms: number, lang: Lang): string {
+  const w = WORDS[lang];
   // "Just now" is decided on the exact value, not the rounded one —
   // otherwise 30 s rounds up to "1 min ago" and a genuinely live reading
   // looks like it has been sitting there a minute.
-  if (ms < 60_000) return "just now";
+  if (ms < 60_000) return w.now;
   const min = Math.round(ms / 60_000);
-  if (min < 1) return "just now";
+  if (min < 1) return w.now;
   // Round to nearest unit, never truncate downward. Truncating 90 min to
   // "1 h ago" makes a reading half an hour fresher than it is, which is
   // the one direction a staleness indicator must never err in.
-  if (min < 120) return `${min} min ago`;
+  if (min < 120) return w.min(min);
   const hr = Math.round(min / 60);
-  if (hr < 48) return `${hr} h ago`;
-  return `${Math.round(hr / 24)} d ago`;
+  if (hr < 48) return w.hr(hr);
+  return w.day(Math.round(hr / 24));
 }
 
 export interface AgeVerdict {
@@ -70,21 +96,23 @@ export function ageVerdict(
   observedAt: string | number | null | undefined,
   now: number | null,
   staleAfterMs: number,
-  missing = "no observation",
+  missing?: string,
+  lang: Lang = "en",
 ): AgeVerdict {
+  const w = WORDS[lang];
   const hasObservation = observedAt !== null && observedAt !== undefined && observedAt !== "";
 
   // No clock yet (server render, pre-hydration). We know whether an
   // observation exists; we do not know how old it is. Make no claim.
   if (now === null) return { text: null, tone: "opacity-70" };
-  if (!hasObservation) return { text: missing, tone: "opacity-70" };
+  if (!hasObservation) return { text: missing ?? w.missing, tone: "opacity-70" };
 
   const ms = ageMs(observedAt, now);
-  if (ms === null) return { text: "timestamp unreadable", tone: "opacity-70" };
+  if (ms === null) return { text: w.unreadable, tone: "opacity-70" };
   // Publisher clock skew. "in 4 h" would be absurd; name the skew.
-  if (ms < 0) return { text: "timestamp is in the future", tone: "text-status-watch" };
-  if (ms > staleAfterMs) return { text: `stale · ${humanAge(ms)}`, tone: "text-status-watch" };
-  return { text: humanAge(ms), tone: "opacity-70" };
+  if (ms < 0) return { text: w.future, tone: "text-status-watch" };
+  if (ms > staleAfterMs) return { text: `${w.stale} · ${humanAge(ms, lang)}`, tone: "text-status-watch" };
+  return { text: humanAge(ms, lang), tone: "opacity-70" };
 }
 
 export interface DataAgeProps {
@@ -96,7 +124,8 @@ export interface DataAgeProps {
   /** Past this, the stamp turns amber. Defaults to 3 h, the DustBoy
    *  batch rule this project has used since the stale-feed incident. */
   staleAfterMs?: number;
-  /** Overrides the missing-observation wording. */
+  /** Overrides the missing-observation wording (pass it in the current
+   *  language; the default follows the language mode). */
   missing?: string;
   className?: string;
 }
@@ -111,6 +140,7 @@ export function DataAge({
   // Re-render on a timer so "4 min ago" does not freeze at whatever it
   // said when the panel mounted. A stamp that stops counting is a second
   // way of lying about age.
+  const { lang } = useLang();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     setNow(Date.now());
@@ -118,7 +148,7 @@ export function DataAge({
     return () => clearInterval(t);
   }, []);
 
-  const { text, tone } = ageVerdict(observedAt, now, staleAfterMs, missing);
+  const { text, tone } = ageVerdict(observedAt, now, staleAfterMs, missing, lang);
 
   if (text === null) {
     return <span className={`font-mono text-[11px] tracking-[0.08em] ${tone} ${className}`.trim()}>{source}</span>;

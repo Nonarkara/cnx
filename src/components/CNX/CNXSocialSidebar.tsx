@@ -11,20 +11,23 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Radio } from "lucide-react";
 import { buildScenarioUrl, fetchJsonOrNull } from "../../lib/client-requests";
 import type { SocialListeningResponse, SocialItem } from "../../types/cnx";
+import { useLang } from "../../hooks/useLang";
+import type { Lang } from "../../lib/i18n";
 
 type Filter = "all" | "th" | "en" | "alert";
 
-function relative(iso: string): string {
+function relative(iso: string, lang: Lang): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
+  const th = lang === "th";
   const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m`;
+  if (diffMin < 1) return th ? "เมื่อสักครู่" : "just now";
+  if (diffMin < 60) return th ? `${diffMin} นาที` : `${diffMin}m`;
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h`;
+  if (diffHr < 24) return th ? `${diffHr} ชม.` : `${diffHr}h`;
   const diffDays = Math.floor(diffHr / 24);
-  if (diffDays < 7) return `${diffDays}d`;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (diffDays < 7) return th ? `${diffDays} วัน` : `${diffDays}d`;
+  return d.toLocaleDateString(th ? "th-TH" : "en-GB", { day: "numeric", month: "short" });
 }
 
 function sourceBadge(item: SocialItem) {
@@ -47,6 +50,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
   multilingualCountries?: string[];
   initialData?: SocialListeningResponse | null;
 }) {
+  const { lang, t } = useLang();
   const [data, setData] = useState<SocialListeningResponse | null>(initialData);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
@@ -87,26 +91,26 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
   const counts = { th: data?.items.filter(i => i.lang === "th").length ?? 0, en: data?.items.filter(i => i.lang === "en").length ?? 0 };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--bg-raised)]">
+    <div lang={lang} className="flex h-full flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--bg-raised)]">
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <div className="flex items-center gap-2">
           <Radio className="h-3.5 w-3.5 text-[var(--cool)]" />
           <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
-            ข่าวเชียงใหม่
+            {t("ข่าวเชียงใหม่", "Chiang Mai news")}
           </span>
         </div>
         <span className={`inline-flex items-center gap-1.5 border border-[var(--line)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.15em] ${refreshFailed ? "text-[var(--sev-watch)]" : "text-[var(--dim)]"}`}>
-          {refreshFailed ? "REFRESH FAILED" : data?.items.some((item) => item.tone === "demo") ? "SCENARIO" : "NEWS"}
+          {refreshFailed ? t("รีเฟรชไม่สำเร็จ", "REFRESH FAILED") : data?.items.some((item) => item.tone === "demo") ? t("สถานการณ์จำลอง", "SCENARIO") : t("ข่าว", "NEWS")}
         </span>
       </header>
 
       <div className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg)]">
         {(
           [
-            { id: "all", label: "ทั้งหมด", count: (data?.items.length ?? 0) },
+            { id: "all", label: t("ทั้งหมด", "All"), count: (data?.items.length ?? 0) },
             { id: "th", label: "TH", count: counts.th },
             { id: "en", label: "EN", count: counts.en },
-            { id: "alert", label: "ประเด็น", count: data?.items.filter((i) => i.tone === "alert").length ?? 0 },
+            { id: "alert", label: t("ประเด็น", "Issues"), count: data?.items.filter((i) => i.tone === "alert").length ?? 0 },
           ] as const
         ).map((f, i) => (
           <button
@@ -123,18 +127,18 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
         ))}
       </div>
 
-      <p className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[var(--dim)]">ข่าวจากสื่อเพื่อใช้ตรวจสอบต่อ ไม่ใช่การยืนยันเหตุการณ์หรือผลสำรวจความคิดเห็นประชาชน</p>
+      <p className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[var(--dim)]">{t("ข่าวจากสื่อเพื่อใช้ตรวจสอบต่อ ไม่ใช่การยืนยันเหตุการณ์หรือผลสำรวจความคิดเห็นประชาชน", "Media news to follow up on — not confirmation of events or a survey of public opinion.")}</p>
 
       {data && data.items.length > 0 && data.unavailableReason && (
         <details className="shrink-0 border-b border-[var(--line)] px-3 py-2 text-[11px] leading-relaxed text-[var(--sev-watch)]">
-          <summary className="cursor-pointer">Some news sources are unavailable · แหล่งข่าวบางแห่งไม่พร้อมใช้งาน</summary>
+          <summary className="cursor-pointer">{t("แหล่งข่าวบางแห่งไม่พร้อมใช้งาน", "Some news sources are unavailable")}</summary>
           <p className="mt-1 text-[var(--dim)]">{data.unavailableReason}</p>
         </details>
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!data && refreshFailed ? (
-          <p role="status" className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">News feed unavailable. Retrying on the next refresh.</p>
+          <p role="status" className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">{t("ดึงข่าวไม่ได้ จะลองใหม่ในรอบถัดไป", "News feed unavailable. Retrying on the next refresh.")}</p>
         ) : !data ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -145,18 +149,18 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
           <div className="px-3 py-6 text-center">
             <p className="text-[11px] text-[var(--dim)]">
               {data.items.length
-                ? "No mentions matching this filter."
+                ? t("ไม่มีข่าวตรงกับตัวกรองนี้", "No mentions match this filter.")
                 : data.provenance === "unavailable"
                   ? // The important case. A refused or timed-out feed is
                     // not a quiet news day, and the operator is looking at
                     // this rail precisely when they need to know which.
-                    "ข่าวไม่สามารถดึงได้ — ไม่ใช่การไม่มีข่าว"
-                  : "No verified news retrieved."}
+                    t("ข่าวไม่สามารถดึงได้ — ไม่ใช่การไม่มีข่าว", "News could not be retrieved — this is not a quiet news day.")
+                  : t("ยังไม่ได้รับข่าวที่ตรวจสอบได้", "No verified news retrieved.")}
             </p>
             {data.provenance === "unavailable" ? (
               <>
                 <p className="mt-1 text-[11px] italic text-[var(--sev-watch)]">
-                  Could not read the news feeds. This rail is blind, not empty.
+                  {t("อ่านแหล่งข่าวไม่ได้ ช่องนี้มองไม่เห็น ไม่ใช่ว่างเปล่า", "Could not read the news feeds. This rail is blind, not empty.")}
                 </p>
                 {data.unavailableReason && (
                   <p className="mt-1.5 font-mono text-[11px] leading-[1.5] text-[var(--dim)]">{data.unavailableReason}</p>
@@ -164,7 +168,7 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
               </>
             ) : (
               <p className="mt-1 text-[11px] italic text-[var(--dim)]">
-                Sources may be unavailable; this does not mean no events occurred.
+                {t("แหล่งข่าวอาจไม่พร้อมใช้งาน ไม่ได้แปลว่าไม่มีเหตุการณ์", "Sources may be unavailable; this does not mean no events occurred.")}
               </p>
             )}
           </div>
@@ -183,14 +187,14 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
                   </span>
                   {item.tone === "demo" && (
                     <span
-                      title="Baseline placeholder — headline copy + URL are scenario, not live news. Swapped for real feeds once Overpass / GDELT return."
+                      title={t("ข้อความตัวอย่าง — หัวข้อและลิงก์เป็นสถานการณ์จำลอง ไม่ใช่ข่าวจริง จะแทนที่ด้วยข่าวจริงเมื่อแหล่งข้อมูลกลับมา", "Baseline placeholder — headline copy + URL are scenario, not live news. Swapped for real feeds once Overpass / GDELT return.")}
                       className="inline-flex items-center border border-[var(--sev-watch)] px-1.5 py-px text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--sev-watch)]"
                     >
-                      DEMO
+                      {t("ตัวอย่าง", "DEMO")}
                     </span>
                   )}
                   <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">
-                    {relative(item.publishedAt)}
+                    {relative(item.publishedAt, lang)}
                   </span>
                 </div>
                 <h3 className="mt-1 text-[11px] font-semibold leading-snug text-[var(--ink)]" lang={item.lang}>
@@ -216,9 +220,11 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
 
       <footer className="flex shrink-0 items-center justify-between border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
         <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-          {data ? `${data.items.length} items • ${relative(data.generatedAt)}${refreshFailed ? " · cached" : ""}` : "loading…"}
+          {data
+            ? t(`${data.items.length} รายการ • ${relative(data.generatedAt, lang)}${refreshFailed ? " · แคช" : ""}`, `${data.items.length} items • ${relative(data.generatedAt, lang)}${refreshFailed ? " · cached" : ""}`)
+            : t("กำลังโหลด…", "loading…")}
         </span>
-        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">3-min poll</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">{t("รีเฟรชทุก 3 นาที", "3-min poll")}</span>
       </footer>
     </div>
   );
