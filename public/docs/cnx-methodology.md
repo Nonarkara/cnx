@@ -43,10 +43,14 @@ Between **March 1 and April 30** the alert threshold for all forest-tenure types
 
 ## Water ledger (Ping basin)
 
-The Ping river rises with the southwest monsoon (Oct peak) and runs dry during burning season (Apr). The Mae Ngat dam (`/api/cnx/thaiwater → dam?province_id=50`) is the ledger between the two:
+The Ping river rises with the southwest monsoon (Oct peak) and runs dry during burning season (Apr). The Mae Ngat Somboon Chon dam, upstream of the city, is the ledger between the two. Its storage, with Mae Kuang Udom Thara and Chiang Mai's medium reservoirs, comes from RID's daily dam report via ThaiWater, pushed hourly by the relay (`/api/cnx/dam`). Storage is graded as a percentage of **normal** storage:
 
-- Storage fraction > 85% → "เตรียมระบายน้ำล่วงหน้า" (prepare proactive release)
-- Storage fraction < 30% in April → "งดการระบาย ประสานชลประทานปิง" (hold; coordinate with Ping irrigation)
+- ≥ 100% → above normal storage (alert)
+- ≥ 90% → near full (watch)
+- ≥ 80% → high (watch)
+- otherwise normal; a report older than 2 days, or a relay silent for more than 3 h, is **unknown**, never normal
+
+The board shows storage only. It recommends no release or hold; that decision belongs to RID.
 
 ## Flight heading quadrants
 

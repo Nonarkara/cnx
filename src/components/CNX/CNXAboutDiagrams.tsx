@@ -9,6 +9,8 @@
 // One language per mode: every label comes through t(th, en). File names
 // and identifiers (air-quality.ts, CNX_FLIGHTS_KV) are code and stay as is.
 
+import { OPEN_DATA_SNAPSHOT } from "../../lib/cnx/open-data-snapshot";
+
 type T = (th: string, en: string) => string;
 
 const MONO_STACK = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
@@ -163,9 +165,9 @@ export function PipelineDiagram({ t }: { t: T }) {
           x={230}
           y={179}
           w={330}
-          title={t("C · ดิสก์ / ASSETS → จำนวนคงที่", "C · Disk / ASSETS → fixed count")}
-          lines={[t("ถ้าล้มเหลวทั้งหมด คืนยอดรวมที่กำหนดไว้ตายตัว", "on total failure, returns a hard-coded total")]}
-          mono={[t("open-data-th.ts (311 ชุด)", "open-data-th.ts (311 datasets)")]}
+          title={t("C · ดิสก์ / ASSETS → รายงานศูนย์ตามจริง", "C · Disk / ASSETS → honest zero")}
+          lines={[t("ถ้าล้มเหลวทั้งหมด รายงาน 0 ชุด ไม่ใช่ยอดตายตัว", "on total failure, reports 0, not a fixed total")]}
+          mono={[t(`open-data-th.ts (อบไว้ ${OPEN_DATA_SNAPSHOT.count} ชุด)`, `open-data-th.ts (bake: ${OPEN_DATA_SNAPSHOT.count} datasets)`)]}
         />
         <DiagramBox
           x={230}
@@ -296,17 +298,18 @@ export function FlightRelayDiagram({ t }: { t: T }) {
   );
 }
 
-/** Diagram 3 — where the system sits on the ISO/IEC 30173 spectrum. */
+/** Diagram 3 — where the system sits on the Kritzinger et al. (2018) ladder.
+ *  The ladder is academic; ISO/IEC 30173 does not define it (see TwinSection). */
 export function MaturityDiagram({ t }: { t: T }) {
   return (
     <div className={FRAME}>
       <div className={CAPTION}>
         {t(
-          "แผนภาพ 3 · ระบบนี้อยู่ตรงไหนบนสเปกตรัมของ ISO/IEC 30173:2023",
-          "Diagram 3 · Where this system sits on the ISO/IEC 30173:2023 spectrum",
+          "แผนภาพ 3 · ระบบนี้อยู่ตรงไหนบนลำดับขั้นของ Kritzinger และคณะ (2018)",
+          "Diagram 3 · Where this system sits on the Kritzinger et al. (2018) ladder",
         )}
       </div>
-      <svg viewBox="0 0 800 200" className={SVG_CLASS} role="img" aria-label={t("แผนภาพระดับวุฒิภาวะดิจิทัลทวิน", "Digital twin maturity ladder diagram")}>
+      <svg viewBox="0 0 800 200" className={SVG_CLASS} role="img" aria-label={t("แผนภาพลำดับขั้นแบบจำลอง เงา และทวินดิจิทัล", "Model, shadow and twin ladder diagram")}>
         <DiagramDefs />
         <DiagramBox
           x={10}
@@ -339,14 +342,14 @@ export function MaturityDiagram({ t }: { t: T }) {
         <DiagramArrow x1={250} y1={56} x2={278} y2={56} />
         <DiagramArrow x1={520} y1={56} x2={548} y2={56} dashed />
 
-        <Note y={122} bold>{t("สิ่งที่ต้องมีเพื่อเป็นดิจิทัลทวิน ไม่ใช่เงาดิจิทัล:", "To become a Digital Twin, not a Digital Shadow:")}</Note>
+        <Note y={122} bold>{t("สิ่งที่ต้องเพิ่มเพื่อขึ้นถึงขั้นดิจิทัลทวินบนลำดับขั้นนี้:", "What it would take to reach the Digital Twin rung of this ladder:")}</Note>
         <Note y={142}>{t("1) แบบจำลองสินทรัพย์ที่เป็นทางการของโครงสร้างพื้นฐานที่เฝ้าดู (แบบ AAS)", "1) a formal asset model for the monitored infrastructure (AAS-style)")}</Note>
         <Note y={158}>{t("2) ช่องทางสั่งการกลับไปยังระบบควบคุมจริงอย่างน้อยหนึ่งระบบ", "2) an actuation path back to at least one real control system")}</Note>
         <Note y={174}>{t("3) การจำลองเชิงฟิสิกส์หรือแบบเอเจนต์ของระบบย่อยอย่างน้อยหนึ่งระบบ", "3) physics- or agent-based simulation for at least one subsystem")}</Note>
         <Note x={30} y={190}>
           {t(
-            "(เช่น คำนวณการไหลของน้ำจริง แทนสถานการณ์น้ำท่วมแบบใช้เกณฑ์ในปัจจุบัน)",
-            "(e.g. real hydraulic routing, replacing today's threshold-based flood scenario)",
+            "(เช่น คำนวณการไหลของน้ำจริง แทนการจัดระดับน้ำท่วมด้วยเกณฑ์อย่างในปัจจุบัน)",
+            "(e.g. real hydraulic routing, replacing today's threshold-based flood grading)",
           )}
         </Note>
       </svg>

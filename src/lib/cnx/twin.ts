@@ -24,7 +24,7 @@ import { fetchCnxDustboy } from "./dustboy";
 import { fetchCnxRain } from "./rain";
 import { fetchSmokeTrajectory } from "./smoke-feed";
 import { fetchRiverLevel, isPingMainstem, type RiverGauge } from "./river-level";
-import { computeVerdict, isCurrentGaugeReading, type VerdictCard, type VerdictInputs, type PingMeasured } from "./verdict";
+import { computeVerdict, isCurrentGaugeReading, upstreamDamSurge, type VerdictCard, type VerdictInputs, type PingMeasured } from "./verdict";
 
 export interface CnxTwinResponse {
   system: "cnx";
@@ -227,12 +227,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
   const pingCapacity = flood.pingCapacityFraction ?? null;
   const stationsRising = flood.gauges.filter((g) => g.trend === "rising").length;
   const stationsTotal = flood.gauges.length;
-  const reservoirSurge = flood.reservoirs.some(
-    (r) =>
-      typeof r.inflowM3s === "number" &&
-      typeof r.outflowM3s === "number" &&
-      r.outflowM3s >= r.inflowM3s * 1.5,
-  );
+  const reservoirSurge = upstreamDamSurge(flood.reservoirs);
   const rainNow24hMm = flood.rainfall.reduce(
     (m, s) => Math.max(m, s.rainfall24hMm),
     0,

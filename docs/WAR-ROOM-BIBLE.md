@@ -133,9 +133,16 @@ Consequences, all enforced in code:
 - A **calm** reading is appended **last** in the verdict reasons, behind
   every measured hazard. A governor reads the headline first and often
   alone; an absence of flood trouble must never occupy that slot.
-- Thai public advisory feeds remain unwired because none exists
-  machine-readably. The dashboard **never renders its own threshold as a
-  government announcement**.
+- Official Thai warnings **are** machine-readable. The Thai Meteorological
+  Department, a registered WMO alerting authority (OID 2.49.0.0.764.0),
+  publishes signed CAP 1.2 at `https://www.tmd.go.th/api/xml/CAP` (TH) and
+  `/en/api/xml/CAP` (EN); Chiang Mai is geocode `TH-50`. (An earlier version
+  of this line said none existed. It was wrong — see
+  `docs/DIGITAL-TWIN-STANDARDS.md`, D3.) The board reads them at
+  `/api/cnx/official-warnings` and shows them first, as TMD's. The
+  dashboard **never renders its own threshold as a government
+  announcement**: its own warnings leave as CAP with `scope=Restricted`
+  (`/api/cnx/cap.xml`).
 
 The scenario module still exists as a last-resort fallback, always behind
 `provenance: "scenario"`, and is barred from the RAG corpus, the keystone

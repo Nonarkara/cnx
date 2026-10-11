@@ -8,28 +8,15 @@
 // One language per mode (Palette B3). Every section carries a full Thai
 // and a full English version and renders exactly one; nothing is stacked
 // as a subtitle. Diagrams live in CNXAboutDiagrams, the one-night findings
-// table in CNXAboutFindings.
+// table in CNXAboutFindings, the standards position and the governance and
+// privacy card in CNXAboutStandards.
 
-import type { ReactNode } from "react";
 import { useLang } from "../../hooks/useLang";
 import { FlightRelayDiagram, MaturityDiagram, PipelineDiagram } from "./CNXAboutDiagrams";
 import FindingsTable from "./CNXAboutFindings";
-
-const KICKER = "font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--dim)]";
-const H2 = "mt-1 text-[22px] font-bold leading-tight tracking-[-0.01em]";
-const PROSE = "mt-3 max-w-[70ch] space-y-3 text-[15px] leading-[1.75]";
-const LINK = "text-[var(--cool)] underline decoration-[var(--line)] underline-offset-2 hover:decoration-[var(--cool)]";
-const NOTE = "max-w-[70ch] text-[13px] leading-[1.7] text-[var(--dim)]";
-
-function Section({ kicker, title, children }: { kicker: string; title: string; children: ReactNode }) {
-  return (
-    <section className="border-t border-[var(--line)] py-8">
-      <div className={KICKER}>{kicker}</div>
-      <h2 className={H2}>{title}</h2>
-      {children}
-    </section>
-  );
-}
+import { KICKER, LINK, NOTE, PROSE, Section } from "./CNXAboutSection";
+import { GovernanceSection, StandardsSection } from "./CNXAboutStandards";
+import { OPEN_DATA_SNAPSHOT } from "../../lib/cnx/open-data-snapshot";
 
 const MAHOLAN = (
   <a href="https://cctv.maholan.net" target="_blank" rel="noreferrer" className={LINK}>
@@ -145,14 +132,14 @@ function WhatSection({ th }: { th: boolean }) {
         {th ? (
           <>
             <p>
-              คือ “หน้าต่างบานเดียว” ที่รวมข้อมูลสาธารณะของจังหวัดเชียงใหม่ไว้ในที่เดียว: ระดับน้ำแม่ปิงและเขื่อนแม่งัด จุดความร้อนจากกรมป่าไม้และดาวเทียม ค่าฝุ่น PM2.5 ทุกอำเภอ เที่ยวบินเข้า-ออกสนามบินเชียงใหม่แบบเรียลไทม์ ข่าวและโซเชียล 8 ภาษาตามต้นทางผู้โดยสาร กล้องสาธารณะ เมืองสามมิติของตึก กำแพง และวัด 59,344 หลัง และชุดข้อมูลเปิดภาครัฐทั้งหมด 311 ชุดของจังหวัด — อัปเดตเองตลอดเวลา ไม่ต้องรอรายงานกระดาษ
+              คือ “หน้าต่างบานเดียว” ที่รวมข้อมูลสาธารณะของจังหวัดเชียงใหม่ไว้ในที่เดียว: ระดับน้ำแม่ปิงและปริมาณน้ำในเขื่อนแม่งัดสมบูรณ์ชลกับเขื่อนแม่กวงอุดมธารา จุดความร้อนจากกรมป่าไม้และดาวเทียม ค่าฝุ่น PM2.5 ทุกอำเภอ เที่ยวบินเข้า-ออกสนามบินเชียงใหม่แบบเรียลไทม์ ข่าวและโซเชียล 8 ภาษาตามต้นทางผู้โดยสาร กล้องสาธารณะ เมืองสามมิติของตึก กำแพง และวัด 59,344 หลัง และชุดข้อมูลเปิดภาครัฐ {OPEN_DATA_SNAPSHOT.count} ชุดของจังหวัด (ภาพ ณ วันที่ {OPEN_DATA_SNAPSHOT.bakedOnTh}) — อัปเดตเองตลอดเวลา ไม่ต้องรอรายงานกระดาษ
             </p>
             <p>จอใหญ่ในศูนย์บัญชาการ (IOC) เห็นภาพรวมทั้งจังหวัดพร้อมกัน ส่วนมือถือของผู้ปฏิบัติงานเห็น “คำสั่งที่ต้องทำตอนนี้” เป็นอย่างแรกเสมอ</p>
           </>
         ) : (
           <>
             <p>
-              A single window that gathers Chiang Mai’s public data in one place — Ping river telemetry and the Mae Ngat dam, Royal Forest Department hotspots and NASA FIRMS satellite detections, PM2.5 for every amphoe (25 districts), real-time flights at Chiang Mai airport, news and social media in 8 languages chosen from inbound flight origins, public cameras, a 3D city of 59,344 buildings, walls and temples, and the province’s full 311-record open-data catalogue — all updating itself, with no waiting for a paper report.
+              A single window that gathers Chiang Mai’s public data in one place — Ping river gauges and the storage of the Mae Ngat Somboon Chon and Mae Kuang Udom Thara reservoirs, Royal Forest Department hotspots and NASA FIRMS satellite detections, PM2.5 for every amphoe (25 districts), real-time flights at Chiang Mai airport, news and social media in 8 languages chosen from inbound flight origins, public cameras, a 3D city of 59,344 buildings, walls and temples, and a {OPEN_DATA_SNAPSHOT.count}-record snapshot of the province’s open-data catalogue (taken {OPEN_DATA_SNAPSHOT.bakedOnEn}) — all updating itself, with no waiting for a paper report.
             </p>
             <p>The big screen in the operations centre (IOC) sees the whole province at once; an operator’s phone always leads with the action to take now.</p>
           </>
@@ -169,7 +156,7 @@ function SourcesSection({ th }: { th: boolean }) {
         {th ? (
           <>
             <p>
-              ระบบไม่สร้างข้อมูลเอง — มันไปรับข้อมูลจากหน่วยงานที่วัดจริง แล้วนำมาเรียงให้อ่านง่าย: กรมป่าไม้ (จุดความร้อน 25 อำเภอ พร้อมแยกประเภทเขตป่าสงวน/อุทยาน/พื้นที่ราษฎร์), GISTDA ให้ค่า PM2.5 รายอำเภอและภาพดาวเทียม AOD, NASA FIRMS ให้จุดไฟ MODIS/VIIRS, Google Flood Hub ให้การพยากรณ์น้ำท่วมแบบจำลองที่จุดวัดเสมือน (virtual gauge) บนแม่น้ำปิง (CC BY 4.0), NASA GIBS ให้ชั้นภาพถ่ายดาวเทียม (รวมฮิมาวาริ-9 อินฟราเรดและ AOD), RainViewer ให้เรดาร์ฝนสด, Open-Meteo CAMS ให้ค่า AQI ทั่วโลก, OpenSky Network และ adsb.lol ให้เที่ยวบินเข้า-ออกสนามบิน CNX แบบ ADS-B, Google News RSS และ GDELT 2.0 ให้ข่าว 8 ภาษา (จีน/ญี่ปุ่น/เกาหลี/รัสเซีย/เยอรมัน/ฝรั่งเศส/อินเดีย/ออสเตรเลีย), OSM Overpass ให้เส้นทางรถเมล์/สายน้ำ/อาคาร 3 มิติ 59,344 หลัง / กำแพงเมือง 14 ชิ้น / วัด 474 วัด, ศูนย์บริหารจัดการมหาวิทยาลัยอัจฉริยะ มหาวิทยาลัยเชียงใหม่ (SCMC) ให้ตำแหน่งรถรับส่งภายในมหาวิทยาลัยแบบ GPS สด, Longdo ให้กล้องสาธารณะ, กล้องน้ำท่วม/ถนนสาธารณะผ่าน {MAHOLAN} (อ่านเฉพาะข้อมูลตำแหน่งและสถานะกล้อง ไม่ดึงภาพวิดีโอมาแสดง แต่ละกล้องระบุหน่วยงานเจ้าของ โดยส่วนใหญ่คือกรมทางหลวง), {THAIWATER} ให้ระดับน้ำที่วัดได้จริงจากสถานีวัดบนแม่น้ำปิงและลำน้ำสาขา (เผยแพร่โดยคลังข้อมูลน้ำแห่งชาติ ข้อมูลจากกรมชลประทาน กรมฝนหลวงและการบินเกษตร สสน. และ กฟผ. — เปิดใช้ได้โดยไม่ต้องใช้คีย์ และตัวเลขเดียวบนกระดานนี้ที่มีหน่วยงานรับรองคือระดับวิกฤตที่ประกาศไว้ของสถานี P.1 สะพานนวรัฐ) และ data.go.th ให้ชุดข้อมูลราชการของจังหวัด 311 ชุด (ภาพ ณ วันที่ 15 ก.ย. 2569 จากการค้นหาแบบกรอง — ไม่ใช่จำนวนทั้งหมด)
+              ระบบไม่สร้างข้อมูลเอง — มันไปรับข้อมูลจากหน่วยงานที่วัดจริง แล้วนำมาเรียงให้อ่านง่าย: กรมป่าไม้ (จุดความร้อน 25 อำเภอ พร้อมแยกประเภทเขตป่าสงวน/อุทยาน/พื้นที่ราษฎร์), GISTDA ให้ค่า PM2.5 รายอำเภอและภาพดาวเทียม AOD, NASA FIRMS ให้จุดไฟ MODIS/VIIRS, Google Flood Hub ให้การพยากรณ์น้ำท่วมแบบจำลองที่จุดวัดเสมือน (virtual gauge) บนแม่น้ำปิง (CC BY 4.0), NASA GIBS ให้ชั้นภาพถ่ายดาวเทียม (รวมฮิมาวาริ-9 อินฟราเรดและ AOD), RainViewer ให้เรดาร์ฝนสด, Open-Meteo CAMS ให้ค่า AQI ทั่วโลก, OpenSky Network และ adsb.lol ให้เที่ยวบินเข้า-ออกสนามบิน CNX แบบ ADS-B, Google News RSS และ GDELT 2.0 ให้ข่าว 8 ภาษา (จีน/ญี่ปุ่น/เกาหลี/รัสเซีย/เยอรมัน/ฝรั่งเศส/อินเดีย/ออสเตรเลีย), OSM Overpass ให้เส้นทางรถเมล์/สายน้ำ/อาคาร 3 มิติ 59,344 หลัง / กำแพงเมือง 14 ชิ้น / วัด 474 วัด, ศูนย์บริหารจัดการมหาวิทยาลัยอัจฉริยะ มหาวิทยาลัยเชียงใหม่ (SCMC) ให้ตำแหน่งรถรับส่งภายในมหาวิทยาลัยแบบ GPS สด, Longdo ให้กล้องสาธารณะ, กล้องน้ำท่วม/ถนนสาธารณะผ่าน {MAHOLAN} (อ่านเฉพาะข้อมูลตำแหน่งและสถานะกล้อง ไม่ดึงภาพวิดีโอมาแสดง แต่ละกล้องระบุหน่วยงานเจ้าของ โดยส่วนใหญ่คือกรมทางหลวง), {THAIWATER} ให้ระดับน้ำที่วัดได้จริงจากสถานีวัดบนแม่น้ำปิงและลำน้ำสาขา (เผยแพร่โดยคลังข้อมูลน้ำแห่งชาติ ข้อมูลจากกรมชลประทาน กรมฝนหลวงและการบินเกษตร สสน. และ กฟผ. — เปิดใช้ได้โดยไม่ต้องใช้คีย์ และตัวเลขเดียวบนกระดานนี้ที่มีหน่วยงานรับรองคือระดับวิกฤตที่ประกาศไว้ของสถานี P.1 สะพานนวรัฐ), รายงานประจำวันของกรมชลประทานผ่าน ThaiWater ให้ปริมาณน้ำในเขื่อนแม่งัดสมบูรณ์ชล เขื่อนแม่กวงอุดมธารา และอ่างเก็บน้ำขนาดกลางในเชียงใหม่ (ส่งผ่านเครื่องรีเลย์ทุกชั่วโมง) และ data.go.th ให้ชุดข้อมูลราชการของจังหวัด {OPEN_DATA_SNAPSHOT.count} ชุด (ภาพ ณ วันที่ {OPEN_DATA_SNAPSHOT.bakedOnTh} จากการค้นหาแบบกรอง — ไม่ใช่จำนวนทั้งหมด)
             </p>
             <p>ทุกแผงบนหน้าจอมีป้ายบอกแหล่งที่มากำกับเสมอ — กดดูรายละเอียดได้ทุกจุด รายการเต็มอยู่ในเอกสารดาวน์โหลดท้ายหน้านี้</p>
             <p className="text-[13px] text-[var(--dim)]">
@@ -182,7 +169,7 @@ function SourcesSection({ th }: { th: boolean }) {
         ) : (
           <>
             <p>
-              The system measures nothing itself — it relays the agencies that do: Royal Forest Department (25-amphoe hotspots, forest-tenure classified), GISTDA (per-amphoe PM2.5 + AOD satellite tiles), NASA FIRMS (MODIS + VIIRS), Google Flood Hub (riverine model forecasts at virtual HYBAS gauges on the Ping, CC BY 4.0), NASA GIBS (Himawari-9 infrared and MODIS AOD tiles), RainViewer (live precipitation radar), Open-Meteo CAMS (global AQI), OpenSky Network and adsb.lol (ADS-B flights), Google News RSS + GDELT 2.0 (news in 8 languages, auto-driven by inbound flight origins), OSM Overpass (bus routes, waterways, 3D buildings), Chiang Mai University’s Smart Campus Management Center (live shuttle GPS over MQTT), Longdo (CCTV), public flood and road cameras via the {MAHOLAN} (catalogue metadata only — no video is mirrored; each camera is credited to the agency that runs it, mostly the Department of Highways), {THAIWATER} (measured river levels at real gauges on the Ping and its tributaries, published by the National Hydroinformatics Data Center; observations credited to RID, FOP, HII and EGAT — keyless public feed, and the one figure on this board with an authority behind it is P.1’s published critical level), and a dated snapshot of 311 datasets from the province’s open-data catalogue on data.go.th (taken 15 Sep 2026 from a filtered search — not the full count).
+              The system measures nothing itself — it relays the agencies that do: Royal Forest Department (25-amphoe hotspots, forest-tenure classified), GISTDA (per-amphoe PM2.5 + AOD satellite tiles), NASA FIRMS (MODIS + VIIRS), Google Flood Hub (riverine model forecasts at virtual HYBAS gauges on the Ping, CC BY 4.0), NASA GIBS (Himawari-9 infrared and MODIS AOD tiles), RainViewer (live precipitation radar), Open-Meteo CAMS (global AQI), OpenSky Network and adsb.lol (ADS-B flights), Google News RSS + GDELT 2.0 (news in 8 languages, auto-driven by inbound flight origins), OSM Overpass (bus routes, waterways, 3D buildings), Chiang Mai University’s Smart Campus Management Center (live shuttle GPS over MQTT), Longdo (CCTV), public flood and road cameras via the {MAHOLAN} (catalogue metadata only — no video is mirrored; each camera is credited to the agency that runs it, mostly the Department of Highways), {THAIWATER} (measured river levels at real gauges on the Ping and its tributaries, published by the National Hydroinformatics Data Center; observations credited to RID, FOP, HII and EGAT — keyless public feed, and the one figure on this board with an authority behind it is P.1’s published critical level), RID’s daily dam report via ThaiWater (storage at Mae Ngat Somboon Chon, Mae Kuang Udom Thara and Chiang Mai’s medium reservoirs, pushed hourly through the relay machine), and a dated snapshot of {OPEN_DATA_SNAPSHOT.count} datasets from the province’s open-data catalogue on data.go.th (taken {OPEN_DATA_SNAPSHOT.bakedOnEn} from a filtered search — not the full count).
             </p>
             <p>Every panel on screen carries its source label — tap any of them for details. The full list is in the downloadable document at the end of this page.</p>
             <p className="text-[13px] text-[var(--dim)]">
@@ -211,7 +198,7 @@ function ThinkingSection({ th }: { th: boolean }) {
               ค่าฝุ่นบนแถบด้านบนคือค่าเฉลี่ยของสถานีกรมควบคุมมลพิษที่ยังสดในจังหวัด ถ้าไม่มีสถานีสด ระบบใช้แบบจำลอง CAMS และติดป้ายว่าเป็นแบบจำลอง DustBoy เป็นคนละตัวเลข ไม่ถูกยุบรวม และค่าที่เก่ากว่า 3 ชั่วโมงถูกตัดทิ้ง จุดความร้อนในเขตป่าสงวนยังสำคัญกว่าจุดในพื้นที่เกษตร ช่วงมี.ค.–เม.ย. ระบบเร่งจังหวะเตือนเอง
             </p>
             <p>
-              จุดวิเคราะห์หลักของระบบคือ “สมุดบัญชีแม่ปิง” — ลุ่มน้ำเดียวกันท่วมเดือนตุลาคม (มรสุมตะวันตกเฉียงใต้) และแล้งเดือนเมษายน (ฤดูเผา + พายุฤดูร้อน) เขื่อนแม่งัดคือบัญชีที่คั่นกลาง ทุกการระบายคือการแลก ความเสี่ยงน้ำท่วมท้ายน้ำคืนนี้กับน้ำชลประทานฤดูแล้งปีหน้า
+              จุดวิเคราะห์หลักของระบบคือ “สมุดบัญชีแม่ปิง” — ลุ่มน้ำเดียวกันท่วมเดือนตุลาคม (มรสุมตะวันตกเฉียงใต้) และแล้งเดือนเมษายน (ฤดูเผา + พายุฤดูร้อน) เขื่อนแม่งัดสมบูรณ์ชลซึ่งอยู่เหนือตัวเมืองคือบัญชีที่คั่นกลาง ทุกการระบายคือการแลก ความเสี่ยงน้ำท่วมท้ายน้ำคืนนี้กับน้ำชลประทานฤดูแล้งปีหน้า กระดานแสดงปริมาณน้ำในเขื่อนจากรายงานประจำวันของกรมชลประทาน (ร้อยละของระดับเก็บกักปกติ) แต่ไม่แนะนำการระบายน้ำ การตัดสินใจนั้นเป็นของกรมชลประทาน
             </p>
           </>
         ) : (
@@ -223,7 +210,7 @@ function ThinkingSection({ th }: { th: boolean }) {
               The masthead PM2.5 is the average of fresh PCD monitors in the province; if none are fresh it falls back to the CAMS model and is labelled as a model. DustBoy stays a separate number and is not merged in, and a reading older than 3 hours is dropped. Hotspots inside Royal Forest / National Reserve lands still outrank agricultural burns; during March–April the alert cadence tightens.
             </p>
             <p>
-              The keystone read is the Ping Ledger: the same basin floods in October (southwest monsoon) and burns dry in April (burning season plus summer storms). The Mae Ngat dam is the ledger between the two — every release trades tonight’s downstream flood risk against next year’s dry-season irrigation water.
+              The keystone read is the Ping Ledger: the same basin floods in October (southwest monsoon) and burns dry in April (burning season plus summer storms). The Mae Ngat Somboon Chon dam, upstream of the city, is the ledger between the two — every release trades tonight’s downstream flood risk against next year’s dry-season irrigation water. The board shows its storage from RID’s daily report (as a percentage of normal storage) but recommends no release; that decision belongs to RID.
             </p>
           </>
         )}
@@ -269,7 +256,7 @@ function ArchitectureSection({ th, t }: { th: boolean; t: T }) {
         {th ? (
           <>
             <p>
-              ไม่มีเซิร์ฟเวอร์ที่ต้องเฝ้า: หน้าเว็บทำงานบน Cloudflare Workers (ผ่าน OpenNext, Next.js 15) ตัวเว็บไปดึงฟีดสดเองทุกนาที ข้อมูลที่เปลี่ยนช้า (ขอบเขต 25 อำเภอ สายน้ำลุ่มปิง เส้นทางรถเมล์ อาคาร 3 มิติ แค็ตตาล็อกราชการ 311 ชุด) ถูก “อบ” เป็นไฟล์ไว้ล่วงหน้าด้วยสคริปต์ที่รันซ้ำได้เสมอ
+              มีเครื่องเดียวที่ต้องเฝ้า: หน้าเว็บทำงานบน Cloudflare Workers (ผ่าน OpenNext, Next.js 15) และดึงฟีดสดส่วนใหญ่เองทุกนาที แต่มีเจ็ดฟีดที่อ่านหรือประมวลผลบนเครือข่ายของ Cloudflare ไม่ได้ (ต้นทางบล็อกหรือจำกัดจำนวนครั้งตาม IP ที่ใช้ร่วมกัน หรืองานนั้นต้องใช้คอมพิวเตอร์เต็มเครื่อง) จึงมีเครื่องรีเลย์ — Mac หนึ่งเครื่องนอก Cloudflare ที่รันด้วย launchd — ส่งข้อมูลเข้ามาให้: เที่ยวบิน ผู้โดยสารขาเข้า ระดับน้ำ สถานีวัดฝน ปริมาณน้ำในเขื่อน การวัดหมอกควันจากภาพกล้อง และรายงานจากประชาชน รวมถึงข่าวและโซเชียลบางส่วน ถ้าเครื่องนี้หยุด ฟีดเหล่านี้จะขึ้นว่าข้อมูลเก่า แล้วกลายเป็น “ไม่มีข้อมูล” ไม่มีการแสดงค่าเก่าเหมือนเป็นค่าปัจจุบัน ข้อมูลที่เปลี่ยนช้า (ขอบเขต 25 อำเภอ สายน้ำลุ่มปิง เส้นทางรถเมล์ อาคาร 3 มิติ แค็ตตาล็อกราชการ {OPEN_DATA_SNAPSHOT.count} ชุด) ถูก “อบ” เป็นไฟล์ไว้ล่วงหน้าด้วยสคริปต์ที่รันซ้ำได้เสมอ
             </p>
             <p>
               แต่ระบบสำรองข้อมูลไม่ได้ใช้แบบเดียวกันหมดทุกจุด — โมดูลส่วนใหญ่ลองดึงข้อมูลสดก่อน แล้วตกไปใช้ “สถานการณ์จำลอง” ที่ติดป้ายชัดเจนเมื่อดึงไม่สำเร็จ, สามโมดูล (เส้นทางรถเมล์ สายน้ำ ข้อมูลเปิด) อ่านไฟล์ที่อบไว้ล่วงหน้าผ่าน Cloudflare Workers เป็นหลัก แล้วเรียก API สดเป็นทางเลือกสุดท้าย, และเที่ยวบิน (ซึ่งซับซ้อนที่สุด) ใช้วิธีที่ต่างออกไปทั้งหมด — ดูแผนภาพที่สองด้านล่าง
@@ -278,7 +265,7 @@ function ArchitectureSection({ th, t }: { th: boolean; t: T }) {
         ) : (
           <>
             <p>
-              There is no server to babysit: the site runs on Cloudflare Workers (via OpenNext, Next.js 15) and fetches the live feeds itself every minute. Slow-changing data (the 25 amphoe boundaries, Ping-basin waterways, bus routes, 3D buildings, the 311-record government catalogue) is “baked” into files ahead of time by scripts that can always be re-run.
+              There is one machine to watch. The site runs on Cloudflare Workers (via OpenNext, Next.js 15) and fetches most live feeds itself every minute. Seven feeds cannot be read or processed on Cloudflare’s network (the upstream blocks or rate-limits its shared addresses, or the work needs a full computer), so a relay machine — one Mac outside Cloudflare, run by launchd — pushes them in: flights, inbound arrivals, river levels, rain gauges, reservoir storage, camera haze vision and citizen reports, plus part of the news and social feed. If it stops, those feeds turn stale and then unavailable on the board; old values are never shown as current. Slow-changing data (the 25 amphoe boundaries, Ping-basin waterways, bus routes, 3D buildings, the {OPEN_DATA_SNAPSHOT.count}-record government catalogue) is “baked” into files ahead of time by scripts that can always be re-run.
             </p>
             <p>
               The fallback is not the same everywhere, though — most modules try live data first and fall back to a clearly labelled “scenario” when the fetch fails; three modules (bus routes, waterways, open data) read their pre-baked files through Cloudflare Workers first and call the live API only as a last resort; and flights, the most complex case, work differently altogether — see the second diagram below.
@@ -329,31 +316,37 @@ function TwinSection({ th, t }: { th: boolean; t: T }) {
         {th ? (
           <>
             <p>
-              คำว่า “ดิจิทัลทวิน” (digital twin) ถูกใช้อย่างหลวมในวงการเมืองอัจฉริยะ มาตรฐาน <strong>ISO/IEC 30173:2023</strong> (Digital twin — Concepts and terminology) ให้นิยามที่เข้มงวดกว่านั้น โดยสืบทอดแนวคิดจากงานวิชาการของ Kritzinger และคณะ (2018) ที่แบ่งระดับไว้ 3 ขั้น: <strong>แบบจำลองดิจิทัล (Digital Model)</strong> — ไม่มีการไหลของข้อมูลอัตโนมัติกับของจริงเลย, <strong>เงาดิจิทัล (Digital Shadow)</strong> — รับข้อมูลจากของจริงอัตโนมัติทิศทางเดียว (จริง → ดิจิทัล) แต่ไม่ส่งคำสั่งกลับ, และ <strong>ดิจิทัลทวินแท้จริง (Digital Twin)</strong> — ต้องมีการไหลข้อมูลสองทิศทางอัตโนมัติ คือระบบดิจิทัลส่งผลควบคุมกลับไปยังของจริงได้ด้วย
+              คำว่า “ดิจิทัลทวิน” (digital twin) ถูกใช้อย่างหลวมในวงการเมืองอัจฉริยะ จึงขอวัดกระดานนี้กับถ้อยคำของมาตรฐานเอง มาตรฐาน <strong>ISO/IEC 30173:2023</strong> (Digital twin — Concepts and terminology) ข้อ 3.1.1 นิยามดิจิทัลทวินว่าเป็น “ตัวแทนเชิงดิจิทัลของสิ่งเป้าหมาย ที่มีการเชื่อมต่อข้อมูลซึ่งทำให้สถานะทางกายภาพและสถานะดิจิทัลสอดคล้องกัน ด้วยอัตราการซิงโครไนซ์ที่เหมาะสม” (ถอดความเป็นภาษาไทยโดยผู้จัดทำ) และบทนำของมาตรฐานถือว่าการจัดการระบบจริงเป็นสิ่งที่ทวินทำ “เมื่อจำเป็น” — การสั่งการกลับไปยังของจริงจึงเป็นทางเลือก ไม่ใช่ข้อบังคับ
             </p>
             <p>
-              ตามนิยามนี้ ห้องปฏิบัติการเชียงใหม่จัดอยู่ในระดับ <strong>“เงาดิจิทัล”</strong> — ไม่ใช่ดิจิทัลทวินแท้จริง ระบบรับข้อมูลจริงหลายแหล่ง (เที่ยวบิน ระดับน้ำ ฝุ่น รถรับส่งมหาวิทยาลัย) มาปรับปรุงแบบจำลองเชิงพื้นที่-เวลาโดยอัตโนมัติ แต่ไม่มีช่องทางใดในสถาปัตยกรรมที่ระบบจะสั่งการกลับไปควบคุมสัญญาณไฟจราจร ประตูระบายน้ำ หรือระบบจริงอื่นใด — การไหลของข้อมูลเป็นทิศทางเดียวตลอดทั้งระบบ
+              ตามนิยามนี้ ห้องปฏิบัติการเชียงใหม่คือ <strong>ดิจิทัลทวินของเมืองเพื่อการเฝ้าระวังและเตือนภัยล่วงหน้า ที่ซิงโครไนซ์ทางเดียวและไม่สั่งการกลับ</strong> สิ่งเป้าหมายคือจังหวัดเชียงใหม่ — แม่น้ำ อากาศ ไฟป่า และผู้คนในพื้นที่เสี่ยง ฟีดสด (ระดับน้ำ ฝน ฝุ่น จุดความร้อน เที่ยวบิน รถรับส่งมหาวิทยาลัย) นำสถานะจริงเข้ามา และทุกค่าบอกเวลาที่วัด แต่ไม่มีช่องทางใดในสถาปัตยกรรมที่สั่งการกลับไปยังสัญญาณไฟจราจร ประตูระบายน้ำ หรือระบบจริงอื่นใด กระดานแสดงอายุของทุกค่าเทียบกับเกณฑ์ข้อมูลเก่าของแผงนั้น ส่วนการประกาศอัตราการซิงโครไนซ์เป้าหมายของทุกฟีดอย่างเป็นทางการ เป็นงานที่ติดตามอยู่ในเอกสาร docs/DIGITAL-TWIN-STANDARDS.md
+            </p>
+            <p>
+              ลำดับขั้นที่เข้มงวดกว่ามาจากงานวิชาการของ Kritzinger และคณะ (2018) ไม่ได้มาจากมาตรฐาน ISO: <strong>แบบจำลองดิจิทัล</strong> — ไม่มีการไหลของข้อมูลอัตโนมัติ, <strong>เงาดิจิทัล</strong> — ข้อมูลไหลอัตโนมัติทางเดียวจากของจริงสู่ดิจิทัล, และ <strong>ดิจิทัลทวิน</strong> — ข้อมูลไหลอัตโนมัติสองทาง รวมถึงการสั่งการกลับไปยังของจริง บนลำดับขั้นนี้ ระบบนี้อยู่ที่ขั้น <strong>“เงาดิจิทัล”</strong> (แผนภาพ 3) ทั้งสองข้อความเป็นจริงพร้อมกัน: นิยามของ ISO ไม่บังคับให้ควบคุมสองทาง แต่ลำดับขั้นของ Kritzinger บังคับ
             </p>
             <p>
               การจำลองรถบัส RTC (ตามตารางเวลา ไม่ใช่ GPS จริง) และตัวประมาณผู้โดยสาร (จากที่นั่งเครื่องบิน × อัตราสมมติ) เป็นเพียง<strong>กฎเกณฑ์อย่างง่าย</strong> ไม่ใช่แบบจำลองเชิงฟิสิกส์หรือแบบจำลองสินทรัพย์ (asset model) ตามแนวทาง Asset Administration Shell (IEC 63278) และกรอบงาน ISO 23247 ก็ใช้โดยตรงไม่ได้ เพราะออกแบบมาสำหรับดิจิทัลทวินในอุตสาหกรรมการผลิตโดยเฉพาะ ไม่ใช่ระบบปฏิบัติการเมือง
             </p>
             <p>
-              ระบบนี้ยังไม่เคยถูกประเมินอย่างเป็นทางการตามมาตรฐานวุฒิภาวะ เช่น IEEE 3144-2025 หรือ ISO/IEC 30186:2025 — แต่จากสถาปัตยกรรมที่เป็นอยู่ (ไม่มี asset model, ไม่มีการควบคุมย้อนกลับ, ไม่มีแบบจำลองเชิงฟิสิกส์) การประเมินตามกรอบเหล่านี้อย่างตรงไปตรงมาน่าจะอยู่ในระดับวุฒิภาวะเริ่มต้นถึงปานกลางเท่านั้น
+              ระบบนี้ยังไม่เคยถูกประเมินอย่างเป็นทางการตามมาตรฐานวุฒิภาวะ เช่น IEEE 3144-2025 หรือ ISO/IEC 30186:2025 จึงไม่อ้างระดับวุฒิภาวะใด ๆ จนกว่าจะได้ประเมินตนเองเทียบกับตัวมาตรฐานฉบับเต็ม
             </p>
           </>
         ) : (
           <>
             <p>
-              “Digital twin” gets used loosely in smart-city marketing. <strong>ISO/IEC 30173:2023</strong> (Digital twin — Concepts and terminology) is stricter, formalising a distinction that traces back to Kritzinger et al. (2018): a <strong>Digital Model</strong> has no automatic data flow in either direction; a <strong>Digital Shadow</strong> has automatic one-way flow from the physical asset to its digital representation; a <strong>Digital Twin</strong> proper requires automatic two-way flow, including control signals back to the physical asset.
+              “Digital twin” gets used loosely in smart-city marketing, so here is the board measured against the standard’s own words. <strong>ISO/IEC 30173:2023</strong> (Digital twin — Concepts and terminology), §3.1.1, defines a digital twin as a “digital representation of a target entity with data connections that enable convergence between the physical and digital states at an appropriate rate of synchronization”. Its introduction treats managing the physical system as something a twin does “when necessary”: control back to the physical world is optional, not required.
             </p>
             <p>
-              By that definition, this system is a <strong>Digital Shadow</strong>, not a digital twin in the strict sense: it automatically ingests real-world state (flights, water levels, PM2.5, CMU shuttle GPS) into a live spatial-temporal model, but nothing in the architecture sends a command back to a traffic signal, a sluice gate, or any other physical system — the data flow is one-directional throughout.
+              Under that definition this system is a <strong>monitoring and early-warning city digital twin with one-way synchronisation and no actuation</strong>. The target entity is Chiang Mai province — its rivers, air, fires and the people at risk. Live feeds (river levels, rain, PM2.5, hotspots, flights, CMU shuttle GPS) carry the physical state in, and every value says when it was observed. Nothing in the architecture sends a command back to a traffic signal, a sluice gate or any other physical system. The board shows each value’s age against its panel’s staleness limit; declaring a formal target rate of synchronisation for every feed is work tracked in docs/DIGITAL-TWIN-STANDARDS.md.
+            </p>
+            <p>
+              A stricter ladder comes from the academic work of Kritzinger et al. (2018), not from the ISO standard: a <strong>Digital Model</strong> has no automatic data flow; a <strong>Digital Shadow</strong> has automatic one-way flow from the physical to the digital; a <strong>Digital Twin</strong> has automatic two-way flow, including control back to the physical asset. On that ladder this system is a <strong>Digital Shadow</strong> (Diagram 3). Both statements hold at once: the ISO definition does not require two-way control; Kritzinger’s ladder does.
             </p>
             <p>
               The RTC bus “simulation” is a timetable-driven rule (a constant 35 km/h along a fixed route, not live GPS or a physics engine), and the visitor/arrival estimates apply a fixed seat-count or load-factor assumption to real flight data — both are <strong>simple deterministic heuristics</strong>, not the physics-based or asset-modelled simulation implied by frameworks like the Asset Administration Shell (IEC 63278). ISO 23247 does not apply directly either: it is scoped to manufacturing digital twins, not urban operations systems like this one.
             </p>
             <p>
-              This system has not been formally assessed against IEEE 3144-2025 (Digital Twin Maturity Model and Assessment Methodology in Industry) or ISO/IEC 30186:2025 (Digital twin — Maturity model and guidance for a maturity assessment); based on its current architecture (no asset model, no closed-loop control, no physics model), an honest self-assessment against either framework would likely place it at an early-to-mid maturity tier, not a fully mature one.
+              This system has not been formally assessed against IEEE 3144-2025 (Digital Twin Maturity Model and Assessment Methodology in Industry) or ISO/IEC 30186:2025 (Digital twin — Maturity model and guidance for a maturity assessment), so it claims no maturity tier until a self-assessment is made against the full text of either.
             </p>
           </>
         )}
@@ -363,8 +356,8 @@ function TwinSection({ th, t }: { th: boolean; t: T }) {
 
       <p className={`mt-3 ${NOTE}`}>
         {th
-          ? "ทั้งหมดนี้ไม่ใช่การตำหนิระบบในสภาพปัจจุบัน — เงาดิจิทัลที่ติดป้ายชัดเจนและซื่อสัตย์จนผู้ปฏิบัติงานไว้ใจได้ มีค่ามากกว่า “ดิจิทัลทวิน” ที่อ้างเกินจริงและซ่อนสมมติฐานไว้ การจัดระดับข้างต้นมีไว้เพื่อไม่ให้ใช้คำนี้แรงเกินกว่าที่สถาปัตยกรรมรองรับ"
-          : "None of this is a criticism of the system as it stands — a well-labelled, honest Digital Shadow that an operator can trust is worth more than an overclaimed “digital twin” that hides its assumptions. The classification above exists so the term is never used more strongly than the architecture supports."}
+          ? "ทั้งหมดนี้ไม่ใช่การตำหนิระบบในสภาพปัจจุบัน — ทวินทางเดียวที่ติดป้ายชัดเจนและซื่อสัตย์จนผู้ปฏิบัติงานไว้ใจได้ มีค่ามากกว่า “ดิจิทัลทวิน” ที่อ้างเกินจริงและซ่อนสมมติฐานไว้ การจัดระดับข้างต้นมีไว้เพื่อไม่ให้ใช้คำนี้แรงเกินกว่าที่สถาปัตยกรรมรองรับ"
+          : "None of this is a criticism of the system as it stands — a well-labelled, honest one-way twin that an operator can trust is worth more than an overclaimed “digital twin” that hides its assumptions. The classification above exists so the term is never used more strongly than the architecture supports."}
       </p>
     </Section>
   );
@@ -373,7 +366,7 @@ function TwinSection({ th, t }: { th: boolean; t: T }) {
 function PartnersSection({ th }: { th: boolean }) {
   const ext = "text-[var(--cool)] underline-offset-2 hover:underline";
   return (
-    <Section kicker={th ? "07 · พันธมิตรมหาวิทยาลัย" : "07 · University partners"} title={th ? "พันธมิตรมหาวิทยาลัย" : "University partners"}>
+    <Section kicker={th ? "09 · พันธมิตรมหาวิทยาลัย" : "09 · University partners"} title={th ? "พันธมิตรมหาวิทยาลัย" : "University partners"}>
       <div className={PROSE}>
         <p>
           {th
@@ -430,7 +423,7 @@ const DOWNLOADS: { href: string; file: string; title: [string, string]; desc: [s
 function DownloadsSection({ th }: { th: boolean }) {
   const i = th ? 0 : 1;
   return (
-    <Section kicker={th ? "08 · ดาวน์โหลด" : "08 · Downloads"} title={th ? "ดาวน์โหลดเอกสาร" : "Download the documents"}>
+    <Section kicker={th ? "10 · ดาวน์โหลด" : "10 · Downloads"} title={th ? "ดาวน์โหลดเอกสาร" : "Download the documents"}>
       <div className={PROSE}>
         <div className="grid gap-2 sm:grid-cols-3">
           {DOWNLOADS.map((d) => (
@@ -462,7 +455,7 @@ function LeadershipSection({ th, t }: { th: boolean; t: T }) {
   const bio = "mt-2 text-[14px] leading-[1.7] text-[var(--ink)]";
   const foot = "mt-4 border-t border-[var(--line)] pt-3 font-mono text-[11px] text-[var(--dim)]";
   return (
-    <Section kicker={th ? "09 · ผู้สนับสนุนโครงการและผู้ออกแบบระบบ" : "09 · Project sponsor & system architect"} title={th ? "ผู้สนับสนุนและผู้ออกแบบระบบ" : "Sponsor and system architect"}>
+    <Section kicker={th ? "11 · ผู้สนับสนุนโครงการและผู้ออกแบบระบบ" : "11 · Project sponsor & system architect"} title={th ? "ผู้สนับสนุนและผู้ออกแบบระบบ" : "Sponsor and system architect"}>
       <div className="mt-3 max-w-[70ch] space-y-4 text-[15px] leading-[1.75]">
         <div className={card}>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -543,6 +536,8 @@ export default function CNXAboutContent() {
       <HonestySection th={th} />
       <ArchitectureSection th={th} t={t} />
       <TwinSection th={th} t={t} />
+      <StandardsSection th={th} />
+      <GovernanceSection th={th} />
       <PartnersSection th={th} />
       <DownloadsSection th={th} />
       <LeadershipSection th={th} t={t} />
