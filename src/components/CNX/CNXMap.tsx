@@ -1335,7 +1335,7 @@ export default function CNXMap({
       <CNXForecastLayer map={mlMapRef.current} mapReady={mapReady} styleKey={basemap} forecast={forecast} tone={basemap === "satellite" ? "light" : "dark"} />
 
       {/* Native disclosure keeps controls available without obscuring the operational map. */}
-      <details className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] rounded-sm border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)] shadow-sm" onKeyDown={(event) => {
+      <details className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]" onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.currentTarget.open = false;
           event.currentTarget.querySelector("summary")?.focus();
@@ -1351,7 +1351,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={buildingsOn}
           onClick={handleToggle3D}
-          activeClassName="border-[#12354e] bg-[#12354e] text-white shadow-sm"
+          activeClassName="border-[#12354e] bg-[#12354e] text-white"
         >
           {buildingsOn ? "3D City: on" : "3D City: 2D"}
         </MapToggleButton>
@@ -1512,7 +1512,7 @@ export default function CNXMap({
       <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5 bg-[var(--bg-raised)] px-2 py-1">
         <span
           aria-hidden="true"
-          className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#b8860b]"
+          className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--cool)]"
         />
         <span className="text-[12px] font-semibold text-[var(--cool)]">
           {flights.length} {flights.length === 1 ? "flight" : "flights"}
@@ -1523,15 +1523,15 @@ export default function CNXMap({
       {selectedBuilding && (
         <aside
           aria-label="รายละเอียดอาคาร 3 มิติ"
-          className="absolute bottom-12 left-3 z-40 max-w-[340px] rounded-sm border border-[var(--line)] bg-[var(--bg-raised)]/95 p-3 shadow-2xl backdrop-blur-md"
+          className="absolute bottom-12 left-3 z-40 max-w-[340px] border border-[var(--line)] bg-[var(--bg-raised)] p-3"
         >
           <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] pb-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="inline-block rounded bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-white">
+                <span className="inline-block bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white">
                   {selectedBuilding.kind === "temple" ? "ศาสนสถาน · วัด" : selectedBuilding.kind.toUpperCase()}
                 </span>
-                <span className="inline-block rounded border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-mono text-[8px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                <span className="inline-block border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                   พร้อมรับข้อมูล · Atlas Ready
                 </span>
               </div>
@@ -1539,57 +1539,57 @@ export default function CNXMap({
                 {selectedBuilding.name}
               </h3>
               {selectedBuilding.nameEn && selectedBuilding.nameEn !== selectedBuilding.name && (
-                <div className="truncate text-[10px] text-[var(--dim)]">{selectedBuilding.nameEn}</div>
+                <div className="truncate text-[11px] text-[var(--dim)]">{selectedBuilding.nameEn}</div>
               )}
             </div>
             <button
               type="button"
               onClick={() => setSelectedBuilding(null)}
-              className="flex h-5 w-5 items-center justify-center rounded text-[12px] font-bold text-[var(--dim)] hover:bg-[var(--line)] hover:text-[var(--ink)]"
+              className="flex h-5 w-5 items-center justify-center text-[12px] font-bold text-[var(--dim)] hover:bg-[var(--line)] hover:text-[var(--ink)]"
               aria-label="ปิด"
             >
               ✕
             </button>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-1.5 font-mono text-[9px]">
-            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">ความสูง / ชั้น</span>
+          <div className="mt-2 grid grid-cols-2 gap-1.5 font-mono text-[11px]">
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">ความสูง / ชั้น</span>
               <span className="font-bold text-[var(--ink)]">
                 {selectedBuilding.height} ม. ({selectedBuilding.levels ? `${selectedBuilding.levels} ชั้น` : "—"})
               </span>
             </div>
-            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">การใช้ประโยชน์</span>
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">การใช้ประโยชน์</span>
               <span className="font-bold text-[var(--ink)]">
                 {selectedBuilding.kind === "temple" ? "วัด / ศาสนสถาน" : selectedBuilding.kind}
               </span>
             </div>
-            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">👥 ประชากร (คน)</span>
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">👥 ประชากร (คน)</span>
               <span className="italic text-[var(--dim)]">รอเชื่อมโยงข้อมูล</span>
             </div>
-            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">⚡ ไฟฟ้าสูงสุด</span>
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">⚡ ไฟฟ้าสูงสุด</span>
               <span className="italic text-[var(--dim)]">รอเชื่อม PEA</span>
             </div>
-            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">💧 การใช้น้ำประปา</span>
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">💧 การใช้น้ำประปา</span>
               <span className="italic text-[var(--dim)]">รอเชื่อม PWA</span>
             </div>
-            <div className="rounded border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[8px] uppercase tracking-wider text-[var(--dim)]">📋 สำรวจล่าสุด</span>
+            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">📋 สำรวจล่าสุด</span>
               <span className="italic text-[var(--dim)]">รอลงพื้นที่สำรวจ</span>
             </div>
           </div>
 
           {selectedBuilding.address && (
-            <div className="mt-2 border-t border-[var(--line)] pt-1.5 font-mono text-[9px] text-[var(--dim)]">
+            <div className="mt-2 border-t border-[var(--line)] pt-1.5 font-mono text-[11px] text-[var(--dim)]">
               📍 {selectedBuilding.address}
             </div>
           )}
 
-          <div className="mt-2 flex items-center justify-between border-t border-[var(--line)] pt-2 font-mono text-[8px] text-[var(--dim)]">
+          <div className="mt-2 flex items-center justify-between border-t border-[var(--line)] pt-2 font-mono text-[11px] text-[var(--dim)]">
             <span>OSM ID: {selectedBuilding.id}</span>
             <a
               href={`https://www.openstreetmap.org/way/${selectedBuilding.id}`}

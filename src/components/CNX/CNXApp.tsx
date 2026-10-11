@@ -599,7 +599,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           >
             <span aria-hidden="true">🛰</span>
             <span lang="th" className="text-[13px] font-semibold">เฝ้าระวังทั้งจังหวัด</span>
-            <span className="text-[10px]">Watch</span>
+            <span className="text-[11px]">Watch</span>
           </button>
           <div role="group" aria-label="Operations desk topics" className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
             {([
@@ -607,7 +607,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
               { id: "fire", label: "ไฟ", en: "Fire" }, { id: "model", label: "แบบจำลอง", en: "Models" },
               { id: "visitors", label: "การบิน", en: "Aviation" }, { id: "cameras", label: "กล้อง", en: "Cameras" },
               { id: "data", label: "ข้อมูล", en: "Data" }, { id: "ask", label: "ค้นหา", en: "Search" },
-            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span lang="th" className="text-[13px] font-semibold">{topic.label}</span><span className="text-[10px]">{topic.en}</span></button>)}
+            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span lang="th" className="text-[13px] font-semibold">{topic.label}</span><span className="text-[11px]">{topic.en}</span></button>)}
           </div>
           <div id="operation-evidence" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
             {deskTab === "watch" && <>

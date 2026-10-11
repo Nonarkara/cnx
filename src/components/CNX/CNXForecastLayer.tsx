@@ -14,7 +14,7 @@
 //   - Reduced motion gets still streamlines; nothing moves without a reason.
 //   - Everything here is a model forecast and says so on the bar.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MaplibreMap, ImageSource } from "maplibre-gl";
 import type { ForecastFieldResponse } from "../../lib/cnx/wind-field";
 import type { WindLevel } from "../../lib/cnx/wind-field-core";
@@ -57,15 +57,13 @@ const LAYER_ID = "cnx-forecast-field";
 const RASTER_SIZE = 300;
 const PLAY_MS = 900;
 
-const timeFmt = new Intl.DateTimeFormat("th-TH", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
+/** Map hazard colours are fixed, not theme tokens: the field sits on the base
+ *  map (light street or dark imagery), not on the page ground, and must read
+ *  the same on every base map. The legend below uses the same values. */
+const HAZARD = { good: [46, 160, 67, 255], watch: [234, 179, 8, 255], alert: [234, 88, 12, 255], critical: [220, 38, 38, 255] } as const satisfies Record<string, Rgba>;
+const PM25_STOPS = pm25Stops({ good: [...HAZARD.good], watch: [...HAZARD.watch], alert: [...HAZARD.alert], critical: [...HAZARD.critical] });
 
-function cssRgb(name: string, fallback: Rgba): Rgba {
-  if (typeof window === "undefined") return fallback;
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const m = /^#([0-9a-f]{6})$/i.exec(raw);
-  if (!m) return fallback;
-  return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16), 255];
-}
+const timeFmt = new Intl.DateTimeFormat("th-TH", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -308,19 +306,6 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
   }, [windOn, field, tone, reducedMotion]);
 
   // ── Rain / PM2.5 field as a MapLibre image beneath the labels. ──
-  const sevStops = useMemo(
-    () =>
-      pm25Stops({
-        good: cssRgb("--sev-good", [46, 160, 67, 255]),
-        watch: cssRgb("--sev-watch", [234, 179, 8, 255]),
-        alert: cssRgb("--sev-alert", [234, 88, 12, 255]),
-        critical: cssRgb("--sev-critical", [220, 38, 38, 255]),
-      }),
-    // Re-read when the theme may have changed with the style.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [styleKey],
-  );
-
   useEffect(() => {
     if (!map || !mapReady) return;
     const remove = () => {
@@ -336,7 +321,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
       remove();
       return;
     }
-    const pixels = rasterize(field, frames, t, overlay === "rain" ? RAIN_STOPS : sevStops, RASTER_SIZE, RASTER_SIZE);
+    const pixels = rasterize(field, frames, t, overlay === "rain" ? RAIN_STOPS : PM25_STOPS, RASTER_SIZE, RASTER_SIZE);
     if (!pixels) {
       remove();
       return;
@@ -363,7 +348,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
     };
     if (map.isStyleLoaded()) apply();
     else map.once("idle", apply);
-  }, [map, mapReady, styleKey, overlay, field, t, sevStops]);
+  }, [map, mapReady, styleKey, overlay, field, t]);
 
   // ── Read-outs for the bar. ──
   const wind = field ? windReadout(field, level, CITY[0], CITY[1], t) : null;
@@ -482,9 +467,9 @@ function Legend({ overlay }: { overlay: Exclude<ForecastOverlay, "none"> }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] px-2 py-1.5 text-[12px] text-[var(--dim)]">
       <span>PM2.5 µg/m³</span>
-      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[var(--sev-watch,#eab308)]" />25 เฝ้าระวัง</span>
-      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[var(--sev-alert,#ea580c)]" />50 เตือนภัย</span>
-      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[var(--sev-critical,#dc2626)]" />90 วิกฤต</span>
+      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(234,179,8)]" />25 เฝ้าระวัง</span>
+      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(234,88,12)]" />50 เตือนภัย</span>
+      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(220,38,38)]" />90 วิกฤต</span>
     </div>
   );
 }

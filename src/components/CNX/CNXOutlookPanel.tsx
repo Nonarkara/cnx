@@ -11,9 +11,9 @@ import { precisionLabel, type SheltersFile } from "../../lib/cnx/shelters";
 
 const LEVEL_TH: Record<OutlookLevel, string> = { watch: "เฝ้าระวัง", alert: "เตือนภัย", critical: "วิกฤต" };
 const LEVEL_CLASS: Record<OutlookLevel, string> = {
-  watch: "bg-[var(--sev-watch,#f99d1b)] text-black",
-  alert: "bg-[var(--sev-alert,#ea580c)] text-black",
-  critical: "bg-[var(--sev-critical,#dc2626)] text-white",
+  watch: "sev-fill-watch",
+  alert: "sev-fill-alert",
+  critical: "sev-fill-critical",
 };
 
 interface Props {
