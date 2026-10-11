@@ -5,19 +5,25 @@
 // of CNXMap (which depends on maplibre-gl) can SSR-skip.
 
 import dynamic from "next/dynamic";
+import { useLang } from "../../hooks/useLang";
 
-const CnxApp = dynamic(() => import("../../components/CNX/CNXApp"), {
-  ssr: false,
-  loading: () => (
+function LoadingScreen() {
+  const { t } = useLang();
+  return (
     <div className="flex h-[100dvh] w-screen items-center justify-center bg-[var(--bg)] text-[var(--ink)]">
       <div className="text-center">
         <div className="font-mono text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--cool)]">
-          CNX War Room
+          {t("ห้องปฏิบัติการเชียงใหม่", "CNX War Room")}
         </div>
-        <div className="mt-2 font-mono text-[11px] text-[var(--dim)]">loading map engine…</div>
+        <div className="mt-2 font-mono text-[11px] text-[var(--dim)]">{t("กำลังโหลดแผนที่…", "loading map engine…")}</div>
       </div>
     </div>
-  ),
+  );
+}
+
+const CnxApp = dynamic(() => import("../../components/CNX/CNXApp"), {
+  ssr: false,
+  loading: () => <LoadingScreen />,
 });
 
 export default function CNXPage() {

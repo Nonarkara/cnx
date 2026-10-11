@@ -3,6 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CnxOpenData from "./CNXOpenData";
+import { __resetLangForTests } from "../../hooks/useLang";
 
 const catalogue = {
   generatedAt: "2026-10-02T12:00:00Z", fetched: 1, totalDatasets: 1,
@@ -12,6 +13,8 @@ let root: Root;
 let container: HTMLDivElement;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  // The assertions below read the English interface strings.
+  __resetLangForTests("en");
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -19,6 +22,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  __resetLangForTests(null);
   vi.unstubAllGlobals();
 });
 async function render() {

@@ -17,10 +17,15 @@
 //     the persisted snapshots, then to a clear "no live data" pill.
 //   - The DEMO / scenario badge fires when the inbound set is small
 //     and the methodology note is wider than the active flights.
+//
+// One language per mode. Country and airline names are shown as the
+// registry publishes them. The API's methodology and history-reason
+// strings are English; Thai mode renders equivalents written here.
 
 import { useEffect, useMemo, useState } from "react";
 import { Plane, Users, Globe, AlertTriangle } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
+import { useLang } from "../../hooks/useLang";
 import type { VisitorAnalytics as BaseVisitorAnalytics } from "../../lib/cnx/visitors";
 
 // The API route spreads `...analytics` plus `socialCountries` and the
@@ -35,6 +40,8 @@ export type VisitorAnalytics = BaseVisitorAnalytics & {
   history?: VisitorHistoryState & { stored: "file" | "kv" | "memory" | "none" };
 };
 
+type T = (th: string, en: string | null | undefined) => string;
+
 const LANG_LABELS: Record<string, string> = {
   en: "EN",
   zh: "中文",
@@ -45,6 +52,31 @@ const LANG_LABELS: Record<string, string> = {
   fr: "FR",
   ru: "RU",
 };
+
+const METHODOLOGY_TH =
+  "ที่นั่งประมาณจากขนาดฝูงบินปกติของสายการบิน (เครื่องเล็ก 78 / ลำตัวแคบ 165 / ลำตัวกว้าง 305 / ขนาดใหญ่ 410 ที่นั่ง) " +
+  "ขาเข้า = ทิศทางบินเบี่ยงไม่เกิน 60° จากสนามบินเชียงใหม่ อาจรวมเครื่องที่บินผ่าน และไม่ยืนยันว่าลงจอด " +
+  "ประเทศหมายถึงประเทศที่จดทะเบียนสายการบินหรือเครื่องบิน ไม่ใช่สนามบินต้นทางหรือสัญชาติผู้โดยสาร " +
+  "ยอดรวมคือจำนวนที่นั่งโดยประมาณในภาพนี้ ไม่ใช่จำนวนนักท่องเที่ยวหรือยอดผู้มาถึงรายวันที่ตัดซ้ำแล้ว ช่วงรายชั่วโมงใช้เวลากรุงเทพฯ";
+
+const HISTORY_GAP_MIN = 15;
+
+function historyReasonTh(history: VisitorHistoryState): string {
+  if (history.provenance === "unavailable") {
+    return "ยังไม่มีข้อมูลที่บันทึกไว้ของวันนี้ จึงแสดงรายชื่อประเทศสะสมทั้งวันไม่ได้";
+  }
+  const gapMin = Math.round(history.largestGapMs / 60_000);
+  const gap = gapMin > HISTORY_GAP_MIN ? ` (ช่วงขาดหายนานสุด ${gapMin} นาที)` : "";
+  return `ข้อมูลประเทศสะสมของวันนี้ไม่ครบ${gap} ประเทศและจำนวนที่นั่งด้านล่างจึงเป็นค่าต่ำสุด`;
+}
+
+function PanelHeading({ t }: { t: T }) {
+  return (
+    <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
+      {t("ที่นั่งโดยประมาณ", "Seat capacity")}
+    </h2>
+  );
+}
 
 export default function CNXVisitorPanel({
   onData,
@@ -60,6 +92,7 @@ export default function CNXVisitorPanel({
 }) {
   const [data, setData] = useState<VisitorAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLang();
 
   useEffect(() => {
     let cancelled = false;
@@ -92,21 +125,18 @@ export default function CNXVisitorPanel({
     return max;
   }, [data]);
 
+  const sectionLabel = t("ข้อมูลผู้มาเยือน", "Visitor analytics");
+
   if (error && !data) {
     return (
-      <section
-        aria-label="Visitor analytics"
-        className="border border-[var(--line)] bg-[var(--bg-raised)]"
-      >
+      <section aria-label={sectionLabel} className="border border-[var(--line)] bg-[var(--bg-raised)]">
         <header className="flex items-center gap-1.5 border-b border-[var(--line)] px-3 py-1.5">
           <Plane className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
-            ที่นั่งโดยประมาณ · Seat capacity
-          </h2>
+          <PanelHeading t={t} />
         </header>
         <div className="flex items-center gap-2 px-3 py-3 text-[11px] text-[var(--dim)]">
           <AlertTriangle className="h-3.5 w-3.5 text-[var(--danger)]" />
-          {error}
+          {t("โหลดข้อมูลที่นั่งไม่สำเร็จ", error)}
         </div>
       </section>
     );
@@ -120,25 +150,24 @@ export default function CNXVisitorPanel({
   const langs = data?.recommendedLanguages ?? [];
   const airlineMix = data?.airlineMix ?? [];
   const isEstimate = data?.methodology?.includes("Seats estimated");
+  const methodology = data?.methodology ? t(METHODOLOGY_TH, data.methodology) : "";
 
   return (
     <section
-      aria-label="Visitor analytics"
+      aria-label={sectionLabel}
       className="flex h-full flex-col overflow-hidden border border-[var(--line)] bg-[var(--bg-raised)]"
     >
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-1.5">
         <div className="flex items-center gap-1.5">
           <Plane className="h-3.5 w-3.5 text-[var(--cool)]" />
-          <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
-            ที่นั่งโดยประมาณ · Seat capacity
-          </h2>
+          <PanelHeading t={t} />
         </div>
         {isEstimate && (
           <span
-            title={data?.methodology ?? ""}
+            title={methodology}
             className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--sev-watch)]"
           >
-            EST · seats × flights
+            {t("ประมาณการ · ที่นั่ง × เที่ยวบิน", "EST · seats × flights")}
           </span>
         )}
       </header>
@@ -146,25 +175,25 @@ export default function CNXVisitorPanel({
       <div className="grid shrink-0 grid-cols-3 border-b border-[var(--line)] bg-[var(--bg)]">
         <Stat
           icon={<Users className="h-3 w-3 text-[var(--cool)]" />}
-          label="Seats in view"
+          label={t("ที่นั่งในภาพ", "Seats in view")}
           value={visitors.toLocaleString()}
-          sub={isEstimate ? "estimate" : undefined}
+          sub={isEstimate ? t("ค่าประมาณ", "estimate") : undefined}
         />
         <Stat
           icon={<Plane className="h-3 w-3 text-[var(--cool)]" />}
-          label="Toward airport"
+          label={t("มุ่งหน้าสนามบิน", "Toward airport")}
           value={flights.toLocaleString()}
         />
         <Stat
           icon={<Plane className="h-3 w-3 text-[var(--dim)]" />}
-          label="Ground ops"
+          label={t("อยู่ภาคพื้น", "Ground ops")}
           value={groundOps.toLocaleString()}
         />
       </div>
 
       <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
         <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-          Carrier / registration countries
+          {t("ประเทศของสายการบิน / ทะเบียนเครื่อง", "Carrier / registration countries")}
         </div>
         {/* Prefer the day-scoped list. The instant list is empty overnight
             — honest, but it does not answer "where are people flying in
@@ -176,24 +205,36 @@ export default function CNXVisitorPanel({
           if (list.length === 0) {
             return (
               <p className="mt-1 font-mono text-[11px] text-[var(--dim)]">
-                No aircraft heading toward the airport so far today.
+                {t("วันนี้ยังไม่มีเครื่องบินมุ่งหน้าสนามบิน", "No aircraft heading toward the airport so far today.")}
               </p>
             );
           }
           return (
             <>
               <p className="mt-0.5 font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
-                {useDay ? "Today so far" : "In this snapshot"} — registration country, not passenger nationality.
-                {useDay ? " Largest single poll per country, not a distinct-flight count." : ""}
+                {useDay
+                  ? t(
+                      "ตั้งแต่เช้าวันนี้ — ประเทศที่จดทะเบียน ไม่ใช่สัญชาติผู้โดยสาร ใช้ค่าสูงสุดจากรอบเดียวของแต่ละประเทศ ไม่ใช่จำนวนเที่ยวบินที่ไม่ซ้ำ",
+                      "Today so far — registration country, not passenger nationality. Largest single poll per country, not a distinct-flight count.",
+                    )
+                  : t(
+                      "ในภาพนี้ — ประเทศที่จดทะเบียน ไม่ใช่สัญชาติผู้โดยสาร",
+                      "In this snapshot — registration country, not passenger nationality.",
+                    )}
               </p>
               {history && history.provenance !== "complete" ? (
                 <p className="mt-1 flex items-start gap-1 border-l-2 border-[var(--sev-watch)] pl-1.5 font-mono text-[11px] leading-[1.5] text-[var(--sev-watch)]">
                   <AlertTriangle className="mt-px h-2.5 w-2.5 shrink-0" aria-hidden />
                   <span>
-                    {history.reason ??
-                      "Day-to-date origins are unavailable — these are one snapshot, not the day."}
+                    {t(
+                      historyReasonTh(history),
+                      history.reason ?? "Day-to-date origins are unavailable — these are one snapshot, not the day.",
+                    )}
                     {history.stored === "memory"
-                      ? " Stored in one worker's memory only, so it may shrink or drop countries."
+                      ? t(
+                          " เก็บไว้ในหน่วยความจำของเวิร์กเกอร์เดียว จำนวนอาจลดลงหรือบางประเทศอาจหายไป",
+                          " Stored in one worker's memory only, so it may shrink or drop countries.",
+                        )
                       : ""}
                   </span>
                 </p>
@@ -217,13 +258,13 @@ export default function CNXVisitorPanel({
       <div className="shrink-0 border-b border-[var(--line)] px-3 py-2">
         <div className="flex items-center justify-between">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-            Social-listening languages
+            {t("ภาษาที่ใช้ฟังเสียงโซเชียล", "Social-listening languages")}
           </div>
           <Globe className="h-3 w-3 text-[var(--dim)]" />
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {langs.length === 0 ? (
-            <span className="font-mono text-[11px] text-[var(--dim)]">EN (default)</span>
+            <span className="font-mono text-[11px] text-[var(--dim)]">{t("อังกฤษ (ค่าเริ่มต้น)", "EN (default)")}</span>
           ) : (
             langs.map((l) => (
               <span
@@ -244,7 +285,7 @@ export default function CNXVisitorPanel({
 
       <div className="shrink-0 px-3 py-2">
         <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-          24-h hourly trend
+          {t("แนวโน้มรายชั่วโมง 24 ชม.", "24-h hourly trend")}
         </div>
         <div className="mt-1 flex h-12 items-end gap-px">
           {data?.visitorsByHour.map((h) => {
@@ -254,7 +295,10 @@ export default function CNXVisitorPanel({
             return (
               <div
                 key={h.hour}
-                title={`${h.hour}:00 — ${h.visitors} visitors, ${h.inbound} inbound, ${h.outgoing} outgoing`}
+                title={t(
+                  `${h.hour}:00 น. — ${h.visitors} ที่นั่ง, ขาเข้า ${h.inbound}, ขาออก ${h.outgoing}`,
+                  `${h.hour}:00 — ${h.visitors} visitors, ${h.inbound} inbound, ${h.outgoing} outgoing`,
+                )}
                 className="flex-1"
               >
                 <div
@@ -267,22 +311,25 @@ export default function CNXVisitorPanel({
           })}
         </div>
         <div className="mt-1 flex justify-between font-mono text-[11px] text-[var(--dim)]">
-          <span>0h</span>
-          <span>12h</span>
-          <span>23h</span>
+          <span>{t("0 น.", "0h")}</span>
+          <span>{t("12 น.", "12h")}</span>
+          <span>{t("23 น.", "23h")}</span>
         </div>
       </div>
 
       {airlineMix.length > 0 && (
         <div className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3 py-1.5">
           <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-            Carrier mix
+            {t("สัดส่วนสายการบิน", "Carrier mix")}
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {airlineMix.slice(0, 6).map((a) => (
               <span
                 key={a.airline}
-                title={`${a.airline} (${a.country}): ${a.flights} flights, ${a.visitors} est. visitors`}
+                title={t(
+                  `${a.airline} (${a.country}): ${a.flights} เที่ยวบิน, ประมาณ ${a.visitors} ที่นั่ง`,
+                  `${a.airline} (${a.country}): ${a.flights} flights, ${a.visitors} est. visitors`,
+                )}
                 className="border border-[var(--line)] px-1 py-px font-mono text-[11px] text-[var(--ink)]"
               >
                 {a.airline.split(" ")[0]} · {a.flights}

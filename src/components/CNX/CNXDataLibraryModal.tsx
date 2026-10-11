@@ -5,6 +5,7 @@
 // component for direct links.
 
 import { useModalDialog } from "../../hooks/useModalDialog";
+import { useLang } from "../../hooks/useLang";
 import { X } from "lucide-react";
 import CNXDataLibrary from "./CNXDataLibrary";
 
@@ -15,6 +16,7 @@ interface Props {
 
 export default function CnxDataLibraryModal({ isOpen, onClose }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
+  const { t } = useLang();
 
   if (!isOpen) return null;
   return (
@@ -23,7 +25,7 @@ export default function CnxDataLibraryModal({ isOpen, onClose }: Props) {
       tabIndex={-1}
       role="dialog"
       aria-modal="true"
-      aria-label="Data workbench — Chiang Mai open data"
+      aria-label={t("คลังข้อมูล — ข้อมูลเปิดเชียงใหม่", "Data workbench — Chiang Mai open data")}
       className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/60 p-4"
       onClick={onClose}
     >
@@ -33,7 +35,7 @@ export default function CnxDataLibraryModal({ isOpen, onClose }: Props) {
       >
         <button
           onClick={onClose}
-          aria-label="Close data workbench"
+          aria-label={t("ปิดคลังข้อมูล", "Close data workbench")}
           className="fixed right-6 top-6 z-10 flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:bg-[var(--cool-dim)] hover:text-[var(--ink)]"
         >
           <X className="h-4 w-4" />
