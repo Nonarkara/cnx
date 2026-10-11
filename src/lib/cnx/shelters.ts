@@ -1,13 +1,35 @@
 // Chiang Mai temporary flood shelters (ศูนย์พักพิงชั่วคราวจังหวัดเชียงใหม่).
 // Data: public/data/cnx/shelters.json, built by scripts/build-cnx-shelters.mjs
 // from the สำนักงานจังหวัดเชียงใหม่ list on chiangmai.gdcatalog.go.th, with
-// coordinates from OpenStreetMap Nominatim (ODbL). The official list has no
-// coordinates — `precision` says how each point was found, and a null
-// lat/lon means no location could be verified (never guessed).
+// coordinates from OpenStreetMap (Overpass + Nominatim, ODbL) unless a
+// government office has confirmed the point in data/shelter-locations.csv.
+// The official list has no coordinates — `precision` says how each point was
+// found, and a null lat/lon means no location could be verified (never
+// guessed). See docs/SHELTERS.md.
 //
 // Import-free on purpose so server code, client code and scripts can share it.
 
-export type ShelterPrecision = "place" | "tambon" | "amphoe" | "none";
+/** Strongest first: confirmed by an office, at the building, subdistrict, district, unknown. */
+export type ShelterPrecision = "official" | "place" | "tambon" | "amphoe" | "none";
+
+/** What the point actually is (the builder's evidence trail). */
+export type ShelterBasis =
+  | "official"
+  | "osm-building"
+  | "osm-subdistrict-boundary"
+  | "osm-subdistrict-office"
+  | "osm-settlement"
+  | "osm-district-office"
+  | "osm-district-seat"
+  | "osm-district-boundary";
+
+/**
+ * For "place" points: is the building in the ตำบล the list names?
+ * boundary = inside the OSM ตำบล polygon; address = the OSM object's own
+ * addr:subdistrict names it; outside = an OSM ตำบล polygon excludes it;
+ * unverified = OSM has neither (most of the province).
+ */
+export type ShelterTambonCheck = "boundary" | "address" | "outside" | "unverified";
 
 export interface Shelter {
   id: string;
@@ -27,6 +49,12 @@ export interface Shelter {
   matchedName: string | null;
   /** OSM element, e.g. "way/123". */
   osm: string | null;
+  basis?: ShelterBasis;
+  tambonCheck?: ShelterTambonCheck;
+  /** "official" rows: who confirmed the point, when (YYYY-MM-DD), and how. */
+  verifiedBy?: string;
+  verifiedAt?: string;
+  officialSource?: string | null;
   /** Set when the official list repeats an earlier row verbatim. */
   duplicateOf?: string;
 }
@@ -35,7 +63,9 @@ export interface SheltersFile {
   generatedAt: string;
   source: { publisher: string; datasetUrl: string; resourceUrl: string; fetchedAt: string | null };
   geocoder: string;
-  counts: { total: number; place: number; tambon: number; amphoe: number; none: number };
+  /** OSM snapshot time of the Overpass data used. */
+  osmDataAt?: string | null;
+  counts: { total: number } & Record<ShelterPrecision, number>;
   shelters: Shelter[];
 }
 
@@ -45,9 +75,12 @@ export interface ShelterWithDistance extends Shelter {
   distanceKm: number;
 }
 
+export const SHELTER_PRECISIONS: readonly ShelterPrecision[] = ["official", "place", "tambon", "amphoe", "none"];
+
 export const precisionLabel: Record<ShelterPrecision, { th: string; en: string }> = {
+  official: { th: "พิกัดยืนยันโดยหน่วยงาน", en: "officially verified location" },
   place: { th: "ตำแหน่งจากแผนที่ OSM", en: "mapped location (OSM)" },
-  tambon: { th: "ประมาณ — กลางตำบล", en: "approximate — subdistrict centre" },
+  tambon: { th: "ประมาณ — ระดับตำบล", en: "approximate — subdistrict level" },
   amphoe: { th: "ประมาณ — ระดับอำเภอ", en: "approximate — district level" },
   none: { th: "ไม่ทราบพิกัด", en: "location unknown" },
 };
@@ -145,7 +178,8 @@ export function nearestShelters(list: readonly Shelter[], lon: number, lat: numb
 
 // ------------------------------------------------------------ validator
 
-const PRECISIONS: ReadonlySet<string> = new Set(["place", "tambon", "amphoe", "none"]);
+const PRECISIONS: ReadonlySet<string> = new Set(SHELTER_PRECISIONS);
+const TAMBON_CHECKS: ReadonlySet<string> = new Set(["boundary", "address", "outside", "unverified"]);
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isNumOrNull = (v: unknown) => v === null || (typeof v === "number" && Number.isFinite(v));
@@ -164,6 +198,12 @@ export function isShelter(v: unknown): v is Shelter {
   if ((v.lat === null) !== (v.lon === null)) return false;
   if ((v.lat === null) !== (v.precision === "none")) return false;
   if (v.duplicateOf !== undefined && typeof v.duplicateOf !== "string") return false;
+  if (v.basis !== undefined && typeof v.basis !== "string") return false;
+  if (v.tambonCheck !== undefined && !(typeof v.tambonCheck === "string" && TAMBON_CHECKS.has(v.tambonCheck))) return false;
+  // An official point must say who confirmed it and when.
+  if (v.precision === "official" && (typeof v.verifiedBy !== "string" || !v.verifiedBy || typeof v.verifiedAt !== "string" || !v.verifiedAt)) {
+    return false;
+  }
   return true;
 }
 
@@ -173,6 +213,6 @@ export function isSheltersFile(v: unknown): v is SheltersFile {
   if (!isObj(src) || typeof src.publisher !== "string" || typeof src.datasetUrl !== "string") return false;
   if (typeof src.resourceUrl !== "string" || !isStrOrNull(src.fetchedAt)) return false;
   const c = v.counts;
-  if (!isObj(c) || !["total", "place", "tambon", "amphoe", "none"].every((k) => typeof c[k] === "number")) return false;
+  if (!isObj(c) || !["total", ...SHELTER_PRECISIONS].every((k) => typeof c[k] === "number")) return false;
   return Array.isArray(v.shelters) && v.shelters.every(isShelter);
 }
