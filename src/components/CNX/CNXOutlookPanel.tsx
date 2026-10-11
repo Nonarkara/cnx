@@ -153,8 +153,8 @@ export default function CnxOutlookPanel({ outlook, shelters, onShowOnMap }: Prop
         <div className="flex items-center gap-2 border-t border-[var(--line)] pt-2">
           <p className="min-w-0 flex-1 text-[12px] leading-snug text-[var(--dim)]">
             {t(
-              `ศูนย์พักพิงชั่วคราวทางการ ${shelters.counts.total} แห่ง (${shelters.source.publisher}) · พิกัดตรงอาคาร ${shelters.counts.place} แห่ง ที่เหลือเป็นตำแหน่งโดยประมาณ`,
-              `${shelters.counts.total} official temporary shelters (${shelters.source.publisher}) · ${shelters.counts.place} mapped to the building, the rest approximate`,
+              `ศูนย์พักพิงชั่วคราวทางการ ${shelters.counts.total} แห่ง (${shelters.source.publisher}) · พิกัดตรงอาคาร ${shelters.counts.place + (shelters.counts.official ?? 0)} แห่ง ที่เหลือเป็นตำแหน่งโดยประมาณ`,
+              `${shelters.counts.total} official temporary shelters (${shelters.source.publisher}) · ${shelters.counts.place + (shelters.counts.official ?? 0)} mapped to the building, the rest approximate`,
             )}
           </p>
           <MapButton onClick={() => onShowOnMap({ lat: 18.95, lon: 98.95, amphoeTh: null })} label={t("ศูนย์พักพิงทั้งหมด", "All shelters")} />

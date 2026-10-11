@@ -539,7 +539,7 @@ export default function CNXMap({
       radiusUnits: "pixels",
       stroked: true,
       filled: true,
-      getFillColor: (d) => (d.precision === "place" ? [255, 255, 255, 245] : [255, 255, 255, 70]),
+      getFillColor: (d) => (d.precision === "place" || d.precision === "official" ? [255, 255, 255, 245] : [255, 255, 255, 70]),
       getLineColor: (d) => (inFocus(d) || focusAmphoe === null ? [18, 53, 78, 255] : [18, 53, 78, 150]),
       getLineWidth: (d) => (inFocus(d) ? 3 : 2),
       lineWidthUnits: "pixels",

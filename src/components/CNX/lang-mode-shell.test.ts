@@ -45,7 +45,7 @@ const OUTLOOK: ProvinceOutlook = {
   dirtiest: MAE_RIM,
   hasPm25: true,
 };
-const SHELTERS: SheltersFile = { generatedAt: "2026-10-01T00:00:00Z", source: { publisher: PUBLISHER, datasetUrl: "", resourceUrl: "", fetchedAt: null }, geocoder: "osm", counts: { total: 1, place: 1, tambon: 0, amphoe: 0, none: 0 }, shelters: [SHELTER] };
+const SHELTERS: SheltersFile = { generatedAt: "2026-10-01T00:00:00Z", source: { publisher: PUBLISHER, datasetUrl: "", resourceUrl: "", fetchedAt: null }, geocoder: "osm", counts: { total: 1, official: 0, place: 1, tambon: 0, amphoe: 0, none: 0 }, shelters: [SHELTER] };
 const NEWS: SocialListeningResponse = {
   generatedAt: new Date(NOW - 5 * 60_000).toISOString(), provenance: "live", counts: { th: 1, en: 1 },
   items: [
