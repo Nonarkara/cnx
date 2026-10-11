@@ -162,6 +162,9 @@ export type CctvSource = "longdo" | "itic" | "doh" | "private" | "lanta" | "yout
 export interface CctvSlot {
   id: string;
   label: string;
+  /** Per-language names when the registry has both (label stacks them). */
+  labelTh?: string;
+  labelEn?: string;
   source: CctvSource;
   longitude: number;
   latitude: number;

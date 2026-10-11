@@ -103,7 +103,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                     reachable ? "" : "opacity-70"
                   }`}
                   style={{ borderTop: `2px solid ${reachable ? color : "var(--dim)"}` }}
-                  title={`${s.label} — ${t("คลิกดูภาพใหญ่", "click for a larger view")}`}
+                  title={`${t(s.labelTh ?? s.label, s.labelEn ?? s.label)} — ${t("คลิกดูภาพใหญ่", "click for a larger view")}`}
                 >
                   <div className="relative h-[64px] w-[96px] shrink-0 overflow-hidden bg-black">
                     {s.posterUrl ? (
@@ -132,7 +132,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="line-clamp-2 text-[14px] font-semibold leading-snug text-[var(--ink)]">
-                      {s.label}
+                      {t(s.labelTh ?? s.label, s.labelEn ?? s.label)}
                     </div>
                     <div className="mt-1 text-[12px] leading-snug text-[var(--dim)]">
                       {SOURCE_BADGE[s.source] ? t(SOURCE_BADGE[s.source].th, SOURCE_BADGE[s.source].en) : s.source} · {reachable ? (s.hlsUrl ? t("วิดีโอ", "Video") : t("ภาพนิ่ง", "Still image")) : t("ภาพไม่พร้อม", "Image unavailable")}

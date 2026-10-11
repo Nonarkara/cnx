@@ -117,7 +117,7 @@ function SnapshotView({ slot }: { slot: CctvSlot }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`${slot.posterUrl}${sep}_ts=${ts}`}
-      alt={`${t("ภาพล่าสุด", "Latest image")}: ${slot.label}`}
+      alt={`${t("ภาพล่าสุด", "Latest image")}: ${t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)}`}
       className="aspect-video w-full bg-black object-contain"
       decoding="async"
     />
@@ -161,7 +161,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
               CCTV · {category ? t(category.th, category.en) : slot.category} · {sourceLabel}
             </div>
             <h2 id={titleId} className="font-display text-xl font-bold text-[var(--ink)]">
-              {slot.label}
+              {t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)}
             </h2>
             <div className="mt-0.5 font-mono text-[11px] tabular-nums text-[var(--dim)]">
               {slot.latitude.toFixed(4)}, {slot.longitude.toFixed(4)}
@@ -185,12 +185,12 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             92dvh cap on a short phone screen. */}
         <div className="min-h-0 shrink overflow-y-auto bg-black">
           {slot.hlsUrl ? (
-            <HlsVideo src={slot.hlsUrl} label={slot.label} />
+            <HlsVideo src={slot.hlsUrl} label={t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)} />
           ) : slot.playerUrl ? (
             <iframe
               key={slot.id}
               src={slot.playerUrl}
-              title={`${t("ภาพกล้อง", "Camera view")}: ${slot.label}`}
+              title={`${t("ภาพกล้อง", "Camera view")}: ${t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)}`}
               className="aspect-video w-full"
               allow="autoplay; fullscreen"
               allowFullScreen

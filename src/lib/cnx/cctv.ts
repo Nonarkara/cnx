@@ -116,6 +116,8 @@ async function fetchWindy(): Promise<WindySlot[]> {
   const slots: WindySlot[] = WINDY_CAMERAS.map((c) => ({
     id: c.id,
     label: c.nameTh ? `${c.nameTh} · ${c.name}` : c.name,
+    labelTh: c.nameTh || c.name,
+    labelEn: c.name,
     longitude: c.longitude,
     latitude: c.latitude,
     posterUrl: c.snapshot,

@@ -389,20 +389,20 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
       const ageMin = Number.isFinite(stamp.getTime())
         ? Math.max(0, Math.round((Date.now() - stamp.getTime()) / 60_000))
         : null;
-      const ageTxt =
-        ageMin === null
-          ? ""
-          : ageMin < 60
-            ? ` (observed ${ageMin} min ago)`
-            : ageMin < 1440
-              ? ` (observed ${Math.round(ageMin / 60)} h ago)`
-              : ` (observed ${Math.round(ageMin / 1440)} d ago)`;
+      // The age suffix in each language — a Thai reason must not carry English.
+      const ageIn = (lang: "th" | "en") => {
+        if (ageMin === null) return "";
+        const [n, unitTh, unitEn] = ageMin < 60 ? [ageMin, "นาที", "min"] : ageMin < 1440 ? [Math.round(ageMin / 60), "ชม.", "h"] : [Math.round(ageMin / 1440), "วัน", "d"];
+        return lang === "th" ? ` (วัดเมื่อ ${n} ${unitTh}ก่อน)` : ` (observed ${n} ${unitEn} ago)`;
+      };
+      const ageTxt = ageIn("en");
+      const ageTh = ageIn("th");
 
       if (head !== null && head <= 0) {
         floodScore = 40;
         reasons.push({
           domain: "flood",
-          th: `สถานี ${at} วัดได้ถึงหรือเลยระดับวิกฤตที่ประกาศไว้ — ตรวจสอบน้ำท่วมในพื้นที่${ageTxt}`,
+          th: `สถานี ${at} วัดได้ถึงหรือเลยระดับวิกฤตที่ประกาศไว้ — ตรวจสอบน้ำท่วมในพื้นที่${ageTh}`,
           en: `Gauge ${at} is at or above its published critical level — verify local inundation${ageTxt}`,
           evidence: `gauge_headroom=${head.toFixed(2)}m`,
         });
@@ -410,7 +410,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
         floodScore = bank <= 0 ? 40 : 25;
         reasons.push({
           domain: "flood",
-          th: `สถานี ${at} อยู่ห่างตลิ่ง ${Math.abs(bank).toFixed(2)} ม.${ageTxt}`,
+          th: `สถานี ${at} อยู่ห่างตลิ่ง ${Math.abs(bank).toFixed(2)} ม.${ageTh}`,
           en: `Gauge ${at} is ${Math.abs(bank).toFixed(2)} m from its bank level${ageTxt}`,
           evidence: `gauge_below_bank=${bank.toFixed(2)}m`,
         });
@@ -421,7 +421,7 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
         // cap below keeps it from certifying that on its own.
         calmReading = {
           domain: "flood",
-          th: `สถานี ${at} ระดับน้ำต่ำกว่าตลิ่ง ${bank.toFixed(2)} ม.${ageTxt}`,
+          th: `สถานี ${at} ระดับน้ำต่ำกว่าตลิ่ง ${bank.toFixed(2)} ม.${ageTh}`,
           en: `Gauge ${at} is ${bank.toFixed(2)} m below its bank level${ageTxt}`,
           evidence: `gauge_below_bank=${bank.toFixed(2)}m`,
         };
