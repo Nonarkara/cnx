@@ -343,6 +343,8 @@ async function pushArrivals() {
     const res = await fetch(ARRIVALS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+      // Never follow a redirect with the secret attached.
+      redirect: "error",
       body: JSON.stringify({ windows, typecodes: typeMap }),
       signal: AbortSignal.timeout(20_000),
     });
@@ -398,6 +400,8 @@ async function pushRiverLevels() {
     const res = await fetch(RIVER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+      // Never follow a redirect with the secret attached.
+      redirect: "error",
       body: JSON.stringify({ generatedAt: new Date().toISOString(), envelope, catalogueCount }),
       signal: AbortSignal.timeout(20_000),
     });
@@ -425,7 +429,9 @@ async function warmVisitorArchive() {
   lastVisitorsWarmAt = Date.now(); // set first: a failure retries next cycle, not every 30 s
   try {
     const res = await fetch(`${WORKER_BASE}/api/cnx/visitors`, {
-      headers: { "User-Agent": UA },
+      // The secret marks this as the one caller allowed to append the archive.
+      headers: { "User-Agent": UA, "X-Relay-Secret": RELAY_SECRET },
+      redirect: "error",
       signal: AbortSignal.timeout(20_000),
     });
     if (!res.ok) throw new Error(`visitors ${res.status}`);
@@ -452,6 +458,8 @@ async function tick() {
     const res = await fetch(INGEST_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+      // Never follow a redirect with the secret attached.
+      redirect: "error",
       body: JSON.stringify(snapshot),
       signal: AbortSignal.timeout(10_000),
     });

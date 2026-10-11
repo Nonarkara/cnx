@@ -10,13 +10,9 @@
   X-Permitted-Cross-Domain-Policies: none
 /data/*
   Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
-/api/cnx/*
-  Cache-Control: no-store, must-revalidate
-  X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
 /_next/image/*
   Cache-Control: public, max-age=31536000, immutable
-/public/fonts/*
+/fonts/*
   Cache-Control: public, max-age=31536000, immutable

@@ -3,6 +3,10 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-11",
   "compatibility_flags": ["nodejs_compat"],
+  // Only the custom domains serve the board: no *.workers.dev or preview URLs
+  // that would sidestep zone rules.
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -12,6 +16,12 @@
     "traces": { "enabled": true, "head_sampling_rate": 0.1 },
     "redact_query_string": true
   },
+  // Per-IP rate limits read by middleware.ts (src/lib/security-policy.ts).
+  "ratelimits": [
+    { "name": "CNX_RL_INGEST", "namespace_id": "5001", "simple": { "limit": 60, "period": 60 } },
+    { "name": "CNX_RL_HEAVY", "namespace_id": "5002", "simple": { "limit": 150, "period": 60 } },
+    { "name": "CNX_RL_API", "namespace_id": "5003", "simple": { "limit": 1500, "period": 60 } }
+  ],
   "kv_namespaces": [
     { "binding": "CNX_FLIGHTS_KV", "id": "069c48737c89469cb8c9265bead428a2" }
   ],

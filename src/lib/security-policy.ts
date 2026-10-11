@@ -12,10 +12,13 @@
 //     dashboard on the About page.
 //   - styles: 'unsafe-inline' is required by React style attributes and
 //     MapLibre's inline styles; style injection cannot execute script.
+//   - connect: MapLibre v6 fetch()es image sources, and the forecast layer
+//     hands it a data: URL — so data: and blob: must be allowed here.
 //   - no plugins, no <base> hijack, forms post only here, nobody may frame us.
 
 export const FRAME_HOSTS = ["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com"];
-export const SOCKET_HOSTS = ["wss://cmutransit-ws.bda.co.th"];
+// Host sources without a port match only the default port; the broker is on 8883.
+export const SOCKET_HOSTS = ["wss://cmutransit-ws.bda.co.th:8883"];
 
 export function buildCsp(nonce: string): string {
   return [
@@ -24,7 +27,7 @@ export function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    `connect-src 'self' https: ${SOCKET_HOSTS.join(" ")}`,
+    `connect-src 'self' data: blob: https: ${SOCKET_HOSTS.join(" ")}`,
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
@@ -66,6 +69,6 @@ export const SECURITY_HEADERS: Record<string, string> = {
  */
 export function rateLimitClass(pathname: string, method: string): { binding: "CNX_RL_INGEST" | "CNX_RL_HEAVY" | "CNX_RL_API" } {
   if (pathname.endsWith("/ingest") || method === "POST") return { binding: "CNX_RL_INGEST" };
-  if (/^\/api\/cnx\/(ask|forecast-field|aircraft|social|smoke-trajectory|twin|story|og)(\/|$)/.test(pathname)) return { binding: "CNX_RL_HEAVY" };
+  if (/^\/api\/cnx\/(ask|forecast-field|aircraft|social|smoke-trajectory|twin|story|og|visitors|outbound)(\/|$)/.test(pathname)) return { binding: "CNX_RL_HEAVY" };
   return { binding: "CNX_RL_API" };
 }

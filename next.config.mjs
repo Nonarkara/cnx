@@ -16,6 +16,8 @@ const previewFeeds = ["aerosol", "air-quality", "aqi-amphoe", "asmc", "cctv", "c
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Don't advertise the framework in every response.
+  poweredByHeader: false,
   outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
   // Shown next to the title (top-left) so every deploy is identifiable.
   // The build metadata goes through the env config rather than bare

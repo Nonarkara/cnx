@@ -112,7 +112,7 @@ export async function buildCnxStory(
     measuredGauge: river.provenance === "live" ? river.gauges.filter((g) => isPingMainstem(g) && isCurrentGaugeReading(g.observedAt)).sort((a, b) => (a.belowBankM ?? Infinity) - (b.belowBankM ?? Infinity))[0] ?? null : null,
   };
 
-  const key = (scenarioId && THEMES[scenarioId]) ? scenarioId : pickScenario(inputs);
+  const key = scenarioId && Object.hasOwn(THEMES, scenarioId) ? scenarioId : pickScenario(inputs);
   return buildStoryFromInputs(key, inputs, now);
 }
 
@@ -140,7 +140,7 @@ export function buildStoryFromInputs(
     : "No live NASA FIRMS pass this cycle — the hotspot count is unknown, not zero.";
   return {
     generatedAt: now,
-    headline: THEMES[scenarioId] ?? THEMES["stable-winter-day"],
+    headline: Object.hasOwn(THEMES, scenarioId) ? THEMES[scenarioId] : THEMES["stable-winter-day"],
     paragraphs: [air, flood, fires, "Arrival totals, crowd counts, school closures, road restrictions and official response deployments are not verified by this story."],
     bullets: [
       "Suggested action: verify local readings and their observation times before deciding.",

@@ -10,6 +10,7 @@ import {
   readVisitorSnapshotsForDay,
 } from "../../../../lib/cnx/visitors-store";
 import { visitorHistoryState } from "../../../../lib/cnx/visitors-kv";
+import { relaySecretMatches } from "../../../../lib/cnx/relay-kv";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,7 +35,7 @@ export const revalidate = 0;
  * subscribe to (the recommended languages are surfaced in
  * `recommendedLanguages`).
  */
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const ts = Date.now();
   const snapshot = await fetchCnxSnapshot();
   const today = new Date(ts + 7 * 3_600_000).toISOString().slice(0, 10);
@@ -57,10 +58,15 @@ export async function GET(): Promise<Response> {
     },
   );
 
-  // Complete persistence before the edge request ends.
-  await appendVisitorSnapshot(analytics).catch((e) =>
-    console.warn(`[visitors] snapshot append failed: ${(e as Error).message}`),
-  );
+  // Only the relay's 12-minute warm call writes the archive. A public GET
+  // used to append a KV row on every request — an unauthenticated write a
+  // loop could use to burn write quota and churn the day's history.
+  const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
+  if (secret && relaySecretMatches(request.headers.get("x-relay-secret"), secret)) {
+    await appendVisitorSnapshot(analytics).catch((e) =>
+      console.warn(`[visitors] snapshot append failed: ${(e as Error).message}`),
+    );
+  }
 
   // Say what the day archive actually covers. On Workers the archive lives
   // in KV (see visitors-kv.ts); when it is missing or has holes the

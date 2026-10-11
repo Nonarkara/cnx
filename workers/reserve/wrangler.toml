@@ -1,3 +1,5 @@
+# NEVER DEPLOY: historical placeholder. It claims the production hostnames
+# and would replace the live board (cnx-dashboard) with a stub.
 name = "cnx-dashboard-reserve"
 main = "src/index.js"
 compatibility_date = "2024-12-01"

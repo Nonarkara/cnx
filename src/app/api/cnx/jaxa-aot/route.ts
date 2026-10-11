@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchLatestAotItem } from "../../../../lib/cnx/jaxa-aot";
+import { edgeCached } from "../../../../lib/edge-cache";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,10 +20,15 @@ export const revalidate = 0;
  * its observation window, and the licence that travels with it — a panel
  * that drew a value from this response would be minting one.
  */
-export async function GET() {
+async function handle(): Promise<Response> {
   // Chiang Mai, the same longitude the resolver's tests pin (98.98°E).
   const data = await fetchLatestAotItem(98.98);
   return NextResponse.json(data, {
     headers: { "Cache-Control": "s-maxage=1800, stale-while-revalidate=3600" },
   });
+}
+
+/** Served through the shared edge cache for the route's own s-maxage (src/lib/edge-cache.ts). */
+export async function GET(request: Request): Promise<Response> {
+  return edgeCached(request, () => handle());
 }

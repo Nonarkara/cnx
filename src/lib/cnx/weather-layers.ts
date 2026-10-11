@@ -85,7 +85,9 @@ async function resolveRainRadarPath(): Promise<{ host: string; path: string; gen
     // Guard the shape — a half-changed upstream schema must degrade to
     // "no radar right now", never to a template with "undefined" in it.
     if (!latest || typeof latest.path !== "string" || typeof latest.time !== "number") return null;
-    const host = typeof json.host === "string" && json.host ? json.host : RAINVIEWER_HOST;
+    // Pinned: the upstream-supplied host would otherwise go verbatim into a
+    // tile URL every browser fetches.
+    const host = json.host === RAINVIEWER_HOST ? json.host : RAINVIEWER_HOST;
     return { host, path: latest.path, generatedAt: latest.time * 1000 };
   } catch {
     return null;

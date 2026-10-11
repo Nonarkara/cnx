@@ -202,17 +202,45 @@ export async function loadForecastField(nowMs = Date.now()): Promise<Stored | nu
     memory = { at: nowMs, data: shared };
     return shared;
   }
+  // One refresh is ~340 Open-Meteo calls. A short KV lock stops concurrent
+  // isolates from all refreshing at the 3-hour boundary, and a failure holds
+  // the lock longer so a 429 is not answered with more requests.
+  if (await refreshLocked()) return shared && covers(shared) ? shared : null;
+  await setRefreshLock(LOCK_TTL_S);
   const fresh = await fetchUpstream();
   if (fresh) {
     memory = { at: nowMs, data: fresh };
     await writeKv(fresh);
     return fresh;
   }
+  await setRefreshLock(FAIL_LOCK_TTL_S);
   if (shared && covers(shared)) {
     memory = { at: nowMs, data: shared };
     return shared;
   }
   return null;
+}
+
+const LOCK_KEY = "forecast-field-lock";
+const LOCK_TTL_S = 60; // KV's minimum TTL
+const FAIL_LOCK_TTL_S = 600;
+
+async function refreshLocked(): Promise<boolean> {
+  try {
+    const store = await cnxKv();
+    return Boolean(store && (await store.get(LOCK_KEY)));
+  } catch {
+    return false;
+  }
+}
+
+async function setRefreshLock(ttl: number): Promise<void> {
+  try {
+    const store = await cnxKv();
+    await store?.put(LOCK_KEY, String(Date.now()), { expirationTtl: ttl });
+  } catch {
+    // Without KV there is nothing to coordinate.
+  }
 }
 
 /** Drop frames that are already in the past so the client starts at "now". */

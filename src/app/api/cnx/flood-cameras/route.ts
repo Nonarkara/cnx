@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchCnxFloodCameras } from "../../../../lib/cnx/flood-cameras";
+import { edgeCached } from "../../../../lib/edge-cache";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,9 +19,14 @@ export const revalidate = 0;
  * `cataloguedAt` is the observation time the panel must age. `live` is
  * the aggregator's flag passed through unchanged — never inferred here.
  */
-export async function GET(): Promise<Response> {
+async function handle(): Promise<Response> {
   const data = await fetchCnxFloodCameras();
   return NextResponse.json(data, {
     headers: { "Cache-Control": "s-maxage=900, stale-while-revalidate=1800" },
   });
+}
+
+/** Served through the shared edge cache for the route's own s-maxage (src/lib/edge-cache.ts). */
+export async function GET(request: Request): Promise<Response> {
+  return edgeCached(request, () => handle());
 }

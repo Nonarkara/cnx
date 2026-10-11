@@ -40,10 +40,12 @@ function isRow(v: unknown): v is RainRow {
     isStr(v.amphoeTh, 100) &&
     isStr(v.amphoeEn, 100) &&
     isStr(v.tambonTh, 100) &&
+    // Chiang Mai only (province spans ~17.2–20.2 °N, 97.6–99.6 °E): a forged
+    // or mis-geocoded gauge elsewhere cannot raise this board's verdict.
     isNum(v.lat) &&
-    v.lat >= -90 && v.lat <= 90 &&
+    v.lat >= 17.0 && v.lat <= 20.6 &&
     isNum(v.lon) &&
-    v.lon >= -180 && v.lon <= 180 &&
+    v.lon >= 97.3 && v.lon <= 100.0 &&
     isStr(v.agency, 40)
   );
 }

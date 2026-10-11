@@ -19,6 +19,12 @@ describe("content security policy", () => {
     expect(directive("frame-src").split(" ").slice(1)).toEqual(["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com"]);
   });
 
+  it("lets MapLibre fetch the forecast data: URL and reach the shuttle broker on its port", () => {
+    expect(directive("connect-src")).toContain("data:");
+    expect(directive("connect-src")).toContain("blob:");
+    expect(directive("connect-src")).toContain("wss://cmutransit-ws.bda.co.th:8883");
+  });
+
   it("locks API responses down completely", () => {
     expect(API_CSP).toBe("default-src 'none'; frame-ancestors 'none'");
   });
