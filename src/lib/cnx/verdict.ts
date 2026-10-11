@@ -250,6 +250,26 @@ export function isCurrentGaugeReading(observedAt: string, nowMs = Date.now()): b
   return Number.isFinite(elapsed) && elapsed >= -5 * 60_000 && elapsed <= 3 * 3_600_000;
 }
 
+/**
+ * Dams whose release reaches the Ping ABOVE gauge P.1 in the city. Only Mae
+ * Ngat Somboon Chon qualifies: Mae Kuang joins the Ping below the city,
+ * Bhumibol is downstream in Tak, Sirikit is on the Nan.
+ */
+export const UPSTREAM_DAM_IDS: readonly string[] = ["MNG"];
+
+/** Release ≥ 1.5× inflow at an upstream dam (UPSTREAM_DAM_IDS) — the `reservoir_surge` input. */
+export function upstreamDamSurge(
+  reservoirs: readonly { damId: string; inflowM3s?: number; outflowM3s?: number }[],
+): boolean {
+  return reservoirs.some(
+    (r) =>
+      UPSTREAM_DAM_IDS.includes(r.damId) &&
+      typeof r.inflowM3s === "number" &&
+      typeof r.outflowM3s === "number" &&
+      r.outflowM3s >= r.inflowM3s * 1.5,
+  );
+}
+
 export interface VerdictInputs {
   /** Worst live PM2.5 µg/m³ in CNX province. null = no signal. */
   pm25_now: number | null;
@@ -274,7 +294,7 @@ export interface VerdictInputs {
    * scenario label where an operator can still see it.
    */
   ping_measured?: PingMeasured | null;
-  /** Reservoir outflow surge flag (any northern dam ≥ 1.5x inflow). */
+  /** Release surge at a dam upstream of the city (see upstreamDamSurge). */
   reservoir_surge: boolean;
   /** FIRMS / RFD fire hotspots within CNX bbox in the last 24 h. */
   fire_count: number | null;

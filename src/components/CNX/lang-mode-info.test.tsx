@@ -108,6 +108,22 @@ function latinLeftAfterWhitelist(text: string): string[] {
   return rest.match(/[A-Za-z]{2,}/g) ?? [];
 }
 
+/** Proper names, standards and identifiers the Thai standards and
+ *  governance sections keep in Latin script. Longest first. */
+const STANDARDS_NAMES = [
+  "Centre for Digital Built Britain", "docs/DIGITAL-TWIN-STANDARDS.md", "Early Warnings for All", "Cloudflare Workers",
+  "ISO/IEC 30173:2023", "ISO/IEC 30173", "Google Flood Hub", "/api/cnx/cap.xml", "Cell Broadcast", "ITU-T Y.4600",
+  "Kritzinger", "NASA FIRMS", "Restricted", "Flood Hub", "Cloudflare", "ThaiWater", "DustBoy", "CAP 1.2", "Gemini", "GISTDA", "FIRMS", "UNDRR",
+  "PM2.5", "RCAD", "LINE", "SMS", "URL", "WMO", "CAP", "IP",
+].sort((a, b) => b.length - a.length);
+
+/** Text of the About section whose kicker starts with `kicker`. */
+function sectionText(kicker: string): string {
+  const section = [...container.querySelectorAll("section")].find((s) => s.firstElementChild?.textContent?.startsWith(kicker));
+  expect(section, `section ${kicker}`).toBeDefined();
+  return section?.textContent ?? "";
+}
+
 const PANELS = (
   <>
     <CnxArrivalsPanel />
@@ -157,11 +173,59 @@ describe("one language per mode — information surfaces", () => {
     expect(thaiCharCount(text)).toBe(0);
   });
 
+  it("renders the standards, governance and privacy sections in English with no Thai", async () => {
+    await render("en", <CNXAboutContent />);
+    const text = sectionText("07 ·") + sectionText("08 ·");
+    for (const phrase of [
+      "Standards position",
+      "Disaster risk knowledge",
+      "What it does not do",
+      "scope Restricted",
+      "Official TMD warnings for Chiang Mai",
+      "ITU-T Y.4600",
+      "Gemini Principles",
+      "docs/DIGITAL-TWIN-STANDARDS.md",
+      "Governance and privacy",
+      "To be assigned",
+      "If the relay machine is down for 24 hours",
+      "Personal Data Protection Act",
+      "does not keep the images",
+      "does not record who wrote them",
+    ]) {
+      expect(text).toContain(phrase);
+    }
+    expect(thaiCharCount(text)).toBe(0);
+  });
+
+  it("renders the standards, governance and privacy sections in Thai, keeping only names and identifiers in Latin script", async () => {
+    await render("th", <CNXAboutContent />);
+    const text = sectionText("07 ·") + sectionText("08 ·");
+    for (const phrase of ["จุดยืนต่อมาตรฐาน", "สิ่งที่ไม่ทำ", "การกำกับดูแลและความเป็นส่วนตัว", "รอการแต่งตั้ง", "ถ้าเครื่องรีเลย์หยุดทำงาน 24 ชั่วโมง", "พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล"]) {
+      expect(text).toContain(phrase);
+    }
+    let rest = text;
+    for (const w of STANDARDS_NAMES) rest = rest.split(w).join(" ");
+    expect(rest.match(/[A-Za-z]{2,}/g) ?? []).toEqual([]);
+  });
+
+  it("states the corrected digital-twin and relay facts (defects D1, D4, D6, D7)", async () => {
+    await render("en", <CNXAboutContent />);
+    const text = interfaceText();
+    expect(text).toContain("not from the ISO standard");
+    expect(text).toContain("control back to the physical world is optional, not required");
+    expect(text).not.toMatch(/formalising a distinction|requires automatic two-way flow/);
+    expect(text).not.toMatch(/early-to-mid maturity tier/);
+    expect(text).toContain("There is one machine to watch");
+    expect(text).not.toMatch(/no server to babysit/i);
+    expect(text).toContain("RID’s daily dam report");
+    expect(text).not.toMatch(/\b311\b/);
+  });
+
   it("renders the About document without English section headings in Thai mode", async () => {
     await render("th", <CNXAboutContent />);
     const text = interfaceText();
     expect(text).toContain("กติกาความซื่อสัตย์");
-    for (const english of ["The honesty rules", "Where the data comes from", "Architecture, in diagrams", "Download the documents", "Project Sponsor"]) {
+    for (const english of ["The honesty rules", "Where the data comes from", "Architecture, in diagrams", "Download the documents", "Project Sponsor", "Standards position", "Governance and privacy", "To be assigned"]) {
       expect(text).not.toContain(english);
     }
   });
