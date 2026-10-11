@@ -20,6 +20,8 @@ import type { CnxFiresResponse } from "../../types/cnx";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import { inChiangMaiProvince } from "../../lib/cnx/province-boundary";
+import { useLang } from "../../hooks/useLang";
+import { pick, type Lang } from "../../lib/i18n";
 
 type Tab = "rfd" | "firms" | "aerosol";
 
@@ -45,8 +47,17 @@ const SEVERITY_CLASSES: Record<string, string> = {
   critical: "sev-fill-critical",
 };
 
-function severityLabel(s: string) {
-  return { good: "OK", watch: "WATCH", alert: "ALERT", critical: "CRIT" }[s as keyof typeof SEVERITY_CLASSES] ?? s;
+const SEVERITY_LABEL: Record<string, { th: string; en: string }> = {
+  unknown: { th: "ไม่ทราบ", en: "UNKNOWN" },
+  good: { th: "ปกติ", en: "OK" },
+  watch: { th: "เฝ้าระวัง", en: "WATCH" },
+  alert: { th: "เตือนภัย", en: "ALERT" },
+  critical: { th: "วิกฤต", en: "CRIT" },
+};
+
+function severityLabel(s: string, lang: Lang) {
+  const label = SEVERITY_LABEL[s];
+  return label ? pick(lang, label.th, label.en) : s;
 }
 
 interface PanelProps {
@@ -57,6 +68,7 @@ interface PanelProps {
 
 export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
   const [tab, setTab] = useState<Tab>("firms");
+  const { t } = useLang();
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-b border-[var(--line)] bg-[var(--bg-raised)]">
@@ -64,7 +76,7 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
         <div className="flex items-center gap-2">
           <Flame className="h-3.5 w-3.5 text-[var(--danger)]" />
           <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--ink)]">
-            จุดความร้อนและละอองลอย
+            {t("จุดความร้อนและละอองลอย", "Hotspots and aerosol")}
           </span>
         </div>
         {aerosol && (
@@ -80,24 +92,24 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
         {(
           [
             { id: "rfd", label: "RFD", count: rfd?.provenance === "live" ? rfd.totalCount : undefined },
-            { id: "firms", label: "FIRMS · 24 ชม.", count: firms?.provenance === "live" ? (firms.provinceCount ?? firms.totalCount) : undefined },
+            { id: "firms", label: t("FIRMS · 24 ชม.", "FIRMS · 24 h"), count: firms?.provenance === "live" ? (firms.provinceCount ?? firms.totalCount) : undefined },
             { id: "aerosol", label: "AOD", count: undefined },
           ] as const
-        ).map((t, i) => (
+        ).map((tabDef, i) => (
           <button
-            key={t.id}
-            aria-pressed={tab === t.id}
-            onClick={() => setTab(t.id)}
+            key={tabDef.id}
+            aria-pressed={tab === tabDef.id}
+            onClick={() => setTab(tabDef.id)}
             className={`flex min-h-11 flex-1 items-center justify-center gap-1 text-[11px] font-semibold ${
               i < 2 ? "border-r border-[var(--line)]" : ""
-            } ${tab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
+            } ${tab === tabDef.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
-            {t.id === "rfd" && <Satellite className="h-3 w-3" />}
-            {t.id === "firms" && <Flame className="h-3 w-3" />}
-            {t.id === "aerosol" && <Wind className="h-3 w-3" />}
-            {t.label}
-            {typeof t.count === "number" && (
-              <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{t.count}</span>
+            {tabDef.id === "rfd" && <Satellite className="h-3 w-3" />}
+            {tabDef.id === "firms" && <Flame className="h-3 w-3" />}
+            {tabDef.id === "aerosol" && <Wind className="h-3 w-3" />}
+            {tabDef.label}
+            {typeof tabDef.count === "number" && (
+              <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">{tabDef.count}</span>
             )}
           </button>
         ))}
@@ -113,6 +125,7 @@ export default function CnxFirePanel({ firms, rfd, aerosol }: PanelProps) {
 }
 
 function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
+  const { t } = useLang();
   const topTypes = useMemo(() => {
     if (!rfd) return [] as { type: string; count: number }[];
     return Object.entries(rfd.byType)
@@ -120,41 +133,41 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
       .slice(0, 6)
       .map(([type, count]) => ({ type, count }));
   }, [rfd]);
-  if (!rfd) return <div className="p-3 text-[11px] text-[var(--dim)]">loading RFD hotspots…</div>;
-  if (rfd.provenance === "unavailable") return <div className="p-3 text-[11px] text-[var(--dim)]">RFD hotspot count: —. {rfd.note ?? "Feed unavailable; this does not establish zero hotspots."}</div>;
+  if (!rfd) return <div className="p-3 text-[11px] text-[var(--dim)]">{t("กำลังโหลดจุดความร้อนกรมป่าไม้…", "Loading RFD hotspots…")}</div>;
+  if (rfd.provenance === "unavailable") return <div className="p-3 text-[11px] text-[var(--dim)]">{t("จุดความร้อนกรมป่าไม้: —", "RFD hotspot count: —")}. {rfd.note ?? t("ไม่มีข้อมูล · ไม่ได้แปลว่าไม่มีจุดความร้อน", "Feed unavailable; this does not establish zero hotspots.")}</div>;
   return (
     <div>
       <div className="border-b border-[var(--line)] px-3 py-2">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-            RFD Hotspots (7 d)
+            {t("จุดความร้อนกรมป่าไม้ (7 วัน)", "RFD hotspots (7 d)")}
           </span>
           <div className="text-right">
             <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{rfd.totalCount}</div>
             <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-              forest {(rfd.forestShare * 100).toFixed(0)}%
+              {t("ในป่า", "forest")} {(rfd.forestShare * 100).toFixed(0)}%
             </div>
           </div>
         </div>
         <div className="space-y-1">
-          {topTypes.map((t) => (
-            <div key={t.type} className="flex items-center gap-2">
+          {topTypes.map((tt) => (
+            <div key={tt.type} className="flex items-center gap-2">
               <span className="w-[110px] truncate text-[11px] font-semibold text-[var(--ink)]">
-                {TENURE_LABEL[t.type]?.en ?? t.type}
+                {TENURE_LABEL[tt.type] ? t(TENURE_LABEL[tt.type].th, TENURE_LABEL[tt.type].en) : tt.type}
               </span>
               <div className="relative h-2 flex-1 border border-[var(--line)] bg-[var(--bg)]">
                 <div
                   className={`h-full ${
-                    t.type === "DNP" || t.type === "NRF"
+                    tt.type === "DNP" || tt.type === "NRF"
                       ? "bg-[var(--sev-critical)]"
-                      : t.type === "ALOW" || t.type === "CMF"
+                      : tt.type === "ALOW" || tt.type === "CMF"
                       ? "bg-[var(--sev-alert)]"
                       : "bg-[var(--sev-watch)]"
                   }`}
-                  style={{ width: `${Math.min(100, (t.count / Math.max(1, rfd.totalCount)) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (tt.count / Math.max(1, rfd.totalCount)) * 100)}%` }}
                 />
               </div>
-              <span className="w-[28px] text-right font-mono text-[11px] tabular-nums text-[var(--ink)]">{t.count}</span>
+              <span className="w-[28px] text-right font-mono text-[11px] tabular-nums text-[var(--ink)]">{tt.count}</span>
             </div>
           ))}
         </div>
@@ -162,8 +175,7 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
       <div className="px-3 py-2">
         {rfd.hotspots.length === 0 ? (
           <p className="text-[11px] text-[var(--dim)]">
-            No RFD hotspots in the CNX bbox for the last 7 days. (Possibly the
-            upstream service is offline or the province is in a quiet period.)
+            {t("ไม่มีจุดความร้อนกรมป่าไม้ในพื้นที่ติดตามช่วง 7 วันที่ผ่านมา (อาจเป็นเพราะบริการต้นทางขัดข้อง หรือจังหวัดอยู่ในช่วงสงบ)", "No RFD hotspots in the CNX bbox for the last 7 days. (Possibly the upstream service is offline or the province is in a quiet period.)")}
           </p>
         ) : (
           <div className="space-y-1">
@@ -184,7 +196,7 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
                 </div>
                 <div className="flex items-center gap-2 font-mono text-[11px] text-[var(--dim)]">
                   <span>{h.yymmdd} {h.time}</span>
-                  <span>{TENURE_LABEL[h.type]?.th ?? h.type}</span>
+                  <span>{TENURE_LABEL[h.type] ? t(TENURE_LABEL[h.type].th, TENURE_LABEL[h.type].en) : h.type}</span>
                   <span>{h.confidence}%</span>
                   {h.frp && <span>FRP {h.frp.toFixed(1)} MW</span>}
                 </div>
@@ -198,11 +210,12 @@ function RfdTab({ rfd }: { rfd: RfdFiresResponse | null }) {
 }
 
 function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
-  if (!firms) return <div className="p-3 text-[12px] text-[var(--dim)]">กำลังอ่านข้อมูลดาวเทียม NASA…</div>;
+  const { lang, t } = useLang();
+  if (!firms) return <div className="p-3 text-[12px] text-[var(--dim)]">{t("กำลังอ่านข้อมูลดาวเทียม NASA…", "Reading NASA satellite data…")}</div>;
   if (firms.provenance !== "live") {
     return (
       <div className="p-3 text-[11px] leading-relaxed text-[var(--dim)]">
-        ยังไม่มีข้อมูลดาวเทียมปัจจุบันที่ยืนยันได้ จึงไม่แสดงจุดจำลองเป็นเหตุการณ์จริง · ข้อมูลที่ขาดไม่ได้แปลว่าไม่มีไฟ
+        {t("ยังไม่มีข้อมูลดาวเทียมปัจจุบันที่ยืนยันได้ จึงไม่แสดงจุดจำลองเป็นเหตุการณ์จริง · ข้อมูลที่ขาดไม่ได้แปลว่าไม่มีไฟ", "No confirmed current satellite data, so no simulated points are shown as real events · missing data does not mean no fire")}
       </div>
     );
   }
@@ -210,16 +223,16 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
     <div className="px-3 py-2">
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-2">
         <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-          จุดตรวจจับ NASA · 24 ชม.
+          {t("จุดตรวจจับ NASA · 24 ชม.", "NASA detections · 24 h")}
         </span>
         <div className="text-right">
           <div className="font-mono text-[18px] font-bold tabular-nums text-[var(--ink)]">{firms.provinceCount ?? firms.totalCount}</div>
           <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-            forest tenure {firms.forestShare === undefined ? "unknown" : `${(firms.forestShare * 100).toFixed(0)}%`}
+            {t("ในเขตป่า", "forest tenure")} {firms.forestShare === undefined ? t("ไม่ทราบ", "unknown") : `${(firms.forestShare * 100).toFixed(0)}%`}
           </div>
         </div>
       </div>
-      <p className="mb-3 text-[12px] leading-relaxed text-[var(--dim)]">{firms.provinceCount != null ? `ในจังหวัดเชียงใหม่ ${firms.provinceCount} จุด · นอกจังหวัดในพื้นที่ติดตาม ${firms.totalCount - firms.provinceCount} จุด` : "จุดตรวจจับในพื้นที่ติดตาม · ยังไม่แยกขอบเขตจังหวัด"} · ไม่ใช่จำนวนไฟที่ยังลุกไหม้</p>
+      <p className="mb-3 text-[12px] leading-relaxed text-[var(--dim)]">{firms.provinceCount != null ? t(`ในจังหวัดเชียงใหม่ ${firms.provinceCount} จุด · นอกจังหวัดในพื้นที่ติดตาม ${firms.totalCount - firms.provinceCount} จุด`, `${firms.provinceCount} in Chiang Mai province · ${firms.totalCount - firms.provinceCount} outside the province in the watch area`) : t("จุดตรวจจับในพื้นที่ติดตาม · ยังไม่แยกขอบเขตจังหวัด", "Detections in the watch area · not yet split by province boundary")} · {t("ไม่ใช่จำนวนไฟที่ยังลุกไหม้", "not a count of fires still burning")}</p>
       <div className="space-y-1">
         {firms.hotspots.slice(0, 10).map((h) => (
           <div
@@ -228,7 +241,7 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
           >
             <div className="min-w-0">
               <div className="truncate font-mono text-[11px] text-[var(--ink)]">{h.id.slice(0, 14)}</div>
-              <p className="text-[11px] text-[var(--dim)]">{inChiangMaiProvince(h.longitude, h.latitude) ? "ในจังหวัดเชียงใหม่" : "นอกจังหวัดเชียงใหม่"}</p>
+              <p className="text-[11px] text-[var(--dim)]">{inChiangMaiProvince(h.longitude, h.latitude) ? t("ในจังหวัดเชียงใหม่", "Inside Chiang Mai province") : t("นอกจังหวัดเชียงใหม่", "Outside Chiang Mai province")}</p>
               <div className="font-mono text-[11px] text-[var(--dim)]">
                 {h.latitude.toFixed(3)}, {h.longitude.toFixed(3)} · {h.satellite}
               </div>
@@ -239,7 +252,7 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
             <span
               className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${SEVERITY_CLASSES[h.severity]}`}
             >
-              {severityLabel(h.severity)}
+              {severityLabel(h.severity, lang)}
             </span>
           </div>
         ))}
@@ -249,16 +262,17 @@ function FirmsTab({ firms }: { firms: CnxFiresResponse | null }) {
 }
 
 function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
-  if (!aerosol) return <div className="p-3 text-[11px] text-[var(--dim)]">loading AOD…</div>;
+  const { lang, t } = useLang();
+  if (!aerosol) return <div className="p-3 text-[11px] text-[var(--dim)]">{t("กำลังโหลด AOD…", "Loading AOD…")}</div>;
   return (
     <div className="px-3 py-2">
       <div className="mb-3 border-b border-[var(--line)] pb-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--dim)]">
-            CAMS model AOD (550 nm)
+            {t("AOD จากแบบจำลอง CAMS (550 nm)", "CAMS model AOD (550 nm)")}
           </span>
           <span className={`px-2 py-0.5 font-mono text-[11px] ${aerosol.level ? SEVERITY_CLASSES[aerosol.level] : "text-[var(--dim)]"}`}>
-            {aerosol.level ? severityLabel(aerosol.level) : "unavailable"}
+            {aerosol.level ? severityLabel(aerosol.level, lang) : t("ไม่มีข้อมูล", "unavailable")}
           </span>
         </div>
         <div className="mt-1 flex items-baseline gap-2">
@@ -266,15 +280,12 @@ function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
             {aerosol.aod550?.toFixed(3) ?? "—"}
           </span>
           <span className="font-mono text-[11px] text-[var(--dim)]">
-            range {aerosol.aodMin?.toFixed(3) ?? "—"}–{aerosol.aodMax?.toFixed(3) ?? "—"}
+            {t("ช่วง", "range")} {aerosol.aodMin?.toFixed(3) ?? "—"}–{aerosol.aodMax?.toFixed(3) ?? "—"}
           </span>
         </div>
       </div>
       <p className="mb-2 text-[11px] text-[var(--dim)]">
-        Aerosol Optical Depth at 550 nm from Copernicus Atmosphere
-        Monitoring Service (CAMS) on Open-Meteo: sampled model grid points,
-        not a measured province average. Display bands describe column
-        aerosol only; they do not establish surface PM2.5 or health risk.
+        {t("ความลึกเชิงแสงของละอองลอย (AOD) ที่ 550 nm จาก Copernicus Atmosphere Monitoring Service (CAMS) ผ่าน Open-Meteo: เป็นจุดกริดของแบบจำลอง ไม่ใช่ค่าเฉลี่ยจังหวัดที่วัดจริง แถบสีบอกละอองลอยทั้งคอลัมน์อากาศเท่านั้น ไม่ได้ยืนยัน PM2.5 ระดับพื้นดินหรือความเสี่ยงสุขภาพ", "Aerosol Optical Depth at 550 nm from Copernicus Atmosphere Monitoring Service (CAMS) on Open-Meteo: sampled model grid points, not a measured province average. Display bands describe column aerosol only; they do not establish surface PM2.5 or health risk.")}
       </p>
       <a
         href="https://air-quality-api.open-meteo.com/"
@@ -283,10 +294,10 @@ function AerosolTab({ aerosol }: { aerosol: AerosolResponse | null }) {
         className="flex items-center gap-1.5 text-[11px] text-[var(--cool)] hover:underline"
       >
         <ExternalLink className="h-2.5 w-2.5" />
-        Open-Meteo CAMS source
+        {t("แหล่งข้อมูล Open-Meteo CAMS", "Open-Meteo CAMS source")}
       </a>
       <div className="mt-3 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--dim)]">
-        Map overlay tile
+        {t("ไทล์ชั้นแผนที่", "Map overlay tile")}
       </div>
       <div className="mt-1 truncate font-mono text-[11px] text-[var(--dim)]">{aerosol.tileUrl}</div>
     </div>

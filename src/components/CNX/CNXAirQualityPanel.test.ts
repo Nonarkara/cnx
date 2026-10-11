@@ -3,6 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CnxAirQualityPanel from "./CNXAirQualityPanel";
+import { __resetLangForTests } from "../../hooks/useLang";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -19,6 +20,8 @@ function response(provenance: "live" | "unavailable" = "live") {
   };
 }
 beforeEach(() => {
+  // These assertions read the English interface; Thai mode is covered in lang-mode-hazards.
+  __resetLangForTests("en");
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
@@ -28,6 +31,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  __resetLangForTests(null);
 });
 async function render() {
   await act(async () => root.render(createElement(CnxAirQualityPanel)));

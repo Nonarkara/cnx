@@ -22,6 +22,7 @@ import {
   RAIN_STOPS,
   buildScreenBasis,
   buildVelocityGrid,
+  compassEn,
   compassTh,
   fieldCorners,
   pm25Stops,
@@ -33,6 +34,7 @@ import {
   type ScreenBasis,
   type VelocityGrid,
 } from "./forecast-render";
+import { useLang } from "../../hooks/useLang";
 
 export type ForecastOverlay = "none" | "rain" | "pm25";
 
@@ -63,7 +65,12 @@ const PLAY_MS = 900;
 const HAZARD = { good: [46, 160, 67, 255], watch: [234, 179, 8, 255], alert: [234, 88, 12, 255], critical: [220, 38, 38, 255] } as const satisfies Record<string, Rgba>;
 const PM25_STOPS = pm25Stops({ good: [...HAZARD.good], watch: [...HAZARD.watch], alert: [...HAZARD.alert], critical: [...HAZARD.critical] });
 
-const timeFmt = new Intl.DateTimeFormat("th-TH", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
+const TIME_OPTS: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" };
+const timeFmt = { th: new Intl.DateTimeFormat("th-TH", TIME_OPTS), en: new Intl.DateTimeFormat("en-GB", TIME_OPTS) };
+
+/** The module's notes are English; Thai mode states the same thing. */
+const NOTE_TH_UNAVAILABLE = "แบบจำลองพยากรณ์ไม่ตอบและไม่มีรอบล่าสุดที่เก็บไว้ — จึงไม่แสดงพยากรณ์ลม ฝน หรือ PM2.5 ซึ่งไม่ได้แปลว่าพยากรณ์ว่าลมสงบ";
+const NOTE_TH_GRID = "พยากรณ์จากแบบจำลองบนกริด 0.3° (~30 กม.) — แสดงการไหลของลมระดับภูมิภาค ไม่ใช่พายุหรือลมกระโชกในหุบเขาใดหุบเขาหนึ่ง ฝนและระดับน้ำที่วัดได้สำคัญกว่าเสมอ";
 
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -78,6 +85,7 @@ function usePrefersReducedMotion(): boolean {
 }
 
 export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, tone }: Props) {
+  const { lang, t: tr } = useLang();
   const field = forecast?.field ?? null;
   const [windOn, setWindOn] = useState(true);
   const [level, setLevel] = useState<WindLevel>("10m");
@@ -360,12 +368,12 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
     <>
       <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] h-full w-full" />
       <section
-        aria-label="พยากรณ์ลม ฝน และฝุ่น 48 ชั่วโมง"
+        aria-label={tr("พยากรณ์ลม ฝน และฝุ่น 48 ชั่วโมง", "48-hour wind, rain and PM2.5 forecast")}
         className="absolute bottom-8 left-1/2 z-10 w-[min(640px,calc(100%-1rem))] -translate-x-1/2 border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
       >
         {!field ? (
           <p className="px-3 py-2 text-[13px] text-[var(--dim)]">
-            พยากรณ์ลม/ฝน/ฝุ่น: ไม่มีข้อมูลขณะนี้ — {forecast?.note ?? "กำลังโหลด…"}
+            {tr("พยากรณ์ลม/ฝน/ฝุ่น: ไม่มีข้อมูลขณะนี้", "Wind/rain/PM2.5 forecast: no data right now")} — {forecast ? tr(NOTE_TH_UNAVAILABLE, forecast.note) : tr("กำลังโหลด…", "loading…")}
           </p>
         ) : (
           <>
@@ -376,15 +384,15 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
                   if (!playing && hour >= maxHour) setHour(0);
                   setPlaying((p) => !p);
                 }}
-                aria-label={playing ? "หยุดเล่นพยากรณ์" : "เล่นพยากรณ์ 48 ชั่วโมง"}
+                aria-label={playing ? tr("หยุดเล่นพยากรณ์", "Pause forecast") : tr("เล่นพยากรณ์ 48 ชั่วโมง", "Play 48-hour forecast")}
                 className="flex h-11 w-11 shrink-0 items-center justify-center border border-[var(--line)] text-[16px]"
               >
                 {playing ? "❚❚" : "▶"}
               </button>
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[14px] font-semibold tabular-nums">{timeFmt.format(new Date(t * 1000))}</span>
-                  <span className="shrink-0 text-[12px] text-[var(--dim)]">{hour === 0 ? "ตอนนี้" : `อีก ${hour} ชม.`}</span>
+                  <span className="text-[14px] font-semibold tabular-nums">{timeFmt[lang].format(new Date(t * 1000))}</span>
+                  <span className="shrink-0 text-[12px] text-[var(--dim)]">{hour === 0 ? tr("ตอนนี้", "now") : tr(`อีก ${hour} ชม.`, `+${hour} h`)}</span>
                 </div>
                 <input
                   type="range"
@@ -396,40 +404,40 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
                     setPlaying(false);
                     setHour(Number(e.target.value));
                   }}
-                  aria-label="เวลาพยากรณ์"
-                  aria-valuetext={`${timeFmt.format(new Date(t * 1000))}, อีก ${hour} ชั่วโมง`}
+                  aria-label={tr("เวลาพยากรณ์", "Forecast time")}
+                  aria-valuetext={`${timeFmt[lang].format(new Date(t * 1000))}, ${tr(`อีก ${hour} ชั่วโมง`, `in ${hour} ${hour === 1 ? "hour" : "hours"}`)}`}
                   className="h-6 w-full cursor-pointer accent-[var(--cool)]"
                 />
               </div>
               {hour > 0 && (
                 <button type="button" onClick={() => { setPlaying(false); setHour(0); }} className="h-11 shrink-0 border border-[var(--line)] px-2 text-[12px] font-semibold">
-                  กลับมาตอนนี้
+                  {tr("กลับมาตอนนี้", "Back to now")}
                 </button>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-2 pt-1 text-[12px]">
               <fieldset className="flex items-center gap-1">
-                <legend className="sr-only">ชั้นลม</legend>
-                <ChipButton pressed={windOn && level === "10m"} onClick={() => { setWindOn(true); setLevel("10m"); }} title="ลมที่ความสูง 10 เมตร — ลมที่คนบนพื้นรู้สึก">ลมผิวพื้น</ChipButton>
-                <ChipButton pressed={windOn && level === "850hPa"} onClick={() => { setWindOn(true); setLevel("850hPa"); }} title="ลมระดับ 850 hPa (~1.5 กม.) — ระดับที่พาควันเดินทางข้ามเขา ใช้คำนวณแนวควัน">ลมพาควัน ~1.5 กม.</ChipButton>
-                <ChipButton pressed={!windOn} onClick={() => setWindOn(false)} title="ซ่อนเส้นลม">ปิดลม</ChipButton>
+                <legend className="sr-only">{tr("ชั้นลม", "Wind layer")}</legend>
+                <ChipButton pressed={windOn && level === "10m"} onClick={() => { setWindOn(true); setLevel("10m"); }} title={tr("ลมที่ความสูง 10 เมตร — ลมที่คนบนพื้นรู้สึก", "Wind at 10 m — the wind people feel on the ground")}>{tr("ลมผิวพื้น", "Surface wind")}</ChipButton>
+                <ChipButton pressed={windOn && level === "850hPa"} onClick={() => { setWindOn(true); setLevel("850hPa"); }} title={tr("ลมระดับ 850 hPa (~1.5 กม.) — ระดับที่พาควันเดินทางข้ามเขา ใช้คำนวณแนวควัน", "Wind at 850 hPa (~1.5 km) — the level that carries smoke over the hills; used for smoke paths")}>{tr("ลมพาควัน ~1.5 กม.", "Smoke wind ~1.5 km")}</ChipButton>
+                <ChipButton pressed={!windOn} onClick={() => setWindOn(false)} title={tr("ซ่อนเส้นลม", "Hide wind streaks")}>{tr("ปิดลม", "Wind off")}</ChipButton>
               </fieldset>
               <fieldset className="flex items-center gap-1">
-                <legend className="sr-only">ชั้นพยากรณ์</legend>
-                <ChipButton pressed={overlay === "rain"} onClick={() => setOverlay((o) => (o === "rain" ? "none" : "rain"))} title="ฝนพยากรณ์รายชั่วโมง (มม./ชม.)">ฝน</ChipButton>
-                <ChipButton pressed={overlay === "pm25"} onClick={() => setOverlay((o) => (o === "pm25" ? "none" : "pm25"))} disabled={!field.pm25} title={field.pm25 ? "PM2.5 พยากรณ์จากแบบจำลอง CAMS (µg/m³)" : "แบบจำลองฝุ่น CAMS ไม่ตอบ"}>PM2.5</ChipButton>
+                <legend className="sr-only">{tr("ชั้นพยากรณ์", "Forecast layer")}</legend>
+                <ChipButton pressed={overlay === "rain"} onClick={() => setOverlay((o) => (o === "rain" ? "none" : "rain"))} title={tr("ฝนพยากรณ์รายชั่วโมง (มม./ชม.)", "Hourly rain forecast (mm/h)")}>{tr("ฝน", "Rain")}</ChipButton>
+                <ChipButton pressed={overlay === "pm25"} onClick={() => setOverlay((o) => (o === "pm25" ? "none" : "pm25"))} disabled={!field.pm25} title={field.pm25 ? tr("PM2.5 พยากรณ์จากแบบจำลอง CAMS (µg/m³)", "PM2.5 forecast from the CAMS model (µg/m³)") : tr("แบบจำลองฝุ่น CAMS ไม่ตอบ", "The CAMS dust model did not answer")}>PM2.5</ChipButton>
               </fieldset>
             </div>
             <p className="border-t border-[var(--line)] px-2 py-1.5 text-[12px] leading-snug text-[var(--dim)]">
               {wind && windOn ? (
                 <>
-                  ตัวเมือง: ลมจาก<b className="font-semibold text-[var(--ink)]">{compassTh(wind.fromDeg)}</b> {wind.speed.toFixed(1)} ม./วิ ({(wind.speed * 3.6).toFixed(0)} กม./ชม.)
+                  {lang === "en" ? <>City: wind from the <b className="font-semibold text-[var(--ink)]">{compassEn(wind.fromDeg)}</b> {wind.speed.toFixed(1)} m/s ({(wind.speed * 3.6).toFixed(0)} km/h)</> : <>ตัวเมือง: ลมจาก<b className="font-semibold text-[var(--ink)]">{compassTh(wind.fromDeg)}</b> {wind.speed.toFixed(1)} ม./วิ ({(wind.speed * 3.6).toFixed(0)} กม./ชม.)</>}
                 </>
               ) : null}
-              {rainNow !== null && <> · ฝน {rainNow.toFixed(1)} มม./ชม.</>}
+              {rainNow !== null && <> · {tr(`ฝน ${rainNow.toFixed(1)} มม./ชม.`, `rain ${rainNow.toFixed(1)} mm/h`)}</>}
               {pmNow !== null && <> · PM2.5 {Math.round(pmNow)} µg/m³</>}
               {" · "}
-              <span title={forecast?.note}>แบบจำลอง Open-Meteo{field.pm25 ? " · CAMS" : ""} ไม่ใช่ค่าวัด{fetchedAgo !== null ? ` · ดึงเมื่อ ${fetchedAgo} ชม.ก่อน` : ""}</span>
+              <span title={forecast?.note ? tr(NOTE_TH_GRID, forecast.note) : undefined}>{tr(`แบบจำลอง Open-Meteo${field.pm25 ? " · CAMS" : ""} ไม่ใช่ค่าวัด`, `Open-Meteo${field.pm25 ? " · CAMS" : ""} model, not a measurement`)}{fetchedAgo !== null ? tr(` · ดึงเมื่อ ${fetchedAgo} ชม.ก่อน`, ` · fetched ${fetchedAgo} h ago`) : ""}</span>
             </p>
             {overlay !== "none" && <Legend overlay={overlay} />}
           </>
@@ -455,10 +463,11 @@ function ChipButton({ pressed, onClick, children, title, disabled }: { pressed: 
 }
 
 function Legend({ overlay }: { overlay: Exclude<ForecastOverlay, "none"> }) {
+  const { t } = useLang();
   if (overlay === "rain") {
     return (
       <div className="flex items-center gap-2 border-t border-[var(--line)] px-2 py-1.5 text-[12px] text-[var(--dim)]">
-        <span>ฝน มม./ชม.</span>
+        <span>{t("ฝน มม./ชม.", "Rain mm/h")}</span>
         <span aria-hidden="true" className="h-2 flex-1" style={{ background: "linear-gradient(90deg, rgba(158,202,225,.45), rgb(66,146,198), rgb(8,81,156), rgb(63,0,125))" }} />
         <span className="tabular-nums">0.5 · 2.5 · 7.6 · 20+</span>
       </div>
@@ -467,9 +476,9 @@ function Legend({ overlay }: { overlay: Exclude<ForecastOverlay, "none"> }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] px-2 py-1.5 text-[12px] text-[var(--dim)]">
       <span>PM2.5 µg/m³</span>
-      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(234,179,8)]" />25 เฝ้าระวัง</span>
-      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(234,88,12)]" />50 เตือนภัย</span>
-      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(220,38,38)]" />90 วิกฤต</span>
+      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(234,179,8)]" />25 {t("เฝ้าระวัง", "watch")}</span>
+      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(234,88,12)]" />50 {t("เตือนภัย", "alert")}</span>
+      <span className="flex items-center gap-1"><i aria-hidden="true" className="inline-block h-2.5 w-2.5 bg-[rgb(220,38,38)]" />90 {t("วิกฤต", "critical")}</span>
     </div>
   );
 }

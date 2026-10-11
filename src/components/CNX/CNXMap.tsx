@@ -23,7 +23,8 @@
 // the raw coordinate array as `geometry` and MapLibre silently
 // rejected the source, so the 3D layer never rendered.
 
-import { RAIN_BAND_TH, summariseRain, type RainStation } from "../../lib/cnx/rain-core";
+import { RAIN_BAND_TH, summariseRain, type RainBand, type RainStation } from "../../lib/cnx/rain-core";
+import { useLang } from "../../hooks/useLang";
 import { clampView } from "../../lib/cnx/map-bounds";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -387,6 +388,44 @@ const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
 
 const NO_RTC_LINES: RtcLine[] = [];
 
+/** Thai names for the basemap options; ids come from services/basemap-styles. */
+const BASEMAP_TH: Record<BasemapId, { label: string; hint: string }> = {
+  topography: { label: "ภูมิประเทศ", hint: "เส้นชั้นความสูงและภูมิประเทศ (OpenTopoMap) — เหมาะกับแอ่งหมอกควันและแม่น้ำ" },
+  satellite: { label: "ดาวเทียม", hint: "ภาพถ่ายดาวเทียม (Esri) พร้อมภูมิประเทศ — เหมาะกับร่องรอยการเผาและการใช้ที่ดิน" },
+  street: { label: "ถนน", hint: "ถนนและชื่อสถานที่ภาษาไทย (OpenFreeMap) — เหมาะกับการหาตำแหน่ง" },
+};
+
+/** TMD 24-hour rainfall classes in English; Thai names live in rain-core. */
+const RAIN_BAND_EN: Record<RainBand, string> = {
+  none: "no rain",
+  light: "light rain",
+  moderate: "moderate rain",
+  heavy: "heavy rain",
+  "very-heavy": "very heavy rain",
+};
+
+const HAZE_LABEL: Record<HazeLabel, { th: string; en: string }> = {
+  "haze-likely": { th: "น่าจะมีหมอกควัน", en: "haze likely" },
+  "some-haze": { th: "มีหมอกควันบ้าง", en: "some haze" },
+  clear: { th: "หมอกควันในภาพต่ำ", en: "low visual haze" },
+  "too-dark": { th: "มืดเกินประเมิน", en: "too dark to judge" },
+  "no-colour": { th: "ภาพไม่มีสี — ไม่ประเมิน", en: "no colour — not scored" },
+  calibrating: { th: "กำลังเรียนรู้ภาพฟ้าใส", en: "calibrating" },
+};
+
+/** Building-card labels for the OSM `kind` tag. */
+const KIND_LABEL: Record<string, { th: string; en: string }> = {
+  temple: { th: "ศาสนสถาน · วัด", en: "Temple" },
+  hospital: { th: "โรงพยาบาล", en: "Hospital" },
+  school: { th: "สถานศึกษา", en: "School" },
+  amenity: { th: "สถานที่ราชการ / บริการ", en: "Civic / amenity" },
+  tourism: { th: "ท่องเที่ยว / ที่พัก", en: "Tourism / hotel" },
+  commercial: { th: "พาณิชย์", en: "Commercial" },
+  historic: { th: "โบราณสถาน", en: "Historic" },
+  residential: { th: "ที่อยู่อาศัย", en: "Residential" },
+  building: { th: "อาคาร", en: "Building" },
+};
+
 function hexToRgb(hex: string): [number, number, number] {
   const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
   if (!m) return [29, 41, 81];
@@ -420,6 +459,7 @@ export default function CNXMap({
   shelters = NO_SHELTERS,
   shelterFocus = null,
 }: MapProps) {
+  const { lang, t } = useLang();
   // Street labels lead the operational landing view. Terrain, satellite and
   // the heavier 3D city remain explicit choices in Layers.
   const [basemap, setBasemap] = useState<BasemapId>("street");
@@ -510,7 +550,7 @@ export default function CNXMap({
       id: "cnx-shelter-labels",
       data: placed.filter(inFocus),
       getPosition: (d) => [d.lon as number, d.lat as number],
-      getText: (d) => `${d.nameTh}${d.capacity ? ` · ${d.capacity.toLocaleString("th-TH")} คน` : ""}`,
+      getText: (d) => `${d.nameTh}${d.capacity ? ` · ${d.capacity.toLocaleString("en-US")} ${lang === "en" ? "people" : "คน"}` : ""}`,
       getSize: 13,
       getColor: [17, 17, 17, 255],
       getPixelOffset: [0, -16],
@@ -520,9 +560,10 @@ export default function CNXMap({
       characterSet: "auto",
       fontFamily: '"IBM Plex Sans Thai", "Noto Sans Thai", sans-serif',
       pickable: false,
+      updateTriggers: { getText: lang },
     });
     return [dots, labels];
-  }, [shelters, sheltersOn, shelterFocus]);
+  }, [shelters, sheltersOn, shelterFocus, lang]);
 
   const handleToggle3D = () => {
     setBuildingsOn((prev) => {
@@ -1115,7 +1156,7 @@ export default function CNXMap({
           const bHeight = Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
           setSelectedBuilding({
             id: feat.id ?? props.id ?? "Unknown",
-            name: props.name_th || props.name_en || props.name || `อาคาร #${props.id ?? feat.id ?? ""}`,
+            name: props.name_th || props.name_en || props.name || "",
             nameTh: props.name_th,
             nameEn: props.name_en,
             kind: props.kind || (feat.layer?.id === TEMPLES_LAYER ? "temple" : "building"),
@@ -1238,80 +1279,96 @@ export default function CNXMap({
           if (!object || !layer) return null;
           if (layer.id === "rtc-airport-buses") {
             const b = object as SimBus;
+            if (lang === "th") {
+              const legTh = b.status === "layover" ? "พักที่ปลายทาง" : `${b.status === "outbound" ? "ขาออก" : b.status === "inbound" ? "ขากลับ" : b.status} · ${b.kmDone.toFixed(1)}/${b.kmTotal.toFixed(1)} กม.`;
+              return `RTC ${b.ref} · ออกจากสนามบิน ${b.departedAt}\n${legTh}\nจำลองจากตารางเดินรถที่ ${SIM_SPEED_KMH} กม./ชม. ไม่ใช่ GPS จริง`;
+            }
             const leg = b.status === "layover" ? "layover at terminus" : `${b.status} · ${b.kmDone.toFixed(1)}/${b.kmTotal.toFixed(1)} km`;
             return `RTC ${b.ref} · left airport ${b.departedAt}\n${leg}\nSimulated from timetable at ${SIM_SPEED_KMH} km/h`;
           }
           if (layer.id === "cmu-transit-buses") {
             const b = object as (typeof cmuBuses)[number];
-            return `CMU shuttle ${b.bus} · route ${b.route}\n${b.passenger} on board · live GPS`;
+            return t(`รถ มช. ${b.bus} · สาย ${b.route}\nผู้โดยสาร ${b.passenger} คน · GPS สด`, `CMU shuttle ${b.bus} · route ${b.route}\n${b.passenger} on board · live GPS`);
           }
           if (layer.id === "cmu-transit-stations") return (object as CmuStation).name;
           if (layer.id === "cnx-flood-cameras") {
             const c = object as FloodCamera;
-            const state = c.live ? "LIVE" : "OFFLINE";
-            const kind = c.type === "hls" ? "continuous video" : c.type === "snapshot" ? "still snapshot" : c.type;
+            const state = c.live ? t("ออนไลน์", "LIVE") : t("ออฟไลน์", "OFFLINE");
+            const kind = c.type === "hls" ? t("วิดีโอต่อเนื่อง", "continuous video") : c.type === "snapshot" ? t("ภาพนิ่ง", "still snapshot") : c.type;
             // The offline line is deliberate. An operator planning a detour
             // needs to know this camera cannot confirm the road right now —
             // silence about a dead camera is the failure that gets someone
             // sent down a flooded street.
             return `${c.name}\n${state} · ${kind} · ${c.source}${c.region ? ` · ${c.region}` : ""}${
-              c.live ? "" : "\nไม่ตอบสนอง — ยืนยันสภาพถนนจากกล้องนี้ไม่ได้ (not answering — cannot confirm this road)"
+              c.live ? "" : `\n${t("ไม่ตอบสนอง — ยืนยันสภาพถนนจากกล้องนี้ไม่ได้", "Not answering — cannot confirm this road")}`
             }`;
           }
           if (layer.id === "cnx-river-gauges") {
             const g = object as RiverGauge;
             const parts = [
               g.nameTh + (g.code ? ` (${g.code})` : ""),
-              `${g.levelMsl.toFixed(2)} m above sea level`,
+              t(`${g.levelMsl.toFixed(2)} ม.รทก.`, `${g.levelMsl.toFixed(2)} m above sea level`),
             ];
             if (g.belowBankM !== null) {
+              const over = Math.abs(g.belowBankM).toFixed(2);
               parts.push(
                 g.belowBankM <= 0
-                  ? `AT/ABOVE bank level (${Math.abs(g.belowBankM).toFixed(2)} m over)`
-                  : `${g.belowBankM.toFixed(2)} m below its bank level`,
+                  ? t(`ถึง/เกินระดับตลิ่ง (เกิน ${over} ม.)`, `AT/ABOVE bank level (${over} m over)`)
+                  : t(`ต่ำกว่าระดับตลิ่ง ${g.belowBankM.toFixed(2)} ม.`, `${g.belowBankM.toFixed(2)} m below its bank level`),
               );
             } else {
               // Say the absence out loud. A gauge with no published bank
               // level must not look like a gauge that is comfortably
               // within it.
-              parts.push("no published bank level — this reading cannot be graded");
+              parts.push(t("ไม่มีระดับตลิ่งที่ประกาศ — ประเมินค่านี้ไม่ได้", "no published bank level — this reading cannot be graded"));
             }
             if (g.criticalLevelMsl !== null && g.headroomM !== null) {
               parts.push(
-                `official critical level ${g.criticalLevelMsl.toFixed(2)} m — ${g.headroomM.toFixed(2)} m of headroom`,
+                t(`เกณฑ์วิกฤตทางการ ${g.criticalLevelMsl.toFixed(2)} ม. — ห่างเกณฑ์ ${g.headroomM.toFixed(2)} ม.`, `official critical level ${g.criticalLevelMsl.toFixed(2)} m — ${g.headroomM.toFixed(2)} m of headroom`),
               );
             }
-            if (g.dischargeM3s !== null) parts.push(`${g.dischargeM3s.toFixed(1)} m³/s`);
-            parts.push(`${g.agency} · observed ${g.observedAt.slice(0, 16).replace("T", " ")} UTC`);
+            if (g.dischargeM3s !== null) parts.push(t(`${g.dischargeM3s.toFixed(1)} ลบ.ม./วินาที`, `${g.dischargeM3s.toFixed(1)} m³/s`));
+            parts.push(`${g.agency} · ${t("วัดเมื่อ", "observed")} ${g.observedAt.slice(0, 16).replace("T", " ")} UTC`);
             return parts.join("\n");
           }
           if (layer.id === "cnx-cctv") {
             const c = object as CctvSlot;
             const haze = hazeById.get(c.id);
-            const hazeLine = haze ? `\nHaze: ${haze.verdict}${haze.score !== null ? ` (${haze.score.toFixed(2)})` : ""} · frame ${haze.observedAt.slice(11, 16)} UTC` : "";
-            return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? "วิดีโอสด" : "ภาพนิ่งรีเฟรช") : "OFFLINE"} — เปิดดูในแถบ CCTV ด้านบน${hazeLine}`;
+            const verdict = haze ? (HAZE_LABEL[haze.verdict] ? t(HAZE_LABEL[haze.verdict].th, HAZE_LABEL[haze.verdict].en) : haze.verdict) : "";
+            const hazeLine = haze ? `\n${t("หมอกควัน", "Haze")}: ${verdict}${haze.score !== null ? ` (${haze.score.toFixed(2)})` : ""} · ${t("ภาพ", "frame")} ${haze.observedAt.slice(11, 16)} UTC` : "";
+            return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? t("วิดีโอสด", "live video") : t("ภาพนิ่งรีเฟรช", "refreshing still")) : t("ออฟไลน์", "OFFLINE")} — ${t("เปิดดูในแถบ CCTV ด้านบน", "open it in the CCTV strip above")}${hazeLine}`;
           }
           if (layer.id === "cnx-shelters") {
             const sh = object as Shelter;
+            if (lang === "en") {
+              const utilitiesEn = [sh.electricity ? "electricity" : null, sh.water ? "piped water" : null].filter(Boolean).join(" · ");
+              return `Shelter: ${sh.nameTh}\n${sh.tambonTh ?? "—"}, ${sh.amphoeTh} · capacity ${sh.capacity?.toLocaleString("en-US") ?? "not stated"} people\n${utilitiesEn}${utilitiesEn ? " · " : ""}toilets ${sh.toilets ?? "not stated"}\nLocation: ${precisionLabel[sh.precision].en}\nList: Chiang Mai Provincial Office`;
+            }
             const utilities = [sh.electricity ? "ไฟฟ้า" : null, sh.water ? "ประปา" : null].filter(Boolean).join(" · ");
             return `ศูนย์พักพิง: ${sh.nameTh}\nต.${sh.tambonTh ?? "—"} อ.${sh.amphoeTh} · รับได้ ${sh.capacity?.toLocaleString("th-TH") ?? "ไม่ระบุ"} คน\n${utilities}${utilities ? " · " : ""}ห้องน้ำ ${sh.toilets ?? "ไม่ระบุ"}\nตำแหน่ง: ${precisionLabel[sh.precision].th}\nรายชื่อ: สำนักงานจังหวัดเชียงใหม่`;
           }
           if (layer.id === "cnx-rain") {
             const r = object as RainStation;
+            if (lang === "en") return `Rain 24 h ${r.rain24h} mm · ${RAIN_BAND_EN[r.band]}\n${r.station} · ${r.tambonTh}, ${r.amphoeEn || r.amphoeTh}\n${r.agency} · ${r.at} (ThaiWater)`;
             return `ฝน 24 ชม. ${r.rain24h} มม. · ${RAIN_BAND_TH[r.band]}\n${r.station} · ต.${r.tambonTh} อ.${r.amphoeTh}\n${r.agency} · ${r.at} น. (ThaiWater)`;
           }
           if (layer.id === "cnx-citizen") {
             const r = object as CitizenReport;
-            return `${r.source === "reddit" ? "Reddit post" : "News"} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n📍 ${r.place?.nameEn || r.place?.nameTh} (±${r.place?.precisionKm} km, from the place name)`;
+            const place = r.place ? t(r.place.nameTh, r.place.nameEn) : "";
+            return `${r.source === "reddit" ? t("โพสต์ Reddit", "Reddit post") : t("ข่าว", "News")} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n📍 ${place} (${t(`±${r.place?.precisionKm} กม. จากชื่อสถานที่`, `±${r.place?.precisionKm} km, from the place name`)})`;
           }
           if (layer.id === "cnx-dustboy") {
             const s = object as DustboyStation;
-            return `${s.nameTh}\n${s.province} · PM2.5 ${s.pm25 ?? "—"} µg/m³ · ${s.readingAgeHours ?? "?"} h old\nCMU DustBoy ground sensor`;
+            return t(`${s.nameTh}\n${s.province} · PM2.5 ${s.pm25 ?? "—"} µg/m³ · อายุ ${s.readingAgeHours ?? "?"} ชม.\nเครื่องวัดภาคพื้น DustBoy มช.`, `${s.nameTh}\n${s.province} · PM2.5 ${s.pm25 ?? "—"} µg/m³ · ${s.readingAgeHours ?? "?"} h old\nCMU DustBoy ground sensor`);
           }
           if (layer.id === "cnx-smoke") {
             const s = object as TrajectorySegment;
-            const where = s.nearCnx ? "within 50 km of the city at 6 h" : s.hitsCnxBbox ? "enters the province at 6 h" : "misses the city at 6 h";
-            return `Plume ${s.hotspotId}\n${where}\nCentreline along the forecast 850 hPa wind (~1.5 km) — no spread or deposition`;
+            const where = s.nearCnx
+              ? t("อยู่ภายใน 50 กม. จากตัวเมืองที่ 6 ชม.", "within 50 km of the city at 6 h")
+              : s.hitsCnxBbox
+              ? t("เข้าเขตจังหวัดที่ 6 ชม.", "enters the province at 6 h")
+              : t("ไม่ผ่านตัวเมืองที่ 6 ชม.", "misses the city at 6 h");
+            return t(`แนวควัน ${s.hotspotId}\n${where}\nเส้นกลางตามลมพยากรณ์ระดับ 850 hPa (~1.5 กม.) — ไม่รวมการแผ่กระจายหรือการตกสะสม`, `Plume ${s.hotspotId}\n${where}\nCentreline along the forecast 850 hPa wind (~1.5 km) — no spread or deposition`);
           }
           return null;
         }}
@@ -1341,145 +1398,145 @@ export default function CNXMap({
           event.currentTarget.querySelector("summary")?.focus();
         }
       }}>
-        <summary className="min-h-11 cursor-pointer px-3 py-3 text-[14px] font-semibold">ชั้นข้อมูล · Layers</summary>
+        <summary className="min-h-11 cursor-pointer px-3 py-3 text-[14px] font-semibold">{t("ชั้นข้อมูล", "Layers")}</summary>
         <div className="flex flex-col gap-1 border-t border-[var(--line)] p-3">
-        <label htmlFor="cnx-basemap" className="px-1 py-2 text-[12px] font-semibold text-[var(--dim)]">แผนที่พื้นฐาน · Base map</label>
+        <label htmlFor="cnx-basemap" className="px-1 py-2 text-[12px] font-semibold text-[var(--dim)]">{t("แผนที่พื้นฐาน", "Base map")}</label>
         <select id="cnx-basemap" value={basemap} onChange={(event) => handleBasemapChange(event.target.value as BasemapId)} className="min-h-11 w-full border border-[var(--line)] bg-[var(--bg-raised)] px-3 text-[14px] text-[var(--ink)]">
-          {BASEMAP_OPTIONS.map((option) => <option key={option.id} value={option.id} title={option.hint}>{option.label}</option>)}
+          {BASEMAP_OPTIONS.map((option) => <option key={option.id} value={option.id} title={t(BASEMAP_TH[option.id]?.hint ?? option.hint, option.hint)}>{t(BASEMAP_TH[option.id]?.label ?? option.label, option.label)}</option>)}
         </select>
-        <ToggleGroupLabel>3D City</ToggleGroupLabel>
+        <ToggleGroupLabel>{t("เมือง 3 มิติ", "3D City")}</ToggleGroupLabel>
         <MapToggleButton
           pressed={buildingsOn}
           onClick={handleToggle3D}
           activeClassName="border-[#12354e] bg-[#12354e] text-white"
         >
-          {buildingsOn ? "3D City: on" : "3D City: 2D"}
+          {buildingsOn ? t("เมือง 3 มิติ: เปิด", "3D City: on") : t("เมือง 3 มิติ: 2 มิติ", "3D City: 2D")}
         </MapToggleButton>
         <MapToggleButton
           pressed={templesOn}
           onClick={() => setTemplesOn((v) => !v)}
           activeClassName="border-[#b8860b] bg-[#b8860b] text-white"
         >
-          {templesOn ? "Temples: gold" : "Temples: off"}
+          {templesOn ? t("วัด: สีทอง", "Temples: gold") : t("วัด: ปิด", "Temples: off")}
         </MapToggleButton>
         <MapToggleButton
           pressed={wallsOn}
           onClick={() => setWallsOn((v) => !v)}
           activeClassName="border-[#12354e] bg-[#12354e] text-white"
         >
-          {wallsOn ? "Walls: on" : "Walls: off"}
+          {wallsOn ? t("กำแพงเมือง: เปิด", "Walls: on") : t("กำแพงเมือง: ปิด", "Walls: off")}
         </MapToggleButton>
         <MapToggleButton
           pressed={waterwaysOn}
           onClick={() => setWaterwaysOn((v) => !v)}
           activeClassName="border-[#1d4ed8] bg-[#1d4ed8] text-white"
         >
-          {waterwaysOn ? "Rivers: on" : "Rivers: off"}
+          {waterwaysOn ? t("แม่น้ำ: เปิด", "Rivers: on") : t("แม่น้ำ: ปิด", "Rivers: off")}
         </MapToggleButton>
 
-        <ToggleGroupLabel>Transit</ToggleGroupLabel>
+        <ToggleGroupLabel>{t("การเดินทาง", "Transit")}</ToggleGroupLabel>
         <MapToggleButton
           pressed={busesOn}
           onClick={() => setBusesOn((v) => !v)}
           activeClassName="border-[#b8860b] bg-[#b8860b] text-white"
         >
-          {busesOn ? "Buses: on" : "Buses: off"}
+          {busesOn ? t("รถเมล์: เปิด", "Buses: on") : t("รถเมล์: ปิด", "Buses: off")}
         </MapToggleButton>
         <MapToggleButton
           pressed={cmuShuttleOn}
           onClick={() => setCmuShuttleOn((v) => !v)}
           activeClassName="border-[#725b40] bg-[#725b40] text-white"
-          title="Live CMU shuttle positions — opens a connection to the university's public MQTT feed while on"
+          title={t("ตำแหน่งรถ มช. แบบสด — เปิดการเชื่อมต่อกับฟีด MQTT สาธารณะของมหาวิทยาลัยขณะเปิดใช้", "Live CMU shuttle positions — opens a connection to the university's public MQTT feed while on")}
         >
-          {cmuShuttleOn ? `CMU Shuttle: on (${cmuBuses.length})` : "CMU Shuttle: off"}
+          {cmuShuttleOn ? t(`รถ มช.: เปิด (${cmuBuses.length})`, `CMU Shuttle: on (${cmuBuses.length})`) : t("รถ มช.: ปิด", "CMU Shuttle: off")}
         </MapToggleButton>
         <MapToggleButton
           pressed={airportBusOn}
           onClick={() => setAirportBusOn((v) => !v)}
           activeClassName="border-[#e53935] bg-[#e53935] text-white"
-          title={`RTC 24A/24B/24C airport buses, simulated from the published timetable at ${SIM_SPEED_KMH} km/h — not live GPS`}
+          title={t(`รถ RTC สนามบิน 24A/24B/24C จำลองจากตารางเดินรถที่ประกาศ ความเร็ว ${SIM_SPEED_KMH} กม./ชม. — ไม่ใช่ GPS จริง`, `RTC 24A/24B/24C airport buses, simulated from the published timetable at ${SIM_SPEED_KMH} km/h — not live GPS`)}
         >
-          {airportBusOn ? `Airport Bus: sim (${airportBuses.length})` : "Airport Bus: off"}
+          {airportBusOn ? t(`รถสนามบิน: จำลอง (${airportBuses.length})`, `Airport Bus: sim (${airportBuses.length})`) : t("รถสนามบิน: ปิด", "Airport Bus: off")}
         </MapToggleButton>
 
-        <ToggleGroupLabel>Image layer · one at a time</ToggleGroupLabel>
+        <ToggleGroupLabel>{t("ชั้นภาพ · ครั้งละหนึ่งชั้น", "Image layer · one at a time")}</ToggleGroupLabel>
         <MapToggleButton
           pressed={rainRadarOn}
           onClick={() => pickOverlay("rain")}
           activeClassName="border-[#0891b2] bg-[#0891b2] text-white"
           disabled={!weatherLayers?.rainRadar}
-          title="Live precipitation radar — RainViewer, refreshes ~every 10 min"
+          title={t("เรดาร์ฝนสด — RainViewer อัปเดตราว 10 นาที", "Live precipitation radar — RainViewer, refreshes ~every 10 min")}
         >
-          {weatherLayers?.rainRadar ? (rainRadarOn ? "Rain Radar: on" : "Rain Radar: off") : "Rain Radar: no data"}
+          {weatherLayers?.rainRadar ? (rainRadarOn ? t("เรดาร์ฝน: เปิด", "Rain Radar: on") : t("เรดาร์ฝน: ปิด", "Rain Radar: off")) : t("เรดาร์ฝน: ไม่มีข้อมูล", "Rain Radar: no data")}
         </MapToggleButton>
         <MapToggleButton
           pressed={himawariOn}
           onClick={() => pickOverlay("ir")}
           activeClassName="border-[#7c3aed] bg-[#7c3aed] text-white"
           disabled={!weatherLayers?.himawari}
-          title="Himawari-9 infrared cloud imagery — NASA GIBS / JMA, ~10 min cadence"
+          title={t("ภาพเมฆอินฟราเรด Himawari-9 — NASA GIBS / JMA ทุกราว 10 นาที", "Himawari-9 infrared cloud imagery — NASA GIBS / JMA, ~10 min cadence")}
         >
-          {weatherLayers?.himawari ? (himawariOn ? "Satellite IR: on" : "Satellite IR: off") : "Satellite IR: no data"}
+          {weatherLayers?.himawari ? (himawariOn ? t("ดาวเทียมอินฟราเรด: เปิด", "Satellite IR: on") : t("ดาวเทียมอินฟราเรด: ปิด", "Satellite IR: off")) : t("ดาวเทียมอินฟราเรด: ไม่มีข้อมูล", "Satellite IR: no data")}
         </MapToggleButton>
         <MapToggleButton
           pressed={aerosolLayerOn}
           onClick={() => pickOverlay("aerosol")}
           activeClassName="border-[#a16207] bg-[#a16207] text-white"
           disabled={!weatherLayers?.aerosol}
-          title="MODIS aerosol optical depth — haze / smoke density, daily, NASA GIBS"
+          title={t("ความลึกเชิงแสงของละอองลอย MODIS — ความหนาแน่นหมอกควัน รายวัน NASA GIBS", "MODIS aerosol optical depth — haze / smoke density, daily, NASA GIBS")}
         >
-          {weatherLayers?.aerosol ? (aerosolLayerOn ? "Aerosol (AOD): on" : "Aerosol (AOD): off") : "Aerosol (AOD): no data"}
+          {weatherLayers?.aerosol ? (aerosolLayerOn ? t("ละอองลอย (AOD): เปิด", "Aerosol (AOD): on") : t("ละอองลอย (AOD): ปิด", "Aerosol (AOD): off")) : t("ละอองลอย (AOD): ไม่มีข้อมูล", "Aerosol (AOD): no data")}
         </MapToggleButton>
         <MapToggleButton
           pressed={burnScarOn}
           onClick={() => pickOverlay("burnscar")}
           activeClassName="border-[#9a3412] bg-[#9a3412] text-white"
-          title="Burned area, whole season Dec 2025 – Apr 2026, 20 m Sentinel-2, farmland + forest — HII ตามรอยเผา (tamroypao.hii.or.th)"
+          title={t("พื้นที่เผาไหม้ทั้งฤดู ธ.ค. 2568 – เม.ย. 2569 จาก Sentinel-2 ความละเอียด 20 ม. พื้นที่เกษตรและป่า — สสน. ตามรอยเผา (tamroypao.hii.or.th)", "Burned area, whole season Dec 2025 – Apr 2026, 20 m Sentinel-2, farmland + forest — HII Tamroypao (tamroypao.hii.or.th)")}
         >
-          {burnScarOn ? "Burn scars 2569: on" : "Burn scars 2569: off"}
+          {burnScarOn ? t("ร่องรอยการเผา 2569: เปิด", "Burn scars 2569: on") : t("ร่องรอยการเผา 2569: ปิด", "Burn scars 2569: off")}
         </MapToggleButton>
 
-        <ToggleGroupLabel>ศูนย์พักพิง · Shelters</ToggleGroupLabel>
+        <ToggleGroupLabel>{t("ศูนย์พักพิง", "Shelters")}</ToggleGroupLabel>
         <MapToggleButton
           pressed={sheltersOn}
           onClick={() => setSheltersOn((v) => !v)}
           activeClassName="border-[var(--cool)] bg-[var(--cool)] text-[var(--bg)]"
           disabled={shelters.length === 0}
-          title="Official temporary flood shelters (Chiang Mai Provincial Office). Solid ring = building mapped; hollow = approximate location."
+          title={t("ศูนย์พักพิงน้ำท่วมชั่วคราวทางการ (สำนักงานจังหวัดเชียงใหม่) วงทึบ = พบอาคารบนแผนที่ วงโปร่ง = ตำแหน่งโดยประมาณ", "Official temporary flood shelters (Chiang Mai Provincial Office). Solid ring = building mapped; hollow = approximate location.")}
         >
-          {shelters.length ? (sheltersOn ? `ศูนย์พักพิง: แสดง (${shelters.length})` : "ศูนย์พักพิง: ซ่อน") : "ศูนย์พักพิง: ไม่มีข้อมูล"}
+          {shelters.length ? (sheltersOn ? t(`ศูนย์พักพิง: แสดง (${shelters.length})`, `Shelters: shown (${shelters.length})`) : t("ศูนย์พักพิง: ซ่อน", "Shelters: hidden")) : t("ศูนย์พักพิง: ไม่มีข้อมูล", "Shelters: no data")}
         </MapToggleButton>
 
-        <ToggleGroupLabel>Weather &amp; Air</ToggleGroupLabel>
+        <ToggleGroupLabel>{t("อากาศและฝุ่น", "Weather & Air")}</ToggleGroupLabel>
         <MapToggleButton
           pressed={rainOn}
           onClick={() => setRainOn((v) => !v)}
           activeClassName="border-[#1e40af] bg-[#1e40af] text-white"
           disabled={wetStations.length === 0}
-          title="Measured 24-hour rainfall at ThaiWater gauges, moderate (≥10.1 mm) and above. Heavy rain on slopes can cause flash floods far from any river gauge."
+          title={t("ฝน 24 ชม. ที่วัดได้จากสถานี ThaiWater ระดับปานกลาง (≥10.1 มม.) ขึ้นไป ฝนหนักบนลาดเขาทำให้เกิดน้ำป่าได้แม้ห่างจากสถานีวัดระดับน้ำ", "Measured 24-hour rainfall at ThaiWater gauges, moderate (≥10.1 mm) and above. Heavy rain on slopes can cause flash floods far from any river gauge.")}
         >
-          {wetStations.length ? (rainOn ? `Rain 24h: on (${wetStations.length})` : "Rain 24h: off") : rainAvailable && currentRainStations.length ? "Rain 24h: none ≥10.1 mm" : "Rain 24h: unavailable"}
+          {wetStations.length ? (rainOn ? t(`ฝน 24 ชม.: เปิด (${wetStations.length})`, `Rain 24h: on (${wetStations.length})`) : t("ฝน 24 ชม.: ปิด", "Rain 24h: off")) : rainAvailable && currentRainStations.length ? t("ฝน 24 ชม.: ไม่มีจุดที่ ≥10.1 มม.", "Rain 24h: none ≥10.1 mm") : t("ฝน 24 ชม.: ไม่มีข้อมูล", "Rain 24h: unavailable")}
         </MapToggleButton>
         <MapToggleButton
           pressed={dustboyOn}
           onClick={() => setDustboyOn((v) => !v)}
           activeClassName="border-[#166534] bg-[#166534] text-white"
           disabled={dustboyStations.length === 0}
-          title="CMU DustBoy ground PM2.5. Dots appear only for sensors with a reading under 3 hours old."
+          title={t("PM2.5 ภาคพื้นจาก DustBoy มช. แสดงเฉพาะเครื่องที่มีค่าอายุไม่เกิน 3 ชม.", "CMU DustBoy ground PM2.5. Dots appear only for sensors with a reading under 3 hours old.")}
         >
-          {dustboyStations.length ? (dustboyOn ? `DustBoy: on (${dustboyStations.length})` : "DustBoy: off") : "DustBoy: no data"}
+          {dustboyStations.length ? (dustboyOn ? t(`DustBoy: เปิด (${dustboyStations.length})`, `DustBoy: on (${dustboyStations.length})`) : t("DustBoy: ปิด", "DustBoy: off")) : t("DustBoy: ไม่มีข้อมูล", "DustBoy: no data")}
         </MapToggleButton>
         <MapToggleButton
           pressed={plumesOn}
           onClick={() => setPlumesOn((v) => !v)}
           activeClassName="border-[#c2410c] bg-[#c2410c] text-white"
           disabled={smokeSegments.length === 0}
-          title="Where smoke from a live VIIRS fire is carried in the next 6 hours, following the forecast wind at ~1.5 km as it turns. A centreline — no spread or deposition. Red reaches the city."
+          title={t("ควันจากจุดไฟ VIIRS ล่าสุดจะถูกพาไปทางไหนใน 6 ชม. ข้างหน้า ตามลมพยากรณ์ที่ ~1.5 กม. เป็นเส้นกลาง — ไม่รวมการแผ่กระจายหรือการตกสะสม สีแดงคือถึงตัวเมือง", "Where smoke from a live VIIRS fire is carried in the next 6 hours, following the forecast wind at ~1.5 km as it turns. A centreline — no spread or deposition. Red reaches the city.")}
         >
-          {smokeSegments.length ? (plumesOn ? `Plumes: on (${smokeSegments.length})` : "Plumes: off") : "Plumes: none"}
+          {smokeSegments.length ? (plumesOn ? t(`แนวควัน: เปิด (${smokeSegments.length})`, `Plumes: on (${smokeSegments.length})`) : t("แนวควัน: ปิด", "Plumes: off")) : t("แนวควัน: ไม่มี", "Plumes: none")}
         </MapToggleButton>
 
-        <ToggleGroupLabel>Range Rings</ToggleGroupLabel>
+        <ToggleGroupLabel>{t("วงระยะทาง", "Range Rings")}</ToggleGroupLabel>
         <div className="flex gap-1">
           {[1, 5, 10].map((km) => {
             const on = gridRadii.has(km);
@@ -1500,7 +1557,7 @@ export default function CNXMap({
                   on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
                 }`}
               >
-                {km} km
+                {km} {t("กม.", "km")}
               </button>
             );
           })}
@@ -1515,38 +1572,35 @@ export default function CNXMap({
           className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--cool)]"
         />
         <span className="text-[12px] font-semibold text-[var(--cool)]">
-          {flights.length} {flights.length === 1 ? "flight" : "flights"}
+          {t(`${flights.length} เที่ยวบิน`, `${flights.length} ${flights.length === 1 ? "flight" : "flights"}`)}
         </span>
       </div>
 
       {/* Atlas-compatible Building Information Card */}
       {selectedBuilding && (
         <aside
-          aria-label="รายละเอียดอาคาร 3 มิติ"
+          aria-label={t("รายละเอียดอาคาร 3 มิติ", "3D building details")}
           className="absolute bottom-12 left-3 z-40 max-w-[340px] border border-[var(--line)] bg-[var(--bg-raised)] p-3"
         >
           <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] pb-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white">
-                  {selectedBuilding.kind === "temple" ? "ศาสนสถาน · วัด" : selectedBuilding.kind.toUpperCase()}
+                  {KIND_LABEL[selectedBuilding.kind] ? t(KIND_LABEL[selectedBuilding.kind].th, KIND_LABEL[selectedBuilding.kind].en) : selectedBuilding.kind.toUpperCase()}
                 </span>
                 <span className="inline-block border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  พร้อมรับข้อมูล · Atlas Ready
+                  {t("พร้อมรับข้อมูล", "Atlas ready")}
                 </span>
               </div>
               <h3 className="mt-1 truncate font-mono text-[13px] font-bold text-[var(--ink)]">
-                {selectedBuilding.name}
+                {(lang === "en" ? selectedBuilding.nameEn || selectedBuilding.name : selectedBuilding.name) || t(`อาคาร #${selectedBuilding.id}`, `Building #${selectedBuilding.id}`)}
               </h3>
-              {selectedBuilding.nameEn && selectedBuilding.nameEn !== selectedBuilding.name && (
-                <div className="truncate text-[11px] text-[var(--dim)]">{selectedBuilding.nameEn}</div>
-              )}
             </div>
             <button
               type="button"
               onClick={() => setSelectedBuilding(null)}
               className="flex h-5 w-5 items-center justify-center text-[12px] font-bold text-[var(--dim)] hover:bg-[var(--line)] hover:text-[var(--ink)]"
-              aria-label="ปิด"
+              aria-label={t("ปิด", "Close")}
             >
               ✕
             </button>
@@ -1554,32 +1608,32 @@ export default function CNXMap({
 
           <div className="mt-2 grid grid-cols-2 gap-1.5 font-mono text-[11px]">
             <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">ความสูง / ชั้น</span>
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">{t("ความสูง / ชั้น", "Height / floors")}</span>
               <span className="font-bold text-[var(--ink)]">
-                {selectedBuilding.height} ม. ({selectedBuilding.levels ? `${selectedBuilding.levels} ชั้น` : "—"})
+                {selectedBuilding.height} {t("ม.", "m")} ({selectedBuilding.levels ? t(`${selectedBuilding.levels} ชั้น`, `${selectedBuilding.levels} ${selectedBuilding.levels === 1 ? "floor" : "floors"}`) : "—"})
               </span>
             </div>
             <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">การใช้ประโยชน์</span>
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">{t("การใช้ประโยชน์", "Use")}</span>
               <span className="font-bold text-[var(--ink)]">
-                {selectedBuilding.kind === "temple" ? "วัด / ศาสนสถาน" : selectedBuilding.kind}
+                {KIND_LABEL[selectedBuilding.kind] ? t(KIND_LABEL[selectedBuilding.kind].th, KIND_LABEL[selectedBuilding.kind].en) : selectedBuilding.kind}
               </span>
             </div>
             <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">👥 ประชากร (คน)</span>
-              <span className="italic text-[var(--dim)]">รอเชื่อมโยงข้อมูล</span>
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">👥 {t("ประชากร (คน)", "Population")}</span>
+              <span className="italic text-[var(--dim)]">{t("รอเชื่อมโยงข้อมูล", "Not yet linked")}</span>
             </div>
             <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">⚡ ไฟฟ้าสูงสุด</span>
-              <span className="italic text-[var(--dim)]">รอเชื่อม PEA</span>
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">⚡ {t("ไฟฟ้าสูงสุด", "Peak electricity")}</span>
+              <span className="italic text-[var(--dim)]">{t("รอเชื่อม กฟภ.", "PEA not yet linked")}</span>
             </div>
             <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">💧 การใช้น้ำประปา</span>
-              <span className="italic text-[var(--dim)]">รอเชื่อม PWA</span>
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">💧 {t("การใช้น้ำประปา", "Water use")}</span>
+              <span className="italic text-[var(--dim)]">{t("รอเชื่อม กปภ.", "PWA not yet linked")}</span>
             </div>
             <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">📋 สำรวจล่าสุด</span>
-              <span className="italic text-[var(--dim)]">รอลงพื้นที่สำรวจ</span>
+              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">📋 {t("สำรวจล่าสุด", "Last survey")}</span>
+              <span className="italic text-[var(--dim)]">{t("รอลงพื้นที่สำรวจ", "Awaiting field survey")}</span>
             </div>
           </div>
 
@@ -1597,7 +1651,7 @@ export default function CNXMap({
               rel="noreferrer"
               className="text-[var(--cool)] hover:underline"
             >
-              ดูบน OSM ↗
+              {t("ดูบน OSM", "View on OSM")} ↗
             </a>
           </div>
         </aside>

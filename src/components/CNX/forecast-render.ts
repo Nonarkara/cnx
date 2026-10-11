@@ -222,3 +222,8 @@ const COMPASS_TH = ["เหนือ", "ตะวันออกเฉียง�
 export function compassTh(deg: number): string {
   return COMPASS_TH[Math.round(deg / 45) % 8] ?? "เหนือ";
 }
+
+const COMPASS_EN = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+export function compassEn(deg: number): string {
+  return COMPASS_EN[Math.round(deg / 45) % 8] ?? "north";
+}

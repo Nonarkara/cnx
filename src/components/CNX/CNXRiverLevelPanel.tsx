@@ -27,6 +27,8 @@ import { Waves, Scale, ExternalLink } from "lucide-react";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import { isCurrentGaugeReading } from "../../lib/cnx/verdict";
 import { DataAge } from "./CNXDataAge";
+import { useLang } from "../../hooks/useLang";
+import { pick, type Lang } from "../../lib/i18n";
 import type { RiverLevelResponse, RiverGauge, RiverSeverity } from "../../lib/cnx/river-level";
 
 const SEV_CLS: Record<RiverSeverity, string> = {
@@ -37,52 +39,61 @@ const SEV_CLS: Record<RiverSeverity, string> = {
 };
 
 /** Thai name is authoritative; the code is what an operator looks up. */
-function gaugeLabel(g: RiverGauge): string {
-  return g.nameTh || g.code || "(unnamed station)";
+function gaugeLabel(g: RiverGauge, lang: Lang): string {
+  return g.nameTh || g.code || pick(lang, "(สถานีไม่มีชื่อ)", "(unnamed station)");
 }
 
 /** Keep bank overtopping separate from an agency's critical threshold. */
-export function gaugeEvidence(g: RiverGauge, now: number | null): { current: boolean; bank: string; critical: string | null } {
+export function gaugeEvidence(g: RiverGauge, now: number | null, lang: Lang = "en"): { current: boolean; bank: string; critical: string | null } {
+  const t = (th: string, en: string) => pick(lang, th, en);
   const current = now !== null && isCurrentGaugeReading(g.observedAt, now);
+  const bankM = g.belowBankM === null ? "" : Math.abs(g.belowBankM).toFixed(2);
   const bank = g.belowBankM === null
-    ? "Bank relation unknown"
+    ? t("ไม่ทราบระดับเทียบตลิ่ง", "Bank relation unknown")
     : g.belowBankM === 0
-    ? "At published bank level"
-    : `${Math.abs(g.belowBankM).toFixed(2)} m ${g.belowBankM < 0 ? "above" : "below"} bank`;
+    ? t("ระดับเท่ากับตลิ่งที่ประกาศ", "At published bank level")
+    : g.belowBankM < 0
+    ? t(`สูงกว่าตลิ่ง ${bankM} ม.`, `${bankM} m above bank`)
+    : t(`ต่ำกว่าตลิ่ง ${bankM} ม.`, `${bankM} m below bank`);
+  const critM = g.headroomM === null ? "" : Math.abs(g.headroomM).toFixed(2);
   const critical = g.headroomM === null
-    ? g.criticalLevelMsl === null ? null : "Critical threshold relation unknown"
+    ? g.criticalLevelMsl === null ? null : t("ไม่ทราบระดับเทียบเกณฑ์วิกฤต", "Critical threshold relation unknown")
     : g.headroomM === 0
-    ? "At official critical level"
-    : `${Math.abs(g.headroomM).toFixed(2)} m ${g.headroomM < 0 ? "above" : "below"} official critical level`;
+    ? t("ระดับเท่ากับเกณฑ์วิกฤตทางการ", "At official critical level")
+    : g.headroomM < 0
+    ? t(`สูงกว่าเกณฑ์วิกฤตทางการ ${critM} ม.`, `${critM} m above official critical level`)
+    : t(`ต่ำกว่าเกณฑ์วิกฤตทางการ ${critM} ม.`, `${critM} m below official critical level`);
   return { current, bank, critical };
 }
 
 function GaugeRow({ g, rank, now }: { g: RiverGauge; rank: number; now: number | null }) {
-  const evidence = gaugeEvidence(g, now);
+  const { lang, t } = useLang();
+  const evidence = gaugeEvidence(g, now, lang);
   const colour = evidence.current ? SEV_CLS[g.severity] : "text-[var(--dim)]";
   return (
     <li className="border-b border-[var(--line)] py-2.5 last:border-b-0">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 text-[12px] font-semibold text-[var(--ink)]">
-          {rank}. {gaugeLabel(g)}
+          {rank}. {gaugeLabel(g, lang)}
           {g.code && <span className="ml-1 font-mono text-[11px] text-[var(--dim)]">{g.code}</span>}
         </div>
-        <DataAge observedAt={g.observedAt} source="observed" staleAfterMs={3 * 3600_000} missing="undated" />
+        <DataAge observedAt={g.observedAt} source={t("วัดเมื่อ", "observed")} staleAfterMs={3 * 3600_000} missing={t("ไม่ระบุเวลา", "undated")} />
       </div>
       <div className={`mt-1 text-[13px] font-bold ${colour}`}>{evidence.bank}</div>
-      {now !== null && !evidence.current && <p className="mt-1 text-[11px] font-semibold text-[var(--sev-watch)]">Historical / timestamp unverified — excluded from current verdict</p>}
-      {evidence.critical && <p className={`mt-1 text-[11px] ${colour}`}>{evidence.critical}. A critical threshold does not itself confirm overtopping.</p>}
+      {now !== null && !evidence.current && <p className="mt-1 text-[11px] font-semibold text-[var(--sev-watch)]">{t("ค่าย้อนหลัง / ยืนยันเวลาไม่ได้ — ไม่นับในการประเมินปัจจุบัน", "Historical / timestamp unverified — excluded from current verdict")}</p>}
+      {evidence.critical && <p className={`mt-1 text-[11px] ${colour}`}>{evidence.critical}. {t("การเกินเกณฑ์วิกฤตไม่ได้ยืนยันว่าน้ำล้นตลิ่ง", "A critical threshold does not itself confirm overtopping.")}</p>}
       <details className="mt-1 text-[11px] text-[var(--dim)]">
-        <summary className="cursor-pointer py-1">Gauge measurements &amp; source</summary>
-        <p className="mt-1">Water {g.levelMsl.toFixed(2)} m above mean sea level{g.bankLevelMsl !== null && `; bank ${g.bankLevelMsl.toFixed(2)} m`}{g.criticalLevelMsl !== null && `; critical ${g.criticalLevelMsl.toFixed(2)} m`}{g.dischargeM3s !== null && `; discharge ${g.dischargeM3s.toFixed(1)} m³/s`}. Source: {g.agency}.</p>
-        <p className="mt-1">Observation: {g.observedAt || "undated"}</p>
-        {g.belowBankM === null && <p className="mt-1">No published bank relation — bank overtopping cannot be assessed from this reading.</p>}
+        <summary className="cursor-pointer py-1">{t("ค่าที่วัดและแหล่งข้อมูล", "Gauge measurements & source")}</summary>
+        <p className="mt-1">{t(`ระดับน้ำ ${g.levelMsl.toFixed(2)} ม.รทก.`, `Water ${g.levelMsl.toFixed(2)} m above mean sea level`)}{g.bankLevelMsl !== null && t(`; ตลิ่ง ${g.bankLevelMsl.toFixed(2)} ม.`, `; bank ${g.bankLevelMsl.toFixed(2)} m`)}{g.criticalLevelMsl !== null && t(`; วิกฤต ${g.criticalLevelMsl.toFixed(2)} ม.`, `; critical ${g.criticalLevelMsl.toFixed(2)} m`)}{g.dischargeM3s !== null && t(`; ปริมาณน้ำ ${g.dischargeM3s.toFixed(1)} ลบ.ม./วินาที`, `; discharge ${g.dischargeM3s.toFixed(1)} m³/s`)}. {t("แหล่งข้อมูล", "Source")}: {g.agency}.</p>
+        <p className="mt-1">{t("เวลาที่วัด", "Observation")}: {g.observedAt || t("ไม่ระบุเวลา", "undated")}</p>
+        {g.belowBankM === null && <p className="mt-1">{t("ไม่มีระดับตลิ่งที่ประกาศ — ประเมินการล้นตลิ่งจากค่านี้ไม่ได้", "No published bank relation — bank overtopping cannot be assessed from this reading.")}</p>}
       </details>
     </li>
   );
 }
 
 export default function CnxRiverLevelPanel() {
+  const { t } = useLang();
   const [data, setData] = useState<RiverLevelResponse | null>(null);
   const [onlyMainstem, setOnlyMainstem] = useState(false);
   const [now, setNow] = useState<number | null>(null);
@@ -124,7 +135,7 @@ export default function CnxRiverLevelPanel() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] px-3 py-1.5">
         <span className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ink)]">
           <Waves className="h-3.5 w-3.5 text-[var(--cool)]" />
-          Ping basin — gauge evidence
+          {t("ลุ่มน้ำปิง — หลักฐานจากสถานีวัด", "Ping basin — gauge evidence")}
         </span>
         <span className="flex flex-wrap items-center gap-2">
           {data && (
@@ -135,38 +146,35 @@ export default function CnxRiverLevelPanel() {
                 onlyMainstem ? "text-[var(--cool)]" : "text-[var(--dim)] hover:text-[var(--ink)]"
               }`}
             >
-              {onlyMainstem ? "● mainstem" : `○ mainstem (${mainstem})`}
+              {onlyMainstem ? `● ${t("ปิงสายหลัก", "mainstem")}` : `○ ${t("ปิงสายหลัก", "mainstem")} (${mainstem})`}
             </button>
           )}
           <span className="font-mono text-[11px] tabular-nums text-[var(--dim)]">
-            {data ? `${data.gaugeCount} observations` : "loading…"}
+            {data ? t(`${data.gaugeCount} ค่าที่วัด`, `${data.gaugeCount} observations`) : t("กำลังโหลด…", "loading…")}
           </span>
           <DataAge
             observedAt={data?.observedAt}
-            source="newest gauge"
+            source={t("สถานีล่าสุด", "newest gauge")}
             staleAfterMs={2 * 3600_000}
-            missing="no reading"
+            missing={t("ไม่มีค่าที่วัด", "no reading")}
           />
         </span>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">อ่านสถานีใกล้พื้นที่และประกาศทางการ · ค่าสถานีไม่ยืนยันน้ำท่วมถนน</p>
-        {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sev-watch)]">Unable to refresh gauge data. {data ? "Showing the last received observations; check each timestamp." : "Current river conditions are unknown. The next poll will retry."}</p>}
-        {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{currentCount} สถานีใน 3 ชม. · ค่าที่เก่ากว่านี้แสดงเป็นประวัติ</p>}
+        <p className="mb-2 text-[12px] leading-relaxed text-[var(--ink)]">{t("อ่านสถานีใกล้พื้นที่และประกาศทางการ · ค่าสถานีไม่ยืนยันน้ำท่วมถนน", "Read the nearest gauges with official warnings · a gauge reading does not confirm road flooding")}</p>
+        {refreshFailed && <p role="status" className="mb-2 text-[12px] text-[var(--sev-watch)]">{t("รีเฟรชข้อมูลสถานีวัดไม่สำเร็จ", "Unable to refresh gauge data.")} {data ? t("แสดงค่าล่าสุดที่ได้รับ ตรวจสอบเวลาของแต่ละสถานี", "Showing the last received observations; check each timestamp.") : t("ไม่ทราบสภาพแม่น้ำปัจจุบัน จะลองอีกครั้งในรอบถัดไป", "Current river conditions are unknown. The next poll will retry.")}</p>}
+        {data && now !== null && <p className="mb-2 text-[11px] text-[var(--dim)]">{t(`${currentCount} สถานีใน 3 ชม. · ค่าที่เก่ากว่านี้แสดงเป็นประวัติ`, `${currentCount} stations within 3 h · older readings are shown as history`)}</p>}
 
         {down && data && (
           <div className="mb-2 border border-[var(--sev-critical)]/40 bg-[var(--sev-critical)]/10 px-2 py-1.5 text-[11px] leading-[1.5] text-[var(--sev-critical)]">
-            ไม่สามารถอ่านค่าจากสถานีวัด — ไม่ใช่หลักฐานว่าน้ำปลอดภัย
+            {t("ไม่สามารถอ่านค่าจากสถานีวัด — ไม่ใช่หลักฐานว่าน้ำปลอดภัย", "Gauge readings could not be read — this is not evidence that the river is safe")}
             <div className="mt-0.5 font-mono text-[11px] opacity-90">
-              {data.unavailableReason ?? "upstream read failed"}
+              {data.unavailableReason ?? t("อ่านข้อมูลต้นทางไม่สำเร็จ", "upstream read failed")}
             </div>
             {/rate limit|429/i.test(data.unavailableReason ?? "") && (
               <div className="mt-1 text-[11px] italic opacity-90">
-                แหล่งข้อมูลจำกัดอัตราการเรียกใช้ชั่วคราว (ไม่ใช่สถานะของแม่น้ำ) — ค่าจริงยังมีอยู่ที่สถานีวัด
-                <br />
-                A temporary read throttle on our side, not a change in the river — the gauges are still reporting,
-                and this panel is blind until the next poll succeeds.
+                {t("แหล่งข้อมูลจำกัดอัตราการเรียกใช้ชั่วคราว (ไม่ใช่สถานะของแม่น้ำ) — สถานียังรายงานอยู่ แต่แผงนี้มองไม่เห็นจนกว่าการอ่านรอบถัดไปจะสำเร็จ", "A temporary read throttle on our side, not a change in the river — the gauges are still reporting, and this panel is blind until the next poll succeeds.")}
               </div>
             )}
           </div>
@@ -185,20 +193,18 @@ export default function CnxRiverLevelPanel() {
                 and would call ~85 out-of-basin stations "silent". */}
             {data && data.catalogueCount !== null && (
               <p className="mt-2 font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
-                For context, the province&apos;s telemetry catalogue lists {data.catalogueCount} stations
-                across all basins; only Ping-basin gauges feed this panel, so this is not a
-                &quot;N of 128 reporting&quot; figure.
+                {t(`เพื่อเป็นบริบท: บัญชีสถานีโทรมาตรของจังหวัดมี ${data.catalogueCount} สถานีจากทุกลุ่มน้ำ แผงนี้ใช้เฉพาะสถานีในลุ่มน้ำปิง ตัวเลขนี้จึงไม่ใช่ "รายงาน N จาก 128 สถานี"`, `For context, the province's telemetry catalogue lists ${data.catalogueCount} stations across all basins; only Ping-basin gauges feed this panel, so this is not an "N of 128 reporting" figure.`)}
               </p>
             )}
             {data && data.catalogueCount === null && (
               <p className="mt-2 font-mono text-[11px] leading-[1.5] text-[var(--sev-watch)]">
-                Station catalogue could not be read — coverage against the network is unknown, not complete.
+                {t("อ่านบัญชีสถานีไม่ได้ — ไม่ทราบความครอบคลุมของเครือข่าย (ไม่ใช่ครบถ้วน)", "Station catalogue could not be read — coverage against the network is unknown, not complete.")}
               </p>
             )}
           </>
         ) : data ? (
           <p className="text-[11px] italic text-[var(--dim)]">
-            {onlyMainstem ? "No Ping mainstem observation is available in this response." : "No Ping-basin gauge observation is available."} Current river conditions are unverified.
+            {onlyMainstem ? t("ไม่มีข้อมูลจากสถานีบนลำน้ำปิงสายหลักในรอบนี้", "No Ping mainstem observation is available in this response.") : t("ไม่มีข้อมูลจากสถานีในลุ่มน้ำปิง", "No Ping-basin gauge observation is available.")} {t("ยังยืนยันสภาพแม่น้ำปัจจุบันไม่ได้", "Current river conditions are unverified.")}
           </p>
         ) : refreshFailed ? null : (
           <div className="space-y-2">
@@ -207,7 +213,7 @@ export default function CnxRiverLevelPanel() {
             ))}
           </div>
         )}
-        {data && <details className="mb-2 text-[11px] leading-relaxed text-[var(--dim)]"><summary className="cursor-pointer py-2">Basin coverage &amp; methodology</summary><p>{data.note}</p></details>}
+        {data && <details className="mb-2 text-[11px] leading-relaxed text-[var(--dim)]"><summary className="cursor-pointer py-2">{t("ความครอบคลุมและวิธีการ", "Basin coverage & methodology")}</summary><p lang="en">{data.note}</p></details>}
       </div>
 
       {/* Credit and terms are rendered VERBATIM from the module, for the
@@ -215,23 +221,22 @@ export default function CnxRiverLevelPanel() {
           contract, and three retyped copies drift apart. */}
       {data && (
         <footer className="shrink-0 border-t border-[var(--line)] bg-[var(--bg)] px-3">
-          <details><summary className="min-h-11 cursor-pointer py-3 text-[12px] text-[var(--dim)]">ThaiWater · แหล่งข้อมูลและเงื่อนไข</summary>
+          <details><summary className="min-h-11 cursor-pointer py-3 text-[12px] text-[var(--dim)]">{t("ThaiWater · แหล่งข้อมูลและเงื่อนไข", "ThaiWater · source and terms")}</summary>
           <div className="max-h-48 overflow-y-auto pb-3">
           <div className="font-mono text-[11px] leading-[1.5] text-[var(--dim)]">
-            Levels via{" "}
+            {t("ระดับน้ำจาก", "Levels via")}{" "}
             <a href={data.credit.publisherUrl} target="_blank" rel="noreferrer" className="underline">
               {data.credit.publisher}
               <ExternalLink className="ml-0.5 inline h-2 w-2" />
             </a>
-            . Observations by {data.credit.agencies.join(", ")}. Severity bands on this panel are this
-            board&apos;s reading of published bank geometry, not an upstream warning class.
+            . {t(`ค่าที่วัดโดย ${data.credit.agencies.join(", ")} · ระดับความรุนแรงในแผงนี้เป็นการอ่านของบอร์ดจากระดับตลิ่งที่ประกาศ ไม่ใช่ระดับเตือนภัยของต้นทาง`, `Observations by ${data.credit.agencies.join(", ")}. Severity bands on this panel are this board's reading of published bank geometry, not an upstream warning class.`)}
           </div>
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)] hover:text-[var(--ink)]">
               <Scale className="h-2.5 w-2.5" />
-              Intended use &amp; terms
+              {t("วัตถุประสงค์และเงื่อนไขการใช้", "Intended use & terms")}
             </summary>
-            <div className="mt-1 space-y-1 font-mono text-[11px] leading-[1.6] text-[var(--dim)]">
+            <div lang="en" className="mt-1 space-y-1 font-mono text-[11px] leading-[1.6] text-[var(--dim)]">
               <p>{data.legal.intendedUse}</p>
               <p>{data.legal.terms}</p>
             </div>
