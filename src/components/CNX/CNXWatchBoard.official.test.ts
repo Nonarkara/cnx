@@ -47,7 +47,13 @@ afterEach(async () => {
 
 async function render(lang: Lang): Promise<HTMLElement> {
   __resetLangForTests(lang);
-  const el = createElement(CnxWatchBoard, { metrics: [], firesRfd: null, aerosol: null, smoke: null, hazeVision: null, dustboy: null, weatherLayers: null, riverGauges: [], rain: null, onOpenMetric: vi.fn() });
+  // `now` must be injected. buildWatchList falls back to the wall clock
+  // when it is absent, and `vi.spyOn(Date, "now")` does NOT change what
+  // `new Date()` returns — so without this the board read real time and
+  // ALERT (expires 2026-10-11T18:00+07:00) silently flipped from "in
+  // force" to "expired" the moment that wall-clock minute passed. These
+  // tests are wall-clock independent only because of this argument.
+  const el = createElement(CnxWatchBoard, { metrics: [], firesRfd: null, aerosol: null, smoke: null, hazeVision: null, dustboy: null, weatherLayers: null, riverGauges: [], rain: null, onOpenMetric: vi.fn(), now: new Date(NOW) });
   await act(async () => root.render(el));
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
   return container;

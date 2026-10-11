@@ -119,6 +119,14 @@ interface Props {
   rain: RainResponse | null;
   outlook?: ProvinceOutlook | null;
   onOpenMetric: (id: "water" | "air" | "fire" | "mobility" | "model" | "watch") => void;
+  /**
+   * Injectable clock. `buildWatchList` takes a `now`, but this component
+   * used to leave it unset, so the board silently read the wall clock and
+   * any test of it became a function of when it ran — an official alert
+   * with a fixed `expires` is "in force" until that instant and not one
+   * second later. Default stays the real clock in production.
+   */
+  now?: Date;
 }
 
 function EvidenceButton({ item, onOpenMetric }: { item: WatchItem; onOpenMetric: Props["onOpenMetric"] }) {
@@ -147,6 +155,7 @@ export default function CnxWatchBoard({
   rain,
   outlook = null,
   onOpenMetric,
+  now,
 }: Props) {
   const { lang, t } = useLang();
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
@@ -174,8 +183,8 @@ export default function CnxWatchBoard({
   }, []);
 
   const board = useMemo(
-    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings }),
-    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings],
+    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings, now }),
+    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings, now],
   );
   const official = board.systems.filter((item) => item.kind === "official");
   // Official rows have their own frame above; "Watching now" is the board's own evidence.

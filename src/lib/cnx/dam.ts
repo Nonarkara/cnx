@@ -55,8 +55,8 @@ export function isDamPayload(v: unknown): v is DamPayload {
   return isObj(v) && isStr(v.generatedAt, 40) && !Number.isNaN(Date.parse(v.generatedAt)) && Array.isArray(v.rows) && v.rows.length <= MAX_ROWS && v.rows.every(isRow);
 }
 
-const NOTE =
-  "Storage as % of normal storage (ระดับเก็บกักปกติ) as RID publishes it, recomputed from storage ÷ normal storage only where the published figure is 0 or missing; inflow, release and spill in million m³ per day from the RID daily report. A daily report, not a live sensor: it says where the reservoir stood this morning.";
+export const NOTE =
+  "Storage as % of normal storage (ระดับเก็บกักปกติ) as RID publishes it, recomputed from storage ÷ normal storage only where the published figure is 0 or missing; inflow, release and spill in million m³ per day from the RID daily report. A daily report, not a live sensor: it says where the reservoir stood this morning. Name correction: ThaiWater's feed spells Mae Ngat as 'Mae Ngud'; this board shows the Thai name's romanisation, Mae Ngat. Numbers are the publisher's, untouched.";
 
 export async function fetchCnxDam(nowMs: number = Date.now()): Promise<DamResponse> {
   const data = await readRelayJson(DAM_KV_KEY, DAM_RELAY_MAX_AGE_MS, isDamPayload);

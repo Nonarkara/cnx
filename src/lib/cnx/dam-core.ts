@@ -140,6 +140,32 @@ const positive = (v: unknown) => {
   return n === null || n <= 0 ? null : n;
 };
 
+/**
+ * Documented corrections to the publisher's English romanisation, keyed by
+ * the Thai name — which the feed gets right.
+ *
+ * ThaiWater's `analyst/dam` ships TWO records for Mae Ngat:
+ *   { en: "Mae Ngud", th: "แม่งัดสมบูรณ์ชล" }   ← newer, wins our dedupe
+ *   { en: "MAE NGAT DAM", th: "แม่งัด" }        ← older
+ * The first is simply wrong: there is no Mae Ngud dam, and this board
+ * already says "แม่งัด" everywhere else (About, the flood rule, the
+ * verdict copy). Rendering the publisher's misspelling would put a dam
+ * that does not exist on a governor's flood desk.
+ *
+ * This is a LABEL correction only — no number is touched — and it is
+ * disclosed in the response `note` rather than passed off as the
+ * publisher's own spelling. If ThaiWater fixes it upstream, this map
+ * becomes redundant and can be deleted.
+ */
+export const UPSTREAM_EN_CORRECTIONS: Readonly<Record<string, string>> = {
+  "แม่งัดสมบูรณ์ชล": "Mae Ngat",
+};
+
+/** Prefer the corrected romanisation; otherwise pass the publisher's through. */
+function correctEnglishName(nameTh: string, nameEn: string): string {
+  return UPSTREAM_EN_CORRECTIONS[nameTh] ?? nameEn;
+}
+
 /** ThaiWater dam row → DamRow, or null when it is not a usable reading. */
 export function compactDamRow(raw: Raw, kind: DamKind): DamRow | null {
   const dam = raw?.dam;
@@ -157,7 +183,7 @@ export function compactDamRow(raw: Raw, kind: DamKind): DamRow | null {
     id: `${kind}:${str(String(dam.dam_oldcode ?? "")) || String(dam.id ?? nameTh)}`,
     kind,
     nameTh,
-    nameEn: str(dam.dam_name?.en),
+    nameEn: correctEnglishName(nameTh, str(dam.dam_name?.en)),
     provinceTh: str(raw.geocode?.province_name?.th),
     amphoeTh: str(raw.geocode?.amphoe_name?.th),
     lat,

@@ -55,7 +55,7 @@ describe("answer first", () => {
     const line = damLine({ status: "ok", data: damsOk() });
     expect(line.level).toBe("watch"); // Mae Ngat near full; full medium reservoirs cap at watch
     expect(line.th).toMatch(/^แม่งัดสมบูรณ์ชล 95% ของระดับเก็บกักปกติ \(ใกล้เต็ม\)/);
-    expect(line.en).toBe("Mae Ngud at 95% of normal storage (near full) · 1 medium reservoir near or above normal storage");
+    expect(line.en).toBe("Mae Ngat at 95% of normal storage (near full) · 1 medium reservoir near or above normal storage");
     expect(line.observedAt).toBe("2026-10-11");
   });
   it("headlines the worst signal across parts", () => {
