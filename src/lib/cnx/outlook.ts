@@ -115,6 +115,26 @@ export function rainActionTh(r: RainOutlook): string {
     : `แจ้งผู้นำชุมชน อ.${r.district.nameTh} เฝ้าระวังน้ำป่า/ดินถล่มช่วง ${when} · ${shelterLine}`;
 }
 
+const timeFmtEn = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
+export function outlookTimeEn(unixSec: number | null): string {
+  return unixSec === null ? "—" : timeFmtEn.format(new Date(unixSec * 1000));
+}
+
+export function rainActionEn(r: RainOutlook): string {
+  const when = outlookTimeEn(r.district.peakRainAt);
+  const top = r.shelters[0];
+  const shelterLine = top
+    ? `Nearest shelter: ${top.nameTh}${top.capacity ? ` (${top.capacity.toLocaleString("en-US")} people)` : ""}${r.shelters.length > 1 ? ` and ${r.shelters.length - 1} more, ~${r.shelterCapacity.toLocaleString("en-US")} people in all` : ""}`
+    : "No shelter on the official list for this district — use a neighbouring district's";
+  return r.level === "alert"
+    ? `Prepare to open shelters and ready slope and stream-side areas of ${r.district.nameEn} to evacuate before ${when} · ${shelterLine}`
+    : `Tell community leaders in ${r.district.nameEn} to watch for flash floods and landslides around ${when} · ${shelterLine}`;
+}
+
+export function airActionEn(a: AirOutlook): string {
+  return `Advise at-risk groups (children, older people, heart and lung patients) in ${a.district.nameEn} to limit outdoor activity around ${outlookTimeEn(a.peakAt)}, and prepare clean-air rooms`;
+}
+
 export function airActionTh(a: AirOutlook): string {
   return `แจ้งกลุ่มเสี่ยง (เด็ก ผู้สูงอายุ ผู้ป่วยโรคหัวใจ/ทางเดินหายใจ) ใน อ.${a.district.nameTh} ลดกิจกรรมกลางแจ้งช่วง ${outlookTime(a.peakAt)} และเตรียมห้องปลอดฝุ่น`;
 }
@@ -138,7 +158,7 @@ export function outlookWatchItems(o: ProvinceOutlook): WatchItem[] {
           valueEn: o.rain.slice(0, 3).map((r) => `${r.district.nameEn} ${r.district.rain24h.toFixed(0)} mm`).join(" · "),
           evidenceTh: "ยอดฝนพยากรณ์ 24 ชม. ข้างหน้าที่จุดกลางอำเภอ (กริด ~30 กม.) เกณฑ์ฝนหนักของกรมอุตุฯ — พายุเฉพาะหุบเขาอาจแรงกว่านี้",
           evidenceEn: "Forecast 24 h totals at district points (~30 km grid), TMD heavy-rain classes; a valley storm can exceed this.",
-          actionTh: rainActionTh(top), actionEn: null, observedAt: o.fetchedAt, openMetric: "water",
+          actionTh: rainActionTh(top), actionEn: rainActionEn(top), observedAt: o.fetchedAt, openMetric: "water",
         }
       : {
           id: "forecast-rain", domain: "water", kind: "model", systemTh: "ฝนพยากรณ์ 24 ชม. · รายอำเภอ", systemEn: "Forecast rain, 24 h, by district",
@@ -163,7 +183,7 @@ export function outlookWatchItems(o: ProvinceOutlook): WatchItem[] {
           valueEn: `Peak ${air.peak} µg/m³ at ${air.district.nameEn}`,
           evidenceTh: "ค่าจากแบบจำลอง CAMS (~40 กม.) มักต่ำกว่าค่าวัดจริงในหุบเขาช่วงเผา — ใช้ดูแนวโน้มและเวลา ไม่ใช่ค่าที่วัดได้",
           evidenceEn: "CAMS model (~40 km) often under-reads valley smoke in burning season — a trend and timing, not a measurement.",
-          actionTh: airActionTh(air), actionEn: null, observedAt: o.fetchedAt, openMetric: "air",
+          actionTh: airActionTh(air), actionEn: airActionEn(air), observedAt: o.fetchedAt, openMetric: "air",
         }
       : {
           id: "forecast-pm25", domain: "air", kind: "model", systemTh: "PM2.5 พยากรณ์ 48 ชม. · CAMS", systemEn: "Forecast PM2.5, 48 h · CAMS",

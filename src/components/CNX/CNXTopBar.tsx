@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { Bell, BookOpen, Database, FileText, FlaskConical, Moon, PhoneCall, Sun, Wind, LayoutDashboard, Map as MapIcon } from "lucide-react";
 import { useDarkMode } from "../../hooks/useDarkMode";
+import { useLang } from "../../hooks/useLang";
 import CNXLogoRow from "./CNXLogoRow";
 import { lookupAircraft } from "../../lib/cnx/aircraft";
 import CnxTimezoneStrip, { type TimezoneOrigin } from "./CNXTimezoneStrip";
@@ -262,6 +263,7 @@ export default function CnxTopBar(props: TopBarProps) {
   const { compact = false, view, onChangeView, flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
+  const { lang, setLang } = useLang();
   const [now, setNow] = useState<string>("");
   useEffect(() => {
     const tick = () => setNow(new Date().toLocaleString("en-GB", { dateStyle: "short", timeStyle: "medium", timeZone: "Asia/Bangkok" }));
@@ -495,6 +497,15 @@ export default function CnxTopBar(props: TopBarProps) {
       </details>}
 </div>
           </details>
+          <button
+            type="button"
+            onClick={() => setLang(lang === "th" ? "en" : "th")}
+            aria-label={lang === "th" ? "Switch to English" : "เปลี่ยนเป็นภาษาไทย"}
+            title={lang === "th" ? "English" : "ภาษาไทย"}
+            className="flex h-11 min-w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] px-2 text-[13px] font-semibold hover:border-[var(--ink)]"
+          >
+            {lang === "th" ? "EN" : "ไทย"}
+          </button>
           <button
             onClick={toggleDark}
             aria-label="Toggle theme"
