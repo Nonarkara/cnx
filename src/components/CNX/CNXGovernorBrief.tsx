@@ -6,6 +6,7 @@
 // it), and "copy for LINE" / print. Logic lives in lib/cnx/governor-brief.ts.
 
 import type { RainResponse } from "../../lib/cnx/rain";
+import { airActionTh, rainActionTh, type ProvinceOutlook } from "../../lib/cnx/outlook";
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Printer, X } from "lucide-react";
 import { useModalDialog } from "../../hooks/useModalDialog";
@@ -32,6 +33,8 @@ interface Props {
   riverGauges: RiverGauge[];
   flights: FetchResult | null;
   rain?: RainResponse | null;
+  /** 48 h forecast outlook: its first rain and air warnings join the actions. */
+  outlook?: ProvinceOutlook | null;
 }
 
 const LEVEL_CLS: Record<BriefLevel, string> = {
@@ -43,7 +46,7 @@ const LEVEL_CLS: Record<BriefLevel, string> = {
 };
 const LEVEL_TH: Record<BriefLevel, string> = { good: "ปกติ", watch: "เฝ้าระวัง", alert: "แจ้งเตือน", critical: "วิกฤต", unknown: "ไม่มีข้อมูล" };
 
-export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires, twin, riverGauges, flights, rain = null }: Props) {
+export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
@@ -104,8 +107,12 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
     const airTile = tiles.find((tile) => tile.key === "air");
     if (airTile) airTile.level = airMetric.level;
     const checks = executive.metrics.filter((m) => m.level !== "good");
-    return { tiles, districts, checks, text: lineText(tiles, districts, now, url, checks.map((m) => `${m.titleTh}: ${m.actionTh}`)) };
-  }, [air, dustboy, fires, twin, riverGauges, flights, rain, arrivals, floodhub, burn, clock, isOpen]);
+    const forecastActions = [
+      ...(outlook?.rain[0] ? [`48 ชม. ฝน (แบบจำลอง): ${rainActionTh(outlook.rain[0])}`] : []),
+      ...(outlook?.air[0] ? [`48 ชม. ฝุ่น (แบบจำลอง): ${airActionTh(outlook.air[0])}`] : []),
+    ];
+    return { tiles, districts, checks, text: lineText(tiles, districts, now, url, [...checks.map((m) => `${m.titleTh}: ${m.actionTh}`), ...forecastActions]) };
+  }, [air, dustboy, fires, twin, riverGauges, flights, rain, outlook, arrivals, floodhub, burn, clock, isOpen]);
 
   if (!isOpen) return null;
 
