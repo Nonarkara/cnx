@@ -57,8 +57,13 @@ import CnxOutlookPanel from "./CNXOutlookPanel";
 import { buildOutlook } from "../../lib/cnx/outlook";
 import { isSheltersFile, type SheltersFile } from "../../lib/cnx/shelters";
 import { buildExecutiveBrief, type ExecutiveMetric } from "../../lib/cnx/executive-brief";
+import { useLang } from "../../hooks/useLang";
 
-const CNXMap = dynamic(() => import("./CNXMap"), { ssr: false, loading: () => <div role="status" className="flex h-full items-center justify-center text-sm text-[var(--dim)]">กำลังเปิดแผนที่ · Opening operational map…</div> });
+function MapLoading() {
+  const { t } = useLang();
+  return <div role="status" className="flex h-full items-center justify-center text-sm text-[var(--dim)]">{t("กำลังเปิดแผนที่…", "Opening operational map…")}</div>;
+}
+const CNXMap = dynamic(() => import("./CNXMap"), { ssr: false, loading: () => <MapLoading /> });
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
@@ -91,6 +96,7 @@ function ScenarioParamBridge({ onScenarioChange }: { onScenarioChange: (id: stri
 }
 
 function CnxShell({ scenarioId }: { scenarioId: string | null }) {
+  const { lang, t } = useLang();
   const [deskTab, setDeskTab] = useState<"watch" | "water" | "air" | "fire" | "model" | "visitors" | "cameras" | "data" | "ask">("watch");
   const [view, setView] = useState<"overview" | "map">("map");
   const [layout, setLayout] = useState({ desktop: false, socialRail: false });
@@ -495,6 +501,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       id="main-content"
       tabIndex={-1}
       data-surface="cnx-dashboard"
+      lang={lang}
       className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden bg-[var(--bg)] text-[var(--ink)] ${view === "map" ? "xl:h-[100dvh] xl:overflow-hidden" : ""}`}
     >
       <CnxTopBar
@@ -525,13 +532,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         onOpenEmergency={() => setIsEmergencyOpen(true)}
       />
 
-      {scenarioId && <p className="border-b border-[var(--line)] px-5 py-2 text-sm text-[var(--dim)]">มีบริบทสถานการณ์จำลอง · The executive overview excludes simulated readings.</p>}
+      {scenarioId && <p className="border-b border-[var(--line)] px-5 py-2 text-sm text-[var(--dim)]">{t("มีบริบทสถานการณ์จำลอง ภาพรวมผู้บริหารไม่นับค่าจำลอง", "Scenario context is active; the executive overview excludes simulated readings.")}</p>}
       {view === "overview" ? (
         <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenMetric={openMetric} />
       ) : <>
       <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} onOpenMetric={openMetric} />
       <details className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
-        <summary className="flex min-h-11 cursor-pointer items-center gap-3 px-4 text-[12px] text-[var(--dim)]"><span className="font-semibold text-[var(--ink)]">กล้อง · CCTV</span><span>{cctv ? `${cctv.reachableCount}/${cctv.totalCount} แหล่งภาพตอบสนอง` : "กำลังตรวจสอบแหล่งภาพ"}</span><span className="ml-auto">เปิดภาพและเวลาถ่าย ⌄</span></summary>
+        <summary className="flex min-h-11 cursor-pointer items-center gap-3 px-4 text-[12px] text-[var(--dim)]"><span className="font-semibold text-[var(--ink)]">{t("กล้อง CCTV", "CCTV")}</span><span>{cctv ? t(`${cctv.reachableCount}/${cctv.totalCount} แหล่งภาพตอบสนอง`, `${cctv.reachableCount}/${cctv.totalCount} image sources responding`) : t("กำลังตรวจสอบแหล่งภาพ", "Checking image sources")}</span><span className="ml-auto">{t("เปิดภาพและเวลาถ่าย", "Open images and capture times")} ⌄</span></summary>
         <CnxCctvStrip feed={cctv} />
       </details>
 
@@ -541,7 +548,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
             from xl onwards on desktop with full width. */}
         {layout.socialRail && <aside
-          aria-label="Social listening stream"
+          aria-label={t("ข่าวและสื่อสังคม", "Social listening stream")}
           className="hidden min-h-0 w-[240px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[240px] 2xl:w-[280px]"
         >
           {twin && <div className="shrink-0 border-b border-[var(--line)] p-2">
@@ -557,7 +564,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         {/* Centre — map. Always visible; height is dynamic on mobile,
             fills the section on desktop. */}
         <section
-          aria-label="Operational map"
+          aria-label={t("แผนที่ปฏิบัติการ", "Operational map")}
           className="relative h-[55dvh] min-h-[340px] min-w-0 flex-none overflow-hidden border-r-0 sm:h-[60dvh] w-full lg:w-auto xl:h-auto xl:min-h-0 lg:flex-1"
         >
           <CNXMap
@@ -590,7 +597,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         </section>
 
         {/* The desk changes topic without burying other hazards below long gauge lists. */}
-        {layout.desktop && <aside aria-label="Operations desk" className="hidden min-h-0 w-[300px] shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-raised)] xl:flex 2xl:w-[360px]">
+        {layout.desktop && <aside aria-label={t("โต๊ะปฏิบัติการ", "Operations desk")} className="hidden min-h-0 w-[300px] shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-raised)] xl:flex 2xl:w-[360px]">
           <button
             type="button"
             aria-pressed={deskTab === "watch"}
@@ -598,16 +605,15 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             className={`flex min-h-11 w-full shrink-0 items-center justify-center gap-2 border-b border-[var(--line)] px-1 py-1.5 ${deskTab === "watch" ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
             <span aria-hidden="true">🛰</span>
-            <span lang="th" className="text-[13px] font-semibold">เฝ้าระวังทั้งจังหวัด</span>
-            <span className="text-[11px]">Watch</span>
+            <span className="text-[13px] font-semibold">{t("เฝ้าระวังทั้งจังหวัด", "Province watch")}</span>
           </button>
-          <div role="group" aria-label="Operations desk topics" className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
+          <div role="group" aria-label={t("หัวข้อโต๊ะปฏิบัติการ", "Operations desk topics")} className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
             {([
               { id: "water", label: "น้ำ", en: "Water" }, { id: "air", label: "อากาศ", en: "Air" },
               { id: "fire", label: "ไฟ", en: "Fire" }, { id: "model", label: "แบบจำลอง", en: "Models" },
               { id: "visitors", label: "การบิน", en: "Aviation" }, { id: "cameras", label: "กล้อง", en: "Cameras" },
               { id: "data", label: "ข้อมูล", en: "Data" }, { id: "ask", label: "ค้นหา", en: "Search" },
-            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span lang="th" className="text-[13px] font-semibold">{topic.label}</span><span className="text-[11px]">{topic.en}</span></button>)}
+            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span className="text-[13px] font-semibold">{t(topic.label, topic.en)}</span></button>)}
           </div>
           <div id="operation-evidence" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
             {deskTab === "watch" && <>
@@ -628,30 +634,30 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
       </section>
 
-      {twin && <details className="border-t border-[var(--line)] bg-[var(--bg-raised)] px-4 lg:hidden"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">เหตุผลและข้อจำกัดของสถานการณ์ · Situation evidence</summary><VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} /></details>}
+      {twin && <details className="border-t border-[var(--line)] bg-[var(--bg-raised)] px-4 lg:hidden"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t("เหตุผลและข้อจำกัดของสถานการณ์", "Situation evidence")}</summary><VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} /></details>}
 
       {/* Mobile / tablet panels stay available until the desktop desk appears. */}
       <section
         id="hazard-panels"
         tabIndex={-1}
-        aria-label="Mobile panels"
+        aria-label={t("แผงข้อมูล", "Mobile panels")}
         className="flex h-[64dvh] min-h-[440px] flex-col overflow-hidden border-t border-[var(--line)] bg-[var(--bg-raised)] xl:hidden"
       >
         <div
           role="group"
-          aria-label="Switch panel"
+          aria-label={t("เลือกแผงข้อมูล", "Switch panel")}
           className="flex shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)] overflow-x-auto"
         >
           {(
             [
-              { id: "watch", label: "เฝ้าระวัง", icon: "🛰" },
-              { id: "air", label: "อากาศ", icon: "🌫" },
-              { id: "flood", label: "น้ำและฝน", icon: "🌊" },
-              { id: "fire", label: "ไฟป่า", icon: "🔥" },
-              { id: "visitors", label: "การบิน", icon: "✈" },
-              { id: "social", label: "ข่าว", icon: "📰" },
-              { id: "data", label: "ข้อมูล", icon: "🗂" },
-              { id: "ask", label: "ค้นหา", icon: "🔍" },
+              { id: "watch", label: t("เฝ้าระวัง", "Watch"), icon: "🛰" },
+              { id: "air", label: t("อากาศ", "Air"), icon: "🌫" },
+              { id: "flood", label: t("น้ำและฝน", "Water & rain"), icon: "🌊" },
+              { id: "fire", label: t("ไฟป่า", "Fire"), icon: "🔥" },
+              { id: "visitors", label: t("การบิน", "Aviation"), icon: "✈" },
+              { id: "social", label: t("ข่าว", "News"), icon: "📰" },
+              { id: "data", label: t("ข้อมูล", "Data"), icon: "🗂" },
+              { id: "ask", label: t("ค้นหา", "Search"), icon: "🔍" },
             ] as const
           ).map((t) => (
             <button

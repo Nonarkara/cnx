@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { clocksForCountries } from "../../lib/cnx/country-timezones";
+import { useLang } from "../../hooks/useLang";
 
 export interface TimezoneOrigin {
   country: string;
@@ -12,6 +13,7 @@ export interface TimezoneOrigin {
 }
 
 export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneOrigin[] }) {
+  const { lang, t } = useLang();
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -29,9 +31,9 @@ export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneO
   if (clocks.length === 0) return null;
 
   return (
-    <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--bg)] px-2 py-1">
+    <div lang={lang} className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[var(--line)] bg-[var(--bg)] px-2 py-1">
       <span className="mr-1 shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-        Carrier clocks
+        {t("เวลาท้องถิ่นของสายการบิน", "Carrier clocks")}
       </span>
       {clocks.map((c) => {
         const isBusiest = c.country === busiest.country;
@@ -51,7 +53,7 @@ export default function CnxTimezoneStrip({ topOrigins }: { topOrigins: TimezoneO
             <span className="truncate text-[11px] text-[var(--dim)]">{c.country}</span>
             {isBusiest && (
               <span className="ml-0.5 font-mono text-[11px] font-bold text-[var(--cool)]">
-                · {busiest.visitors.toLocaleString()} est. seats
+                · {t(`ที่นั่งโดยประมาณ ${busiest.visitors.toLocaleString("th-TH")}`, `${busiest.visitors.toLocaleString("en-GB")} est. seats`)}
               </span>
             )}
           </div>

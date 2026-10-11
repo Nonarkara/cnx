@@ -93,6 +93,28 @@ function Pill({
   );
 }
 
+type Pair = [th: string, en: string];
+
+const CHIP_LABEL: Record<CnxTwinResponse["verdict"]["level"], Pair> = {
+  danger: ["อันตราย", "DANGER"],
+  prepare: ["เตรียมพร้อม", "PREPARE"],
+  watch: ["เฝ้าระวัง", "WATCH"],
+  safe: ["ไม่มีสัญญาณยกระดับ", "NO ELEVATED SIGNAL"],
+};
+const DOMAIN_LABEL: Record<CnxTwinResponse["verdict"]["reasons"][number]["domain"], Pair> = {
+  flood: ["น้ำ", "Flood"],
+  air: ["อากาศ", "Air"],
+  fire: ["ไฟป่า", "Fire"],
+  haze: ["หมอกควัน", "Haze"],
+  twins: ["ความเสี่ยงร่วม", "Combined hazards"],
+};
+const BAND_LABEL: Record<CnxTwinResponse["verdict"]["band"], Pair> = {
+  normal: ["ปกติ", "normal"],
+  watch: ["เฝ้าระวัง", "watch"],
+  elevated: ["สูงขึ้น", "elevated"],
+  high: ["สูง", "high"],
+};
+
 /**
  * Province-level verdict strip — the unified risk surface.
  *
@@ -111,6 +133,7 @@ export function VerdictStrip({
   onOpenEmergency: () => void;
   compact?: boolean;
 }) {
+  const { lang, t } = useLang();
   const v = twin.verdict;
   const level = v.level;
   // Match the existing topbar pill palette so the strip reads as
@@ -123,39 +146,24 @@ export function VerdictStrip({
       : level === "watch"
       ? "border-[var(--sev-watch)] bg-[var(--sev-watch)]/10 text-[var(--sev-watch)]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
-  const chipLabel =
-    level === "danger"
-      ? "DANGER"
-      : level === "prepare"
-      ? "PREPARE"
-      : level === "watch"
-      ? "WATCH"
-      : "NO ELEVATED SIGNAL";
+  const chipLabel = t(...CHIP_LABEL[level]);
   const topReason = v.reasons[0];
   const caveats = v.reasons.filter((r) => r.isCaveat);
-  const evidenceLabel = v.data_provenance === "live" ? "Current measured / modeled evidence" : v.data_provenance === "mixed" ? "Mixed evidence — check limitations" : "Current evidence incomplete";
-  const action = level === "danger"
-    ? "Follow official instructions for the affected area now. Verify the listed evidence gaps alongside response preparations."
+  const evidenceLabel = v.data_provenance === "live"
+    ? t("หลักฐานจากการวัด / แบบจำลองปัจจุบัน", "Current measured / modeled evidence")
+    : v.data_provenance === "mixed"
+    ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
+    : t("หลักฐานปัจจุบันยังไม่ครบ", "Current evidence incomplete");
+  const action: Pair = level === "danger"
+    ? ["ปฏิบัติตามคำสั่งทางการในพื้นที่ทันที และตรวจสอบข้อมูลที่ขาดควบคู่กัน", "Follow official instructions for the affected area now. Verify the listed evidence gaps alongside response preparations."]
     : level === "prepare"
-    ? "Check official local instructions and prepare the relevant response; confirm any missing readings."
+    ? ["ตรวจสอบประกาศในพื้นที่และเตรียมการรับมือ พร้อมยืนยันค่าที่ขาด", "Check official local instructions and prepare the relevant response; confirm any missing readings."]
     : caveats.length > 0
-    ? "Verify missing or old readings and check local official notices before deciding."
+    ? ["ยืนยันค่าที่ขาดหรือเก่าและตรวจสอบประกาศทางการก่อนตัดสินใจ", "Verify missing or old readings and check local official notices before deciding."]
     : level === "safe"
-    ? "Continue monitoring local gauges and official notices; this board is not an all-clear."
-    : level === "watch"
-    ? "Monitor the reported hazard and confirm conditions at the affected location."
-    : "Check official instructions for the affected area and prepare the relevant response.";
-  const actionTh = level === "danger"
-    ? "ปฏิบัติตามคำสั่งทางการในพื้นที่ทันที และตรวจสอบข้อมูลที่ขาดควบคู่กัน"
-    : level === "prepare"
-    ? "ตรวจสอบประกาศในพื้นที่และเตรียมการรับมือ พร้อมยืนยันค่าที่ขาด"
-    : caveats.length > 0
-    ? "ยืนยันค่าที่ขาดหรือเก่าและตรวจสอบประกาศทางการก่อนตัดสินใจ"
-    : level === "safe"
-    ? "ติดตามสถานีวัดและประกาศในพื้นที่ต่อไป — ยังไม่ใช่การยืนยันว่าปลอดภัย"
-    : "ติดตามความเสี่ยงที่รายงานและยืนยันสภาพจริงในพื้นที่";
+    ? ["ติดตามสถานีวัดและประกาศในพื้นที่ต่อไป — ยังไม่ใช่การยืนยันว่าปลอดภัย", "Continue monitoring local gauges and official notices; this board is not an all-clear."]
+    : ["ติดตามความเสี่ยงที่รายงานและยืนยันสภาพจริงในพื้นที่", "Monitor the reported hazard and confirm conditions at the affected location."];
   const evidence = <>
-      {compact && <p className="mb-3 text-[12px] leading-relaxed">{v.head_en}</p>}
       {topReason && (
         <div className="flex flex-col gap-1 text-[12px] leading-relaxed">
           {[
@@ -167,16 +175,15 @@ export function VerdictStrip({
           ].map((reason) => (
             <div key={`${reason.domain}-${reason.evidence ?? reason.en}`} className="flex flex-wrap items-baseline gap-x-3">
               <span className="font-mono uppercase tracking-[0.14em] opacity-60">
-                {reason.isCaveat ? "Evidence gap" : reason.domain === "twins" ? "Combined hazards" : reason.domain}
+                {reason.isCaveat ? t("ช่องว่างหลักฐาน", "Evidence gap") : t(...DOMAIN_LABEL[reason.domain])}
               </span>
-              <span className={reason.isCaveat ? "italic opacity-90" : undefined}>{reason.th}</span>
-              <span className="font-mono opacity-70">— {reason.en}</span>
+              <span className={reason.isCaveat ? "italic opacity-90" : undefined}>{t(reason.th, reason.en)}</span>
             </div>
           ))}
         </div>
       )}
       <p className="pt-1 text-[12px] font-semibold leading-relaxed">
-        ขั้นตอนต่อไป: {actionTh}<br /><span className="font-normal opacity-90">Next step: {action}</span>
+        {t(`ขั้นตอนต่อไป: ${action[0]}`, `Next step: ${action[1]}`)}
       </p>
       <div className="flex flex-wrap items-center gap-3 pt-1">
         <button
@@ -184,39 +191,40 @@ export function VerdictStrip({
           onClick={onOpenEmergency}
           className="min-h-11 border border-current px-4 py-1 text-[12px] font-bold hover:bg-[var(--bg-raised)]"
         >
-          Official hotlines
+          {t("สายด่วนทางการ", "Official hotlines")}
         </button>
         <details className="min-w-0 flex-1 text-[12px]">
-          <summary className="min-h-11 cursor-pointer py-3 font-semibold">Planning checklist &amp; evidence details</summary>
-          <p className="mb-2 opacity-80">Suggested planning checks; actions and evacuation orders must follow the responsible authority.</p>
+          <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("รายการตรวจเพื่อวางแผนและรายละเอียดหลักฐาน", "Planning checklist & evidence details")}</summary>
+          <p className="mb-2 opacity-80">{t("รายการตรวจที่แนะนำสำหรับการวางแผน การปฏิบัติและคำสั่งอพยพต้องเป็นไปตามหน่วยงานที่รับผิดชอบ", "Suggested planning checks; actions and evacuation orders must follow the responsible authority.")}</p>
           <ul className="list-disc space-y-2 pl-5 leading-relaxed">
-            {v.checklist.map((item) => <li key={item.en}>{item.th}<br /><span className="opacity-80">{item.en}</span></li>)}
+            {v.checklist.map((item) => <li key={item.en}>{t(item.th, item.en)}</li>)}
           </ul>
-          <p className="mt-3 text-[11px] opacity-70">Dashboard heuristic score {v.score}/100; {v.band} band. This is not an event probability or an official warning.</p>
-          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[11px] opacity-70">{reason.domain}: {reason.evidence}</p>)}
+          <p className="mt-3 text-[11px] opacity-70">{t(
+            `คะแนนประเมินของแดชบอร์ด ${v.score}/100 ระดับ${t(...BAND_LABEL[v.band])} ไม่ใช่ความน่าจะเป็นของเหตุการณ์หรือคำเตือนทางการ`,
+            `Dashboard heuristic score ${v.score}/100; ${v.band} band. This is not an event probability or an official warning.`,
+          )}</p>
+          {/* Evidence strings are machine readings (e.g. pm25=48) — shown as recorded. */}
+          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[11px] opacity-70">{t(...DOMAIN_LABEL[reason.domain])}: {reason.evidence}</p>)}
         </details>
       </div>
   </>;
   return (
-    <div className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
+    <div lang={lang} className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
-          {compact && level === "safe" ? "สถานการณ์ · CONTEXT" : chipLabel}
+          {compact && level === "safe" ? t("สถานการณ์", "CONTEXT") : chipLabel}
         </span>
         <span className="text-[11px] leading-relaxed opacity-80">
           {evidenceLabel}
         </span>
         <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[11px] uppercase tracking-[0.14em] opacity-70`}>
-          {twin.province_en} · ปภ. {HOTLINES.ddpm} · EMS {HOTLINES.ems}
+          {t(`${twin.province_th} · ปภ. ${HOTLINES.ddpm} · การแพทย์ฉุกเฉิน ${HOTLINES.ems}`, `${twin.province_en} · DDPM ${HOTLINES.ddpm} · EMS ${HOTLINES.ems}`)}
         </span>
       </div>
       <div className="flex flex-col gap-1">
-        <div className="font-display text-[15px] font-bold leading-tight">{v.head_th}</div>
-        <div className={`${compact ? "hidden" : ""} text-[12px] leading-relaxed opacity-90`}>
-          {v.head_en}
-        </div>
+        <div className="font-display text-[15px] font-bold leading-tight">{t(v.head_th, v.head_en)}</div>
       </div>
-      {compact ? <details className="text-[12px]"><summary className="min-h-11 cursor-pointer py-3 font-semibold">ตรวจเหตุผลและข้อจำกัด · Evidence</summary>{evidence}</details> : evidence}
+      {compact ? <details className="text-[12px]"><summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")}</summary>{evidence}</details> : evidence}
     </div>
   );
 }
@@ -228,6 +236,7 @@ export function VerdictStrip({
  * operator reads from across the room. Colour and word, nothing more.
  */
 export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
+  const { t } = useLang();
   const v = twin.verdict;
   const level = v.level;
   const colour =
@@ -238,22 +247,16 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
       : level === "watch"
       ? "sev-fill-watch border-[var(--sev-watch)]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
-  const chipLabel =
-    level === "danger"
-      ? "DANGER"
-      : level === "prepare"
-        ? "PREPARE"
-        : level === "watch"
-          ? "WATCH"
-          : "NO ELEVATED SIGNAL";
+  const chipLabel = t(...CHIP_LABEL[level]);
+  const head = t(v.head_th, v.head_en);
   return (
     <div
       className={`flex h-7 shrink-0 items-center gap-1.5 border px-2 ${colour}`}
-      title={v.head_th || v.head_en || chipLabel}
+      title={head || chipLabel}
     >
       <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">{chipLabel}</span>
       <span className="hidden max-w-[22ch] truncate font-mono text-[11px] uppercase tracking-[0.1em] opacity-80 sm:inline">
-        {v.head_th || v.head_en || ""}
+        {head}
       </span>
     </div>
   );
@@ -263,14 +266,15 @@ export default function CnxTopBar(props: TopBarProps) {
   const { compact = false, view, onChangeView, flood, air, fires, firesRfd, aerosol, social, cctv, flights, topOrigins, twin, dustboy, asmc, smoke, onOpenStory, onOpenManual, onOpenResearch, onOpenData, onOpenHaze, onOpenBrief, onOpenEmergency } = props;
   const rfdReserveCount = firesRfd ? (firesRfd.byType.DNP ?? 0) + (firesRfd.byType.NRF ?? 0) : 0;
   const [isDark, toggleDark] = useDarkMode();
-  const { lang, setLang } = useLang();
+  const { lang, setLang, t } = useLang();
   const [now, setNow] = useState<string>("");
   useEffect(() => {
-    const tick = () => setNow(new Date().toLocaleString("en-GB", { dateStyle: "short", timeStyle: "medium", timeZone: "Asia/Bangkok" }));
+    const locale = lang === "en" ? "en-GB" : "th-TH";
+    const tick = () => setNow(new Date().toLocaleString(locale, { dateStyle: "short", timeStyle: "medium", timeZone: "Asia/Bangkok" }));
     tick();
     const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [lang]);
 
   const officeNotice: OfficeNotice | undefined = air?.office ?? flood?.office;
   const widebodyCount = flights
@@ -285,16 +289,16 @@ export default function CnxTopBar(props: TopBarProps) {
     // furniture while the map — the thing that carries the geography — got
     // the remainder. The bar is now one 32 px row plus a single-line pill
     // strip; full verdict reasoning sits above the news rail or mobile map.
-    <header className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-4 py-2 sm:px-6`}>
+    <header lang={lang} className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-4 py-2 sm:px-6`}>
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <a href="/cnx" aria-label="CNX War Room home" className="cnx-brand-plate flex h-9 w-[72px] shrink-0 items-center justify-center px-1.5">
+          <a href="/cnx" aria-label={t("หน้าแรก CNX ศูนย์ปฏิบัติการ", "CNX War Room home")} className="cnx-brand-plate flex h-9 w-[72px] shrink-0 items-center justify-center px-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logos/cnx-mark.png" alt="" width={60} height={28} className="block h-7 w-[60px] object-contain" />
           </a>
           <div className="min-w-0 leading-none">
             <div className="font-display text-[13px] font-bold text-[var(--ink)]">
-              เชียงใหม่ · <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--cool)]">War Room</span>
+              {t("เชียงใหม่", "Chiang Mai")} · <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--cool)]">{t("ศูนย์ปฏิบัติการ", "War Room")}</span>
             </div>
           </div>
           <CNXLogoRow size={16} />
@@ -303,7 +307,7 @@ export default function CnxTopBar(props: TopBarProps) {
             title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"} · ${now}`}
           >
             v{process.env.NEXT_PUBLIC_APP_VERSION}
-            {process.env.NEXT_PUBLIC_LIVE_PREVIEW === "1" && <span title="Local frontend preview using deployed public data"> · PREVIEW</span>}
+            {process.env.NEXT_PUBLIC_LIVE_PREVIEW === "1" && <span title={t("หน้าเว็บทดลองในเครื่อง ใช้ข้อมูลสาธารณะที่เผยแพร่แล้ว", "Local frontend preview using deployed public data")}> · {t("ทดลอง", "PREVIEW")}</span>}
             {process.env.NEXT_PUBLIC_GIT_SHA ? `·${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}
           </span>
         </div>
@@ -315,94 +319,101 @@ export default function CnxTopBar(props: TopBarProps) {
             <details className="relative">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
               <Bell className="h-3 w-3" />
-              ประกาศหน่วยงาน ⌄
+              {t("ประกาศหน่วยงาน", "Agency notice")} ⌄
               </summary>
               <div className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,85vw)] border border-[var(--ink)] bg-[var(--bg-raised)] p-4 text-[13px] leading-relaxed">
                 <p className="font-semibold">{officeNotice.title}</p>
                 {officeNotice.detail && <p className="mt-2">{officeNotice.detail}</p>}
                 <p className="mt-2 text-[var(--dim)]">{officeNotice.source}</p>
-                {officeNotice.url && /^https?:\/\//i.test(officeNotice.url) && <a href={officeNotice.url} target="_blank" rel="noreferrer" className="mt-2 flex min-h-11 items-center text-[var(--cool)] underline">ตรวจสอบประกาศต้นฉบับ ↗</a>}
+                {officeNotice.url && /^https?:\/\//i.test(officeNotice.url) && <a href={officeNotice.url} target="_blank" rel="noreferrer" className="mt-2 flex min-h-11 items-center text-[var(--cool)] underline">{t("ตรวจสอบประกาศต้นฉบับ", "Check the original notice")} ↗</a>}
               </div>
             </details>
           )}
-          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span lang="th" className="sm:hidden">{view === "map" ? "ภาพรวม" : "แผนที่"}</span><span lang="th" className="hidden sm:inline">{view === "map" ? "ภาพรวมจังหวัด" : "ห้องปฏิบัติการ"}</span></button>
+          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span className="sm:hidden">{view === "map" ? t("ภาพรวม", "Overview") : t("แผนที่", "Map")}</span><span className="hidden sm:inline">{view === "map" ? t("ภาพรวมจังหวัด", "Province overview") : t("ห้องปฏิบัติการ", "Operations room")}</span></button>
 <button
             onClick={onOpenBrief}
-            title="One-screen summary for the governor — copy to LINE or print"
+            title={t("สรุปหน้าเดียวสำหรับผู้ว่าฯ — คัดลอกส่ง LINE หรือพิมพ์", "One-screen summary for the governor — copy to LINE or print")}
             className="hidden min-h-11 items-center gap-1.5 border border-[var(--wada-counter)] sm:flex bg-[var(--wada-counter)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-white hover:opacity-90 "
           >
             <FileText className="h-3 w-3" />
-              <span lang="th">สรุปผู้ว่าฯ</span>
+              <span>{t("สรุปผู้ว่าฯ", "Governor brief")}</span>
           </button>
 <button
             onClick={onOpenEmergency}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
           >
             <PhoneCall className="h-3 w-3" />
-            <span lang="th" className="sm:hidden">ฉุกเฉิน</span><span lang="th" className="hidden sm:inline">ติดต่อฉุกเฉิน</span>
+            <span className="sm:hidden">{t("ฉุกเฉิน", "Emergency")}</span><span className="hidden sm:inline">{t("ติดต่อฉุกเฉิน", "Emergency contacts")}</span>
           </button>
           <details className="relative">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">เมนู</span><span className="hidden sm:inline">เครื่องมือ</span> <span aria-hidden="true">⌄</span></summary>
-            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--ink)] bg-[var(--bg-raised)] p-3"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">สรุปสำหรับผู้ว่าฯ</button><button
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">{t("เมนู", "Menu")}</span><span className="hidden sm:inline">{t("เครื่องมือ", "Tools")}</span> <span aria-hidden="true">⌄</span></summary>
+            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--ink)] bg-[var(--bg-raised)] p-3"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">{t("สรุปสำหรับผู้ว่าฯ", "Governor brief")}</button><button
             onClick={onOpenData}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <Database className="h-3 w-3" />
-            คลังข้อมูล
+            {t("คลังข้อมูล", "Data library")}
           </button><button
             onClick={onOpenHaze}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <Wind className="h-3 w-3" />
-            ตรวจสอบฝุ่นและภาพกล้อง
+            {t("ตรวจสอบฝุ่นและภาพกล้อง", "Haze and camera check")}
           </button><button
             onClick={onOpenStory}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <BookOpen className="h-3 w-3" />
-            เรื่องราวจังหวัด
+            {t("เรื่องราวจังหวัด", "Province story")}
           </button><button
             onClick={onOpenManual}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <BookOpen className="h-3 w-3" />
-            วิธีใช้งาน
+            {t("วิธีใช้งาน", "How to use")}
           </button><button
             onClick={onOpenResearch}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
             <FlaskConical className="h-3 w-3" />
-            แหล่งข้อมูลและข้อจำกัด
+            {t("แหล่งข้อมูลและข้อจำกัด", "Sources and limits")}
           </button>
-          <a href="/cnx/about#web-app" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">เว็บแอป · Android &amp; iPhone</a>
+          <a href="/cnx/about#web-app" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">{t("เว็บแอป Android และ iPhone", "Web app · Android & iPhone")}</a>
       {!compact && <details className="border-t border-[var(--line)]">
-        <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-3 text-[12px] font-semibold">สถานะแหล่งข้อมูล · Feed status</summary>
+        <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-3 text-[12px] font-semibold">{t("สถานะแหล่งข้อมูล", "Feed status")}</summary>
         <div className="min-w-0 max-w-full border border-[var(--line)] p-3">{twin && <VerdictChip twin={twin} />}      <div className="-mx-3 flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Pill label="PM2.5" value={air?.provinceAvgPm25 != null ? `${air.provinceAvgPm25}` : "—"} level={air?.provinceAvgAqiLevel} />
         <Pill
-          label={flood?.provenance === "scenario" ? "Scenario Ping" : "Ping model"}
+          label={flood?.provenance === "scenario" ? t("ปิง (จำลอง)", "Scenario Ping") : t("แบบจำลองปิง", "Ping model")}
           value={typeof flood?.pingCapacityFraction === "number" ? `${((flood?.pingCapacityFraction ?? 0) * 100).toFixed(0)}%` : "—"}
-          title="Flood-model/scenario context; measured river levels are listed separately"
+          title={t("บริบทแบบจำลอง/สถานการณ์จำลองน้ำท่วม ระดับน้ำที่วัดจริงแสดงแยกต่างหาก", "Flood-model/scenario context; measured river levels are listed separately")}
           level={flood?.provenance === "live" ? (flood.pingCapacityFraction ?? 0) > 0.85 ? "critical" : (flood.pingCapacityFraction ?? 0) > 0.7 ? "alert" : undefined : undefined}
         />
         <Pill
           label="DustBoy"
           title={
             dustboy?.provenance === "live"
-              ? `Chiang Mai ${dustboy.basin.chiangMai.onlineCount} sensors with a reading under 3 h${
-                  dustboy.basin.chiangMai.newestReadingAgeHours !== null
-                    ? ` · newest ${dustboy.basin.chiangMai.newestReadingAgeHours} h old`
-                    : ""
-                } · upper-north avg ${dustboy.basin.avgPm25 ?? "—"} µg/m³`
+              ? t(
+                  `เชียงใหม่ ${dustboy.basin.chiangMai.onlineCount} เซนเซอร์ที่มีค่าภายใน 3 ชม.${
+                    dustboy.basin.chiangMai.newestReadingAgeHours !== null
+                      ? ` · ล่าสุด ${dustboy.basin.chiangMai.newestReadingAgeHours} ชม.ก่อน`
+                      : ""
+                  } · เฉลี่ยภาคเหนือตอนบน ${dustboy.basin.avgPm25 ?? "—"} µg/m³`,
+                  `Chiang Mai ${dustboy.basin.chiangMai.onlineCount} sensors with a reading under 3 h${
+                    dustboy.basin.chiangMai.newestReadingAgeHours !== null
+                      ? ` · newest ${dustboy.basin.chiangMai.newestReadingAgeHours} h old`
+                      : ""
+                  } · upper-north avg ${dustboy.basin.avgPm25 ?? "—"} µg/m³`,
+                )
               : dustboy?.note ?? undefined
           }
           value={
             dustboy?.provenance === "live" && dustboy.basin.chiangMai.avgPm25 !== null
               ? `${dustboy.basin.chiangMai.avgPm25} (${dustboy.basin.chiangMai.onlineCount})`
               : dustboy?.provenance === "live"
-              ? "stale"
+              ? t("ข้อมูลเก่า", "stale")
               : dustboy
-              ? "offline"
+              ? t("ออฟไลน์", "offline")
               : "—"
           }
           level={
@@ -426,34 +437,40 @@ export default function CnxTopBar(props: TopBarProps) {
           title={
             fires?.provenance !== "scenario"
               ? fires?.liveSource === "open-24h"
-                ? `NASA VIIRS open 24 h files (S-NPP, NOAA-20, NOAA-21), Chiang Mai bbox — cloud can hide fires.${fires.liveFailure ? ` Keyed API skipped: ${fires.liveFailure}.` : ""}`
-                : "NASA VIIRS, Chiang Mai bbox, 24 h — cloud can hide fires from the satellite"
+                ? t(
+                    `ไฟล์เปิด 24 ชม. ของ NASA VIIRS (S-NPP, NOAA-20, NOAA-21) กรอบพื้นที่เชียงใหม่ — เมฆอาจบดบังไฟ${fires.liveFailure ? ` ข้าม API ที่ใช้คีย์: ${fires.liveFailure}` : ""}`,
+                    `NASA VIIRS open 24 h files (S-NPP, NOAA-20, NOAA-21), Chiang Mai bbox — cloud can hide fires.${fires.liveFailure ? ` Keyed API skipped: ${fires.liveFailure}.` : ""}`,
+                  )
+                : t("NASA VIIRS กรอบพื้นที่เชียงใหม่ 24 ชม. — เมฆอาจบดบังไฟจากดาวเทียม", "NASA VIIRS, Chiang Mai bbox, 24 h — cloud can hide fires from the satellite")
               : fires.liveFailure
-              ? `Live pass unavailable: ${fires.liveFailure}. Showing illustrated hotspots.`
-              : "Illustrated hotspots — not a satellite pass"
+              ? t(`ไม่มีรอบดาวเทียมสด: ${fires.liveFailure} แสดงจุดความร้อนตัวอย่าง`, `Live pass unavailable: ${fires.liveFailure}. Showing illustrated hotspots.`)
+              : t("จุดความร้อนตัวอย่าง — ไม่ใช่รอบดาวเทียมจริง", "Illustrated hotspots — not a satellite pass")
           }
-          value={fires ? (fires.provenance === "live" ? `${fires.totalCount}` : "no live") : "—"}
+          value={fires ? (fires.provenance === "live" ? `${fires.totalCount}` : t("ไม่มีข้อมูลสด", "no live")) : "—"}
           level={fires?.provenance === "live" && fires.totalCount > 30 ? "alert" : undefined}
         />
         <Pill
-          label="Smoke"
+          label={t("ควัน", "Smoke")}
           title={
             smoke?.provenance === "live"
-              ? `${smoke.summary.origin_en} · ${smoke.summary.nearCnx} within 50 km · ${smoke.summary.hitsCnx} enter the province. ${smoke.methodology_en}`
-              : smoke?.note ?? "Straight-line advection from a live VIIRS pass"
+              ? t(
+                  `${smoke.summary.origin_th} · ${smoke.summary.nearCnx} เส้นภายใน 50 กม. · ${smoke.summary.hitsCnx} เส้นเข้าจังหวัด ${smoke.methodology_th}`,
+                  `${smoke.summary.origin_en} · ${smoke.summary.nearCnx} within 50 km · ${smoke.summary.hitsCnx} enter the province. ${smoke.methodology_en}`,
+                )
+              : smoke?.note ?? t("การพัดพาแนวตรงจากรอบ VIIRS สด", "Straight-line advection from a live VIIRS pass")
           }
           value={
             !smoke
               ? "—"
               : smoke.provenance !== "live"
-              ? "no pass"
+              ? t("ไม่มีรอบ", "no pass")
               : smoke.summary.nearCnx > 0
-              ? `${smoke.summary.nearCnx} near`
+              ? t(`ใกล้ ${smoke.summary.nearCnx}`, `${smoke.summary.nearCnx} near`)
               : smoke.summary.hitsCnx > 0
-              ? `${smoke.summary.hitsCnx} in prov.`
+              ? t(`ในจังหวัด ${smoke.summary.hitsCnx}`, `${smoke.summary.hitsCnx} in prov.`)
               : smoke.summary.total === 0
-              ? "none"
-              : "clear"
+              ? t("ไม่มี", "none")
+              : t("ไม่เข้าใกล้", "clear")
           }
           level={
             smoke?.provenance === "live" && smoke.summary.nearCnx > 0
@@ -486,11 +503,11 @@ export default function CnxTopBar(props: TopBarProps) {
               : undefined
           }
         />}
-        <Pill label="AOD" value={aerosol?.aod550?.toFixed(2) ?? "—"} level={aerosol?.level ?? undefined} title="Model grid · column aerosol optical depth, not ground PM2.5" />
-        <Pill label="Aircraft" value={flights ? `${flights.airborne.length + flights.ground.length}` : "—"} />
-        <Pill label="Widebody" value={flights ? `${widebodyCount}` : "—"} />
+        <Pill label="AOD" value={aerosol?.aod550?.toFixed(2) ?? "—"} level={aerosol?.level ?? undefined} title={t("กริดแบบจำลอง · ความลึกเชิงแสงของละอองลอยทั้งคอลัมน์ ไม่ใช่ PM2.5 ภาคพื้นดิน", "Model grid · column aerosol optical depth, not ground PM2.5")} />
+        <Pill label={t("อากาศยาน", "Aircraft")} value={flights ? `${flights.airborne.length + flights.ground.length}` : "—"} />
+        <Pill label={t("ลำตัวกว้าง", "Widebody")} value={flights ? `${widebodyCount}` : "—"} />
         <Pill label="CCTV" value={cctv ? `${cctv.reachableCount}/${cctv.totalCount}` : "—"} />
-        <Pill label="News" value={social ? `${social.items.length}` : "—"} />
+        <Pill label={t("ข่าว", "News")} value={social ? `${social.items.length}` : "—"} />
       </div>
 
       <CnxTimezoneStrip topOrigins={topOrigins} /></div>
@@ -508,7 +525,7 @@ export default function CnxTopBar(props: TopBarProps) {
           </button>
           <button
             onClick={toggleDark}
-            aria-label="Toggle theme"
+            aria-label={t("สลับโหมดสว่าง/มืด", "Toggle theme")}
             className="flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)] "
           >
             {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
@@ -517,7 +534,7 @@ export default function CnxTopBar(props: TopBarProps) {
       </div>
 
       <a href="/cnx/about#web-app" className="mt-1 w-fit text-[11px] sm:hidden leading-5 text-[var(--dim)] hover:text-[var(--cool)] hover:underline">
-        เว็บแอป Android &amp; iPhone · เพิ่มในหน้าจอหลัก
+        {t("เว็บแอป Android และ iPhone · เพิ่มในหน้าจอหลัก", "Web app for Android & iPhone · add to home screen")}
       </a>
 
 

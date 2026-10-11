@@ -35,6 +35,7 @@ import type { ProvinceOutlook } from "../../lib/cnx/outlook";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import { buildWatchList, type WatchItem, type WatchKind } from "../../lib/cnx/watch-list";
 import { DataAge } from "./CNXDataAge";
+import { useLang } from "../../hooks/useLang";
 
 const LEVEL_CLASSES: Record<string, string> = {
   unknown: "bg-[var(--line)] text-[var(--dim)]",
@@ -43,11 +44,25 @@ const LEVEL_CLASSES: Record<string, string> = {
   alert: "sev-fill-alert",
   critical: "sev-fill-critical",
 };
-const LEVEL_TH: Record<string, string> = { unknown: "ไม่มีข้อมูล", good: "ปกติ", watch: "เฝ้าระวัง", alert: "เตือนภัย", critical: "วิกฤต" };
-const KIND_TH: Record<WatchKind, string> = { measured: "ภาคพื้นดิน", satellite: "ดาวเทียม", model: "โมเดล", vision: "กล้อง", imagery: "ภาพ" };
+const LEVEL_LABEL: Record<string, [string, string]> = {
+  unknown: ["ไม่มีข้อมูล", "No data"],
+  good: ["ปกติ", "Normal"],
+  watch: ["เฝ้าระวัง", "Watch"],
+  alert: ["เตือนภัย", "Warning"],
+  critical: ["วิกฤต", "Critical"],
+};
+const KIND_LABEL: Record<WatchKind, [string, string]> = {
+  measured: ["ภาคพื้นดิน", "Ground"],
+  satellite: ["ดาวเทียม", "Satellite"],
+  model: ["โมเดล", "Model"],
+  vision: ["กล้อง", "Camera"],
+  imagery: ["ภาพ", "Imagery"],
+};
 
 function LevelChip({ level }: { level: string }) {
-  return <span className={`shrink-0 px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] ${LEVEL_CLASSES[level] ?? LEVEL_CLASSES.unknown}`}>{LEVEL_TH[level] ?? level}</span>;
+  const { t } = useLang();
+  const label = LEVEL_LABEL[level];
+  return <span className={`shrink-0 px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] ${LEVEL_CLASSES[level] ?? LEVEL_CLASSES.unknown}`}>{label ? t(...label) : level}</span>;
 }
 
 interface Props {
@@ -65,6 +80,7 @@ interface Props {
 }
 
 function EvidenceButton({ item, onOpenMetric }: { item: WatchItem; onOpenMetric: Props["onOpenMetric"] }) {
+  const { t } = useLang();
   if (!item.openMetric) return null;
   return (
     <button
@@ -72,7 +88,7 @@ function EvidenceButton({ item, onOpenMetric }: { item: WatchItem; onOpenMetric:
       onClick={() => onOpenMetric(item.openMetric!)}
       className="min-h-11 shrink-0 self-center border border-[var(--line)] px-3 text-[12px] font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--cool-dim)]"
     >
-      ดูหลักฐาน <span className="text-[11px] text-[var(--dim)]">Evidence</span>
+      {t("ดูหลักฐาน", "View evidence")}
     </button>
   );
 }
@@ -90,6 +106,7 @@ export default function CnxWatchBoard({
   outlook = null,
   onOpenMetric,
 }: Props) {
+  const { lang, t } = useLang();
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
   const [jaxa, setJaxa] = useState<JaxaAotResponse | null>(null);
   const [floodhub, setFloodhub] = useState<FloodHubResponse | null>(null);
@@ -119,33 +136,31 @@ export default function CnxWatchBoard({
   );
 
   return (
-    <section aria-label="Province watch list" className="flex flex-col gap-4 p-3">
+    <section lang={lang} aria-label={t("รายการเฝ้าระวังของจังหวัด", "Province watch list")} className="flex flex-col gap-4 p-3">
       <header className="flex flex-wrap items-center gap-2">
         <Satellite aria-hidden="true" className="h-4 w-4 text-[var(--cool)]" />
-        <h2 lang="th" className="text-[14px] font-bold">เฝ้าระวังเชียงใหม่</h2>
-        <span className="text-[11px] text-[var(--dim)]">What Chiang Mai must watch now</span>
+        <h2 className="text-[14px] font-bold">{t("เฝ้าระวังเชียงใหม่", "What Chiang Mai must watch now")}</h2>
         <span className="ml-auto flex items-center gap-2">
           {board.attentionCount > 0 && (
             <span className="flex items-center gap-1 border border-[var(--sev-watch)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--sev-watch)]">
-              <AlertTriangle aria-hidden="true" className="h-3 w-3" /> {board.attentionCount} จุดเฝ้าระวัง
+              <AlertTriangle aria-hidden="true" className="h-3 w-3" /> {t(`${board.attentionCount} จุดเฝ้าระวัง`, `${board.attentionCount} on watch`)}
             </span>
           )}
           {board.gapCount > 0 && (
-            <span className="bg-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--dim)]" title="ข้อมูลที่ไม่มีจะแสดงว่าไม่มีเสมอ">
-              {board.gapCount} ระบบไม่มีข้อมูล
+            <span className="bg-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--dim)]" title={t("ข้อมูลที่ไม่มีจะแสดงว่าไม่มีเสมอ", "A missing feed is always shown as missing")}>
+              {t(`${board.gapCount} ระบบไม่มีข้อมูล`, `${board.gapCount} ${board.gapCount === 1 ? "system" : "systems"} without data`)}
             </span>
           )}
         </span>
       </header>
 
-      <section aria-label="Watching now" aria-labelledby="watch-now">
-        <h3 id="watch-now" lang="th" className="mb-2 border-b border-[var(--line)] pb-1 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-          ต้องเฝ้าระวังตอนนี้ · Watching now
+      <section aria-labelledby="watch-now">
+        <h3 id="watch-now" className="mb-2 border-b border-[var(--line)] pb-1 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+          {t("ต้องเฝ้าระวังตอนนี้", "Watching now")}
         </h3>
         {board.watch.length === 0 ? (
           <p className="border border-[var(--line)] bg-[var(--bg)] p-3 text-[12px] text-[var(--dim)]">
-            <span lang="th">ไม่มีสัญญาณเฝ้าระวังจากข้อมูลที่วัดได้ในขณะนี้ — ไม่ใช่การยืนยันว่าทั้งจังหวัดปลอดภัย</span>
-            <span className="block text-[11px]">No current concern from measured evidence; this is not a province-wide all-clear.</span>
+            {t("ไม่มีสัญญาณเฝ้าระวังจากข้อมูลที่วัดได้ในขณะนี้ — ไม่ใช่การยืนยันว่าทั้งจังหวัดปลอดภัย", "No current concern from measured evidence; this is not a province-wide all-clear.")}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -154,12 +169,10 @@ export default function CnxWatchBoard({
                 <div className="flex items-start gap-2">
                   <LevelChip level={item.level} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold"><span lang="th">{item.systemTh}</span> <span className="text-[11px] font-normal text-[var(--dim)]">{KIND_TH[item.kind]}</span></p>
-                    <p lang="th" className="mt-0.5 text-[13px] text-[var(--ink)]">{item.valueTh}</p>
-                    <p className="sr-only">{item.valueEn}</p>
-                    {item.actionTh && <p lang="th" className="mt-1 text-[12px] font-semibold text-[var(--cool)]">▸ {item.actionTh}</p>}
-                    <p lang="th" className="mt-1 text-[11px] leading-snug text-[var(--dim)]">{item.evidenceTh}</p>
-                    <p className="sr-only">{item.evidenceEn}</p>
+                    <p className="text-[12px] font-semibold">{t(item.systemTh, item.systemEn)} <span className="text-[11px] font-normal text-[var(--dim)]">{t(...KIND_LABEL[item.kind])}</span></p>
+                    <p className="mt-0.5 text-[13px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
+                    {item.actionTh && <p className="mt-1 text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
+                    <p className="mt-1 text-[11px] leading-snug text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
                     <DataAge observedAt={item.observedAt} source={item.source} className="mt-1 block" />
                   </div>
                   <EvidenceButton item={item} onOpenMetric={onOpenMetric} />
@@ -170,22 +183,21 @@ export default function CnxWatchBoard({
         )}
       </section>
 
-      <section aria-label="All warning systems" aria-labelledby="watch-systems">
-        <h3 id="watch-systems" lang="th" className="mb-2 border-b border-[var(--line)] pb-1 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
-          ระบบเฝ้าระวังทั้งหมด ({board.systems.length}) · All warning systems
+      <section aria-labelledby="watch-systems">
+        <h3 id="watch-systems" className="mb-2 border-b border-[var(--line)] pb-1 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+          {t(`ระบบเฝ้าระวังทั้งหมด (${board.systems.length})`, `All warning systems (${board.systems.length})`)}
         </h3>
         <ul className="flex flex-col divide-y divide-[var(--line)] border border-[var(--line)] bg-[var(--bg)]">
           {board.systems.map((item) => (
             <li key={item.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2">
               <LevelChip level={item.level} />
-              <span lang="th" className="text-[12px] font-semibold">{item.systemTh}</span>
-              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--cool)]">{KIND_TH[item.kind]}</span>
-              <span lang="th" className="min-w-0 flex-1 basis-52 text-[12px] text-[var(--ink)]">{item.valueTh}</span>
-              <span className="sr-only">{item.valueEn}</span>
+              <span className="text-[12px] font-semibold">{t(item.systemTh, item.systemEn)}</span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--cool)]">{t(...KIND_LABEL[item.kind])}</span>
+              <span className="min-w-0 flex-1 basis-52 text-[12px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</span>
               <DataAge
                 observedAt={item.observedAt}
                 source={item.source}
-                missing={item.kind === "imagery" ? "ชั้นข้อมูลแผนที่ · map layer" : undefined}
+                missing={item.kind === "imagery" ? t("ชั้นข้อมูลแผนที่", "map layer") : undefined}
                 className="basis-full sm:basis-auto"
               />
               {item.openMetric && (
@@ -193,16 +205,16 @@ export default function CnxWatchBoard({
                   type="button"
                   onClick={() => onOpenMetric(item.openMetric!)}
                   className="min-h-11 shrink-0 border border-[var(--line)] px-2 text-[11px] font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--cool-dim)] sm:px-2.5"
-                  title={`${item.systemTh} — เปิดหลักฐานประกอบ`}
+                  title={t(`${item.systemTh} — เปิดหลักฐานประกอบ`, `${item.systemEn} — open the supporting evidence`)}
                 >
-                  ดู<span className="sr-only">หลักฐาน {item.systemTh}</span>
+                  {t("ดู", "View")}<span className="sr-only">{t(`หลักฐาน ${item.systemTh}`, ` evidence for ${item.systemEn}`)}</span>
                 </button>
               )}
             </li>
           ))}
         </ul>
-        <p lang="th" className="mt-2 text-[11px] leading-snug text-[var(--dim)]">
-          ทุกระบบปรากฏทุกรอบ: ข้อมูลที่ไม่มีแสดงว่าไม่มีเสมอ — ไม่มีข้อมูลไม่ใช่การยืนยันความปลอดภัย · Every system appears every cycle; a missing feed is a gap, never an all-clear.
+        <p className="mt-2 text-[11px] leading-snug text-[var(--dim)]">
+          {t("ทุกระบบปรากฏทุกรอบ: ข้อมูลที่ไม่มีแสดงว่าไม่มีเสมอ — ไม่มีข้อมูลไม่ใช่การยืนยันความปลอดภัย", "Every system appears every cycle; a missing feed is a gap, never an all-clear.")}
         </p>
       </section>
     </section>

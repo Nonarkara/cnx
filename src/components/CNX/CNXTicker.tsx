@@ -16,6 +16,7 @@ import type {
   SocialListeningResponse,
 } from "../../types/cnx";
 import type { FetchResult } from "../../lib/cnx/opensky";
+import { useLang } from "../../hooks/useLang";
 
 interface TickerProps {
   flood: CnxFloodResponse | null;
@@ -30,6 +31,7 @@ interface TickerProps {
 export default function CnxTicker({
   flood, air, fires, cctv, social, story, flights,
 }: TickerProps) {
+  const { lang, t } = useLang();
   const segments = useMemo(() => {
     const out: { key: string; icon: string; label: string; value: string; level?: string }[] = [];
     if (air?.provinceAvgPm25 != null) {
@@ -49,18 +51,23 @@ export default function CnxTicker({
       out.push({
         key: "ping",
         icon: "🌊",
-        label: "Ping",
-        value: `${(flood.pingCapacityFraction * 100).toFixed(0)}% bank-full`,
+        label: t("แม่น้ำปิง", "Ping"),
+        value: t(`${(flood.pingCapacityFraction * 100).toFixed(0)}% ของระดับตลิ่ง`, `${(flood.pingCapacityFraction * 100).toFixed(0)}% bank-full`),
         level: flood.pingCapacityFraction > 0.85 ? "critical" : flood.pingCapacityFraction > 0.7 ? "alert" : undefined,
       });
     }
     if (fires) {
       const count = fires.provinceCount ?? fires.totalCount;
+      const outside = fires.provinceCount != null && fires.totalCount > count ? fires.totalCount - count : 0;
       out.push({
         key: "fires",
         icon: "🔥",
-        label: fires.provinceCount != null ? "FIRMS · เชียงใหม่" : "FIRMS · พื้นที่ติดตาม",
-        value: fires.provenance === "live" ? `${count} จุด / 24 ชม.${fires.provinceCount != null && fires.totalCount > count ? ` · นอกจังหวัด ${fires.totalCount - count}` : ""}` : "ไม่มีข้อมูลดาวเทียมปัจจุบัน",
+        label: fires.provinceCount != null ? t("FIRMS · เชียงใหม่", "FIRMS · Chiang Mai") : t("FIRMS · พื้นที่ติดตาม", "FIRMS · watch area"),
+        // The provincial count leads; detections outside the province are
+        // named as such, never folded into a bare hotspot total.
+        value: fires.provenance === "live"
+          ? t(`${count} จุด / 24 ชม.${outside ? ` · นอกจังหวัด ${outside}` : ""}`, `${count} in province / 24 h${outside ? ` · ${outside} outside the province` : ""}`)
+          : t("ไม่มีข้อมูลดาวเทียมปัจจุบัน", "No current satellite pass"),
         level: fires.provenance === "live" && count > 30 ? "alert" : undefined,
       });
     }
@@ -69,7 +76,7 @@ export default function CnxTicker({
         key: "cctv",
         icon: "📹",
         label: "CCTV",
-        value: `${cctv.reachableCount}/${cctv.totalCount} reachable`,
+        value: t(`${cctv.reachableCount}/${cctv.totalCount} ตอบสนอง`, `${cctv.reachableCount}/${cctv.totalCount} reachable`),
       });
     }
     if (flights) {
@@ -77,38 +84,38 @@ export default function CnxTicker({
       out.push({
         key: "flights",
         icon: "✈",
-        label: "Airspace",
-        value: `${total} aircraft`,
+        label: t("น่านฟ้า", "Airspace"),
+        value: t(`${total} ลำ`, `${total} aircraft`),
       });
     }
     if (social) {
       out.push({
         key: "social",
         icon: "📰",
-        label: "News",
-        value: `${social.items.length} mentions`,
+        label: t("ข่าว", "News"),
+        value: t(`${social.items.length} รายการ`, `${social.items.length} mentions`),
       });
     }
     if (story?.headline) {
       out.push({
         key: "story",
         icon: "📌",
-        label: "Story",
+        label: t("เรื่องเด่น", "Story"),
         value: story.headline,
       });
     }
     return out;
-  }, [air, flood, fires, cctv, social, flights, story]);
+  }, [air, flood, fires, cctv, social, flights, story, t]);
 
   if (segments.length === 0) return null;
 
   return (
-    <div className="flex min-h-[36px] shrink-0 items-stretch overflow-hidden border-t border-[var(--line)] bg-[var(--bg)] font-mono text-[11px]">
+    <div lang={lang} className="flex min-h-[36px] shrink-0 items-stretch overflow-hidden border-t border-[var(--line)] bg-[var(--bg)] font-mono text-[11px]">
       <div className="flex shrink-0 items-center gap-1.5 border-r border-[var(--line)] bg-[var(--cool)] px-3 text-white">
         <Activity aria-hidden="true" className="h-3 w-3" />
-        <span className="text-[11px] font-bold uppercase tracking-[0.16em]">CNX OPS</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.16em]">{t("CNX ปฏิบัติการ", "CNX OPS")}</span>
       </div>
-      <div role="region" aria-label="Operational feed summary; scroll horizontally to read all items" tabIndex={0} className="relative flex min-w-0 flex-1 items-center overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--cool)]">
+      <div role="region" aria-label={t("สรุปข้อมูลปฏิบัติการ เลื่อนแนวนอนเพื่ออ่านทุกรายการ", "Operational feed summary; scroll horizontally to read all items")} tabIndex={0} className="relative flex min-w-0 flex-1 items-center overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--cool)]">
         <div className="flex w-max items-center gap-6 whitespace-nowrap px-4">
           {segments.map((s) => (
             <span key={s.key} className="flex items-center gap-1.5 text-[var(--ink)]">

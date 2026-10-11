@@ -19,7 +19,7 @@ describe("operational feed summary", () => {
       air: null, flood: null, fires: null, social: null, story: null, flights: null,
       cctv: { reachableCount: 2, totalCount: 3 } as CctvFeedResponse,
     }));
-    expect(html.match(/2\/3 reachable/g)).toHaveLength(1);
+    expect(html.match(/2\/3 ตอบสนอง/g)).toHaveLength(1);
     expect(html).toContain('tabindex="0"');
     expect(html).toContain("overflow-x-auto");
     expect(html).not.toContain("animate-marquee");
