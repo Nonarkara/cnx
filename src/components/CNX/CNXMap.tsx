@@ -55,6 +55,9 @@ import type { WeatherLayerUrls } from "../../lib/cnx/weather-layers";
 import CNXForecastLayer from "./CNXForecastLayer";
 import type { ForecastFieldResponse } from "../../lib/cnx/wind-field";
 import { precisionLabel, sameAmphoe, type Shelter } from "../../lib/cnx/shelters";
+import { useOfficialWarnings } from "../../hooks/useOfficialWarnings";
+import { CAP_SEVERITY_LEVEL, capWindow } from "../../lib/cnx/official-watch";
+import type { OfficialAlert } from "../../lib/cnx/tmd-cap-core";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
   ssr: false,
@@ -388,6 +391,14 @@ const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
 
 const NO_RTC_LINES: RtcLine[] = [];
 
+/** TMD warning outlines in the board's severity colours (--sev-* in globals.css, light values). */
+const OFFICIAL_RGB: Record<string, [number, number, number, number]> = {
+  watch: [127, 99, 0, 235],
+  alert: [181, 60, 10, 235],
+  critical: [185, 28, 28, 240],
+};
+type OfficialRing = { alert: OfficialAlert; path: [number, number][] };
+
 /** Thai names for the basemap options; ids come from services/basemap-styles. */
 const BASEMAP_TH: Record<BasemapId, { label: string; hint: string }> = {
   topography: { label: "ภูมิประเทศ", hint: "เส้นชั้นความสูงและภูมิประเทศ (OpenTopoMap) — เหมาะกับแอ่งหมอกควันและแม่น้ำ" },
@@ -518,6 +529,25 @@ export default function CNXMap({
     if (!focus) return;
     setViewState((vs) => clampView({ ...vs, longitude: focus.longitude, latitude: focus.latitude, zoom: focus.zoom }));
   }, [focus]);
+
+  // TMD official warnings in force: outline only, so nothing underneath is hidden.
+  const officialWarnings = useOfficialWarnings();
+  const officialLayer = useMemo(() => {
+    const now = Date.now();
+    const rings: OfficialRing[] = (officialWarnings?.alerts ?? [])
+      .filter((a) => !a.expires || Date.parse(a.expires) >= now)
+      .flatMap((alert) => alert.polygons.map((ring) => ({ alert, path: [...ring, ring[0]] })));
+    if (rings.length === 0) return null;
+    return new PathLayer<OfficialRing>({
+      id: "cnx-official-warnings",
+      data: rings,
+      getPath: (d) => d.path,
+      getColor: (d) => OFFICIAL_RGB[CAP_SEVERITY_LEVEL[d.alert.severity]] ?? OFFICIAL_RGB.watch,
+      getWidth: 3,
+      widthUnits: "pixels",
+      pickable: true,
+    });
+  }, [officialWarnings]);
 
   // Shelters: off until asked for, on whenever a warning points at them.
   const [sheltersOn, setSheltersOn] = useState(false);
@@ -1274,6 +1304,7 @@ export default function CNXMap({
           ...busLayers,
           ...(rtcRouteLayer ? [rtcRouteLayer] : []),
           ...(rtcBusLayer ? [rtcBusLayer] : []),
+          ...(officialLayer ? [officialLayer] : []),
         ]}
         getTooltip={({ object, layer }) => {
           if (!object || !layer) return null;
@@ -1291,6 +1322,11 @@ export default function CNXMap({
             return t(`รถ มช. ${b.bus} · สาย ${b.route}\nผู้โดยสาร ${b.passenger} คน · GPS สด`, `CMU shuttle ${b.bus} · route ${b.route}\n${b.passenger} on board · live GPS`);
           }
           if (layer.id === "cmu-transit-stations") return (object as CmuStation).name;
+          if (layer.id === "cnx-official-warnings") {
+            const a = (object as OfficialRing).alert;
+            if (lang === "en") return `Official warning · Thai Meteorological Department\n${a.headline_en ?? a.event}\nIn force ${capWindow(a.effective, a.expires, "en")}`;
+            return `ประกาศทางการ · กรมอุตุนิยมวิทยา\n${a.headline_th ?? "ประกาศเตือนภัย"}\nมีผล ${capWindow(a.effective, a.expires, "th")}`;
+          }
           if (layer.id === "cnx-flood-cameras") {
             const c = object as FloodCamera;
             const state = c.live ? t("ออนไลน์", "LIVE") : t("ออฟไลน์", "OFFLINE");

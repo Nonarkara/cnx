@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 import { buildWatchList, type WatchListInput } from "./watch-list";
 import type { ExecutiveMetric } from "./executive-brief";
+import type { OfficialAlert, OfficialWarningsResponse } from "./tmd-cap-core";
 
 const metric = (id: ExecutiveMetric["id"], level: ExecutiveMetric["level"], state: ExecutiveMetric["state"] = "current"): ExecutiveMetric => ({
   id,
@@ -56,12 +57,14 @@ describe("buildWatchList inventory", () => {
     ]));
     const ids = board.systems.map((s) => s.id);
     expect(ids).toEqual(expect.arrayContaining([
+      "tmd-official",
       "water", "air", "fire", "mobility",
       "river-gauges", "rain-gauges", "fires-rfd", "air-gistda", "dustboy",
       "aerosol-cams", "aeronet", "jaxa-aot", "smoke", "floodhub", "haze-vision",
       "weather-himawari", "weather-aod", "weather-radar", "burnscar",
     ]));
-    expect(ids).toHaveLength(19);
+    expect(ids).toHaveLength(20);
+    expect(ids[0]).toBe("tmd-official");
     expect(board.watch).toHaveLength(0);
     expect(board.gapCount).toBeGreaterThan(0);
   });
@@ -354,5 +357,68 @@ describe("buildWatchList ranking and honesty", () => {
     const rain = board.systems.find((s) => s.id === "rain-gauges");
     expect(rain?.level).toBe("alert");
     expect(rain?.valueTh).toContain("แม่แตง");
+  });
+});
+
+describe("official TMD warnings lead the board", () => {
+  const live = (alerts: OfficialAlert[]): OfficialWarningsResponse => ({
+    provenance: "live", fetchedAt: "2026-10-09T09:55:00+07:00", alerts, reason: null, reason_th: null, documentsRead: 11, documentsListed: 11, source: "TMD · CAP 1.2",
+  });
+  const alert = (o: Partial<OfficialAlert> = {}): OfficialAlert => ({
+    identifier: "TMD20261009090000_2", sent: "2026-10-09T05:00:00+07:00", effective: "2026-10-09T06:00:00+07:00", expires: "2026-10-09T18:00:00+07:00",
+    event: "Heavy Rain", headline_th: "พื้นที่เสี่ยงภัยฝนตกหนัก", headline_en: "Heavy Rain Risk Area", severity: "Severe", urgency: "Expected", certainty: "Likely",
+    instruction_th: "ระวังน้ำท่วมฉับพลัน", instruction_en: "Beware of flash floods", web: null, areaDesc: "เชียงใหม่", areaDesc_th: "เชียงใหม่", areaDesc_en: "Chiang Mai",
+    geocodeMatch: true, polygons: [], ...o,
+  });
+  const official = (input: Partial<WatchListInput>) => buildWatchList({ ...baseInput([metric("water", "watch")]), ...input });
+
+  it("shows an alert in force as the first row, at its CAP severity", () => {
+    const board = official({ officialWarnings: live([alert({ severity: "Extreme" })]) });
+    const first = board.systems[0];
+    expect(first).toMatchObject({ kind: "official", level: "critical", systemTh: "ประกาศทางการ · กรมอุตุนิยมวิทยา", systemEn: "Official warning · Thai Meteorological Department" });
+    expect(first.valueTh).toContain("พื้นที่เสี่ยงภัยฝนตกหนัก");
+    expect(first.valueTh).toContain("06:00");
+    expect(first.valueEn).toContain("Heavy Rain Risk Area");
+    expect(first.actionTh).toBe("ระวังน้ำท่วมฉับพลัน");
+    expect(board.watch[0].kind).toBe("official");
+  });
+
+  it("puts an official warning above a more severe model row in the watch list", () => {
+    const board = official({ metrics: [metric("water", "critical")], officialWarnings: live([alert({ severity: "Moderate" })]) });
+    expect(board.watch.map((w) => w.id).slice(0, 2)).toEqual(["tmd-TMD20261009090000_2", "water"]);
+  });
+
+  it("says 'no TMD warning in force' when there is none — never safe, never a green normal", () => {
+    const board = official({ officialWarnings: live([]) });
+    const first = board.systems[0];
+    expect(first).toMatchObject({ id: "tmd-official", kind: "official", level: "good", chipTh: "ไม่มีประกาศ", chipEn: "None in force" });
+    expect(first.valueTh).toBe("ไม่มีประกาศ TMD ที่มีผลสำหรับเชียงใหม่");
+    expect(first.valueEn).toBe("No TMD warning in force for Chiang Mai");
+    expect(`${first.valueTh} ${first.evidenceTh}`).not.toMatch(/ปลอดภัยแล้ว|ปกติ/);
+    expect(`${first.valueEn} ${first.evidenceEn}`.toLowerCase()).not.toMatch(/\bsafe\b/);
+    expect(board.watch.some((w) => w.kind === "official")).toBe(false);
+  });
+
+  it("treats an alert that expired since the last read as no warning", () => {
+    const board = official({ officialWarnings: live([alert({ expires: "2026-10-09T09:00:00+07:00" })]) });
+    expect(board.systems[0].id).toBe("tmd-official");
+    expect(board.systems[0].level).toBe("good");
+  });
+
+  it("shows an unavailable feed as unavailable, with its reason, and counts it as a gap", () => {
+    const down: OfficialWarningsResponse = { ...live([]), provenance: "unavailable", reason: "TMD CAP index unreachable (Thai: HTTP 403; English: HTTP 403)", reason_th: "เข้าถึงดัชนีประกาศไม่ได้" };
+    const board = official({ officialWarnings: down });
+    const first = board.systems[0];
+    expect(first).toMatchObject({ kind: "official", level: "unknown", valueEn: "TMD warnings unavailable" });
+    expect(first.evidenceEn).toContain("HTTP 403");
+    expect(first.evidenceTh).toContain("เข้าถึงดัชนีประกาศไม่ได้");
+    expect(board.gapCount).toBeGreaterThan(official({ officialWarnings: live([]) }).gapCount);
+  });
+
+  it("keeps the official row when the feed has not been read at all", () => {
+    for (const officialWarnings of [undefined, null]) {
+      const first = official({ officialWarnings }).systems[0];
+      expect(first).toMatchObject({ id: "tmd-official", kind: "official", level: "unknown" });
+    }
   });
 });

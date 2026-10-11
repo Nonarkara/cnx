@@ -133,9 +133,16 @@ Consequences, all enforced in code:
 - A **calm** reading is appended **last** in the verdict reasons, behind
   every measured hazard. A governor reads the headline first and often
   alone; an absence of flood trouble must never occupy that slot.
-- Thai public advisory feeds remain unwired because none exists
-  machine-readably. The dashboard **never renders its own threshold as a
-  government announcement**.
+- The Thai Meteorological Department's warnings **are** machine-readable:
+  signed CAP 1.2 alerts behind two RSS indexes (`tmd.go.th/api/xml/CAP`,
+  `/en/api/xml/CAP`). Since 11 October 2026 they are wired at
+  `/api/cnx/official-warnings` (`src/lib/cnx/tmd-cap.ts`) and lead the
+  watch board as their own framed row, *ประกาศทางการ · กรมอุตุนิยมวิทยา*,
+  above every model and measured row, with the alert areas outlined on the
+  map. No alert reads "ไม่มีประกาศ TMD ที่มีผลสำหรับเชียงใหม่", never
+  "safe"; an unreadable feed reads unavailable. The dashboard **never
+  renders its own threshold as a government announcement** — only TMD's
+  own CAP text sits in that row.
 
 The scenario module still exists as a last-resort fallback, always behind
 `provenance: "scenario"`, and is barred from the RAG corpus, the keystone
