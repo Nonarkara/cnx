@@ -28,6 +28,7 @@ import { fetchWeatherLayerUrls } from "./weather-layers";
 import { fetchLatestAotItem } from "./jaxa-aot";
 import { fetchCnxOpenDataIndex } from "./open-data-th";
 import { fetchCnxAsmc } from "./asmc";
+import { fetchOfficialWarnings } from "./tmd-cap";
 
 const PROBE_TIMEOUT_MS = 8_000;
 const CHIANG_MAI_LON = 98.98;
@@ -73,6 +74,11 @@ export function gibsTime(url: string | null): string | null {
 }
 
 const DIRECT: Record<string, Probe> = {
+  // TMD publishes issuance times, not observations: the clock is the feed's answer.
+  "official-warnings": async () => {
+    const r = await fetchOfficialWarnings();
+    return when(r.provenance === "live", r.provenance, r.provenance === "live" ? r.fetchedAt : null);
+  },
   air4thai: async () => {
     const r = await fetchCnxAirQuality();
     const pcd = r.stations.filter((s) => s.source === "pcd");

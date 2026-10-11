@@ -486,6 +486,8 @@ export const TWIN_ENTITIES: readonly TwinEntity[] = [
  */
 export const MANIFEST_EXCLUDED_ROUTES: Readonly<Record<string, string>> = {
   "manifest.json": "This manifest.",
+  "cap.atom": "Atom index of the cap-export entity's alerts; same content, another envelope.",
+  "warning-log": "Verification log of this board's own level changes; an output, not a feed.",
   ask: "Question answering over the feeds listed here; not a feed.",
   build: "Build identity, not data.",
   twin: "The province verdict, derived from the feeds listed here.",

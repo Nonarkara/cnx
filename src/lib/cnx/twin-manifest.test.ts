@@ -98,7 +98,7 @@ describe("twin manifest registry", () => {
   it("gives every live, non-relay feed with an SLO a probe", () => {
     const needProbe = TWIN_ENTITIES.filter((e) => e.transport !== "relay" && e.staleAfterSec !== null).map((e) => e.id);
     // Built by other agents; their live fields stay null until a probe lands with the module.
-    const pending = new Set(["official-warnings"]);
+    const pending = new Set<string>();
     for (const id of needProbe) if (!pending.has(id)) expect(DIRECT_PROBE_IDS, id).toContain(id);
   });
 });
@@ -123,7 +123,7 @@ describe("route coverage — unknown feed ⇒ fail", () => {
   });
 
   it("points every manifest route at a real route (except those being built elsewhere)", () => {
-    const pending = new Set(["/api/cnx/official-warnings", "/api/cnx/cap.xml"]);
+    const pending = new Set<string>();
     for (const e of TWIN_ENTITIES) {
       if (!e.route.startsWith("/api/") || pending.has(e.route)) continue;
       expect(routes, e.id).toContain(e.route);
