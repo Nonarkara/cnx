@@ -4,7 +4,12 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=()
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-  X-XSS-Protection: 1; mode=block
+  X-XSS-Protection: 0
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-site
+  X-Permitted-Cross-Domain-Policies: none
+/data/*
+  Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
 /api/cnx/*
   Cache-Control: no-store, must-revalidate
   X-Content-Type-Options: nosniff

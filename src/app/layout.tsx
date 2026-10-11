@@ -8,6 +8,11 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./fonts.css";
 import "./globals.css";
 
+// Every page renders per request so it carries a fresh CSP nonce
+// (middleware.ts). The page itself is a thin client shell, so this costs
+// one small HTML render per visit.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: `Chiang Mai Operations War Room · v${process.env.NEXT_PUBLIC_APP_VERSION ?? ""}${process.env.NEXT_PUBLIC_GIT_SHA ? ` · ${process.env.NEXT_PUBLIC_GIT_SHA.slice(0, 7)}` : ""}`,
   manifest: "/manifest.webmanifest",
