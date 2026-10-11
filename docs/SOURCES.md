@@ -261,6 +261,23 @@ cannot do.
 
 ---
 
+## 3a. Forecast field and shelters (added 11 October 2026, v1.9.0)
+
+| Source | Endpoint | Key | Gives | Failure mode |
+|---|---|---|---|---|
+| **Open-Meteo forecast grid** | `api.open-meteo.com/v1/forecast` (121 points, 0.3° over the province; 100 points, 0.75° over the 350 km haze window) | none | Hourly wind at 10 m and 850 hPa, precipitation, 48 h | A **model**. ~30 km cells see the regional flow, not a valley storm. Every grid point counts as a call, so the field is shared in KV and refreshed at most every 3 h; if the refresh fails the last run is served only while it still covers now, else `provenance: "unavailable"` and no field is drawn |
+| **Open-Meteo CAMS grid** | `air-quality-api.open-meteo.com/v1/air-quality` (same 121 points) | none | Hourly PM2.5, 48 h | Model, ~40 km; under-reads valley smoke in burning season. Missing → the PM2.5 chip is disabled and the outlook says "no PM2.5 forecast", never "clean" |
+| **Temporary flood shelters** | `chiangmai.gdcatalog.go.th` dataset `4a375627-…` (สำนักงานจังหวัดเชียงใหม่) | none | 177 shelters: district, subdistrict, place, capacity, utilities | The official list has **no coordinates**. `scripts/build-cnx-shelters.mjs` geocodes with OSM Nominatim (≤1 req/s, cached): 37 at the building itself, 86 at a subdistrict point, 54 at district level. Every point carries its `precision`; the map draws approximate ones hollow |
+
+What the board may claim from them: forecast rows escalate attention only
+(TMD 24 h heavy/very-heavy classes on forecast totals; the board's own PM2.5
+cut points) and never lower a measured level; "no forecast warning" is
+written as "not a guarantee against a local storm", not as safe. Smoke
+plumes integrate the 850 hPa field (RK2, 10-minute steps) and stop where the
+grid ends rather than extrapolating.
+
+---
+
 ## 4. Flights and ground transport
 
 | Source | Endpoint | Key | Gives | Failure mode |
