@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test fixture: OASIS Common Alerting Protocol 1.2 schema, TRANSCRIBED from
+  the OASIS Standard (1 July 2010), section 3 "Alert Message Structure" and
+  the normative CAP-v1.2.xsd structure (element names, sequence order,
+  cardinality, enumerations, the dateTime pattern). It is not the
+  byte-for-byte OASIS file; the XML-signature wildcard at the end of <alert>
+  is omitted because the board never signs. Used only by cap.test.ts with
+  xmllint, which ships with macOS and most CI images.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2"
+           targetNamespace="urn:oasis:names:tc:emergency:cap:1.2"
+           elementFormDefault="qualified" attributeFormDefault="unqualified" version="1.2">
+  <xs:simpleType name="capDateTime">
+    <xs:restriction base="xs:dateTime">
+      <xs:pattern value="\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d[\-,\+]\d\d:\d\d"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="valuePair">
+    <xs:sequence>
+      <xs:element name="valueName" type="xs:string"/>
+      <xs:element name="value" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="alert">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="identifier" type="xs:string"/>
+        <xs:element name="sender" type="xs:string"/>
+        <xs:element name="sent" type="cap:capDateTime"/>
+        <xs:element name="status">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="Actual"/><xs:enumeration value="Exercise"/><xs:enumeration value="System"/>
+              <xs:enumeration value="Test"/><xs:enumeration value="Draft"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="msgType">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="Alert"/><xs:enumeration value="Update"/><xs:enumeration value="Cancel"/>
+              <xs:enumeration value="Ack"/><xs:enumeration value="Error"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="source" type="xs:string" minOccurs="0"/>
+        <xs:element name="scope">
+          <xs:simpleType>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="Public"/><xs:enumeration value="Restricted"/><xs:enumeration value="Private"/>
+            </xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="restriction" type="xs:string" minOccurs="0"/>
+        <xs:element name="addresses" type="xs:string" minOccurs="0"/>
+        <xs:element name="code" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="note" type="xs:string" minOccurs="0"/>
+        <xs:element name="references" type="xs:string" minOccurs="0"/>
+        <xs:element name="incidents" type="xs:string" minOccurs="0"/>
+        <xs:element name="info" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="language" type="xs:language" default="en-US" minOccurs="0"/>
+              <xs:element name="category" maxOccurs="unbounded">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Geo"/><xs:enumeration value="Met"/><xs:enumeration value="Safety"/>
+                    <xs:enumeration value="Security"/><xs:enumeration value="Rescue"/><xs:enumeration value="Fire"/>
+                    <xs:enumeration value="Health"/><xs:enumeration value="Env"/><xs:enumeration value="Transport"/>
+                    <xs:enumeration value="Infra"/><xs:enumeration value="CBRNE"/><xs:enumeration value="Other"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="event" type="xs:string"/>
+              <xs:element name="responseType" minOccurs="0" maxOccurs="unbounded">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Shelter"/><xs:enumeration value="Evacuate"/><xs:enumeration value="Prepare"/>
+                    <xs:enumeration value="Execute"/><xs:enumeration value="Avoid"/><xs:enumeration value="Monitor"/>
+                    <xs:enumeration value="Assess"/><xs:enumeration value="AllClear"/><xs:enumeration value="None"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="urgency">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Immediate"/><xs:enumeration value="Expected"/><xs:enumeration value="Future"/>
+                    <xs:enumeration value="Past"/><xs:enumeration value="Unknown"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="severity">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Extreme"/><xs:enumeration value="Severe"/><xs:enumeration value="Moderate"/>
+                    <xs:enumeration value="Minor"/><xs:enumeration value="Unknown"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="certainty">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Observed"/><xs:enumeration value="Likely"/><xs:enumeration value="Possible"/>
+                    <xs:enumeration value="Unlikely"/><xs:enumeration value="Unknown"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:element>
+              <xs:element name="audience" type="xs:string" minOccurs="0"/>
+              <xs:element name="eventCode" type="cap:valuePair" minOccurs="0" maxOccurs="unbounded"/>
+              <xs:element name="effective" type="cap:capDateTime" minOccurs="0"/>
+              <xs:element name="onset" type="cap:capDateTime" minOccurs="0"/>
+              <xs:element name="expires" type="cap:capDateTime" minOccurs="0"/>
+              <xs:element name="senderName" type="xs:string" minOccurs="0"/>
+              <xs:element name="headline" type="xs:string" minOccurs="0"/>
+              <xs:element name="description" type="xs:string" minOccurs="0"/>
+              <xs:element name="instruction" type="xs:string" minOccurs="0"/>
+              <xs:element name="web" type="xs:anyURI" minOccurs="0"/>
+              <xs:element name="contact" type="xs:string" minOccurs="0"/>
+              <xs:element name="parameter" type="cap:valuePair" minOccurs="0" maxOccurs="unbounded"/>
+              <xs:element name="resource" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="resourceDesc" type="xs:string"/>
+                    <xs:element name="mimeType" type="xs:string"/>
+                    <xs:element name="size" type="xs:integer" minOccurs="0"/>
+                    <xs:element name="uri" type="xs:anyURI" minOccurs="0"/>
+                    <xs:element name="derefUri" type="xs:string" minOccurs="0"/>
+                    <xs:element name="digest" type="xs:string" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="area" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="areaDesc" type="xs:string"/>
+                    <xs:element name="polygon" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element name="circle" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element name="geocode" type="cap:valuePair" minOccurs="0" maxOccurs="unbounded"/>
+                    <xs:element name="altitude" type="xs:decimal" minOccurs="0"/>
+                    <xs:element name="ceiling" type="xs:decimal" minOccurs="0"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

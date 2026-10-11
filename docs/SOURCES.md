@@ -556,3 +556,14 @@ measurement, and must never be rendered as current conditions or as
 - **Chiang Mai airport statistics** (gdcatalog `gdpublish-69-162`) and the **provincial flood thematic map** (`gdpublish-69-200`) — both **Open Data Common**, both published by จังหวัดเชียงใหม่. Clean.
 - **gdcatalog.go.th** — per-dataset licences, not uniform; read `license_title` per package rather than assuming a portal-wide grant.
 - **FIRMS, GIBS, Open-Meteo, OSM, GDELT, RainViewer** — open, all attributed on the panels and in the About sources list.
+
+## 9. Outputs (what the board publishes)
+
+Not upstreams: feeds the board itself emits, listed so integrators know what
+they are and are not.
+
+| Output | Route | What it is | Rules |
+|---|---|---|---|
+| **CAP 1.2 export** | `/api/cnx/cap.xml` (all active alerts in one `<alerts>` list, `application/xml`); `/api/cnx/cap.xml?id={identifier}` (one CAP `<alert>`, `application/cap+xml`) | One alert per 48 h outlook item at ≥ watch (forecast rain on TMD classes, forecast PM2.5 on the board's cut points) and one for the province verdict at prepare or danger. TH (`th-TH`) and EN (`en-US`) `info` blocks; district circle (10 km) and `ISO3166-2` `TH-50` | **`scope=Restricted`**, restriction "…Not an official public warning; official sources: TMD, DDPM." Sender `cap@cnx.nonarkara.org`. Forecast → Expected/Possible, measured verdict → Immediate/Observed; watch/alert/critical → Minor/Moderate/Severe. Identifier `cnx-{domain}-{district}-{sha1(level+peakAt)}`, stable while the level holds; `Update` + `references` when an exported level changes. A scenario-only verdict is never exported. Edge cache 5 min |
+| **CAP Atom index** | `/api/cnx/cap.atom` | Atom 1.0 feed, one entry per active alert, linking its `cap.xml?id=` document | Valid with no entries; an empty feed means no board warning, not "safe" |
+| **Warning log** | `/api/cnx/warning-log` (`?month=YYYY-MM`, Chiang Mai time) | One row per province-verdict level change and per outlook district entering, changing level within, or leaving ≥ watch: `at, domain, district, from, to, score, value, reason_en, provenance, commit` | Written on change only, from `/api/cnx/twin` and the CAP routes, after the response (`ctx.waitUntil`). KV `warning-log:{YYYY-MM}`, newest 2,000 rows, 400-day TTL. No personal data. For later scoring of hits and false alarms against measured outcomes |
