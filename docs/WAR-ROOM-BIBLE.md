@@ -133,16 +133,19 @@ Consequences, all enforced in code:
 - A **calm** reading is appended **last** in the verdict reasons, behind
   every measured hazard. A governor reads the headline first and often
   alone; an absence of flood trouble must never occupy that slot.
-- Official Thai warnings **are** machine-readable. The Thai Meteorological
-  Department, a registered WMO alerting authority (OID 2.49.0.0.764.0),
-  publishes signed CAP 1.2 at `https://www.tmd.go.th/api/xml/CAP` (TH) and
-  `/en/api/xml/CAP` (EN); Chiang Mai is geocode `TH-50`. (An earlier version
-  of this line said none existed. It was wrong — see
-  `docs/DIGITAL-TWIN-STANDARDS.md`, D3.) The board reads them at
-  `/api/cnx/official-warnings` and shows them first, as TMD's. The
-  dashboard **never renders its own threshold as a government
-  announcement**: its own warnings leave as CAP with `scope=Restricted`
-  (`/api/cnx/cap.xml`).
+- The Thai Meteorological Department's warnings **are** machine-readable:
+  signed CAP 1.2 alerts behind two RSS indexes (`tmd.go.th/api/xml/CAP`,
+  `/en/api/xml/CAP`). Since 11 October 2026 they are wired at
+  `/api/cnx/official-warnings` (`src/lib/cnx/tmd-cap.ts`) and lead the
+  watch board as their own framed row, *ประกาศทางการ · กรมอุตุนิยมวิทยา*,
+  above every model and measured row, with the alert areas outlined on the
+  map. No alert reads "ไม่มีประกาศ TMD ที่มีผลสำหรับเชียงใหม่", never
+  "safe"; an unreadable feed reads unavailable. The dashboard **never
+  renders its own threshold as a government announcement** — only TMD's
+  own CAP text sits in that row. Its own
+  warnings leave as CAP with `scope=Restricted` (`/api/cnx/cap.xml`).
+  (An earlier version of this line said no such feed existed — see
+  `docs/DIGITAL-TWIN-STANDARDS.md`, D3.)
 
 The scenario module still exists as a last-resort fallback, always behind
 `provenance: "scenario"`, and is barred from the RAG corpus, the keystone

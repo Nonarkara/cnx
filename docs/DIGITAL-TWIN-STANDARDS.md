@@ -231,8 +231,10 @@ cheap, but they are what a standards reviewer asks for next.
 Gemini 6 Quality; corrects D3.
 - `src/lib/cnx/tmd-cap.ts`: fetch `https://www.tmd.go.th/api/xml/CAP` and
   `/en/api/xml/CAP` (RSS). For each `<item><link>` (≤ 20), fetch the CAP
-  XML. Keep alerts where any `<geocode><value>` is `TH-50` **or** any
-  `<polygon>` vertex falls inside the province (`inChiangMaiProvince` in
+  XML. Keep alerts whose area lists geocode `TH-50`; use the polygon-vertex
+  test only for areas that list no geocodes (TMD's whole-province outlines
+  differ from the OSM ring by up to 4.7 km, so a Tak alert's vertices fall
+  inside Chiang Mai — implemented that way in `tmd-cap-core.ts`) (`inChiangMaiProvince` in
   `province-boundary.ts:13`). CAP polygons are `lat,lon` pairs separated
   by spaces; the province ring is `[lon, lat]`. Drop alerts with
   `expires < now` or `msgType=Cancel`, and keep only the latest per

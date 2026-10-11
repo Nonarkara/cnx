@@ -15,6 +15,11 @@
 // The four slowly-changing satellite feeds the rest of the board does not
 // poll (AERONET, JAXA GCOM-C, FloodHub, GISTDA districts) are fetched
 // here on a 10-minute cycle — their routes are edge-cached anyway.
+//
+// Above both sections sits the official channel: TMD's CAP warnings for
+// Chiang Mai (useOfficialWarnings, shared with the map). It is always
+// present — a warning, "no TMD warning in force", or "unavailable" — and
+// framed apart from the board's own model and measured rows.
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Satellite } from "lucide-react";
@@ -36,6 +41,7 @@ import { fetchJsonOrNull } from "../../lib/client-requests";
 import { buildWatchList, type WatchItem, type WatchKind } from "../../lib/cnx/watch-list";
 import { DataAge } from "./CNXDataAge";
 import { useLang } from "../../hooks/useLang";
+import { useOfficialWarnings } from "../../hooks/useOfficialWarnings";
 
 const LEVEL_CLASSES: Record<string, string> = {
   unknown: "bg-[var(--line)] text-[var(--dim)]",
@@ -52,6 +58,7 @@ const LEVEL_LABEL: Record<string, [string, string]> = {
   critical: ["วิกฤต", "Critical"],
 };
 const KIND_LABEL: Record<WatchKind, [string, string]> = {
+  official: ["ทางการ", "Official"],
   measured: ["ภาคพื้นดิน", "Ground"],
   satellite: ["ดาวเทียม", "Satellite"],
   model: ["โมเดล", "Model"],
@@ -59,10 +66,45 @@ const KIND_LABEL: Record<WatchKind, [string, string]> = {
   imagery: ["ภาพ", "Imagery"],
 };
 
-function LevelChip({ level }: { level: string }) {
+/** Frame of an official row: the severity colour, or plain ink when no warning is in force. */
+const OFFICIAL_FRAME: Record<string, string> = {
+  unknown: "border-[var(--sev-unknown)]",
+  good: "border-[var(--ink)]",
+  watch: "border-[var(--sev-watch)]",
+  alert: "border-[var(--sev-alert)]",
+  critical: "border-[var(--sev-critical)]",
+};
+
+function LevelChip({ level, chipTh, chipEn }: { level: string; chipTh?: string; chipEn?: string }) {
   const { t } = useLang();
   const label = LEVEL_LABEL[level];
+  // An overridden chip ("no official warning") is neutral — never a green "normal".
+  if (chipTh && chipEn) return <span className={`shrink-0 px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] ${LEVEL_CLASSES.unknown}`}>{t(chipTh, chipEn)}</span>;
   return <span className={`shrink-0 px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] ${LEVEL_CLASSES[level] ?? LEVEL_CLASSES.unknown}`}>{label ? t(...label) : level}</span>;
+}
+
+/** The official channel, framed apart from the board's own evidence. */
+function OfficialRows({ items }: { items: WatchItem[] }) {
+  const { t } = useLang();
+  return (
+    <section aria-labelledby="watch-official" className="flex flex-col gap-2">
+      <h3 id="watch-official" className="sr-only">{t("ประกาศทางการ", "Official warnings")}</h3>
+      {items.map((item) => (
+        <div key={item.id} className={`border-2 ${OFFICIAL_FRAME[item.level] ?? OFFICIAL_FRAME.unknown} bg-[var(--bg-raised)] p-2.5`}>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--ink)]">{t(item.systemTh, item.systemEn)}</p>
+          <div className="mt-1.5 flex items-start gap-2">
+            <LevelChip level={item.level} chipTh={item.chipTh} chipEn={item.chipEn} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[14px] font-semibold text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
+              {item.actionTh && <p className="mt-1 text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
+              <p className="mt-1 text-[11px] leading-snug text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
+              <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={45 * 60_000} className="mt-1 block" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
 }
 
 interface Props {
@@ -111,6 +153,7 @@ export default function CnxWatchBoard({
   const [jaxa, setJaxa] = useState<JaxaAotResponse | null>(null);
   const [floodhub, setFloodhub] = useState<FloodHubResponse | null>(null);
   const [gistda, setGistda] = useState<GistdaPm25Response | null>(null);
+  const officialWarnings = useOfficialWarnings();
 
   useEffect(() => {
     let cancelled = false;
@@ -131,9 +174,12 @@ export default function CnxWatchBoard({
   }, []);
 
   const board = useMemo(
-    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook }),
-    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook],
+    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings }),
+    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings],
   );
+  const official = board.systems.filter((item) => item.kind === "official");
+  // Official rows have their own frame above; "Watching now" is the board's own evidence.
+  const watchNow = board.watch.filter((item) => item.kind !== "official");
 
   return (
     <section lang={lang} aria-label={t("รายการเฝ้าระวังของจังหวัด", "Province watch list")} className="flex flex-col gap-4 p-3">
@@ -154,17 +200,19 @@ export default function CnxWatchBoard({
         </span>
       </header>
 
+      <OfficialRows items={official} />
+
       <section aria-labelledby="watch-now">
         <h3 id="watch-now" className="mb-2 border-b border-[var(--line)] pb-1 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
           {t("ต้องเฝ้าระวังตอนนี้", "Watching now")}
         </h3>
-        {board.watch.length === 0 ? (
+        {watchNow.length === 0 ? (
           <p className="border border-[var(--line)] bg-[var(--bg)] p-3 text-[12px] text-[var(--dim)]">
             {t("ไม่มีสัญญาณเฝ้าระวังจากข้อมูลที่วัดได้ในขณะนี้ — ไม่ใช่การยืนยันว่าทั้งจังหวัดปลอดภัย", "No current concern from measured evidence; this is not a province-wide all-clear.")}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {board.watch.map((item) => (
+            {watchNow.map((item) => (
               <li key={item.id} className="border border-[var(--line)] bg-[var(--bg)] p-2.5">
                 <div className="flex items-start gap-2">
                   <LevelChip level={item.level} />
@@ -189,8 +237,8 @@ export default function CnxWatchBoard({
         </h3>
         <ul className="flex flex-col divide-y divide-[var(--line)] border border-[var(--line)] bg-[var(--bg)]">
           {board.systems.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2">
-              <LevelChip level={item.level} />
+            <li key={item.id} className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 ${item.kind === "official" ? `border-l-4 ${OFFICIAL_FRAME[item.level] ?? OFFICIAL_FRAME.unknown}` : ""}`}>
+              <LevelChip level={item.level} chipTh={item.chipTh} chipEn={item.chipEn} />
               <span className="text-[12px] font-semibold">{t(item.systemTh, item.systemEn)}</span>
               <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--cool)]">{t(...KIND_LABEL[item.kind])}</span>
               <span className="min-w-0 flex-1 basis-52 text-[12px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</span>

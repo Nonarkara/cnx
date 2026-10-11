@@ -8,8 +8,9 @@
 // feed is rendered as a gap, never as safety; the inventory is the proof
 // the organism is alive, because a dead feed has to show up as dead.
 //
-// Pure function over responses the shell already polls plus four the watch
-// board fetches for itself (aeronet, jaxa-aot, floodhub, aqi-amphoe).
+// Pure function over responses the shell already polls plus five the watch
+// board fetches for itself (aeronet, jaxa-aot, floodhub, aqi-amphoe and the
+// TMD official warnings, which always lead the list — official-watch.ts).
 // No thresholds live here that don't live in the source module — this
 // file composes, it does not invent.
 
@@ -28,8 +29,11 @@ import type { RiverGauge } from "./river-level";
 import type { RainResponse } from "./rain";
 import { currentRainSummary } from "./rain-core";
 import { outlookWatchItems, type ProvinceOutlook } from "./outlook";
+import type { OfficialWarningsResponse } from "./tmd-cap-core";
+import { officialWatchItems } from "./official-watch";
 
-export type WatchKind = "measured" | "satellite" | "model" | "vision" | "imagery";
+/** "official" = a government warning (TMD CAP); it leads the board. */
+export type WatchKind = "official" | "measured" | "satellite" | "model" | "vision" | "imagery";
 export type WatchDomain = "water" | "air" | "fire" | "haze" | "mobility";
 /** Reuses the executive-brief vocabulary: "unknown" is the honest miss. */
 export type WatchLevel = ExecutiveMetric["level"];
@@ -56,6 +60,10 @@ export interface WatchItem {
   observedAt: string | null;
   /** Desk/panel to open for the evidence. Null = no deeper surface exists. */
   openMetric: "water" | "air" | "fire" | "mobility" | "model" | null;
+  /** Chip wording that replaces the level label, shown neutral — used for
+   *  "no official warning", which must not read as a green "normal". */
+  chipTh?: string;
+  chipEn?: string;
 }
 
 export interface WatchListInput {
@@ -74,6 +82,8 @@ export interface WatchListInput {
   rain: RainResponse | null;
   /** The 48 h forecast outlook; absent = the board did not ask for it. */
   outlook?: ProvinceOutlook | null;
+  /** TMD CAP warnings for Chiang Mai; null/absent = not read (shown as unavailable). */
+  officialWarnings?: OfficialWarningsResponse | null;
   now?: Date;
 }
 
@@ -90,6 +100,7 @@ export interface WatchBoardModel {
 const rank: Record<WatchLevel, number> = { unknown: -1, good: 0, watch: 1, alert: 2, critical: 3 };
 const domainOrder: Record<WatchDomain, number> = { water: 0, air: 1, fire: 2, haze: 3, mobility: 4 };
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+const officialFirst = (item: WatchItem) => (item.kind === "official" ? 0 : 1);
 
 /** Newest ISO stamp in a list, or null — an empty feed is not a fresh feed. */
 function newestStamp(rows: Array<Record<string, unknown>>, key: string): string | null {
@@ -598,6 +609,8 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
   const rainSummary = currentRainSummary(input.rain, now.getTime());
 
   const systems: WatchItem[] = [
+    // Official warnings first: the government's statement leads the board.
+    ...officialWatchItems(input.officialWarnings, now),
     ...metricItems(input.metrics),
     riverItem(input.riverGauges),
     rainItem(rainSummary),
@@ -659,7 +672,7 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
 
   const watch = systems
     .filter((item) => rank[item.level] > 0)
-    .sort((a, b) => rank[b.level] - rank[a.level] || domainOrder[a.domain] - domainOrder[b.domain]);
+    .sort((a, b) => officialFirst(a) - officialFirst(b) || rank[b.level] - rank[a.level] || domainOrder[a.domain] - domainOrder[b.domain]);
 
   return {
     systems,
