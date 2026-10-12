@@ -11,7 +11,22 @@ import { defineConfig } from "vitest/config";
 //      tolerates the same failure modes the live worker hits.
 
 export default defineConfig({
-  esbuild: { jsx: "automatic" },
+  // JSX transform.
+  //
+  // This was `esbuild: { jsx: "automatic" }` under vitest 3, which used the
+  // esbuild pipeline. vitest 5 runs on Vite 8 + Rolldown, whose transform
+  // pipeline is Oxc, and Oxc does NOT read the `esbuild` key — so that line
+  // became silently inert and every `.tsx` test failed to collect with
+  // "Unexpected JSX expression". tsconfig.json sets `jsx: "preserve"`,
+  // correctly for Next/SWC but wrong here, which is why the transform has to
+  // be asserted in this file rather than inherited.
+  //
+  // "runtime: automatic" is Oxc's equivalent of esbuild's "automatic" —
+  // the transform the suite has always run on. Note it is an OBJECT, not
+  // the string "react-jsx": rolldown's TransformOptions accepts that string,
+  // but Vite narrows OxcOptions.jsx to "preserve" | JsxOptions, and tsc
+  // rejects the string form even though the runtime honours it.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
     globals: false,
@@ -24,9 +39,12 @@ export default defineConfig({
     },
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     testTimeout: 15_000,
+    // `poolOptions` was REMOVED in vitest 4 — every former poolOption is now
+    // a top-level option. Left un-migrated, `forks.singleFork` is silently
+    // ignored (vitest prints only a DEPRECATED line, then spawns one worker
+    // per file). On this shared 16 GB laptop that is 99 concurrent workers:
+    // exactly the memory pressure the setting existed to prevent.
     pool: "forks",
-    poolOptions: {
-      forks: { singleFork: true },
-    },
+    maxWorkers: 1,
   },
 });
