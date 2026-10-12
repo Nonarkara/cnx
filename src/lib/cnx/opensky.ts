@@ -15,6 +15,7 @@
 
 import { fetchAdsbLolStates } from "./adsb-lol";
 import { FLIGHTS_KV_KEY, FLIGHTS_KV_STALE_MS, isFetchResult } from "./flights-kv";
+import { screenFlights, type FlightQuality } from "./flight-plausibility";
 
 export const OPENSKY_BASE = "https://opensky-network.org/api";
 
@@ -89,6 +90,12 @@ export interface FetchResult {
   error?: string;
   /** Which upstream produced this snapshot. */
   source?: "adsb.lol" | "opensky" | "relay" | "merged";
+  /**
+   * What the plausibility screen withheld. Present on every snapshot this
+   * module returns — a consumer can tell "screened, nothing wrong" from
+   * "never screened". Absent only on legacy payloads already in KV.
+   */
+  quality?: FlightQuality;
 }
 
 type RawState = readonly unknown[];
@@ -222,10 +229,19 @@ function inBbox(s: FlightState): boolean {
 }
 
 function split(states: FlightState[]) {
-  const located = states.filter(inBbox);
+  // Screen BEFORE the bbox, deliberately. `inBbox` drops a record with no
+  // usable position, and it would do so silently — a positionless aircraft
+  // would vanish with nothing attached to it, which is the omission error
+  // this layer exists to prevent. Screening first turns that into a counted
+  // `quality.rejected`. Aircraft that are simply *out of area* are a
+  // different thing: the bbox is the query, not a plausibility test, so
+  // those are filtered without being reported as faults.
+  const screened = screenFlights(states);
+  const located = screened.kept.filter(inBbox);
   return {
     airborne: located.filter((s) => !s.onGround),
     ground: located.filter((s) => s.onGround),
+    quality: screened.quality,
   };
 }
 
@@ -266,6 +282,9 @@ export async function fetchCnxSnapshot(): Promise<FetchResult> {
       ground: [],
       degraded: true,
       error: "adsb.lol and OpenSky both unavailable, and no relay snapshot in KV",
+      // Nothing arrived, so nothing was withheld. Stated explicitly so a
+      // consumer never has to guess whether the screen ran.
+      quality: { rejected: 0, nulled: 0, faults: {} },
     };
   }
   return {
@@ -294,7 +313,21 @@ async function fetchFromRelayKv(): Promise<FetchResult | null> {
     if (!isFetchResult(parsed)) return null;
     const age = Date.now() - parsed.fetchedAt;
     if (!Number.isFinite(age) || age < -5 * 60_000 || age > FLIGHTS_KV_STALE_MS) return null;
-    return { ...parsed, source: parsed.source ?? "relay" };
+    // Re-run the bbox and the plausibility screen ON READ. The relay applies
+    // both before it pushes, but KV is a durable store: a payload written by
+    // an older relay — one from before this screen existed — would otherwise
+    // be served with its bad records intact for as long as the entry keeps
+    // being refreshed. Fixing only the writer leaves the reader holding the
+    // defect, so the reader is defended too.
+    const screened = screenFlights([...parsed.airborne, ...parsed.ground]);
+    const located = screened.kept.filter(inBbox);
+    return {
+      ...parsed,
+      airborne: located.filter((s) => !s.onGround),
+      ground: located.filter((s) => s.onGround),
+      quality: screened.quality,
+      source: parsed.source ?? "relay",
+    };
   } catch {
     return null;
   }

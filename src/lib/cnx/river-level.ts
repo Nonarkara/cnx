@@ -340,7 +340,10 @@ interface UpstreamStation {
   qmax?: number | null;
 }
 
-interface UpstreamRow {
+/** One raw ThaiWater row, as received. Exported so the plausibility tests
+ *  can build fixtures with the same shape the parser actually accepts —
+ *  a hand-rolled fixture that drifts from this interface tests nothing. */
+export interface UpstreamRow {
   waterlevel_datetime?: string | null;
   /** Height above station zero. Observed null on all 46 rows. */
   waterlevel_m?: string | number | null;

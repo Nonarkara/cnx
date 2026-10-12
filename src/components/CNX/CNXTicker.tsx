@@ -81,11 +81,18 @@ export default function CnxTicker({
     }
     if (flights) {
       const total = flights.airborne.length + flights.ground.length;
+      // Same rule as the FIRMS segment above: the number shown is the number
+      // we can draw, and anything the plausibility screen withheld is named
+      // rather than quietly missing. A total that silently shrinks reads as
+      // "the sky cleared", which is the one thing this board must not imply.
+      const withheld = (flights.quality?.rejected ?? 0) + (flights.quality?.nulled ?? 0);
       out.push({
         key: "flights",
         icon: "✈",
         label: t("น่านฟ้า", "Airspace"),
-        value: t(`${total} ลำ`, `${total} aircraft`),
+        value: withheld
+          ? t(`${total} ลำ · ไม่ผ่านเกณฑ์ ${withheld}`, `${total} aircraft · ${withheld} withheld`)
+          : t(`${total} ลำ`, `${total} aircraft`),
       });
     }
     if (social) {
