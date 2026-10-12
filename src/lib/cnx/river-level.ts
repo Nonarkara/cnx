@@ -454,12 +454,56 @@ export function severityFor(belowBankM: number | null, headroomM: number | null)
 
 // ─── Projection ─────────────────────────────────────────────────
 
+/**
+ * Physical plausibility bounds for a Thai river gauge.
+ *
+ * projectGauge used to accept ANY finite `waterlevel_msl` as a measurement.
+ * A corrupt or mis-scaled value — -9999, 99999, a datum error — then became
+ * a river level, fed severityFor, and could move the province's flood verdict.
+ * A civic board must not raise an alert on a number that cannot be a river.
+ *
+ * The bank-relative check is the one that does the real work: each station
+ * publishes its own bank level, and no river in Thailand sits 20 m from its
+ * own bank. That check is self-calibrating per station and needs no
+ * assumption about where in the country the station is.
+ *
+ * The absolute band is only a garbage filter — deliberately set ABOVE the
+ * highest point in Thailand (Doi Inthanon, 2,565 m), because a first pass
+ * used 0–1,000 m and was WRONG: live gauge FOP064 reads 1,183.78 m MSL in
+ * the Ping headwaters and the band would have deleted a real station. A
+ * constant guessed from geography will always lose to geography.
+ *
+ * These bounds REJECT; they never clamp. Clamping would publish a fabricated
+ * river level, which is the one thing this layer must not do. Rejected rows
+ * are counted and surfaced (see `skipped` below).
+ */
+export const PLAUSIBLE_LEVEL_MIN_MSL = 0;
+export const PLAUSIBLE_LEVEL_MAX_MSL = 3_000;
+/** Ping peaks are a few thousand m³/s; 100,000 is far above any Thai river. */
+export const PLAUSIBLE_DISCHARGE_MAX_M3S = 100_000;
+/**
+ * Metres away from the station's own bank level that a reading may sit.
+ * 20 m, not 50: the 2011 Ping flood peaked around 5–6 m over bank, so 20 m
+ * is still 3× beyond anything observed in Thailand — while a datum or
+ * scaling fault is off by tens of metres. A 50 m tolerance was tried first
+ * and rejected: it let a reading 46 m ABOVE its own bank through, which is
+ * not a flood, it is a fault.
+ */
+export const PLAUSIBLE_BANK_DELTA_M = 20;
+
 export function projectGauge(row: UpstreamRow): RiverGauge | null {
   const st = row.station;
   if (!st) return null;
 
   const levelMsl = num(row.waterlevel_msl);
   if (levelMsl === null) return null; // nothing measured; never invent
+  // Reject, never clamp. See PLAUSIBLE_LEVEL_MIN_MSL above: a fabricated
+  // river level is worse than a missing one, because a missing one is
+  // visible as missing and a fabricated one is not.
+  if (levelMsl < PLAUSIBLE_LEVEL_MIN_MSL || levelMsl > PLAUSIBLE_LEVEL_MAX_MSL) return null;
+
+  const dischargeRaw = num(row.discharge);
+  if (dischargeRaw !== null && (dischargeRaw < 0 || dischargeRaw > PLAUSIBLE_DISCHARGE_MAX_M3S)) return null;
 
   const lat = num(st.tele_station_lat);
   const lng = num(st.tele_station_long);
@@ -470,6 +514,11 @@ export function projectGauge(row: UpstreamRow): RiverGauge | null {
 
   const bankLevelMsl = num(st.min_bank);
   const criticalLevelMsl = num(st.critical_level_msl);
+
+  // The station's own bank level is the tightest check available, and it
+  // needs no history: a reading far from its published bank is a datum or
+  // scaling fault, not a flood.
+  if (bankLevelMsl !== null && Math.abs(levelMsl - bankLevelMsl) > PLAUSIBLE_BANK_DELTA_M) return null;
 
   // Prefer the source's own bank delta; fall back to the arithmetic
   // only when it is absent, and never contradict it when present.
@@ -493,7 +542,7 @@ export function projectGauge(row: UpstreamRow): RiverGauge | null {
     criticalLevelMsl,
     headroomM,
     keyStation: st.is_key_station === true,
-    dischargeM3s: num(row.discharge),
+    dischargeM3s: dischargeRaw,
     agency: bi(row.agency?.agency_shortname, "en") ?? bi(row.agency?.agency_shortname, "th") ?? "unknown",
     severity: severityFor(belowBankM, headroomM),
     sourceSituationCode: typeof row.situation_level === "number" ? row.situation_level : null,
