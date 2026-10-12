@@ -5,9 +5,10 @@
 // a danger accent since this one matters most when things are already
 // going wrong.
 //
-// Curated from three sources so numbers aren't invented:
-//   - Chiang Mai PAO / municipal storm hotlines (operator-provided,
-//     Sep 2026)
+// Curated from published sources so numbers aren't invented:
+//   - Provincial hotline 1567 and national EMS 1669 (public short codes)
+//   - Chiang Mai municipal traffic landline, kept as an organisation
+//     switchboard. Personal duty mobiles are not published.
 //   - changpuakmagazine.com/en-article/EMERGENCY/751083
 //   - chiangmailocator.com/wiki-emergency-telephone-numbers-chiang-mai-p98
 // Every entry keeps its source so a stale number can be traced back
@@ -40,11 +41,13 @@ const GROUPS: HotlineGroup[] = [
   {
     titleTh: "รับมือพายุ / น้ำท่วม (เทศบาลนครเชียงใหม่)",
     titleEn: "Storm / flood response (Chiang Mai municipal)",
-    source: { th: "ผู้ดูแลระบบให้ข้อมูล ก.ย. 2569", en: "Operator-provided, Sep 2026" },
+    source: {
+      th: "สายด่วนจังหวัด 1567 และหน่วยแพทย์ 1669 เป็นหมายเลขสาธารณะ — ไม่เผยแพร่เบอร์มือถือส่วนบุคคล",
+      en: "Provincial hotline 1567 and EMS 1669 are public numbers. Personal mobiles are not published.",
+    },
     entries: [
-      { labelTh: "CMFORCE (เทศบาลนครเชียงใหม่)", labelEn: "CMFORCE (Chiang Mai Municipality)", phone: "083-905-3186 / 062-112-2500" },
       { labelTh: "สายด่วนจังหวัดเชียงใหม่", labelEn: "Chiang Mai Provincial Hotline", phone: "1567" },
-      { labelTh: "จราจร / ถนนน้ำท่วม / อุบัติเหตุ", labelEn: "Traffic / Flooded Roads / Accidents", phone: "053-235595" },
+      { labelTh: "จราจร / ถนนน้ำท่วม / อุบัติเหตุ (เทศบาลนครเชียงใหม่)", labelEn: "Traffic / Flooded Roads / Accidents (Chiang Mai Municipality)", phone: "053-235595" },
       { labelTh: "หน่วยแพทย์ฉุกเฉิน อบจ.เชียงใหม่", labelEn: "Chiang Mai PAO EMS (Medical Emergency)", phone: "1669" },
     ],
   },
