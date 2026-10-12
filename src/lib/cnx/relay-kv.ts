@@ -68,7 +68,40 @@ export async function readBoundedJson(request: Request): Promise<{ body: unknown
   }
 }
 
-/** POST handler body: secret check, 1 MB cap, JSON parse, validation, store. */
+/** Extract an ISO `generatedAt` from an unvalidated body, or null. */
+function generatedAtOf(body: unknown): number | null {
+  if (!isObj(body)) return null;
+  const raw = body.generatedAt;
+  if (typeof raw !== "string") return null;
+  const t = Date.parse(raw);
+  return Number.isFinite(t) ? t : null;
+}
+
+function safeParse(raw: string | null | undefined): unknown {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * POST handler body: secret check, 1 MB cap, JSON parse, validation, store.
+ *
+ * Replay defence: a push is accepted only if it is STRICTLY NEWER than
+ * whatever is already stored. Every ingest route shares one static secret,
+ * so anyone who ever captures one POST body plus the header can resend it
+ * indefinitely; without this, a captured payload replayed on a timer pins
+ * the board to a stale-but-inside-the-freshness-window reading — a civic
+ * dashboard showing old data as current. Monotonicity closes that with no
+ * new headers, no new secrets, and no clock sync between relay and edge.
+ *
+ * Known limit, stated rather than hidden: KV reads are eventually
+ * consistent, so a read can return a slightly stale value and let one
+ * replayed push through in a narrow race. That bounds the harm rather than
+ * eliminating it; a complete fix needs a Durable Object or signed nonces.
+ */
 export async function ingestRelayJson<T>(request: Request, key: string, isValid: Guard<T>, ttlSeconds: number): Promise<Response> {
   const secret = process.env.CNX_FLIGHTS_RELAY_SECRET;
   if (!secret) return NextResponse.json({ error: "relay ingest not configured" }, { status: 503 });
@@ -81,6 +114,22 @@ export async function ingestRelayJson<T>(request: Request, key: string, isValid:
   if (!isValid(body)) return NextResponse.json({ error: "payload failed validation" }, { status: 422 });
   const store = await cnxKv();
   if (!store) return NextResponse.json({ error: "CNX_FLIGHTS_KV binding missing" }, { status: 500 });
+
+  const incomingAt = generatedAtOf(body);
+  if (incomingAt !== null) {
+    const heldAt = generatedAtOf(safeParse(await store.get(key)));
+    if (heldAt !== null && incomingAt <= heldAt) {
+      return NextResponse.json(
+        {
+          error: "stale push rejected — a replayed or out-of-order payload does not overwrite newer data",
+          held: new Date(heldAt).toISOString(),
+          received: new Date(incomingAt).toISOString(),
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   await store.put(key, JSON.stringify(body), { expirationTtl: ttlSeconds });
   return NextResponse.json({ ok: true });
 }

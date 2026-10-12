@@ -62,17 +62,44 @@ function gridPoints(g: FieldGrid): { lats: string; lons: string } {
 type Hourly = Record<string, (number | null)[] | undefined> & { time?: number[] };
 type Located = { hourly?: Hourly };
 
+/**
+ * Why the last upstream refresh failed, for the note the board shows.
+ * Every failure mode used to collapse to `null` and reach the operator as
+ * "the forecast model did not answer", which is true but useless: on
+ * 2026-10-12 the layer went dark because Open-Meteo answered HTTP 429
+ * "Daily API request limit exceeded" — a quota that resets tomorrow, not an
+ * outage. Naming the status is the difference between an operator knowing
+ * to wait and an operator hunting a fault that is not there.
+ *
+ * Module-scoped because getLocations is called ~340 times per refresh and
+ * is deliberately not threaded with an error channel.
+ */
+let lastUpstreamReason: string | null = null;
+
+export function lastForecastFailureReason(): string | null {
+  return lastUpstreamReason;
+}
+
 async function getLocations(base: string, g: FieldGrid, vars: string[], hours: number): Promise<Located[] | null> {
   const { lats, lons } = gridPoints(g);
   const extra = base === FORECAST_URL ? "&wind_speed_unit=ms" : "";
   const url = `${base}?latitude=${lats}&longitude=${lons}&hourly=${vars.join(",")}&forecast_hours=${hours}&timeformat=unixtime&timezone=GMT${extra}`;
+  const host = base === FORECAST_URL ? "Open-Meteo forecast" : "Open-Meteo air quality";
   try {
     const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(20_000) });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      lastUpstreamReason = lastUpstreamReason ?? `${host}: HTTP ${res.status}`;
+      return null;
+    }
     const body: unknown = await res.json();
     const list = Array.isArray(body) ? body : [body];
-    return list.length === g.nx * g.ny ? (list as Located[]) : null;
-  } catch {
+    if (list.length !== g.nx * g.ny) {
+      lastUpstreamReason = lastUpstreamReason ?? `${host}: expected ${g.nx * g.ny} grid cells, got ${list.length}`;
+      return null;
+    }
+    return list as Located[];
+  } catch (e) {
+    lastUpstreamReason = lastUpstreamReason ?? `${host}: ${(e as Error).name === "TimeoutError" ? "timed out after 20 s" : (e as Error).message}`;
     return null;
   }
 }
@@ -127,6 +154,9 @@ function alignFrames(srcTimes: number[], frames: Frames, targetTimes: number[], 
 }
 
 async function fetchUpstream(): Promise<Stored | null> {
+  // Per-attempt, not per-process: a reason from an hour-old 429 must not be
+  // quoted as the cause of this morning's failure.
+  lastUpstreamReason = null;
   const windVars = ["wind_speed_10m", "wind_direction_10m", "wind_speed_850hPa", "wind_direction_850hPa"];
   const [fine, aq, coarse] = await Promise.all([
     getLocations(FORECAST_URL, FINE_GRID, [...windVars, "precipitation"], FINE_HOURS),
@@ -261,7 +291,7 @@ export async function fetchForecastField(nowMs = Date.now()): Promise<ForecastFi
       fetchedAt: null,
       provenance: "unavailable",
       source: SOURCE,
-      note: "The forecast model did not answer and no recent run is stored — no wind, rain or PM2.5 forecast is shown, which is not a calm forecast.",
+      note: `The forecast model did not answer and no recent run is stored — no wind, rain or PM2.5 forecast is shown, which is not a calm forecast.${lastUpstreamReason ? ` Last read: ${lastUpstreamReason}.` : ""}`,
       field: null,
       outlook: [],
     };
