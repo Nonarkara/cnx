@@ -84,6 +84,47 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
+/**
+ * The wind-direction arrow at the city point — the one glyph that says "this
+ * moving thing is wind" rather than leaving it to be inferred from motion.
+ *
+ * It points DOWNWIND, the way the air is actually moving, because that is what
+ * an arrow means to almost every reader. The bar's text readout says where the
+ * wind comes FROM, which is the opposite end. Those are two different facts
+ * about one vector, so both are shown and the legend names the arrow
+ * explicitly — otherwise an arrow pointing south beside the words "from the
+ * north" reads as the board contradicting itself.
+ */
+function drawWindArrow(
+  ctx: CanvasRenderingContext2D,
+  at: [number, number],
+  fromDeg: number,
+  rgb: string,
+) {
+  const toDeg = (fromDeg + 180) % 360;
+  const R = 26;
+  ctx.save();
+  ctx.translate(at[0], at[1]);
+  // Screen y grows downward while a bearing is clockwise from north, so a
+  // due-east wind (90°) must leave the +x-pointing shape unrotated.
+  ctx.rotate(((toDeg - 90) * Math.PI) / 180);
+  ctx.beginPath();
+  ctx.moveTo(-R, -3.5);
+  ctx.lineTo(R - 11, -3.5);
+  ctx.lineTo(R - 11, -10);
+  ctx.lineTo(R, 0);
+  ctx.lineTo(R - 11, 10);
+  ctx.lineTo(R - 11, 3.5);
+  ctx.lineTo(-R, 3.5);
+  ctx.closePath();
+  ctx.fillStyle = `rgba(${rgb},0.92)`;
+  ctx.fill();
+  ctx.strokeStyle = `rgba(${rgb},0.92)`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
 export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, tone }: Props) {
   const { lang, t: tr } = useLang();
   const field = forecast?.field ?? null;
@@ -97,6 +138,12 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
   const basisRef = useRef<ScreenBasis | null>(null);
   const gridRef = useRef<VelocityGrid | null>(null);
   const movingRef = useRef(false);
+  /** City point in screen space, for the wind arrow. Updated with the basis. */
+  const cityScreenRef = useRef<[number, number] | null>(null);
+  /** "Wind comes FROM" bearing at the city, for the current hour and level.
+   *  Held in a ref because the render loop must not re-subscribe every time
+   *  the scrubber moves; `rebuildGrid` already tracks exactly these inputs. */
+  const windArrowRef = useRef<number | null>(null);
 
   const maxHour = field ? field.times.length - 1 : 0;
   const t = field ? field.times[Math.min(hour, maxHour)] : 0;
@@ -124,6 +171,8 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
   const rebuildGrid = useCallback(() => {
     const basis = basisRef.current;
     gridRef.current = basis && field && windOn ? buildVelocityGrid(field, level, t, basis, MOTION_K) : null;
+    const w = field ? windReadout(field, level, CITY[0], CITY[1], t) : null;
+    windArrowRef.current = w ? w.fromDeg : null;
   }, [field, level, t, windOn]);
   // The view listener must not re-subscribe (and re-unproject the whole
   // screen) on every forecast hour, so it reads the latest rebuild via a ref.
@@ -152,6 +201,8 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
         (ll) => map.project(ll),
         (px) => map.unproject(px),
       );
+      const city = map.project(CITY);
+      cityScreenRef.current = [city.x, city.y];
       rebuildGridRef.current();
       movingRef.current = false;
     };
@@ -226,6 +277,9 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
           }
           ctx.stroke();
         });
+        const city = cityScreenRef.current;
+        const bearing = windArrowRef.current;
+        if (city && bearing !== null) drawWindArrow(ctx, city, bearing, rgb);
       };
       draw();
       const timer = window.setInterval(() => {
@@ -305,6 +359,9 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
           ctx.stroke(paths[sb * TAIL_BUCKETS + tb]);
         }
       }
+      const city = cityScreenRef.current;
+      const bearing = windArrowRef.current;
+      if (city && bearing !== null) drawWindArrow(ctx, city, bearing, rgb);
     };
     raf = window.requestAnimationFrame(frame);
     return () => {

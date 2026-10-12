@@ -64,6 +64,7 @@ function MapLoading() {
   return <div role="status" className="flex h-full items-center justify-center text-sm text-[var(--dim)]">{t("กำลังเปิดแผนที่…", "Opening operational map…")}</div>;
 }
 const CNXMap = dynamic(() => import("./CNXMap"), { ssr: false, loading: () => <MapLoading /> });
+const CnxGlyphLegend = dynamic(() => import("./CNXGlyphLegend"), { ssr: false });
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
@@ -594,6 +595,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             shelters={shelters?.shelters ?? []}
             shelterFocus={shelterFocus}
           />
+          <CnxGlyphLegend />
         </section>
 
         {/* The desk changes topic without burying other hazards below long gauge lists. */}

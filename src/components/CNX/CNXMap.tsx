@@ -24,6 +24,7 @@
 // rejected the source, so the 3D layer never rendered.
 
 import { RAIN_BAND_TH, summariseRain, type RainBand, type RainStation } from "../../lib/cnx/rain-core";
+import { GLYPH_ATLAS, GLYPH_MAPPING } from "../../lib/cnx/map-glyphs";
 import { useLang } from "../../hooks/useLang";
 import { clampView } from "../../lib/cnx/map-bounds";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
@@ -841,22 +842,29 @@ export default function CNXMap({
       pickable: true,
     });
 
-    // Fire hotspots — FIRMS bright dots, fixed-pixel size.
-    const fireLayer = new ScatterplotLayer<FireHotspot>({
+    // Fire hotspots — a FLAME, not a dot. Fire, rain gauges, flood gauges and
+    // citizen reports were all `ScatterplotLayer` circles separated only by hue
+    // and a pixel or two of radius; on a haze-washed basemap an orange circle
+    // is genuinely ambiguous. Shape settles it, and survives to a colour-blind
+    // operator and across a room.
+    const fireLayer = new IconLayer<FireHotspot>({
       id: "cnx-fires",
       data: fireHotspots,
       getPosition: (d) => [d.longitude, d.latitude],
-      getRadius: 5,
-      radiusUnits: "pixels",
-      getFillColor: (d) =>
+      getIcon: () => "flame",
+      iconAtlas: GLYPH_ATLAS,
+      iconMapping: GLYPH_MAPPING,
+      getColor: (d) =>
         d.severity === "critical"
         ? [255, 60, 30, 235]
         : d.severity === "alert"
         ? [255, 140, 0, 220]
         : [255, 200, 0, 200],
-      getLineColor: () => [255, 220, 0, 230],
-      lineWidthMinPixels: 1,
-      stroked: true,
+      // Fire radiative power, not severity, drives the size: a hotspot can be
+      // high severity and tiny (a grassland burn) or modest and large. The old
+      // fixed 5 px circle threw that away.
+      getSize: (d) => 11 + Math.min(11, Math.max(0, (d.frp ?? 0) / 15)),
+      sizeUnits: "pixels",
       pickable: true,
     });
 
@@ -932,17 +940,22 @@ export default function CNXMap({
       stroked: true,
       pickable: false,
     });
-    // Rain gauges: sized by the 24 h total, darkest for very heavy rain.
-    const rainLayer = new ScatterplotLayer<RainStation>({
+    // Rain gauges — a DROPLET, sized by the measured 24 h total. The droplet is
+    // narrow and tall against the fire flame's wide, squat silhouette, so the
+    // two cannot be confused when both are on screen. This is a MEASUREMENT
+    // (a gauge total), never the forecast raster beside it — the legend says so
+    // explicitly, because two blue things meaning different things is exactly
+    // how a number/label split happens.
+    const rainLayer = new IconLayer<RainStation>({
       id: "cnx-rain",
       data: rainOn ? wetStations : [],
       getPosition: (d) => [d.lon, d.lat],
-      getRadius: (d) => 4 + Math.min(10, d.rain24h / 10),
-      radiusUnits: "pixels",
-      getFillColor: (d) => (d.band === "very-heavy" ? [30, 64, 175, 235] : d.band === "heavy" ? [37, 99, 235, 220] : [96, 165, 250, 190]),
-      getLineColor: [255, 255, 255, 230],
-      lineWidthMinPixels: 1,
-      stroked: true,
+      getIcon: () => "droplet",
+      iconAtlas: GLYPH_ATLAS,
+      iconMapping: GLYPH_MAPPING,
+      getColor: (d) => (d.band === "very-heavy" ? [30, 64, 175, 235] : d.band === "heavy" ? [37, 99, 235, 220] : [96, 165, 250, 200]),
+      getSize: (d) => 11 + Math.min(13, d.rain24h / 8),
+      sizeUnits: "pixels",
       pickable: true,
     });
     const citizenLayer = new ScatterplotLayer<CitizenReport>({
