@@ -30,6 +30,7 @@ import { pipeline } from "node:stream/promises";
 import { inflateRawSync } from "node:zlib";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactPersonalContactText, withPersonalContactCredit } from "./redact-personal-contacts.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "..", "public", "data", "cnx", "data-library");
@@ -336,12 +337,18 @@ function analyseColumns(header, dataRows) {
 function toTable(rows, meta) {
   if (!rows || rows.length < 2) return null;
   const width = Math.min(MAX_COLS, Math.max(...rows.slice(0, 50).map((r) => r.length)));
-  const header = Array.from({ length: width }, (_, i) => rows[0][i] ?? "");
   const body = rows.slice(1);
+  let personalContactsRedacted = false;
   const clip = (v) => {
-    const s = v === null || v === undefined ? "" : typeof v === "number" ? v : String(v);
+    let s = v === null || v === undefined ? "" : typeof v === "number" ? v : String(v);
+    if (typeof s === "string") {
+      const next = redactPersonalContactText(s);
+      if (next !== s) personalContactsRedacted = true;
+      s = next;
+    }
     return typeof s === "string" && s.length > MAX_CELL ? `${s.slice(0, MAX_CELL)}…` : s;
   };
+  const header = Array.from({ length: width }, (_, i) => clip(rows[0][i] ?? ""));
   const rowCap = Math.max(50, Math.min(PREVIEW_ROWS, Math.floor(CELL_BUDGET / Math.max(1, width))));
   const preview = body.slice(0, rowCap).map((r) => Array.from({ length: width }, (_, i) => clip(r[i])));
   const analysis = analyseColumns(header, preview);
@@ -353,6 +360,7 @@ function toTable(rows, meta) {
     totalRows,
     truncated: totalRows > preview.length || meta.partial === true,
     columnsTruncated: Math.max(...rows.slice(0, 50).map((r) => r.length)) > MAX_COLS,
+    personalContactsRedacted,
   };
 }
 
@@ -528,11 +536,15 @@ async function processDataset(pkg) {
   const status = tables.length ? "ready" : resources.some((r) => /^https?:/i.test(r.url) && r.format !== "URL") ? "files" : "link";
 
   const formats = [...new Set(resources.map((r) => r.format))].filter((f) => f !== "?");
+  const personalContactsRedacted = tables.some((t) => t.personalContactsRedacted);
+  for (const t of tables) delete t.personalContactsRedacted;
   const detail = {
     id: pkg.id,
     name: pkg.name,
     title: pkg.title,
-    notes: pkg.notes || "",
+    notes: personalContactsRedacted
+      ? withPersonalContactCredit(pkg.notes || "", { org: pkg.organization?.title ?? "", portalUrl: `https://data.go.th/dataset/${pkg.name}` })
+      : (pkg.notes || ""),
     org: pkg.organization?.title ?? "",
     domain: domain.key,
     tags: (pkg.tags ?? []).map((t) => t.name),

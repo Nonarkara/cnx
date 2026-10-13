@@ -15,6 +15,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactPersonalContactText } from "./redact-personal-contacts.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Single destination: `public/data/cnx/bus-routes.geojson`. The
@@ -85,7 +86,7 @@ async function main() {
         name: el.tags.name ?? el.tags["name:th"] ?? `Stop ${el.id}`,
         longitude: el.lon,
         latitude: el.lat,
-        operator: el.tags.operator ?? el.tags.network ?? "Unknown",
+        operator: redactPersonalContactText(el.tags.operator ?? el.tags.network ?? "Unknown"),
         routeRef: el.tags.ref ?? "",
       });
     } else if (el.type === "relation" && (el.tags?.route === "bus" || el.tags?.route === "minibus")) {
@@ -105,7 +106,7 @@ async function main() {
           id: `route-${el.id}`,
           ref: el.tags.ref ?? el.tags.name ?? el.tags["name:th"] ?? `Route ${el.id}`,
           name: el.tags.name ?? el.tags["name:th"] ?? el.tags["name:en"] ?? "",
-          operator: el.tags.operator ?? el.tags.network ?? "Unknown",
+          operator: redactPersonalContactText(el.tags.operator ?? el.tags.network ?? "Unknown"),
           colour: el.tags.colour ?? "#1d2951",
           geometry: segments,
         });
@@ -119,6 +120,7 @@ async function main() {
     {
       meta: {
         source: "OpenStreetMap (ODbL), via Overpass",
+        contactNote: "Personal mobile numbers were removed from operator fields. Place names are unchanged. Source: OpenStreetMap (ODbL), via Overpass.",
         generatedAt: new Date().toISOString(),
         bbox: BBOX,
         scope: "bus-routes",
