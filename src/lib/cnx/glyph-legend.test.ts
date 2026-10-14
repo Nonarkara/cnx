@@ -93,6 +93,15 @@ describe("the key cannot drift from the map", () => {
     expect(arrow?.labelEn.toLowerCase()).toContain("where the air is moving");
     expect(arrow?.labelTh).toContain("ทางที่ลมพัดไป");
   });
+
+  it("names the moving lines as wind and the rain forecast as a colour wash", () => {
+    const streaks = LEGEND_ROWS.find((r) => r.id === "wind-streaks");
+    const rain = LEGEND_ROWS.find((r) => r.id === "rain-forecast");
+    expect(streaks?.labelEn).toContain("Moving lines are wind");
+    expect(streaks?.labelTh).toContain("เส้นที่เคลื่อนคือลม");
+    expect(rain?.labelEn.toLowerCase()).toContain("colour wash");
+    expect(rain?.labelTh).toContain("สีบนแผนที่");
+  });
 });
 
 describe("legend colours match the map", () => {

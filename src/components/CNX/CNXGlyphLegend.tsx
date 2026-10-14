@@ -51,8 +51,8 @@ export const LEGEND_ROWS: LegendRow[] = [
   {
     id: "wind-streaks",
     shape: "streak",
-    labelTh: "เส้นลม (ความเร็วตามความยาวและความสว่าง)",
-    labelEn: "Wind streaks (length and brightness = speed)",
+    labelTh: "เส้นที่เคลื่อนคือลม (สว่างและเร็วกว่าคือลมแรงกว่า)",
+    labelEn: "Moving lines are wind (brighter and faster means stronger)",
     originTh: "แบบจำลอง",
     originEn: "model",
     color: null,
@@ -69,8 +69,8 @@ export const LEGEND_ROWS: LegendRow[] = [
   {
     id: "rain-forecast",
     shape: "rainRamp",
-    labelTh: "ฝนพยากรณ์ (มม./ชม.)",
-    labelEn: "Rain forecast (mm/h)",
+    labelTh: "ฝนพยากรณ์ เป็นสีบนแผนที่ (มม./ชม.)",
+    labelEn: "Rain forecast, the colour wash (mm/h)",
     originTh: "แบบจำลอง",
     originEn: "model",
     color: "rgb(8,81,156)",
@@ -162,7 +162,10 @@ export default function CnxGlyphLegend() {
         className="flex min-h-9 items-center gap-2 px-2 text-[12px] font-semibold"
       >
         <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-        {th ? "กุญแจสัญลักษณ์" : "Symbol key"}
+        <span className="flex flex-col items-start leading-tight">
+          <span>{th ? "กุญแจสัญลักษณ์" : "Symbol key"}</span>
+          <span className="font-normal text-[var(--dim)]">{th ? "เส้นที่เคลื่อนคือลม" : "Moving lines are wind"}</span>
+        </span>
       </button>
       {open && (
         <ul className="max-h-[52vh] overflow-y-auto border-t border-[var(--line)] px-2 py-1.5 text-[12px]">

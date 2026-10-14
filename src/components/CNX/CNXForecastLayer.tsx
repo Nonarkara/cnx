@@ -1,9 +1,10 @@
 "use client";
 
-// The forecast layer: wind drawn as moving streaks (the classic
+// The forecast layer: wind drawn as moving arrows (the classic
 // earth.nullschool reading — direction by motion, strength by length and
-// brightness), with the rain or PM2.5 forecast as a soft field beneath the
-// map labels, and one time scrubber from "now" to +48 h.
+// brightness), with the rain or PM2.5 forecast as a soft colour wash beneath
+// the map labels, and one time scrubber from "now" to +48 h.
+// The bar names both, because a field of moving lines otherwise reads as rain.
 //
 // Why it is built this way:
 //   - Particles live in screen space and read a velocity grid that is
@@ -434,6 +435,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
           </p>
         ) : (
           <>
+            <ForecastMarksKey windOn={windOn} level={level} overlay={overlay} reducedMotion={reducedMotion} />
             <div className="flex items-center gap-2 px-2 pt-2">
               <button
                 type="button"
@@ -488,7 +490,17 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
             <p className="border-t border-[var(--line)] px-2 py-1.5 text-[12px] leading-snug text-[var(--dim)]">
               {wind && windOn ? (
                 <>
-                  {lang === "en" ? <>City: wind from the <b className="font-semibold text-[var(--ink)]">{compassEn(wind.fromDeg)}</b> {wind.speed.toFixed(1)} m/s ({(wind.speed * 3.6).toFixed(0)} km/h)</> : <>ตัวเมือง: ลมจาก<b className="font-semibold text-[var(--ink)]">{compassTh(wind.fromDeg)}</b> {wind.speed.toFixed(1)} ม./วิ ({(wind.speed * 3.6).toFixed(0)} กม./ชม.)</>}
+                  {lang === "en" ? (
+                    <>
+                      City: wind from the <b className="font-semibold text-[var(--ink)]">{compassEn(wind.fromDeg)}</b> {wind.speed.toFixed(1)} m/s ({(wind.speed * 3.6).toFixed(0)} km/h)
+                      {wind.speed >= 0.5 ? <>. Arrow points {compassEn((wind.fromDeg + 180) % 360)}, where the air is going.</> : null}
+                    </>
+                  ) : (
+                    <>
+                      ตัวเมือง: ลมจาก<b className="font-semibold text-[var(--ink)]">{compassTh(wind.fromDeg)}</b> {wind.speed.toFixed(1)} ม./วิ ({(wind.speed * 3.6).toFixed(0)} กม./ชม.)
+                      {wind.speed >= 0.5 ? <> ลูกศรชี้{compassTh((wind.fromDeg + 180) % 360)} ทางที่อากาศไป</> : null}
+                    </>
+                  )}
                 </>
               ) : null}
               {rainNow !== null && <> · {tr(`ฝน ${rainNow.toFixed(1)} มม./ชม.`, `rain ${rainNow.toFixed(1)} mm/h`)}</>}
@@ -502,6 +514,67 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
       </section>
     </>
   );
+}
+
+function ForecastMarksKey({ windOn, level, overlay, reducedMotion }: { windOn: boolean; level: WindLevel; overlay: ForecastOverlay; reducedMotion: boolean }) {
+  const { t } = useLang();
+  if (!windOn && overlay === "none") return null;
+  const windWhere = level === "10m"
+    ? t("ลมผิวพื้น สูง 10 เมตร", "Surface wind, 10 m up")
+    : t("ลมพาควัน สูงประมาณ 1.5 กิโลเมตร", "Smoke wind, about 1.5 km up");
+  return (
+    <div role="note" aria-label={t("คำอธิบายลูกศรและสีบนแผนที่", "What the arrows and colours on the map are")} className="border-b border-[var(--line)] px-2 py-1.5 text-[12px] leading-snug text-[var(--dim)]">
+      {windOn && (
+        <p className="flex items-start gap-2">
+          <WindArrowGlyph />
+          <span>
+            <b className="font-semibold text-[var(--ink)]">{reducedMotion ? t("เส้นนิ่งบนแผนที่คือลม", "The still lines are wind") : t("เส้นที่เคลื่อนบนแผนที่คือลม", "The moving lines are wind")}</b>
+            {" · "}
+            {windWhere}
+            {". "}
+            {reducedMotion
+              ? t("เส้นวางตามทางที่อากาศเคลื่อน เส้นที่สว่างกว่าคือลมที่แรงกว่า", "They lie along the way the air is moving. A brighter line is stronger wind.")
+              : t("เส้นวิ่งไปทางที่อากาศเคลื่อน เส้นที่สว่างและเร็วกว่าคือลมที่แรงกว่า", "They travel the way the air is moving. A brighter, faster line is stronger wind.")}
+            {" "}
+            {t("ลูกศรที่ตัวเมืองชี้ไปทางที่อากาศไป บรรทัดตัวเมืองบอกว่าลมมาจากทางไหน", "The arrow at the city points where the air is going. The city line says where the wind comes from.")}
+            {overlay === "none" ? ` ${t("ฝนเป็นสีบนแผนที่ กดปุ่มฝนเพื่อแสดง", "Rain is a colour wash. Press Rain to show it.")}` : ""}
+          </span>
+        </p>
+      )}
+      {overlay === "rain" && (
+        <p className={`flex items-start gap-2 ${windOn ? "mt-1" : ""}`}>
+          <RainWashGlyph />
+          <span>
+            <b className="font-semibold text-[var(--ink)]">{t("สีบนแผนที่คือฝน", "The colour wash is rain")}</b>
+            {" · "}
+            {t("หน่วยมิลลิเมตรต่อชั่วโมง", "millimetres per hour")}
+          </span>
+        </p>
+      )}
+      {overlay === "pm25" && (
+        <p className={`flex items-start gap-2 ${windOn ? "mt-1" : ""}`}>
+          <span aria-hidden="true" className="mt-0.5 inline-block h-2.5 w-7 shrink-0 bg-[rgb(234,88,12)]" />
+          <span>
+            <b className="font-semibold text-[var(--ink)]">{t("สีบนแผนที่คือ PM2.5", "The colour wash is PM2.5")}</b>
+            {windOn ? t(" เส้นยังเป็นลม", " The lines remain the wind.") : ""}
+          </span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WindArrowGlyph() {
+  return (
+    <svg aria-hidden="true" width="36" height="14" viewBox="0 0 36 14" className="mt-0.5 shrink-0 text-[var(--ink)]">
+      <path d="M2 9 C 12 9, 18 4, 26 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M22 1.2 L 31 4 L 22 6.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function RainWashGlyph() {
+  return <span aria-hidden="true" className="mt-0.5 inline-block h-2.5 w-7 shrink-0" style={{ background: "linear-gradient(90deg, rgba(158,202,225,.45), rgb(66,146,198), rgb(8,81,156), rgb(63,0,125))" }} />;
 }
 
 function ChipButton({ pressed, onClick, children, title, disabled }: { pressed: boolean; onClick: () => void; children: React.ReactNode; title?: string; disabled?: boolean }) {
@@ -524,7 +597,7 @@ function Legend({ overlay }: { overlay: Exclude<ForecastOverlay, "none"> }) {
   if (overlay === "rain") {
     return (
       <div className="flex items-center gap-2 border-t border-[var(--line)] px-2 py-1.5 text-[12px] text-[var(--dim)]">
-        <span>{t("ฝน มม./ชม.", "Rain mm/h")}</span>
+        <span>{t("สีฝน มม./ชม.", "Rain colour, mm/h")}</span>
         <span aria-hidden="true" className="h-2 flex-1" style={{ background: "linear-gradient(90deg, rgba(158,202,225,.45), rgb(66,146,198), rgb(8,81,156), rgb(63,0,125))" }} />
         <span className="tabular-nums">0.5 · 2.5 · 7.6 · 20+</span>
       </div>
