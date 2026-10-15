@@ -334,7 +334,7 @@ export default function CnxTopBar(props: TopBarProps) {
           </button>
 <button
             onClick={onOpenEmergency}
-            aria-label={t("ติดต่อฉุกเฉิน", "Emergency contacts")}
+            aria-label={t("ติดต่อฉุกเฉิน", "SOS — Emergency contacts")}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
           >
             <PhoneCall className="h-3 w-3" />
