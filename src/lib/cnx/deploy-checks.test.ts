@@ -32,7 +32,13 @@ describe("release route inventory", () => {
   it("does not accept unavailable data or partially unstamped gauges as a live river expectation", () => {
     expect(checkRiverPayload({ provenance: "unavailable", gauges: [], catalogueCount: null }).length).toBeGreaterThan(0);
     expect(checkRiverPayload({ provenance: "live", gaugeCount: 2, gauges: [{ observedAt: "2026-10-02T00:00:00Z" }, { observedAt: null }], catalogueCount: 128 })).toContain("a gauge has no valid observation time");
-    expect(checkRiverPayload({ provenance: "live", gaugeCount: 1, gauges: [{ observedAt: "2026-10-02T00:00:00Z" }], catalogueCount: 128 })).toEqual([]);
+    expect(checkRiverPayload({ provenance: "live", gaugeCount: 1, gauges: [{ observedAt: new Date().toISOString() }], catalogueCount: 128 })).toEqual([]);
     expect(checkRiverPayload({ provenance: "live", gaugeCount: 1, gauges: [{ observedAt: new Date(Date.now() + 6 * 60_000).toISOString() }], catalogueCount: 128 })).toContain("a gauge observation time is in the future");
+  });
+  it("rejects freshly served river JSON when all observations are stale, but permits older stations alongside a current reading", () => {
+    const old = { observedAt: new Date(Date.now() - 7 * 3_600_000).toISOString() };
+    const base = { provenance: "live", gaugeCount: 1, gauges: [old], catalogueCount: 128, generatedAt: new Date().toISOString() };
+    expect(checkRiverPayload(base)).toContain("river-level has no observation within its 45-minute freshness limit");
+    expect(checkRiverPayload({ ...base, gaugeCount: 2, gauges: [old, { observedAt: new Date().toISOString() }] })).toEqual([]);
   });
 });

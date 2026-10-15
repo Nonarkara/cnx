@@ -146,7 +146,9 @@ export function DataAge({
     setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
-  }, []);
+  // Refresh the clock when a new response arrives between timer ticks;
+  // otherwise a current server timestamp is compared with an old clock.
+  }, [observedAt]);
 
   const { text, tone } = ageVerdict(observedAt, now, staleAfterMs, missing, lang);
 

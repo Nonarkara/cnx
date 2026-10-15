@@ -35,6 +35,10 @@ export function checkRiverPayload(j) {
     if (j.gaugeCount !== j.gauges.length) failures.push("gaugeCount differs from the gauges array");
     if (j.gauges.some((g) => !g.observedAt || !Number.isFinite(Date.parse(g.observedAt)))) failures.push("a gauge has no valid observation time");
     if (j.gauges.some((g) => Date.parse(g.observedAt) > Date.now() + 5 * 60_000)) failures.push("a gauge observation time is in the future");
+    // Match the river feed's declared 45-minute SLO. A freshly relayed
+    // envelope can still contain only old measurements after an outage.
+    const newest = Math.max(...j.gauges.map((g) => Date.parse(g.observedAt)));
+    if (Number.isFinite(newest) && Date.now() - newest > 45 * 60_000) failures.push("river-level has no observation within its 45-minute freshness limit");
   }
   if (!(j.catalogueCount === null || (Number.isFinite(j.catalogueCount) && j.catalogueCount >= 0))) failures.push("catalogueCount must be a nonnegative number or null");
   return failures;
