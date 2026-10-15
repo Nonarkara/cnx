@@ -32,6 +32,16 @@ export function redactPersonalContactText(input) {
   return s.trim();
 }
 
+/** Redact display metadata without rewriting resource identifiers or URLs. */
+export function redactDatasetMetadata(dataset) {
+  return {
+    ...dataset,
+    ...Object.fromEntries(["nameTh", "nameEn", "publisher", "notesTh", "notesEn"].map(key => [key, redactPersonalContactText(dataset[key])])),
+    tags: Array.isArray(dataset.tags) ? dataset.tags.map(redactPersonalContactText) : dataset.tags,
+    resources: Array.isArray(dataset.resources) ? dataset.resources.map(r => ({ ...r, name: redactPersonalContactText(r.name) })) : dataset.resources,
+  };
+}
+
 /**
  * @param {{ org?: string, portalUrl?: string }} source
  * @returns {string}

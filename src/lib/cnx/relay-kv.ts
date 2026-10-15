@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 
 const MAX_BODY_BYTES = 1_048_576;
+const MAX_CLOCK_SKEW_MS = 5 * 60_000;
 
 /**
  * Constant-time secret check. workerd provides crypto.subtle.timingSafeEqual;
@@ -112,13 +113,19 @@ export async function ingestRelayJson<T>(request: Request, key: string, isValid:
   if ("response" in parsed) return parsed.response;
   const { body } = parsed;
   if (!isValid(body)) return NextResponse.json({ error: "payload failed validation" }, { status: 422 });
+  const incomingAt = generatedAtOf(body);
+  const latestAllowedAt = Date.now() + MAX_CLOCK_SKEW_MS;
+  if (incomingAt !== null && incomingAt > latestAllowedAt) {
+    return NextResponse.json({ error: "generatedAt exceeds allowed clock skew" }, { status: 422 });
+  }
   const store = await cnxKv();
   if (!store) return NextResponse.json({ error: "CNX_FLIGHTS_KV binding missing" }, { status: 500 });
 
-  const incomingAt = generatedAtOf(body);
   if (incomingAt !== null) {
     const heldAt = generatedAtOf(safeParse(await store.get(key)));
-    if (heldAt !== null && incomingAt <= heldAt) {
+    // An old writer may have stored a future stamp that readers reject.
+    // Let a valid push repair that unusable copy rather than waiting for TTL.
+    if (heldAt !== null && heldAt <= latestAllowedAt && incomingAt <= heldAt) {
       return NextResponse.json(
         {
           error: "stale push rejected — a replayed or out-of-order payload does not overwrite newer data",
@@ -144,7 +151,7 @@ export async function readRelayJson<T extends { generatedAt: string }>(key: stri
     const parsed: unknown = JSON.parse(raw);
     if (!isValid(parsed)) return null;
     const age = Date.now() - Date.parse(parsed.generatedAt);
-    if (!Number.isFinite(age) || age < -5 * 60_000 || age > maxAgeMs) return null;
+    if (!Number.isFinite(age) || age < -MAX_CLOCK_SKEW_MS || age > maxAgeMs) return null;
     return parsed;
   } catch {
     return null;

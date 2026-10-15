@@ -54,7 +54,7 @@ import CnxOperationalPulse from "./CNXOperationalPulse";
 import CnxMetricEvidence from "./CNXMetricEvidence";
 import CnxWatchBoard from "./CNXWatchBoard";
 import CnxOutlookPanel from "./CNXOutlookPanel";
-import { buildOutlook } from "../../lib/cnx/outlook";
+import { buildOutlook, currentForecast } from "../../lib/cnx/outlook";
 import { isSheltersFile, type SheltersFile } from "../../lib/cnx/shelters";
 import { buildExecutiveBrief, type ExecutiveMetric } from "../../lib/cnx/executive-brief";
 import { useLang } from "../../hooks/useLang";
@@ -175,7 +175,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [rainClock, setRainClock] = useState(() => Date.now());
   useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const currentRain = useMemo(() => currentRainSummary(rain, rainClock), [rain, rainClock]);
-  const outlook = useMemo(() => buildOutlook(forecast, shelters?.shelters ?? [], currentRain), [forecast, shelters, currentRain]);
+  const activeForecast = useMemo(() => currentForecast(forecast, rainClock), [forecast, rainClock]);
+  const outlook = useMemo(() => buildOutlook(activeForecast, shelters?.shelters ?? [], currentRain), [activeForecast, shelters, currentRain]);
   const showOnMap = (target: { lat: number; lon: number; amphoeTh: string | null }) => {
     const key = Date.now();
     setMapFocus({ longitude: target.lon, latitude: target.lat, zoom: target.amphoeTh ? 10.6 : 9.4, key });
@@ -590,7 +591,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             rainAvailable={currentRain !== null}
             dustboyStations={dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.pm25 !== null) : []}
             smokeSegments={smoke?.provenance === "live" ? smoke.segments : []}
-            forecast={forecast}
+            forecast={activeForecast}
             focus={mapFocus}
             shelters={shelters?.shelters ?? []}
             shelterFocus={shelterFocus}

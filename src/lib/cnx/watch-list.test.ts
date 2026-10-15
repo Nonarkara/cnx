@@ -112,6 +112,8 @@ describe("buildWatchList ranking and honesty", () => {
     const board = buildWatchList(baseInput([metric("air", "alert", "stale")]));
     const air = board.systems.find((s) => s.id === "air");
     expect(air?.actionTh).toBeNull();
+    expect(air?.level).toBe("unknown");
+    expect(board.watch.some(w => w.id === "air")).toBe(false);
   });
 
   it("carries FloodHub's riverine-only note and maps SEVERE to alert", () => {
@@ -194,10 +196,10 @@ describe("buildWatchList ranking and honesty", () => {
     const board = buildWatchList({
       ...baseInput(),
       hazeVision: {
-        generatedAt: "2026-10-09T03:30:00Z",
+        generatedAt: "2026-10-09T02:55:00Z",
         cameras: [
-          { cameraId: "a", label: "A", latitude: 18.8, longitude: 98.9, snapshotUrl: "https://example.test/a.jpg", observedAt: "2026-10-09T03:20:00Z", verdict: "haze-likely", score: 4, metrics: null, baselineSamples: 10, nearestPm25: null },
-          { cameraId: "b", label: "B", latitude: 18.9, longitude: 99.0, snapshotUrl: "https://example.test/b.jpg", observedAt: "2026-10-09T03:20:00Z", verdict: "clear", score: 0, metrics: null, baselineSamples: 10, nearestPm25: null },
+          { cameraId: "a", label: "A", latitude: 18.8, longitude: 98.9, snapshotUrl: "https://example.test/a.jpg", observedAt: "2026-10-09T02:50:00Z", verdict: "haze-likely", score: 4, metrics: null, baselineSamples: 10, nearestPm25: null },
+          { cameraId: "b", label: "B", latitude: 18.9, longitude: 99.0, snapshotUrl: "https://example.test/b.jpg", observedAt: "2026-10-09T02:50:00Z", verdict: "clear", score: 0, metrics: null, baselineSamples: 10, nearestPm25: null },
         ],
         agreement: { r: 0.1, pairs: 40, pm25Min: 3, pm25Max: 20, pm25Median: 7, pm25P95: 18, eventReadings: 0, spansHazeEvent: false },
         provenance: "live",
@@ -208,7 +210,7 @@ describe("buildWatchList ranking and honesty", () => {
     const vision = board.systems.find((s) => s.id === "haze-vision");
     expect(vision?.level).toBe("alert");
     expect(vision?.evidenceTh).toContain("ยังไม่เคยผ่านเหตุการณ์หมอก");
-    expect(vision?.observedAt).toBe("2026-10-09T03:20:00Z");
+    expect(vision?.observedAt).toBe("2026-10-09T02:50:00Z");
   });
 
   it("surfaces the JAXA walk-back as availability, not a risk grade", () => {
@@ -420,5 +422,67 @@ describe("official TMD warnings lead the board", () => {
       const first = official({ officialWarnings }).systems[0];
       expect(first).toMatchObject({ id: "tmd-official", kind: "official", level: "unknown" });
     }
+  });
+});
+
+
+describe("camera evidence must support a current verdict", () => {
+  const camera = (verdict: string, observedAt = "2026-10-09T02:55:00Z") => ({
+    cameraId: verdict, label: verdict, latitude: 18.8, longitude: 99, snapshotUrl: "https://example.test/frame.jpg",
+    observedAt, verdict, score: null, metrics: null, baselineSamples: 0, nearestPm25: null,
+  });
+  const vision = (cameras: ReturnType<typeof camera>[], generatedAt = "2026-10-09T02:55:00Z") => ({
+    generatedAt, cameras, provenance: "live", agreement: null,
+  } as unknown as NonNullable<WatchListInput["hazeVision"]>);
+
+  it.each(["too-dark", "no-colour", "calibrating"])("does not convert %s frames into clear-air evidence", verdict => {
+    const board = buildWatchList({ ...baseInput(), hazeVision: vision([camera(verdict)]) });
+    const item = board.systems.find(s => s.id === "haze-vision")!;
+    expect(item.level).toBe("unknown");
+    expect(item.valueEn).toContain("0 current usable");
+    expect(item.valueEn).toContain("1 stale/unusable");
+    expect(board.watch.some(s => s.id === item.id)).toBe(false);
+    expect(board.gapCount).toBe(buildWatchList(baseInput()).gapCount);
+  });
+
+  it.each(["2026-10-09T02:14:59Z", "2026-10-09T03:06:00Z", "invalid"])("rejects stale, future or undateable frames (%s)", observedAt => {
+    const board = buildWatchList({ ...baseInput(), hazeVision: vision([camera("haze-likely", observedAt)]) });
+    expect(board.systems.find(s => s.id === "haze-vision")?.level).toBe("unknown");
+    expect(board.watch.some(s => s.id === "haze-vision")).toBe(false);
+  });
+
+  it("does not let a fresh clear frame hide behind a stale relay timestamp", () => {
+    const board = buildWatchList({ ...baseInput(), hazeVision: vision([camera("clear")], "2026-10-08T03:00:00Z") });
+    expect(board.systems.find(s => s.id === "haze-vision")?.level).toBe("unknown");
+  });
+
+  it("counts only usable current frames and retains partial-coverage caveats", () => {
+    const board = buildWatchList({ ...baseInput(), hazeVision: vision([camera("clear"), camera("too-dark"), camera("haze-likely", "2026-10-08T03:00:00Z")]) });
+    const item = board.systems.find(s => s.id === "haze-vision")!;
+    expect(item.level).toBe("good");
+    expect(item.valueEn).toContain("1 current usable");
+    expect(item.valueEn).toContain("2 stale/unusable");
+  });
+});
+
+describe("daily reference evidence follows its declared SLO", () => {
+  const daily = (stamp: string) => ({
+    aeronet: { latest: { date: stamp, aod500: 0.8, angstrom440_870: 1.5 }, note: null } as unknown as WatchListInput["aeronet"],
+    jaxa: { provenance: "live", resolvedFor: stamp.slice(0, 10), walkedBackDays: 3, item: { observedFrom: stamp } } as unknown as WatchListInput["jaxa"],
+  });
+  it("retains valid daily observations through the declared three-day boundary", () => {
+    const board = buildWatchList({ ...baseInput(), ...daily("2026-10-06T03:00:00Z") });
+    expect(board.systems.find(s => s.id === "aeronet")?.level).toBe("critical");
+    expect(board.systems.find(s => s.id === "jaxa-aot")?.level).toBe("good");
+    expect(board.watch.some(s => s.id === "aeronet")).toBe(true);
+  });
+  it.each(["2026-10-06T02:59:59Z", "2026-10-09T03:06:00Z", "invalid"])("keeps old or unverifiable references visible without current warnings (%s)", stamp => {
+    const board = buildWatchList({ ...baseInput(), ...daily(stamp) });
+    expect(board.systems.find(s => s.id === "aeronet")?.level).toBe("unknown");
+    expect(board.systems.find(s => s.id === "jaxa-aot")?.level).toBe("unknown");
+    expect(board.systems.find(s => s.id === "aeronet")?.observedAt).toBe(stamp);
+    expect(board.systems.find(s => s.id === "aeronet")?.evidenceEn).toContain("Historical reference");
+    expect(board.systems.find(s => s.id === "jaxa-aot")?.evidenceEn).toContain("Historical scene");
+    expect(board.watch.some(s => s.id === "aeronet")).toBe(false);
   });
 });

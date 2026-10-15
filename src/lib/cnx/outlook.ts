@@ -13,7 +13,7 @@
 
 import { rainBand, type RainSummary } from "./rain-core";
 import { sameAmphoe, sheltersInDistrict, type Shelter } from "./shelters";
-import { pm25Level, type DistrictOutlook, type Pm25Level } from "./wind-field-core";
+import { bilinear, districtOutlook, pm25Level, type DistrictOutlook, type Pm25Level } from "./wind-field-core";
 import type { ForecastFieldResponse } from "./wind-field";
 import { CNX_DISTRICT_POINTS } from "./wind-field-points";
 import type { WatchItem } from "./watch-list";
@@ -63,6 +63,28 @@ function pointOf(nameTh: string): { lat: number; lon: number } {
   return p ? { lat: p.lat, lon: p.lon } : { lat: 18.788, lon: 98.985 };
 }
 
+/** Re-age retained client data and recompute peaks from future frames only. */
+export function currentForecast(forecast: ForecastFieldResponse | null, nowMs: number): ForecastFieldResponse | null {
+  if (!forecast) return null;
+  const field = forecast.field;
+  const fetched = Date.parse(forecast.fetchedAt ?? "");
+  const future = field?.times.map((t, i) => ({ t, i })).filter(({ t }) => t > nowMs / 1000) ?? [];
+  const invalid = forecast.provenance !== "model" || !field || !Number.isFinite(fetched)
+    || fetched > nowMs + 5 * 60_000 || nowMs - fetched > 6 * 3_600_000 || future.length === 0;
+  // A missing rain cell is not a dry forecast. Keep the province summary
+  // unknown if its remaining first-day evidence is incomplete.
+  const firstDay = future.filter(({ t }) => t <= nowMs / 1000 + 24 * 3600);
+  const incomplete = !invalid && (firstDay.length < 24 || firstDay.some(({ t }, i) =>
+    t - (i ? firstDay[i - 1].t : nowMs / 1000) > 3600)
+    || CNX_DISTRICT_POINTS.some((p) => firstDay
+    .some(({ i }) => bilinear(field!.grid, field!.precip[i] ?? [], p.lon, p.lat) === null)));
+  if (invalid || incomplete) return { ...forecast, field: null, outlook: [], provenance: "unavailable", note: "Forecast evidence expired or incomplete; a current outlook cannot be confirmed." };
+  const pmComplete = field!.pm25 !== null && CNX_DISTRICT_POINTS.every(p => future.every(({ i }) =>
+    bilinear(field!.grid, field!.pm25![i] ?? [], p.lon, p.lat) !== null));
+  const usableField = pmComplete ? field! : { ...field!, pm25: null };
+  return { ...forecast, field: usableField, outlook: districtOutlook(usableField, CNX_DISTRICT_POINTS, nowMs / 1000) };
+}
+
 export function buildOutlook(forecast: ForecastFieldResponse | null, shelters: readonly Shelter[], rain: RainSummary | null): ProvinceOutlook {
   if (!forecast?.field || forecast.outlook.length === 0) {
     return { available: false, fetchedAt: forecast?.fetchedAt ?? null, rain: [], air: [], wettest: null, dirtiest: null, hasPm25: false };
@@ -99,7 +121,7 @@ export function buildOutlook(forecast: ForecastFieldResponse | null, shelters: r
     air: airItems,
     wettest: byRain[0] ?? null,
     dirtiest: byPm[0] ?? null,
-    hasPm25: forecast.field.pm25 !== null,
+    hasPm25: forecast.field.pm25 !== null && forecast.outlook.some(d => d.pm25Peak !== null),
   };
 }
 
@@ -108,11 +130,11 @@ export function rainActionTh(r: RainOutlook): string {
   const when = outlookTime(r.district.peakRainAt);
   const top = r.shelters[0];
   const shelterLine = top
-    ? `ศูนย์พักพิงใกล้: ${top.nameTh}${top.capacity ? ` (${top.capacity.toLocaleString("th-TH")} คน)` : ""}${r.shelters.length > 1 ? ` และอีก ${r.shelters.length - 1} แห่ง รวม ~${r.shelterCapacity.toLocaleString("th-TH")} คน` : ""}`
-    : "ไม่มีศูนย์พักพิงในรายชื่อทางการของอำเภอนี้ — ใช้ศูนย์ของอำเภอใกล้เคียง";
+    ? `ศูนย์พักพิงในรายชื่อ: ${top.nameTh}${top.capacity ? ` (${top.capacity.toLocaleString("th-TH")} คน)` : ""}${r.shelters.length > 1 ? ` และอีก ${r.shelters.length - 1} แห่ง รวม ~${r.shelterCapacity.toLocaleString("th-TH")} คน` : ""}`
+    : "ไม่มีศูนย์พักพิงในรายชื่อทางการของอำเภอนี้ — ประสานอำเภอเพื่อยืนยันศูนย์ที่เปิดและเข้าถึงได้";
   return r.level === "alert"
-    ? `เตรียมเปิดศูนย์พักพิงและแจ้งพื้นที่ลาดชัน/ริมห้วยใน อ.${r.district.nameTh} ให้พร้อมอพยพก่อน ${when} · ${shelterLine}`
-    : `แจ้งผู้นำชุมชน อ.${r.district.nameTh} เฝ้าระวังน้ำป่า/ดินถล่มช่วง ${when} · ${shelterLine}`;
+    ? `เตรียมเปิดศูนย์พักพิงและแจ้งพื้นที่ลาดชัน/ริมห้วยใน อ.${r.district.nameTh} ให้พร้อมอพยพก่อน ${when} · ${shelterLine} · ยืนยันการเปิดใช้งาน เส้นทางเข้า และที่ว่างกับอำเภอก่อนส่งคน`
+    : `แจ้งผู้นำชุมชน อ.${r.district.nameTh} เฝ้าระวังน้ำป่า/ดินถล่มช่วง ${when} · ${shelterLine} · ยืนยันการเปิดใช้งาน เส้นทางเข้า และที่ว่างกับอำเภอก่อนส่งคน`;
 }
 
 const timeFmtEn = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
@@ -124,11 +146,11 @@ export function rainActionEn(r: RainOutlook): string {
   const when = outlookTimeEn(r.district.peakRainAt);
   const top = r.shelters[0];
   const shelterLine = top
-    ? `Nearest shelter: ${top.nameTh}${top.capacity ? ` (${top.capacity.toLocaleString("en-US")} people)` : ""}${r.shelters.length > 1 ? ` and ${r.shelters.length - 1} more, ~${r.shelterCapacity.toLocaleString("en-US")} people in all` : ""}`
-    : "No shelter on the official list for this district — use a neighbouring district's";
+    ? `Listed shelter: ${top.nameTh}${top.capacity ? ` (${top.capacity.toLocaleString("en-US")} people)` : ""}${r.shelters.length > 1 ? ` and ${r.shelters.length - 1} more, ~${r.shelterCapacity.toLocaleString("en-US")} people in all` : ""}`
+    : "No shelter on the official list for this district — ask district staff to confirm an open, accessible centre";
   return r.level === "alert"
-    ? `Prepare to open shelters and ready slope and stream-side areas of ${r.district.nameEn} to evacuate before ${when} · ${shelterLine}`
-    : `Tell community leaders in ${r.district.nameEn} to watch for flash floods and landslides around ${when} · ${shelterLine}`;
+    ? `Prepare to open shelters and ready slope and stream-side areas of ${r.district.nameEn} to evacuate before ${when} · ${shelterLine} · Confirm opening, access and available capacity with district staff before directing people there`
+    : `Tell community leaders in ${r.district.nameEn} to watch for flash floods and landslides around ${when} · ${shelterLine} · Confirm opening, access and available capacity with district staff before directing people there`;
 }
 
 export function airActionEn(a: AirOutlook): string {

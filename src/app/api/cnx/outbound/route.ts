@@ -24,7 +24,10 @@ async function shouldRecordSnapshot(): Promise<boolean> {
 
 export async function GET() {
   const snap = await fetchCnxSnapshot();
-  const analysis = summariseOutbound(snap.airborne.concat(snap.ground));
+  const observedAt = Number.isFinite(snap.observedAt) ? snap.observedAt : null;
+  const age = observedAt === null ? Infinity : Date.now() - observedAt;
+  const usable = !snap.degraded && age >= -5 * 60_000 && age <= 10 * 60_000;
+  const analysis = summariseOutbound(usable ? snap.airborne.concat(snap.ground) : []);
 
   const all = [...snap.airborne, ...snap.ground];
   const byQuadrant = analysis.byQuadrant.map((q) => ({ quadrant: q.quadrant, count: q.count }));
@@ -38,7 +41,8 @@ export async function GET() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([country, count]) => ({ country, count }));
-  if (await shouldRecordSnapshot()) await appendSnapshot({
+  // A failed fetch is an evidence gap, not a zero-aircraft observation.
+  if (usable && await shouldRecordSnapshot()) await appendSnapshot({
     ts: Date.now(),
     fetchedAt: snap.fetchedAt,
     airborne: analysis.totalAirborne,
@@ -47,7 +51,12 @@ export async function GET() {
     topOrigins: topOriginsArr,
   });
 
-  return NextResponse.json(analysis, {
+  return NextResponse.json({
+    ...analysis,
+    provenance: usable ? "live" : "unavailable",
+    degraded: !usable,
+    observedAt: snap.degraded ? null : observedAt,
+  }, {
     headers: { "Cache-Control": "s-maxage=15, stale-while-revalidate=30" },
   });
 }

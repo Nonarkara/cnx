@@ -15,6 +15,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useModalDialog } from "../../hooks/useModalDialog";
 import type { CctvSlot } from "../../types/cnx";
+import { DataAge } from "./CNXDataAge";
 import { useLang } from "../../hooks/useLang";
 
 interface Props {
@@ -95,7 +96,7 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
       muted
       playsInline
       className="aspect-video w-full bg-black"
-      aria-label={`${t("ภาพสด", "Live video")}: ${label}`}
+      aria-label={`${t("วิดีโอจากกล้อง", "Camera video")}: ${label}`}
       onError={() => setFailed(true)}
     />
   );
@@ -104,6 +105,7 @@ function HlsVideo({ src, label }: { src: string; label: string }) {
 function SnapshotView({ slot }: { slot: CctvSlot }) {
   const { t } = useLang();
   const [ts, setTs] = useState(() => Date.now());
+  const [failed, setFailed] = useState(false);
   const refreshMs = Math.max(30, slot.snapshotRefreshSec ?? 150) * 1000;
   useEffect(() => {
     const timer = window.setInterval(() => setTs(Date.now()), refreshMs);
@@ -111,16 +113,19 @@ function SnapshotView({ slot }: { slot: CctvSlot }) {
   }, [refreshMs, slot.id]);
   const sep = (slot.posterUrl ?? "").includes("?") ? "&" : "?";
   return (
-    // Live CCTV snapshots rotate on a _ts cache-buster, so next/image's
-    // optimizer would re-fetch and re-optimize a new frame every refresh —
-    // image optimization is deliberately off (NEXT_DISABLE_IMAGE_OPTIMIZATION=1).
-    // eslint-disable-next-line @next/next/no-img-element
+    <div>
+    {failed && <p role="status" className="bg-[var(--bg)] p-3 text-sm text-[var(--ink)]">{t("โหลดภาพไม่สำเร็จ จะลองอีกครั้งตามรอบรีเฟรช", "Image failed to load; retrying on the refresh cycle")} <button type="button" className="min-h-11 px-3 underline" onClick={() => setTs(Date.now())}>{t("ลองอีกครั้ง", "Retry")}</button></p>}
+    {/* Snapshots use a cache-buster; the capture clock remains independent. */}
+    {/* eslint-disable-next-line @next/next/no-img-element */}
     <img
       src={`${slot.posterUrl}${sep}_ts=${ts}`}
-      alt={`${t("ภาพล่าสุด", "Latest image")}: ${t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)}`}
+      alt={`${t("ภาพจากกล้อง", "Camera snapshot")}: ${t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)}`}
       className="aspect-video w-full bg-black object-contain"
       decoding="async"
+      onError={() => setFailed(true)}
+      onLoad={() => setFailed(false)}
     />
+    </div>
   );
 }
 
@@ -199,7 +204,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
               loading="lazy"
             />
           ) : slot.posterUrl ? (
-            <SnapshotView slot={slot} />
+            <SnapshotView key={slot.id} slot={slot} />
           ) : (
             <div className="flex aspect-video items-center justify-center font-mono text-[11px] text-[var(--dim)]">
               {t("กล้องนี้ไม่มีสตรีม", "This camera has no stream")} — {sourceLabel}
@@ -207,11 +212,15 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
           )}
         </div>
 
+        <div className="border-t border-[var(--line)] bg-[var(--bg)] px-4 py-2 text-[12px] text-[var(--dim)]">
+          <DataAge observedAt={slot.capturedAt} source={t("เวลาถ่ายภาพ", "Image capture")} missing={t("ไม่ทราบเวลาถ่ายภาพ", "Capture time unknown")} />
+          {slot.capturedAt && Number.isFinite(Date.parse(slot.capturedAt)) && <time dateTime={slot.capturedAt} className="ml-2">{new Date(slot.capturedAt).toLocaleString(t("th-TH", "en-GB"), { timeZone: "Asia/Bangkok", dateStyle: "short", timeStyle: "short" })}</time>}
+          <p>{t("การรีเฟรชไม่ยืนยันว่าเป็นภาพที่เพิ่งถ่าย", "Refreshing does not confirm a new camera capture")}</p>
+        </div>
         <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--line)] px-4 py-2 font-mono text-[11px] text-[var(--dim)]">
           <span>
             {t("ที่มา", "Source")}: {sourceLabel}
-            {slot.source === "windy" && ` · ${t("ภาพนิ่งรีเฟรชทุก ~2 นาที (ไม่ใช่ไลฟ์วิดีโอ)", "still image refreshed every ~2 min (not live video)")}`}
-            {slot.source === "longdo" && ` · ${t("สตรีม HLS จากกรมทางหลวงผ่าน Longdo", "HLS stream from the Department of Highways via Longdo")}`}
+            {slot.hlsUrl ? ` · ${t("สตรีมวิดีโอจากต้นทาง", "upstream video stream")}` : slot.playerUrl ? ` · ${t("เครื่องเล่นต้นทาง อาจรวมภาพย้อนหลัง", "upstream player; may include recordings")}` : slot.posterUrl ? ` · ${t(`รีเฟรชภาพทุก ${Math.max(30, slot.snapshotRefreshSec ?? 150)} วินาที`, `image refresh every ${Math.max(30, slot.snapshotRefreshSec ?? 150)} seconds`)}` : ""}
             {slot.source === "municipal" && ` · ${t("เครือข่ายกล้องเทศบาล/อบจ.", "municipal / PAO camera network")}`}
           </span>
           {slot.upstreamUrl && (

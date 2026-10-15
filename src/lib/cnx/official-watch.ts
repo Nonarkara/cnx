@@ -10,12 +10,22 @@
 //   3. feed unread → unavailable, with the reason.
 
 import type { WatchItem, WatchLevel } from "./watch-list";
+import { getTwinEntity } from "./twin-manifest";
 import { TMD_CAP_SOURCE, type CapSeverity, type OfficialAlert, type OfficialWarningsResponse } from "./tmd-cap-core";
 
 export const OFFICIAL_SYSTEM_TH = "ประกาศทางการ · กรมอุตุนิยมวิทยา";
 export const OFFICIAL_SYSTEM_EN = "Official warning · Thai Meteorological Department";
 export const NO_OFFICIAL_WARNING_TH = "ไม่มีประกาศ TMD ที่มีผลสำหรับเชียงใหม่";
 export const NO_OFFICIAL_WARNING_EN = "No TMD warning in force for Chiang Mai";
+/** Ages retrieval using the declared feed SLO, not the lifetime of a CAP warning. */
+export const OFFICIAL_WARNING_MAX_AGE_MS = getTwinEntity("official-warnings")!.staleAfterSec! * 1000;
+
+function evidenceUrl(raw: string | null): string | undefined {
+  try {
+    const url = new URL(raw ?? "");
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : undefined;
+  } catch { return undefined; }
+}
 
 /** CAP severity → board level. An official warning in force is never below "watch". */
 export const CAP_SEVERITY_LEVEL: Record<CapSeverity, WatchLevel> = {
@@ -79,12 +89,15 @@ function alertItem(alert: OfficialAlert, fetchedAt: string): WatchItem {
     actionTh: alert.instruction_th ?? "ปฏิบัติตามคำแนะนำในประกาศของกรมอุตุนิยมวิทยา",
     actionEn: alert.instruction_en ?? "Follow the instructions in the TMD warning",
     observedAt: fetchedAt,
+    evidenceUrl: evidenceUrl(alert.web),
   };
 }
 
 /** The official rows; always at least one. `feed` null/undefined = not read yet. */
 export function officialWatchItems(feed: OfficialWarningsResponse | null | undefined, now: Date): WatchItem[] {
-  if (!feed || feed.provenance !== "live") {
+  const age = feed ? now.getTime() - Date.parse(feed.fetchedAt) : NaN;
+  const stale = !!feed && feed.provenance === "live" && (!Number.isFinite(age) || age < -5 * 60_000 || age > OFFICIAL_WARNING_MAX_AGE_MS);
+  if (!feed || feed.provenance !== "live" || stale) {
     return [
       {
         ...base,
@@ -92,11 +105,11 @@ export function officialWatchItems(feed: OfficialWarningsResponse | null | undef
         level: "unknown",
         valueTh: "อ่านประกาศ TMD ไม่ได้ในขณะนี้",
         valueEn: "TMD warnings unavailable",
-        evidenceTh: `${feed ? feed.reason_th ?? "ฟีด CAP ของกรมอุตุนิยมวิทยาไม่ตอบ" : "ยังอ่านฟีด CAP ของกรมอุตุนิยมวิทยาไม่ได้"} — ไม่มีข้อมูลไม่ใช่การยืนยันว่าไม่มีประกาศ`,
-        evidenceEn: `${feed ? feed.reason ?? "The TMD CAP feed did not answer" : "The TMD CAP feed has not been read yet"}. No data is not proof that no warning is in force.`,
+        evidenceTh: `${stale ? "การตรวจประกาศล่าสุดเก่าเกินกำหนดหรือเวลายืนยันไม่ได้ ต้องอ่านประกาศใหม่รวมถึงฉบับยกเลิก/แก้ไข" : feed ? feed.reason_th ?? "ฟีด CAP ของกรมอุตุนิยมวิทยาไม่ตอบ" : "ยังอ่านฟีด CAP ของกรมอุตุนิยมวิทยาไม่ได้"} — ไม่มีข้อมูลไม่ใช่การยืนยันว่าไม่มีประกาศ`,
+        evidenceEn: `${stale ? "The last CAP check is stale or its time cannot be verified; recheck warnings, cancellations and updates" : feed ? feed.reason ?? "The TMD CAP feed did not answer" : "The TMD CAP feed has not been read yet"}. No data is not proof that no warning is in force.`,
         actionTh: null,
         actionEn: null,
-        observedAt: null,
+        observedAt: stale && Number.isFinite(Date.parse(feed!.fetchedAt)) ? feed!.fetchedAt : null,
       },
     ];
   }

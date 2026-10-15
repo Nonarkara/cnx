@@ -74,6 +74,14 @@ describe("official TMD row on the watch board", () => {
     expect(frame.firstElementChild?.nextElementSibling?.className).toContain("border-[var(--sev-alert)]");
   });
 
+  it("opens the original official document for verification", async () => {
+    serve(FEED_LIVE([{ ...ALERT, web: "https://www.tmd.go.th/warnings/example" }]));
+    const frame = officialFrame(await render("en"));
+    const link = frame.querySelector<HTMLAnchorElement>('a[href="https://www.tmd.go.th/warnings/example"]');
+    expect(link?.textContent).toContain("Read official warning");
+    expect(link?.rel).toContain("noopener");
+  });
+
   it("shows the English alert with no Thai in English mode", async () => {
     serve(FEED_LIVE([ALERT]));
     const frame = officialFrame(await render("en"));

@@ -31,6 +31,7 @@ import { currentRainSummary } from "./rain-core";
 import { outlookWatchItems, type ProvinceOutlook } from "./outlook";
 import type { OfficialWarningsResponse } from "./tmd-cap-core";
 import { officialWatchItems } from "./official-watch";
+import { getTwinEntity } from "./twin-manifest";
 
 /** "official" = a government warning (TMD CAP); it leads the board. */
 export type WatchKind = "official" | "measured" | "satellite" | "model" | "vision" | "imagery";
@@ -58,6 +59,8 @@ export interface WatchItem {
   actionEn: string | null;
   /** Observation time (see DataAge rules). Null = no observation to age. */
   observedAt: string | null;
+  /** Direct source evidence when the publisher supplies a safe HTTP(S) URL. */
+  evidenceUrl?: string;
   /** Desk/panel to open for the evidence. Null = no deeper surface exists. */
   openMetric: "water" | "air" | "fire" | "mobility" | "model" | null;
   /** Chip wording that replaces the level label, shown neutral — used for
@@ -102,6 +105,13 @@ const domainOrder: Record<WatchDomain, number> = { water: 0, air: 1, fire: 2, ha
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const officialFirst = (item: WatchItem) => (item.kind === "official" ? 0 : 1);
 
+/** Registry SLOs differ for daily observations, relay frames and model issuance. */
+function currentEvidence(id: string, stamp: string | null, now: Date): boolean {
+  const limit = getTwinEntity(id)?.staleAfterSec;
+  const age = stamp ? now.getTime() - Date.parse(stamp) : NaN;
+  return limit != null && Number.isFinite(age) && age >= -5 * 60_000 && age <= limit * 1000;
+}
+
 /** Newest ISO stamp in a list, or null — an empty feed is not a fresh feed. */
 function newestStamp(rows: Array<Record<string, unknown>>, key: string): string | null {
   let best = -Infinity;
@@ -129,7 +139,7 @@ function metricItems(metrics: ExecutiveMetric[]): WatchItem[] {
     systemTh: metric.titleTh,
     systemEn: metric.titleEn,
     source: metric.source,
-    level: metric.level,
+    level: metric.state === "current" ? metric.level : "unknown",
     valueTh: metric.value === "—" ? "ยังไม่มีข้อมูล" : `${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
     valueEn: metric.value === "—" ? "No verified reading" : `${metric.value}${metric.unit ? ` ${metric.unit}` : ""}`,
     evidenceTh: metric.summaryTh,
@@ -270,7 +280,7 @@ function aerosolItem(aerosol: AerosolResponse | null): WatchItem {
   };
 }
 
-function aeronetItem(aeronet: AeronetResponse | null): WatchItem {
+function aeronetItem(aeronet: AeronetResponse | null, now: Date): WatchItem {
   const base = {
     id: "aeronet",
     domain: "haze" as const,
@@ -293,21 +303,22 @@ function aeronetItem(aeronet: AeronetResponse | null): WatchItem {
       observedAt: null,
     };
   }
+  const fresh = currentEvidence("aeronet", aeronet.latest.date, now);
   const smoke = finite(aeronet.latest.angstrom440_870) && aeronet.latest.angstrom440_870! > 1;
   return {
     ...base,
-    level: aodBand(aeronet.latest.aod500),
+    level: fresh ? aodBand(aeronet.latest.aod500) : "unknown",
     valueTh: `AOD ${aeronet.latest.aod500} · Ångström ${aeronet.latest.angstrom440_870 ?? "—"}${smoke ? " · อนุภาคเล็ก ลักษณะควัน" : ""}`,
     valueEn: `AOD ${aeronet.latest.aod500}; Ångström ${aeronet.latest.angstrom440_870 ?? "—"}${smoke ? " — fine particles, smoke-like" : ""}`,
-    evidenceTh: "ค่าเฉลี่ยรายวันจากเครื่องวัดแสงอาทิตย์ · แถบสีเป็นการแสดงผล ไม่ใช่เกณฑ์สุขภาพ · เป็นค่าอ้างอิงตรวจสอบดาวเทียม",
-    evidenceEn: "Daily sun-photometer mean; colour bands are display only and this is the satellite-validation reference",
+    evidenceTh: `${fresh ? "" : "ค่าอ้างอิงย้อนหลัง เกินอายุที่กำหนด 3 วันหรือยืนยันเวลาไม่ได้ · "}ค่าเฉลี่ยรายวันจากเครื่องวัดแสงอาทิตย์ · แถบสีเป็นการแสดงผล ไม่ใช่เกณฑ์สุขภาพ · เป็นค่าอ้างอิงตรวจสอบดาวเทียม`,
+    evidenceEn: `${fresh ? "" : "Historical reference: outside the declared 3-day SLO or observation time unverifiable; "}daily sun-photometer mean; colour bands are display only and this is the satellite-validation reference`,
     actionTh: null,
     actionEn: null,
     observedAt: aeronet.latest.date,
   };
 }
 
-function jaxaItem(jaxa: JaxaAotResponse | null): WatchItem {
+function jaxaItem(jaxa: JaxaAotResponse | null, now: Date): WatchItem {
   const base = {
     id: "jaxa-aot",
     domain: "haze" as const,
@@ -330,18 +341,20 @@ function jaxaItem(jaxa: JaxaAotResponse | null): WatchItem {
       observedAt: null,
     };
   }
+  const observedAt = jaxa.item.observedFrom ?? jaxa.resolvedFor ?? null;
+  const fresh = currentEvidence("jaxa-aot", observedAt, now);
   return {
     ...base,
     // Presence, not a risk grade: the COG scene is imagery for analysis,
     // and the board never turns availability into an all-clear.
-    level: "good" as WatchLevel,
+    level: fresh ? "good" : "unknown",
     valueTh: `ซีนประจำวันที่ ${jaxa.resolvedFor} (ย้อน ${jaxa.walkedBackDays} วัน)`,
     valueEn: `Scene for ${jaxa.resolvedFor} (${jaxa.walkedBackDays} d walk-back)`,
-    evidenceTh: "ความพร้อมของข้อมูล ไม่ใช่ระดับความเสี่ยง · พื้นที่ที่เมฆปิดในซีนเป็นค่าว่างตามที่ประกาศ ไม่ใช่อากาศใส",
-    evidenceEn: "Data availability, not a risk level; cloud-covered scene pixels are declared no-observation, not clean air",
+    evidenceTh: `${fresh ? "" : "ซีนย้อนหลัง เกินอายุที่กำหนด 3 วันหรือยืนยันเวลาไม่ได้ · "}ความพร้อมของข้อมูล ไม่ใช่ระดับความเสี่ยง · พื้นที่ที่เมฆปิดในซีนเป็นค่าว่างตามที่ประกาศ ไม่ใช่อากาศใส`,
+    evidenceEn: `${fresh ? "" : "Historical scene: outside the declared 3-day SLO or observation time unverifiable; "}data availability, not a risk level; cloud-covered scene pixels are declared no-observation, not clean air`,
     actionTh: null,
     actionEn: null,
-    observedAt: jaxa.item.observedFrom ?? jaxa.resolvedFor ?? null,
+    observedAt,
   };
 }
 
@@ -430,7 +443,7 @@ function floodHubItem(floodhub: FloodHubResponse | null): WatchItem {
   };
 }
 
-function hazeVisionItem(hazeVision: HazeVisionResponse | null): WatchItem {
+function hazeVisionItem(hazeVision: HazeVisionResponse | null, now: Date): WatchItem {
   const base = {
     id: "haze-vision",
     domain: "haze" as const,
@@ -453,7 +466,12 @@ function hazeVisionItem(hazeVision: HazeVisionResponse | null): WatchItem {
       observedAt: null,
     };
   }
-  const cams = hazeVision.cameras;
+  // A fresh relay push does not refresh an old frame, and a dark,
+  // monochrome or calibrating frame carries no verdict about clear air.
+  const fresh = (stamp: string) => currentEvidence("haze-vision", stamp, now);
+  const cams = fresh(hazeVision.generatedAt) ? hazeVision.cameras.filter(c => fresh(c.observedAt)
+    && (c.verdict === "clear" || c.verdict === "some-haze" || c.verdict === "haze-likely")) : [];
+  const excluded = hazeVision.cameras.length - cams.length;
   const likely = cams.filter((c) => c.verdict === "haze-likely").length;
   const some = cams.filter((c) => c.verdict === "some-haze").length;
   const clear = cams.filter((c) => c.verdict === "clear").length;
@@ -465,8 +483,8 @@ function hazeVisionItem(hazeVision: HazeVisionResponse | null): WatchItem {
   return {
     ...base,
     level,
-    valueTh: `${cams.length} กล้อง · สันนิษฐานหมอก ${likely} · มีหมอกบางส่วน ${some} · ชัด ${clear}`,
-    valueEn: `${cams.length} cameras; haze-likely ${likely}, some-haze ${some}, clear ${clear}`,
+    valueTh: `${cams.length} กล้องที่ประเมินได้ล่าสุด · สันนิษฐานหมอก ${likely} · มีหมอกบางส่วน ${some} · ชัด ${clear}${excluded ? ` · ${excluded} กล้องเก่า/ยังประเมินไม่ได้` : ""}`,
+    valueEn: `${cams.length} current usable cameras; haze-likely ${likely}, some-haze ${some}, clear ${clear}${excluded ? `; ${excluded} stale/unusable cameras` : ""}`,
     evidenceTh: `${agreement} · คำตัดสินจากภาพเป็นการคัดกรอง ไม่ใช่การวัดฝุ่นโดยตรง`,
     evidenceEn: `${agreement}; image verdicts are screening, not direct measurement`,
     actionTh: likely + some > 0 ? "เปิดภาพกล้องจุดที่สันนิษฐานหมอกเพื่อยืนยันด้วยตา" : null,
@@ -618,11 +636,11 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
     gistdaItem(input.gistda),
     dustboyItem(input.dustboy),
     aerosolItem(input.aerosol),
-    aeronetItem(input.aeronet),
-    jaxaItem(input.jaxa),
+    aeronetItem(input.aeronet, now),
+    jaxaItem(input.jaxa, now),
     smokeItem(input.smoke),
     floodHubItem(input.floodhub),
-    hazeVisionItem(input.hazeVision),
+    hazeVisionItem(input.hazeVision, now),
     rfdItem(input.firesRfd),
     imageryItem(
       "weather-himawari",

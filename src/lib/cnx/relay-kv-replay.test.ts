@@ -47,9 +47,10 @@ function post(body: unknown, secret = SECRET): Request {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubEnv("CNX_FLIGHTS_RELAY_SECRET", SECRET);
-  void fakeKv();
+  const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+  vi.mocked(getCloudflareContext).mockResolvedValue({ env: { CNX_FLIGHTS_KV: fakeKv() } } as never);
 });
 
 afterEach(() => {
@@ -66,6 +67,33 @@ async function seed(generatedAt: string) {
 }
 
 describe("relay ingest rejects a replayed or out-of-order push", () => {
+  it("rejects future poisoning without overwriting the readable copy", async () => {
+    const now = Date.now();
+    const held = new Date(now).toISOString();
+    const store = await seed(held);
+    const res = await ingestRelayJson(post({ generatedAt: new Date(now + 6 * 60_000).toISOString() }), KEY, isValid, 600);
+    expect(res.status).toBe(422);
+    expect(store.store.get(KEY)).toBe(JSON.stringify({ generatedAt: held }));
+    expect(store.put).not.toHaveBeenCalled();
+  });
+
+  it("allows limited future skew but still rejects a replay within that allowance", async () => {
+    const stamp = new Date(Date.now() + 4 * 60_000).toISOString();
+    const store = await seed(new Date(Date.now() - 1_000).toISOString());
+    expect((await ingestRelayJson(post({ generatedAt: stamp }), KEY, isValid, 600)).status).toBe(200);
+    expect((await ingestRelayJson(post({ generatedAt: stamp }), KEY, isValid, 600)).status).toBe(409);
+    expect(store.put).toHaveBeenCalledOnce();
+  });
+
+  it("repairs a previously poisoned future copy with a current push", async () => {
+    const now = Date.now();
+    const store = await seed(new Date(now + 24 * 60 * 60_000).toISOString());
+    const current = new Date(now).toISOString();
+    const res = await ingestRelayJson(post({ generatedAt: current }), KEY, isValid, 600);
+    expect(res.status).toBe(200);
+    expect(store.store.get(KEY)).toBe(JSON.stringify({ generatedAt: current }));
+  });
+
   it("accepts the first push when nothing is stored", async () => {
     const res = await ingestRelayJson(post({ generatedAt: "2026-10-12T00:00:00Z" }), KEY, isValid, 600);
     expect(res.status).toBe(200);

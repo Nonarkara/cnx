@@ -149,7 +149,7 @@ describe("one language per mode — information surfaces", () => {
   it("renders arrivals and outbound panels with no Thai characters in English mode", async () => {
     await render("en", PANELS);
     const text = interfaceText();
-    expect(text).toContain("Overseas Arrivals — VTCC");
+    expect(text).toContain("International-arrival passengers — VTCC");
     expect(text).toContain("Bangkok (BKK) / Gulf");
     expect(text).toContain("82% assumed load factor");
     expect(thaiCharCount(text)).toBe(0);
@@ -158,7 +158,7 @@ describe("one language per mode — information surfaces", () => {
   it("renders arrivals and outbound panels in Thai, keeping only source data in Latin script", async () => {
     await render("th", PANELS);
     const text = interfaceText();
-    expect(text).toContain("ผู้โดยสารต่างชาติขาเข้า");
+    expect(text).toContain("ผู้โดยสารขาเข้าระหว่างประเทศ");
     expect(text).toContain("อัตราบรรทุกสมมติ 82%");
     expect(text).toContain("กรุงเทพฯ (BKK) / อ่าวไทย");
     expect(text).toContain("China");

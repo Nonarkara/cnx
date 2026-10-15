@@ -6,7 +6,7 @@
 // it), and "copy for LINE" / print. Logic lives in lib/cnx/governor-brief.ts.
 
 import type { RainResponse } from "../../lib/cnx/rain";
-import { airActionTh, rainActionTh, type ProvinceOutlook } from "../../lib/cnx/outlook";
+import { airActionTh, airActionEn, rainActionTh, rainActionEn, type ProvinceOutlook } from "../../lib/cnx/outlook";
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Printer, X } from "lucide-react";
 import { useModalDialog } from "../../hooks/useModalDialog";
@@ -131,11 +131,12 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
     const airTile = tiles.find((tile) => tile.key === "air");
     if (airTile) airTile.level = airMetric.level;
     const checks = executive.metrics.filter((m) => m.level !== "good");
-    const forecastActions = [
-      ...(outlook?.rain[0] ? [`48 ชม. ฝน (แบบจำลอง): ${rainActionTh(outlook.rain[0])}`] : []),
-      ...(outlook?.air[0] ? [`48 ชม. ฝุ่น (แบบจำลอง): ${airActionTh(outlook.air[0])}`] : []),
+    const actions = [
+      ...checks.map((metric) => ({ id: metric.id, th: `${metric.titleTh}: ${metric.actionTh}`, en: `${metric.titleEn}: ${metric.actionEn}` })),
+      ...(outlook?.rain[0] ? [{ id: "forecast-rain", th: `48 ชม. ฝน (แบบจำลอง): ${rainActionTh(outlook.rain[0])}`, en: `48 h rain (model): ${rainActionEn(outlook.rain[0])}` }] : []),
+      ...(outlook?.air[0] ? [{ id: "forecast-air", th: `48 ชม. ฝุ่น (แบบจำลอง): ${airActionTh(outlook.air[0])}`, en: `48 h air (model): ${airActionEn(outlook.air[0])}` }] : []),
     ];
-    return { now, tiles, districts, checks, text: lineText(tiles, districts, now, url, [...checks.map((m) => `${m.titleTh}: ${m.actionTh}`), ...forecastActions]) };
+    return { now, tiles, districts, actions, text: lineText(tiles, districts, now, url, actions.map(action => action.th)) };
   }, [air, dustboy, fires, twin, riverGauges, flights, rain, outlook, arrivals, floodhub, burn, clock, isOpen]);
 
   if (!isOpen) return null;
@@ -197,9 +198,9 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
           ))}
         </section>
 
-        {brief.checks.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
+        {brief.actions.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
           <h3 className="text-lg font-semibold">{t("ประเด็นที่ควรตรวจสอบต่อ", "Points to check next")}</h3>
-          <ol className="mt-3 space-y-3">{brief.checks.map((m) => <li key={m.id} className="text-sm leading-relaxed"><span className="font-semibold">{t(m.titleTh, m.titleEn)} · </span>{t(m.actionTh, m.actionEn)}</li>)}</ol>
+          <ol className="mt-3 space-y-3">{brief.actions.map((action) => <li key={action.id} className="text-sm leading-relaxed">{t(action.th, action.en)}</li>)}</ol>
         </section>}
         <section className="mt-6 overflow-x-auto">
           <h3 className="text-[13px] font-bold text-[var(--ink)]">{t("อำเภอที่มีหลักฐานสำหรับติดตาม", "Districts with evidence to follow")}</h3>

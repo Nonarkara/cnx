@@ -48,6 +48,11 @@ export default function CnxOutboundPanel({ snapshot }: { snapshot: OutboundAnaly
   }, []);
 
   if (!snapshot) return null;
+  if (snapshot.degraded || snapshot.provenance === "unavailable") return (
+    <div role="status" className="border-t border-[var(--line)] p-3 text-[12px] text-[var(--dim)]">
+      {t("ยังยืนยันทิศทางการบินไม่ได้ — ข้อมูลขาดหายหรือเก่า ไม่ใช่ไม่มีเครื่องบิน", "Aircraft headings unavailable — observations are missing or stale, not zero aircraft.")}
+    </div>
+  );
 
   const top = QUADRANT_LABEL[snapshot.byQuadrant[0]?.quadrant ?? ""];
   const destination = top ? t(top.destTh, top.destEn) : t("ไม่ทราบ", snapshot.inferredTopDestination);

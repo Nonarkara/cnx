@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { countPersonalContacts, redactPersonalContactText } from "../../../scripts/redact-personal-contacts.mjs";
+import { countPersonalContacts, redactPersonalContactText, redactDatasetMetadata } from "../../../scripts/redact-personal-contacts.mjs";
 
 const DATA = join(process.cwd(), "public/data");
 
@@ -15,6 +15,14 @@ function filesUnder(dir: string, acc: string[] = []): string[] {
 }
 
 describe("redactPersonalContactText", () => {
+  it("redacts display metadata on rebake without corrupting resource identifiers or links", () => {
+    const source = { id: "0812345678", notesTh: "โทร 0812345678", notesEn: "Contact person@gmail.com", resources: [{ name: "Desk 0891234567", url: "https://example.org/0812345678.csv" }], tags: ["Contact person@gmail.com"] };
+    const safe = redactDatasetMetadata(source);
+    expect(countPersonalContacts(JSON.stringify({ notes: [safe.notesTh, safe.notesEn], tags: safe.tags, name: safe.resources[0].name }))).toEqual({ mobiles: 0, emails: 0 });
+    expect(safe.id).toBe(source.id);
+    expect(safe.resources[0].url).toBe(source.resources[0].url);
+    expect(source.notesTh).toContain("0812345678");
+  });
   it("removes personal mobiles and keeps an organisation landline in the same cell", () => {
     expect(redactPersonalContactText("081-234-5678")).toBe("");
     expect(redactPersonalContactText("+66 81 234 5678")).toBe("");

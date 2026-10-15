@@ -10,7 +10,7 @@
 import sheltersJson from "../../../public/data/cnx/shelters.json";
 import { boardWarnings, type BoardWarning } from "./board-warnings";
 import { capMessages, type CapMessage } from "./cap";
-import { buildOutlook, type ProvinceOutlook } from "./outlook";
+import { buildOutlook, currentForecast, type ProvinceOutlook } from "./outlook";
 import { fetchCnxRain } from "./rain";
 import { currentRainSummary } from "./rain-core";
 import { isSheltersFile, type Shelter } from "./shelters";
@@ -48,7 +48,7 @@ export function warningUpdate(outlook: ProvinceOutlook, verdict: VerdictCard, wa
 
 export async function buildCapFeed(nowMs = Date.now()): Promise<CapFeed> {
   const [forecast, rain, twin, prev] = await Promise.all([fetchForecastField(nowMs), fetchCnxRain(), fetchCnxTwin(), readWarningSnapshot()]);
-  const outlook = buildOutlook(forecast, SHELTERS, currentRainSummary(rain, nowMs));
+  const outlook = buildOutlook(currentForecast(forecast, nowMs), SHELTERS, currentRainSummary(rain, nowMs));
   const warnings = boardWarnings(outlook, twin.verdict);
   const generatedAt = new Date(nowMs).toISOString();
   const { rows, next } = diffWarnings(prev, warningUpdate(outlook, twin.verdict, warnings), generatedAt, LOG_COMMIT);

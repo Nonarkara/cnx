@@ -98,6 +98,7 @@ function OfficialRows({ items }: { items: WatchItem[] }) {
               <p className="text-[14px] font-semibold text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
               {item.actionTh && <p className="mt-1 text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
               <p className="mt-1 text-[11px] leading-snug text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
+              {item.evidenceUrl && <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 items-center text-[12px] text-[var(--cool)] underline">{t("อ่านประกาศจากหน่วยงาน", "Read official warning")} ↗</a>}
               <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={45 * 60_000} className="mt-1 block" />
             </div>
           </div>

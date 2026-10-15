@@ -24,7 +24,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { redactPersonalContactText } from "./redact-personal-contacts.mjs";
+import { redactPersonalContactText, redactDatasetMetadata } from "./redact-personal-contacts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "public", "data", "cnx", "open-data");
@@ -84,7 +84,7 @@ function normalise(pkg) {
     lastModified: r.last_modified || r.created,
     byteSize: r.size ?? null,
   }));
-  return {
+  return redactDatasetMetadata({
     id: pkg.id || pkg.name,
     nameTh: pkg.title_th ?? pkg.title,
     nameEn: pkg.title_en ?? pkg.title,
@@ -97,7 +97,7 @@ function normalise(pkg) {
     license: pkg.license_title,
     resources,
     fetchedAt: new Date().toISOString(),
-  };
+  });
 }
 
 async function tryDownloadResource(url) {
@@ -141,7 +141,9 @@ async function run() {
       try {
         const cached = JSON.parse(await import("node:fs").then((m) => m.readFileSync(file, "utf8")));
         if (cached.metadataModified === norm.metadataModified) {
-          normalised.push(cached);
+          const safe = redactDatasetMetadata(cached);
+          await writeFile(file, JSON.stringify(safe, null, 2), "utf8");
+          normalised.push(safe);
           continue;
         }
       } catch { /* fall through to fresh write */ }

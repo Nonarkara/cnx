@@ -36,6 +36,10 @@ export interface OutboundBucket {
 
 export interface OutboundAnalysis {
   generatedAt: string;
+  /** Transport metadata added by the API; unavailable evidence is never zero traffic. */
+  provenance?: "live" | "unavailable";
+  degraded?: boolean;
+  observedAt?: number | null;
   totalAirborne: number;
   totalGround: number;
   byQuadrant: OutboundBucket[];
