@@ -285,18 +285,18 @@ export default function CnxTopBar(props: TopBarProps) {
   return (
     // Keep chrome content-sized: the map owns the vertical budget.
     <header lang={lang} className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-3 py-1 sm:px-4`}>
-      <div className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <a href="/cnx" aria-label={t("หน้าแรก CNX ศูนย์ปฏิบัติการ", "CNX War Room home")} className="cnx-brand-plate flex h-9 w-[72px] shrink-0 items-center justify-center px-1.5">
+      <div className="flex items-center gap-1 lg:gap-3">
+        <div className="flex shrink-0 items-center gap-2">
+          <a href="/cnx" aria-label={t("หน้าแรก CNX ศูนย์ปฏิบัติการ", "CNX War Room home")} className="cnx-brand-plate flex h-8 w-11 sm:w-[52px] xl:w-[72px] shrink-0 items-center justify-center px-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logos/cnx-mark.png" alt="" width={60} height={28} className="block h-7 w-[60px] object-contain" />
+            <img src="/logos/cnx-mark.png" alt="" width={60} height={28} className="block h-6 w-full xl:h-7 xl:w-[60px] object-contain" />
           </a>
-          <div className="min-w-0 leading-none">
+          <div className="hidden leading-none xl:block">
             <div className="font-display text-[13px] font-bold text-[var(--ink)]">
               {t("เชียงใหม่", "Chiang Mai")} · <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--cool)]">{t("ศูนย์ปฏิบัติการ", "War Room")}</span>
             </div>
           </div>
-          <CNXLogoRow size={16} />
+          <div className="hidden xl:block"><CNXLogoRow size={16} /></div>
           <span
             className="hidden shrink-0 xl:inline bg-[var(--ink)] px-1 py-0.5 font-mono text-[11px] font-bold tracking-[0.12em] text-[var(--bg)]"
             title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"} · ${now}`}
@@ -308,12 +308,12 @@ export default function CnxTopBar(props: TopBarProps) {
         </div>
 
 
-        <div className="cnx-header-actions flex flex-wrap items-center gap-1 sm:flex-nowrap lg:ml-auto">
+        <div className="cnx-header-actions ml-auto flex min-w-0 items-center gap-1">
           {officeNotice && (
             <details className="sm:relative">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
+              <summary aria-label={t("ประกาศหน่วยงาน", "Agency notice")} className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
               <Bell className="h-3 w-3" />
-              {t("ประกาศหน่วยงาน", "Agency notice")} ⌄
+              <span className="hidden lg:inline">{t("ประกาศหน่วยงาน", "Agency notice")}</span> ⌄
               </summary>
               <div className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,85vw)] border border-[var(--ink)] bg-[var(--bg-raised)] p-4 text-[13px] leading-relaxed">
                 <p className="font-semibold">{officeNotice.title}</p>
@@ -323,14 +323,15 @@ export default function CnxTopBar(props: TopBarProps) {
               </div>
             </details>
           )}
-          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span className="sm:hidden">{view === "map" ? t("ภาพรวม", "Overview") : t("แผนที่", "Map")}</span><span className="hidden sm:inline">{view === "map" ? t("ภาพรวมจังหวัด", "Province overview") : t("ห้องปฏิบัติการ", "Operations room")}</span></button>
+          <button type="button" onClick={() => onChangeView(view === "map" ? "overview" : "map")} aria-label={view === "map" ? t("ภาพรวมจังหวัด", "Province overview") : t("แผนที่ · ห้องปฏิบัติการ", "Map · Operations room")} className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold text-[var(--ink)]">{view === "map" ? <LayoutDashboard aria-hidden="true" className="h-4 w-4" /> : <MapIcon aria-hidden="true" className="h-4 w-4" />}<span className="hidden sm:inline lg:hidden">{view === "map" ? t("ภาพรวม", "Overview") : t("แผนที่", "Map")}</span><span className="hidden lg:inline">{view === "map" ? t("ภาพรวมจังหวัด", "Province overview") : t("ห้องปฏิบัติการ", "Operations room")}</span></button>
 <button
             onClick={onOpenBrief}
+            aria-label={t("สรุปผู้ว่าฯ", "Governor brief")}
             title={t("สรุปหน้าเดียวสำหรับผู้ว่าฯ — คัดลอกส่ง LINE หรือพิมพ์", "One-screen summary for the governor — copy to LINE or print")}
             className="hidden min-h-11 items-center gap-1.5 border border-[var(--wada-counter)] sm:flex bg-[var(--wada-counter)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-white hover:opacity-90 "
           >
             <FileText className="h-3 w-3" />
-              <span>{t("สรุปผู้ว่าฯ", "Governor brief")}</span>
+              <span className="hidden lg:inline">{t("สรุปผู้ว่าฯ", "Governor brief")}</span>
           </button>
 <button
             onClick={onOpenEmergency}
@@ -338,7 +339,7 @@ export default function CnxTopBar(props: TopBarProps) {
             className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
           >
             <PhoneCall className="h-3 w-3" />
-            <span className="sm:hidden">{t("ฉุกเฉิน", "SOS")}</span><span className="hidden sm:inline">{t("ติดต่อฉุกเฉิน", "Emergency contacts")}</span>
+            <span className="lg:hidden">{t("ฉุกเฉิน", "SOS")}</span><span className="hidden lg:inline">{t("ติดต่อฉุกเฉิน", "Emergency contacts")}</span>
           </button>
           {/* Per-feed freshness against each feed's declared SLO (twin manifest). */}
           <CnxFeedFreshness />
