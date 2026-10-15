@@ -169,6 +169,11 @@ body {
   font-size: 12px;
   white-space: nowrap;
 }
+@media (max-width: 639px) {
+  .cnx-header-actions > button,
+  .cnx-header-actions > details > summary,
+  .cnx-header-actions > div { padding-inline: 6px; gap: 4px; }
+}
 @media (pointer: coarse) {
   .cnx-header-actions > button,
   .cnx-header-actions > details > summary,
