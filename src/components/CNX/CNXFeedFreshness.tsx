@@ -57,7 +57,7 @@ export function FeedFreshnessStrip({ manifest, now }: { manifest: TwinManifest |
     return (
       <div className="flex min-h-11 items-center gap-2 border border-[var(--line)] px-3 text-[12px] font-semibold text-[var(--dim)]">
         <span aria-hidden="true" className="sev-fill-unknown inline-block h-2.5 w-2.5" />
-        {t("ฟีดตรงเวลา — ยังไม่ทราบ", "Feeds on time — unknown")}
+        <span className="sm:hidden">{t("ฟีด —", "Feeds —")}</span><span className="hidden sm:inline">{t("ฟีดตรงเวลา — ยังไม่ทราบ", "Feeds on time — unknown")}</span>
       </div>
     );
   }
@@ -84,14 +84,14 @@ export function FeedFreshnessStrip({ manifest, now }: { manifest: TwinManifest |
   };
 
   return (
-    <details className="relative" data-testid="feed-freshness">
+    <details className="sm:relative" data-testid="feed-freshness">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[12px] font-semibold text-[var(--ink)]">
         <span aria-hidden="true" className={`inline-block h-2.5 w-2.5 ${allOnTime ? "sev-fill-good" : onTime === 0 ? "sev-fill-unknown" : "sev-fill-watch"}`} />
-        <span className="tabular-nums">{t(`ฟีดตรงเวลา ${onTime}/${total}`, `Feeds on time ${onTime}/${total}`)}</span>
-        {relayOffline && <span className="sev-fill-watch px-1.5 py-0.5 text-[11px]">{t("รีเลย์ออฟไลน์", "Relay offline")}</span>}
+        <span className="tabular-nums"><span className="sm:hidden">{t(`ฟีด ${onTime}/${total}`, `Feeds ${onTime}/${total}`)}</span><span className="hidden sm:inline">{t(`ฟีดตรงเวลา ${onTime}/${total}`, `Feeds on time ${onTime}/${total}`)}</span></span>
+        {relayOffline && <span className="sev-fill-watch px-1.5 py-0.5 text-[11px]" title={t("รีเลย์ออฟไลน์", "Relay offline")}><span aria-hidden="true" className="sm:hidden">!</span><span className="sr-only sm:not-sr-only">{t("รีเลย์ออฟไลน์", "Relay offline")}</span></span>}
         <span aria-hidden="true">⌄</span>
       </summary>
-      <div className="absolute right-0 top-full z-50 mt-2 w-[min(26rem,92vw)] border border-[var(--ink)] bg-[var(--bg-raised)] p-3 text-[12px] leading-relaxed">
+      <div className="absolute inset-x-3 top-full z-50 mt-2 sm:inset-x-auto sm:right-0 sm:w-[min(26rem,92vw)] border border-[var(--ink)] bg-[var(--bg-raised)] p-3 text-[12px] leading-relaxed">
         <p className={`mb-2 px-2 py-1 font-semibold ${relayOffline ? "sev-fill-watch" : "border border-[var(--line)]"}`}>{relayLine}</p>
         <p className="mb-2 text-[11px] text-[var(--dim)]">
           {t("อายุข้อมูลล่าสุด / เกณฑ์ล่าช้าของแต่ละฟีด · สีเทา = ไม่มีค่าสังเกต ไม่ใช่ตรงเวลา", "Newest data age / each feed's stale limit · grey = no observation, never on time")}

@@ -160,15 +160,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Executive briefing: comfortable reading, with colour reserved for evidence. */
-.cnx-executive-header button {
-  min-height: 44px;
+/* Header controls fit their labels; secondary tools belong in the menu. */
+.cnx-header-actions > button,
+.cnx-header-actions > details > summary,
+.cnx-header-actions > div {
+  min-height: 32px;
+  padding-inline: 8px;
   font-size: 12px;
-  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
-.cnx-executive-header .font-display { font-size: 17px; }
-@media (max-width: 639px) {
-  .cnx-executive-header .cnx-header-secondary { display: none; }
+@media (pointer: coarse) {
+  .cnx-header-actions > button,
+  .cnx-header-actions > details > summary,
+  .cnx-header-actions > div { min-height: 44px; }
 }
 .cnx-primary-action {
   background: var(--cool);

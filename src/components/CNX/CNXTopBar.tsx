@@ -283,16 +283,10 @@ export default function CnxTopBar(props: TopBarProps) {
     : 0;
 
   return (
-    // The bar is chrome, not content. It used to run ~180 px: a version
-    // row of its own, a 19 px wordmark, a pill row that wrapped onto three
-    // lines, and the full verdict block with every reason spelled out. On
-    // a war-room display that is most of the vertical budget spent on
-    // furniture while the map — the thing that carries the geography — got
-    // the remainder. The bar is now one 32 px row plus a single-line pill
-    // strip; full verdict reasoning sits above the news rail or mobile map.
-    <header lang={lang} className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-4 py-2 sm:px-6`}>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+    // Keep chrome content-sized: the map owns the vertical budget.
+    <header lang={lang} className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-3 py-1 sm:px-4`}>
+      <div className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <a href="/cnx" aria-label={t("หน้าแรก CNX ศูนย์ปฏิบัติการ", "CNX War Room home")} className="cnx-brand-plate flex h-9 w-[72px] shrink-0 items-center justify-center px-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logos/cnx-mark.png" alt="" width={60} height={28} className="block h-7 w-[60px] object-contain" />
@@ -304,7 +298,7 @@ export default function CnxTopBar(props: TopBarProps) {
           </div>
           <CNXLogoRow size={16} />
           <span
-            className="shrink-0 bg-[var(--ink)] px-1 py-0.5 font-mono text-[11px] font-bold tracking-[0.12em] text-[var(--bg)]"
+            className="hidden shrink-0 xl:inline bg-[var(--ink)] px-1 py-0.5 font-mono text-[11px] font-bold tracking-[0.12em] text-[var(--bg)]"
             title={`build ${process.env.NEXT_PUBLIC_GIT_SHA ?? "local"} · ${now}`}
           >
             v{process.env.NEXT_PUBLIC_APP_VERSION}
@@ -314,10 +308,9 @@ export default function CnxTopBar(props: TopBarProps) {
         </div>
 
 
-
-        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+        <div className="cnx-header-actions flex flex-wrap items-center gap-1 sm:flex-nowrap lg:ml-auto">
           {officeNotice && (
-            <details className="relative">
+            <details className="sm:relative">
               <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
               <Bell className="h-3 w-3" />
               {t("ประกาศหน่วยงาน", "Agency notice")} ⌄
@@ -348,9 +341,9 @@ export default function CnxTopBar(props: TopBarProps) {
           </button>
           {/* Per-feed freshness against each feed's declared SLO (twin manifest). */}
           <CnxFeedFreshness />
-          <details className="relative">
+          <details className="sm:relative">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 border border-[var(--line)] px-3 text-[13px] font-semibold"><span className="sm:hidden">{t("เมนู", "Menu")}</span><span className="hidden sm:inline">{t("เครื่องมือ", "Tools")}</span> <span aria-hidden="true">⌄</span></summary>
-            <div className="absolute right-0 top-full z-50 mt-2 grid w-64 gap-2 border border-[var(--ink)] bg-[var(--bg-raised)] p-3"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">{t("สรุปสำหรับผู้ว่าฯ", "Governor brief")}</button><button
+            <div className="absolute inset-x-3 top-full z-50 mt-2 grid max-h-[70dvh] gap-2 overflow-y-auto sm:inset-x-auto sm:right-0 sm:w-64 border border-[var(--ink)] bg-[var(--bg-raised)] p-3"><button type="button" onClick={onOpenBrief} className="min-h-11 border border-[var(--line)] px-3 text-left text-[13px] font-semibold sm:hidden">{t("สรุปสำหรับผู้ว่าฯ", "Governor brief")}</button><button
             onClick={onOpenData}
             className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] hover:border-[var(--cool)] hover:bg-[var(--cool-dim)] "
           >
@@ -380,6 +373,23 @@ export default function CnxTopBar(props: TopBarProps) {
           >
             <FlaskConical className="h-3 w-3" />
             {t("แหล่งข้อมูลและข้อจำกัด", "Sources and limits")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLang(lang === "th" ? "en" : "th")}
+            aria-label={lang === "th" ? "Switch to English" : "เปลี่ยนเป็นภาษาไทย"}
+            title={lang === "th" ? "English" : "ภาษาไทย"}
+            className="flex min-h-11 gap-2 items-center justify-center border border-[var(--line)] bg-[var(--bg)] px-2 text-[13px] font-semibold hover:border-[var(--ink)]"
+          >
+            {lang === "th" ? "English" : "ภาษาไทย"}
+          </button>
+          <button
+            onClick={toggleDark}
+            aria-label={t("สลับโหมดสว่าง/มืด", "Toggle theme")}
+            className="flex min-h-11 gap-2 px-2 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)] "
+          >
+            {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+            {t("สลับโหมดสว่าง/มืด", "Toggle theme")}
           </button>
           <a href="/cnx/about#web-app" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">{t("เว็บแอป Android และ iPhone", "Web app · Android & iPhone")}</a>
       {!compact && <details className="border-t border-[var(--line)]">
@@ -519,28 +529,10 @@ export default function CnxTopBar(props: TopBarProps) {
       </details>}
 </div>
           </details>
-          <button
-            type="button"
-            onClick={() => setLang(lang === "th" ? "en" : "th")}
-            aria-label={lang === "th" ? "Switch to English" : "เปลี่ยนเป็นภาษาไทย"}
-            title={lang === "th" ? "English" : "ภาษาไทย"}
-            className="flex h-11 min-w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] px-2 text-[13px] font-semibold hover:border-[var(--ink)]"
-          >
-            {lang === "th" ? "EN" : "ไทย"}
-          </button>
-          <button
-            onClick={toggleDark}
-            aria-label={t("สลับโหมดสว่าง/มืด", "Toggle theme")}
-            className="flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--ink)] "
-          >
-            {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
-          </button>
+
         </div>
       </div>
 
-      <a href="/cnx/about#web-app" className="mt-1 w-fit text-[11px] sm:hidden leading-5 text-[var(--dim)] hover:text-[var(--cool)] hover:underline">
-        {t("เว็บแอป Android และ iPhone · เพิ่มในหน้าจอหลัก", "Web app for Android & iPhone · add to home screen")}
-      </a>
 
 
     </header>

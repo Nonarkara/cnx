@@ -114,7 +114,8 @@ describe("feed freshness strip", () => {
   it("shows an unknown state, not a count, before the manifest arrives", async () => {
     __resetLangForTests("en");
     await act(async () => root.render(createElement(FeedFreshnessStrip, { manifest: null, now: NOW })));
-    expect(container.textContent).toBe("Feeds on time — unknown");
+    expect(container.textContent).toContain("Feeds on time — unknown");
+    expect(container.textContent).not.toMatch(/\d+\/\d+/);
   });
 });
 
