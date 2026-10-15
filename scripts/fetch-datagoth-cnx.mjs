@@ -24,6 +24,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactPersonalContactText } from "./redact-personal-contacts.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "public", "data", "cnx", "open-data");
@@ -152,10 +153,19 @@ async function run() {
       for (const r of norm.resources) {
         if (!r.url) continue;
         if (!/^https?:\/\//i.test(r.url)) continue;
+        // Only publish mirrors we can inspect and redact. Binary resources
+        // remain available through the publisher's original resource URL.
+        if ((r.format || "").toUpperCase() !== "CSV") continue;
         const dl = await tryDownloadResource(r.url);
         if (dl) {
+          let csv;
+          try {
+            csv = new TextDecoder("utf-8", { fatal: true }).decode(dl.bytes);
+          } catch {
+            continue; // preserve the source URL rather than corrupting another encoding
+          }
           const mirrorPath = join(ROOT, `${norm.id}.${(r.format || "bin").toLowerCase()}`);
-          await writeFile(mirrorPath, dl.bytes);
+          await writeFile(mirrorPath, redactPersonalContactText(csv), "utf8");
           mirror = mirrorPath.replace(join(__dirname, ".."), "").replace(/\\/g, "/");
           downloaded++;
           break;

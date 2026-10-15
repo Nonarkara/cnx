@@ -49,7 +49,7 @@ describe("committed public data", () => {
     const modalCounts = countPersonalContacts(modal);
     if (modalCounts.mobiles || modalCounts.emails) hits.push(`CNXEmergencyModal mobiles=${modalCounts.mobiles} emails=${modalCounts.emails}`);
     expect(hits).toEqual([]);
-  });
+  }, 60_000); // Full public-data scan includes local mirrors and can overlap a build.
 
   it("keeps official organisation contacts and credits the publisher", () => {
     const police = readFileSync(join(DATA, "cnx/data-library/datasets/_67_73.json"), "utf8");
