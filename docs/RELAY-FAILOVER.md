@@ -21,3 +21,7 @@ Reference: https://docs.github.com/en/actions/reference/workflows-and-actions/ev
 ## Validation
 
 Local regressions cover per-feed health selection, invalid/future/missing stamps, refusal of stale manifests, healthy-primary skipping, missing credentials, read-only probing, real payload construction, redirect protection, HTTP failure without retries, empty results, bounded bodies and replay races. Hosted-run evidence is recorded after the independent probe and takeover drill.
+
+Hosted connectivity probe, 15 October 2026: [run 38768626362](https://github.com/Nonarkara/cnx/actions/runs/38768626362) succeeded from a GitHub-hosted Ubuntu runner, reading 350 rainfall rows and 48 raw river rows without credentials or writes. This verifies that this independent network could reach ThaiWater at the time of the probe.
+
+The scheduled workflow checks at UTC minutes 7, 17, 27, 37, 47 and 57. Manual modes are available from the workflow's Run workflow menu on `main`. `probe` is the default and is read-only; `drill` writes genuine current source readings and should be used deliberately. The existing ingest credential is held as an encrypted Actions secret, never in the checkout. [Run history](https://github.com/Nonarkara/cnx/actions/workflows/relay-standby.yml) contains skip, push and failure evidence. Disabling that workflow stops the standby without affecting the Mac collector.

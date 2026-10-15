@@ -1,12 +1,14 @@
 name: Relay standby
 
 on:
+  schedule:
+    - cron: '7-57/10 * * * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: Read-only upstream connectivity probe
+        description: Probe is read-only; standby fills stale copies; drill pushes real current readings
         type: choice
-        options: [probe]
+        options: [probe, standby, drill]
         default: probe
 
 permissions:
@@ -29,4 +31,11 @@ jobs:
         with:
           node-version: '22.22.2'
       - name: Probe independent upstream access (no credentials or writes)
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'probe'
         run: node --experimental-strip-types scripts/relay-standby.mjs probe
+      - name: Maintain stale safety feeds or exercise takeover
+        if: github.event_name == 'schedule' || inputs.mode != 'probe'
+        env:
+          CNX_FLIGHTS_RELAY_SECRET: ${{ secrets.CNX_FLIGHTS_RELAY_SECRET }}
+          CNX_STANDBY_MODE: ${{ inputs.mode || 'standby' }}
+        run: node --experimental-strip-types scripts/relay-standby.mjs "$CNX_STANDBY_MODE"
