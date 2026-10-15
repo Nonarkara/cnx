@@ -159,6 +159,20 @@ export default function CnxWatchBoard({
   now,
 }: Props) {
   const { lang, t } = useLang();
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    if (now) return;
+    const tick = () => setClock(new Date());
+    const timer = window.setInterval(tick, 60_000);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", tick);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [now]);
+  const evaluatedAt = now ?? clock;
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
   const [jaxa, setJaxa] = useState<JaxaAotResponse | null>(null);
   const [floodhub, setFloodhub] = useState<FloodHubResponse | null>(null);
@@ -184,8 +198,8 @@ export default function CnxWatchBoard({
   }, []);
 
   const board = useMemo(
-    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings, now }),
-    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings, now],
+    () => buildWatchList({ metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings, now: evaluatedAt }),
+    [metrics, firesRfd, aerosol, aeronet, jaxa, floodhub, gistda, smoke, hazeVision, dustboy, weatherLayers, riverGauges, rain, outlook, officialWarnings, evaluatedAt],
   );
   const official = board.systems.filter((item) => item.kind === "official");
   // Official rows have their own frame above; "Watching now" is the board's own evidence.

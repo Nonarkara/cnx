@@ -93,11 +93,19 @@ function alertItem(alert: OfficialAlert, fetchedAt: string): WatchItem {
   };
 }
 
+/** Shared map/board selection. Null means an unknown check; [] means a current empty check. */
+export function currentOfficialAlerts(feed: OfficialWarningsResponse | null | undefined, now: number): OfficialAlert[] | null {
+  const age = feed ? now - Date.parse(feed.fetchedAt) : NaN;
+  if (!feed || feed.provenance !== "live" || !Number.isFinite(age) || age < -5 * 60_000 || age > OFFICIAL_WARNING_MAX_AGE_MS) return null;
+  return feed.alerts.filter((alert) => !alert.expires || !(Date.parse(alert.expires) < now));
+}
+
 /** The official rows; always at least one. `feed` null/undefined = not read yet. */
 export function officialWatchItems(feed: OfficialWarningsResponse | null | undefined, now: Date): WatchItem[] {
   const age = feed ? now.getTime() - Date.parse(feed.fetchedAt) : NaN;
   const stale = !!feed && feed.provenance === "live" && (!Number.isFinite(age) || age < -5 * 60_000 || age > OFFICIAL_WARNING_MAX_AGE_MS);
-  if (!feed || feed.provenance !== "live" || stale) {
+  const inForce = currentOfficialAlerts(feed, now.getTime());
+  if (!feed || inForce === null) {
     return [
       {
         ...base,
@@ -113,7 +121,6 @@ export function officialWatchItems(feed: OfficialWarningsResponse | null | undef
       },
     ];
   }
-  const inForce = feed.alerts.filter((a) => !a.expires || !(Date.parse(a.expires) < now.getTime()));
   if (inForce.length > 0) return inForce.map((a) => alertItem(a, feed.fetchedAt));
   return [
     {

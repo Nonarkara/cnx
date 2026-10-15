@@ -57,7 +57,7 @@ import CNXForecastLayer from "./CNXForecastLayer";
 import type { ForecastFieldResponse } from "../../lib/cnx/wind-field";
 import { precisionLabel, sameAmphoe, type Shelter } from "../../lib/cnx/shelters";
 import { useOfficialWarnings } from "../../hooks/useOfficialWarnings";
-import { CAP_SEVERITY_LEVEL, capWindow } from "../../lib/cnx/official-watch";
+import { CAP_SEVERITY_LEVEL, capWindow, currentOfficialAlerts } from "../../lib/cnx/official-watch";
 import type { OfficialAlert } from "../../lib/cnx/tmd-cap-core";
 
 const DeckGL = dynamic(() => import("@deck.gl/react").then((m) => m.default), {
@@ -484,7 +484,17 @@ export default function CNXMap({
   const [rainOn, setRainOn] = useState(true);
   // Moderate rain or more (≥10.1 mm/24 h): dry gauges would only add clutter.
   const [rainClock, setRainClock] = useState(() => Date.now());
-  useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => {
+    const tick = () => setRainClock(Date.now());
+    const timer = window.setInterval(tick, 60_000);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", tick);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
   const currentRainStations = useMemo(() => summariseRain(rainStations, rainClock).stations, [rainStations, rainClock]);
   const wetStations = useMemo(() => currentRainStations.filter((s) => s.band === "moderate" || s.band === "heavy" || s.band === "very-heavy"), [currentRainStations]);
   const [busesOn, setBusesOn] = useState(false);
@@ -534,9 +544,7 @@ export default function CNXMap({
   // TMD official warnings in force: outline only, so nothing underneath is hidden.
   const officialWarnings = useOfficialWarnings();
   const officialLayer = useMemo(() => {
-    const now = Date.now();
-    const rings: OfficialRing[] = (officialWarnings?.alerts ?? [])
-      .filter((a) => !a.expires || Date.parse(a.expires) >= now)
+    const rings: OfficialRing[] = (currentOfficialAlerts(officialWarnings, rainClock) ?? [])
       .flatMap((alert) => alert.polygons.map((ring) => ({ alert, path: [...ring, ring[0]] })));
     if (rings.length === 0) return null;
     return new PathLayer<OfficialRing>({
@@ -548,7 +556,7 @@ export default function CNXMap({
       widthUnits: "pixels",
       pickable: true,
     });
-  }, [officialWarnings]);
+  }, [officialWarnings, rainClock]);
 
   // Shelters: off until asked for, on whenever a warning points at them.
   const [sheltersOn, setSheltersOn] = useState(false);

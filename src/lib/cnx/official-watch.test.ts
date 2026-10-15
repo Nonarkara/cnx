@@ -44,3 +44,26 @@ describe("official source evidence links", () => {
     expect(officialWatchItems(feed({ alerts: [alert(web)] }), now)[0].evidenceUrl).toBeUndefined();
   });
 });
+
+// Map outlines and text must select the same retained warning snapshot.
+describe("official map and board selection", () => {
+  it("removes expired warnings even when the response object has not changed", async () => {
+    const { currentOfficialAlerts } = await import("./official-watch");
+    const response = feed({ alerts: [{ ...alert(null), expires: new Date(now.getTime() + 60_000).toISOString() }] });
+    expect(currentOfficialAlerts(response, now.getTime())?.length).toBe(1);
+    expect(currentOfficialAlerts(response, now.getTime() + 60_001)).toEqual([]);
+  });
+
+  it.each([null, feed({ provenance: "unavailable" }), feed({ fetchedAt: "invalid" }), feed({ fetchedAt: "2026-10-15T03:06:00Z" })])("does not draw current outlines from unavailable or unverifiable checks", async response => {
+    const { currentOfficialAlerts } = await import("./official-watch");
+    expect(currentOfficialAlerts(response, now.getTime())).toBeNull();
+  });
+
+  it("withdraws stale outlines without calling an empty current check unavailable", async () => {
+    const { currentOfficialAlerts } = await import("./official-watch");
+    const response = feed({ alerts: [alert(null)] });
+    expect(currentOfficialAlerts(response, now.getTime() + OFFICIAL_WARNING_MAX_AGE_MS)?.length).toBe(1);
+    expect(currentOfficialAlerts(response, now.getTime() + OFFICIAL_WARNING_MAX_AGE_MS + 1)).toBeNull();
+    expect(currentOfficialAlerts(feed(), now.getTime())).toEqual([]);
+  });
+});

@@ -37,3 +37,13 @@ Baseline live checks returned HTTP200 for build, rain, river, air quality, offic
 - Prior false-zero historical aviation rows cannot be reliably reconstructed from aggregates; the fix prevents new contamination.
 - Modeled warnings are screening signals. Official instructions and current field observations remain the operational authority.
 - Relay-backed feeds still depend on this Mac and its network. No uptime or independent failover guarantee is implied by a passing audit.
+
+## Follow-up: warning lifecycle on an unattended screen
+
+Priority: keep official-warning evidence consistent while an operations screen remains open. The map formerly filtered expiry only when a CAP response changed and did not apply the board's retrieval-age guard. The watch board also memoized time-dependent decisions without its own clock.
+
+Map outlines and watch-board rows now share one selection function. An expired warning loses its current outline; an unavailable, stale or unverifiable CAP check cannot supply a current outline. A current empty check remains distinct from an unknown check. Existing source links and the board's explicit unavailable state remain available. Selection is re-evaluated every minute, and immediately on window focus or visibility changes, without adding requests or layout chrome. Missing outlines do not establish safety.
+
+Regressions reproduce retained-alert expiry, stale retrieval, invalid/future retrieval timestamps, and returning to the screen after timers have paused. These are lifecycle checks; they do not validate the completeness of TMD's feed or predict hazards.
+
+Follow-up validation: all 1,062 tests passed across 109 files; scoped ESLint, TypeScript and whitespace checks passed. Release identity and live route checks are recorded after deployment.
