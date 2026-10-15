@@ -30,6 +30,7 @@ import {
   scalarReadout,
   velocityAt,
   windReadout,
+  windArrowSegments,
   type Rgba,
   type ScreenBasis,
   type VelocityGrid,
@@ -53,7 +54,6 @@ const GRID_STEP = 10;
 /** Screen speed = MOTION_K·√(m/s) px per frame: monotonic, so faster is
  *  always faster, but a 1 m/s valley breeze still visibly moves. */
 const MOTION_K = 1.0;
-const TRAIL = 12;
 const SOURCE_ID = "cnx-forecast-field-src";
 const LAYER_ID = "cnx-forecast-field";
 const RASTER_SIZE = 300;
@@ -274,6 +274,14 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
           for (const l of lines) {
             ctx.moveTo(l[0], l[1]);
             for (let k = 2; k < l.length; k += 2) ctx.lineTo(l[k], l[k + 1]);
+            const end = l.length - 2;
+            const arrow = windArrowSegments(l[end] - l[end - 2], l[end + 1] - l[end - 1]);
+            if (arrow) {
+              const [, tip, left, right] = arrow;
+              ctx.moveTo(l[end] + left[0], l[end + 1] + left[1]);
+              ctx.lineTo(l[end] + tip[0], l[end + 1] + tip[1]);
+              ctx.lineTo(l[end] + right[0], l[end + 1] + right[1]);
+            }
           }
           ctx.stroke();
         });
@@ -289,25 +297,16 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
     }
 
     const area = canvas.clientWidth * canvas.clientHeight;
-    const count = Math.min(2200, Math.max(400, Math.round(area / 1100)));
-    // Each particle keeps its last TRAIL positions and the whole tail is
-    // redrawn every frame, fading towards its end. A cleared canvas each
-    // frame leaves no residue (accumulated fades never reach zero in 8-bit
-    // alpha) and nothing lingers after the wind or the view changes.
-    const xs = new Float32Array(count * TRAIL);
-    const ys = new Float32Array(count * TRAIL);
-    const head = new Uint8Array(count);
-    const filled = new Uint8Array(count);
-    const spd = new Float32Array(count);
+    const count = Math.min(500, Math.max(60, Math.round(area / 6000)));
+    // Open arrows have a fixed readable silhouette even in very light wind.
+    // Motion and brightness convey speed; arrowheads convey direction.
+    const xs = new Float32Array(count);
+    const ys = new Float32Array(count);
     const age = new Uint16Array(count);
     const life = new Uint16Array(count);
     const spawn = (i: number) => {
-      const x = Math.random() * canvas.clientWidth;
-      const y = Math.random() * canvas.clientHeight;
-      xs[i * TRAIL] = x;
-      ys[i * TRAIL] = y;
-      head[i] = 0;
-      filled[i] = 1;
+      xs[i] = Math.random() * canvas.clientWidth;
+      ys[i] = Math.random() * canvas.clientHeight;
       age[i] = 0;
       life[i] = 60 + Math.floor(Math.random() * 100);
     };
@@ -315,49 +314,34 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
       spawn(i);
       age[i] = Math.floor(Math.random() * life[i]);
     }
-    const TAIL_BUCKETS = 4;
-    const paths: Path2D[] = [];
     let raf = 0;
     const frame = () => {
       raf = window.requestAnimationFrame(frame);
       const grid = gridRef.current;
       if (movingRef.current || !grid) return;
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-      for (let k = 0; k < 4 * TAIL_BUCKETS; k += 1) paths[k] = new Path2D();
+      const paths = Array.from({ length: 4 }, () => new Path2D());
       for (let i = 0; i < count; i += 1) {
-        const base = i * TRAIL;
-        const hx = xs[base + head[i]];
-        const hy = ys[base + head[i]];
-        const v = age[i] < life[i] ? velocityAt(grid, hx, hy) : null;
-        if (!v) {
-          spawn(i);
-          continue;
-        }
-        const nh = (head[i] + 1) % TRAIL;
-        xs[base + nh] = hx + v[0];
-        ys[base + nh] = hy + v[1];
-        head[i] = nh;
-        if (filled[i] < TRAIL) filled[i] += 1;
-        spd[i] = v[2];
+        const v = age[i] < life[i] ? velocityAt(grid, xs[i], ys[i]) : null;
+        if (!v) { spawn(i); continue; }
+        xs[i] += v[0];
+        ys[i] += v[1];
         age[i] += 1;
-        // Newest segment first; older segments go to fainter buckets.
-        const sb = bucketOf(spd[i]);
-        for (let s = 0; s < filled[i] - 1; s += 1) {
-          const a = (nh - s + TRAIL) % TRAIL;
-          const b = (a - 1 + TRAIL) % TRAIL;
-          const tb = Math.min(TAIL_BUCKETS - 1, Math.floor((s / (TRAIL - 1)) * TAIL_BUCKETS));
-          const path = paths[sb * TAIL_BUCKETS + tb];
-          path.moveTo(xs[base + a], ys[base + a]);
-          path.lineTo(xs[base + b], ys[base + b]);
-        }
+        const arrow = windArrowSegments(v[0], v[1]);
+        if (!arrow) continue;
+        const [tail, tip, left, right] = arrow;
+        const path = paths[bucketOf(v[2])];
+        path.moveTo(xs[i] + tail[0], ys[i] + tail[1]);
+        path.lineTo(xs[i] + tip[0], ys[i] + tip[1]);
+        path.moveTo(xs[i] + left[0], ys[i] + left[1]);
+        path.lineTo(xs[i] + tip[0], ys[i] + tip[1]);
+        path.lineTo(xs[i] + right[0], ys[i] + right[1]);
       }
       ctx.lineWidth = 1.5;
-      ctx.lineCap = "round";
+      ctx.lineCap = "butt";
       for (let sb = 0; sb < 4; sb += 1) {
-        for (let tb = 0; tb < TAIL_BUCKETS; tb += 1) {
-          ctx.strokeStyle = `rgba(${rgb},${(alphas[sb] * (1 - tb / TAIL_BUCKETS)).toFixed(3)})`;
-          ctx.stroke(paths[sb * TAIL_BUCKETS + tb]);
-        }
+        ctx.strokeStyle = `rgba(${rgb},${alphas[sb]})`;
+        ctx.stroke(paths[sb]);
       }
       const city = cityScreenRef.current;
       const bearing = windArrowRef.current;
@@ -477,7 +461,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
                 <legend className="sr-only">{tr("ชั้นลม", "Wind layer")}</legend>
                 <ChipButton pressed={windOn && level === "10m"} onClick={() => { setWindOn(true); setLevel("10m"); }} title={tr("ลมที่ความสูง 10 เมตร — ลมที่คนบนพื้นรู้สึก", "Wind at 10 m — the wind people feel on the ground")}>{tr("ลมผิวพื้น", "Surface wind")}</ChipButton>
                 <ChipButton pressed={windOn && level === "850hPa"} onClick={() => { setWindOn(true); setLevel("850hPa"); }} title={tr("ลมระดับ 850 hPa (~1.5 กม.) — ระดับที่พาควันเดินทางข้ามเขา ใช้คำนวณแนวควัน", "Wind at 850 hPa (~1.5 km) — the level that carries smoke over the hills; used for smoke paths")}>{tr("ลมพาควัน ~1.5 กม.", "Smoke wind ~1.5 km")}</ChipButton>
-                <ChipButton pressed={!windOn} onClick={() => setWindOn(false)} title={tr("ซ่อนเส้นลม", "Hide wind streaks")}>{tr("ปิดลม", "Wind off")}</ChipButton>
+                <ChipButton pressed={!windOn} onClick={() => setWindOn(false)} title={tr("ซ่อนลูกศรลม", "Hide wind arrows")}>{tr("ปิดลม", "Wind off")}</ChipButton>
               </fieldset>
               <fieldset className="flex items-center gap-1">
                 <legend className="sr-only">{tr("ชั้นพยากรณ์", "Forecast layer")}</legend>

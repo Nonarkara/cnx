@@ -7,6 +7,19 @@ import { bilinear, sampleScalar, sampleWind, timeBracket, type ForecastField, ty
 
 export type Rgba = [number, number, number, number];
 
+/** Fixed screen-size open arrow: slow wind must not collapse into a drop. */
+export function windArrowSegments(vx: number, vy: number): [number, number][] | null {
+  const speed = Math.hypot(vx, vy);
+  if (!Number.isFinite(speed) || speed === 0) return null;
+  const ux = vx / speed, uy = vy / speed;
+  return [
+    [-7 * ux, -7 * uy],
+    [7 * ux, 7 * uy],
+    [2 * ux + 4 * uy, 2 * uy - 4 * ux],
+    [2 * ux - 4 * uy, 2 * uy + 4 * ux],
+  ];
+}
+
 /** Rain intensity, mm per hour — WMO classes: light < 2.5, moderate 2.5–7.6,
  *  heavy 7.6–50, violent > 50. A cool ramp: rain is not a warning colour by
  *  itself; the warning comes from the totals and the text. */

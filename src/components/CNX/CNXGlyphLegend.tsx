@@ -50,9 +50,9 @@ export const LEGEND_ROWS: LegendRow[] = [
   },
   {
     id: "wind-streaks",
-    shape: "streak",
-    labelTh: "เส้นลม (ความเร็วตามความยาวและความสว่าง)",
-    labelEn: "Wind streaks (length and brightness = speed)",
+    shape: "arrow",
+    labelTh: "ลูกศรลมเคลื่อนที่ (การเคลื่อนที่และความสว่างแสดงความเร็ว)",
+    labelEn: "Moving wind arrows (motion and brightness = speed)",
     originTh: "แบบจำลอง",
     originEn: "model",
     color: null,
