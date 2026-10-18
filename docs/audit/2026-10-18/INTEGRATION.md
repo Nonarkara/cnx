@@ -32,3 +32,9 @@ The off-Mac GitHub Actions standby has a ten-minute schedule, but observed runs 
 ## Validation
 
 Focused regressions were reproduced before fixes. Full release, browser and deployed gates are recorded in `RELEASE-EVIDENCE.md` after execution.
+
+## Dependency boundary found during release review
+
+The initial production dependency audit reported five affected dependency nodes (four high, one moderate). This count is not five demonstrated exploits. The active Mac relay decodes upstream image bytes with Sharp; its vulnerable librsvg dependency therefore cannot be dismissed as development-only. Sharp is patched from 0.35.4 to 0.35.5 and classified as a runtime dependency. Next.js is patched from 15.5.25 to 15.5.27. Overrides use patched PostCSS for Next and the patched Sharp line throughout the tree, retaining Wrangler 4.147 rather than broadly upgrading the toolchain. Final installed versions, audit results and build/import verification belong in the release evidence.
+
+The remaining full-audit findings are the ESLint → fast-glob/micromatch → braces development-tool chain (deep-pattern stack exhaustion). Registry latest braces 3.0.3 remains within the advisory range; no compatible released patch exists. Repository-controlled lint globs are not an inspected public request path. This is a scoped risk assessment, not a clean bill for all tooling.
