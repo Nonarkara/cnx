@@ -8,7 +8,7 @@ export const HAZE_VISION_KV_KEY = "haze-vision-latest";
 /** The relay scores every 10 min; 45 min without a push means it is down. */
 const STALE_MS = 45 * 60_000;
 const MAX_CAMERAS = 60;
-const LABELS: HazeLabel[] = ["haze-likely", "some-haze", "clear", "too-dark", "no-colour", "calibrating"];
+const LABELS: HazeLabel[] = ["haze-likely", "some-haze", "clear", "too-dark", "no-colour", "unusable", "calibrating"];
 
 export interface NearestPm25 {
   stationName: string;
@@ -57,21 +57,21 @@ export interface HazeVisionPayload {
     /** Median and 95th percentile of the same readings — the robust spread. */
     pm25Median: number | null;
     pm25P95: number | null;
-    /** How many paired readings reached HAZE_EVENT_UG (unhealthy). */
+    /** How many paired readings reached the operational HAZE_EVENT_UG threshold. */
     eventReadings: number;
+    /** Most independent high-reading stations in any three-hour window. Absent in older payloads. */
+    eventStations?: number;
     /**
-     * True when the window contains a real regional haze episode, not a
-     * spike. Requires both a robust spread (p95 − median ≥ 20 µg/m³) AND
-     * at least 3 unhealthy readings, because a lone faulted sensor at 149
-     * µg/m³ is not an event — it is the sensor fault we already detect in
-     * dustboy.ts. Using min/max here would let one broken unit manufacture
-     * a "testable" window and print a meaningless correlation.
+     * A varied, corroborated high-reading window: robust spread
+     * (p95 − median ≥ 20 µg/m³), with readings ≥50 from 3 independent
+     * station IDs within three hours. This is not certification of a
+     * regional haze episode, a health assessment, or detection accuracy.
      */
     spansHazeEvent: boolean;
   };
 }
 
-/** A paired PM2.5 at or above this counts toward a real haze event. */
+/** Operational high-reading threshold for inspecting agreement, not a health assessment. */
 export const HAZE_EVENT_UG = 50;
 /** Minimum eventReadings before a window counts as an episode, not a spike. */
 export const HAZE_EVENT_MIN_READINGS = 3;
@@ -83,7 +83,8 @@ export interface HazeVisionResponse extends HazeVisionPayload {
 }
 
 function isMetrics(v: unknown): v is FrameMetrics {
-  return isObj(v) && isNum(v.meanLuminance) && isNum(v.contrast) && isNum(v.darkChannel) && isNum(v.saturation);
+  return isObj(v) && isNum(v.meanLuminance) && isNum(v.contrast) && isNum(v.darkChannel) && isNum(v.saturation)
+    && (v.luminanceRange === undefined || isNum(v.luminanceRange) && v.luminanceRange >= 0 && v.luminanceRange <= 1);
 }
 
 function isCamera(v: unknown): v is CameraHaze {
@@ -122,18 +123,20 @@ export function isHazeVisionPayload(v: unknown): v is HazeVisionPayload {
     isNumOrNull(v.agreement.pm25Median) &&
     isNumOrNull(v.agreement.pm25P95) &&
     isNum(v.agreement.eventReadings) &&
-    typeof v.agreement.spansHazeEvent === "boolean"
+    (v.agreement.eventStations === undefined || isNum(v.agreement.eventStations) && Number.isInteger(v.agreement.eventStations) && v.agreement.eventStations >= 0 && v.agreement.eventStations <= v.agreement.eventReadings) &&
+    typeof v.agreement.spansHazeEvent === "boolean" &&
+    (!v.agreement.spansHazeEvent || isNum(v.agreement.eventStations) && v.agreement.eventStations >= 3
+      && isNum(v.agreement.pm25Median) && isNum(v.agreement.pm25P95) && v.agreement.pm25P95 - v.agreement.pm25Median >= HAZE_TESTABLE_SPREAD)
   );
 }
 
 /**
- * PM2.5 spread, in µg/m³, below which a correlation cannot discriminate a
- * working scorer from a broken one.
+ * Minimum PM2.5 spread, in µg/m³, before the board calls the agreement
+ * window varied enough to inspect against a high-reading episode.
  *
- * 20 µg/m³ is roughly the WHO 24-hour guideline. Observed clean-air days in
- * the first month of operation spanned 3–20, so the whole dataset fell
- * inside it. A real episode in the burning season clears 50–120, which is
- * what will finally make the number meaningful.
+ * This is an engineering diversity gate, not a WHO health guideline or
+ * a validation result. A varied response is necessary to interpret the
+ * association; it does not establish detection accuracy.
  */
 export const HAZE_TESTABLE_SPREAD = 20;
 
@@ -143,7 +146,7 @@ export async function fetchCnxHazeVision(): Promise<HazeVisionResponse> {
   return {
     generatedAt: new Date().toISOString(),
     cameras: [],
-    agreement: { r: null, pairs: 0, pm25Min: null, pm25Max: null, pm25Median: null, pm25P95: null, eventReadings: 0, spansHazeEvent: false },
+    agreement: { r: null, pairs: 0, pm25Min: null, pm25Max: null, pm25Median: null, pm25P95: null, eventReadings: 0, eventStations: 0, spansHazeEvent: false },
     provenance: "unavailable",
     methodology: HAZE_METHODOLOGY,
     note: "The webcam haze relay has not reported in the last 45 minutes — no camera verdicts are shown.",

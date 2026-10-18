@@ -42,6 +42,7 @@ const VERDICT: Record<HazeLabel, { th: string; en: string; cls: string }> = {
   "too-dark": { th: "มืดเกินประเมิน", en: "Too dark to judge", cls: "border-[var(--line)] text-[var(--dim)]" },
   "no-colour": { th: "ภาพไม่มีสี — ไม่ประเมิน", en: "No colour — not scored", cls: "border-[var(--line)] text-[var(--dim)]" },
   calibrating: { th: "กำลังเรียนรู้ภาพฟ้าใส", en: "Calibrating", cls: "border-[var(--line)] text-[var(--dim)]" },
+  unusable: { th: "รายละเอียดภาพไม่พอ — ประเมินไม่ได้", en: "Insufficient visual detail — cannot assess", cls: "border-[var(--line)] text-[var(--dim)]" },
 };
 
 function ago(iso: string | undefined | null, lang: Lang): string {
@@ -79,6 +80,7 @@ function CameraCard({ cam }: { cam: CameraHaze }) {
           </span>
           {cam.score !== null && <span className="font-mono tabular-nums text-[var(--dim)]">{t("คะแนน", "score")} {cam.score.toFixed(2)}</span>}
         </div>
+        {cam.verdict === "unusable" && <p className="text-[var(--dim)]">{t("หมอก สิ่งบดบัง หรือภาพแทนที่อาจทำให้รายละเอียดไม่พอ แยกสาเหตุจากภาพนี้ไม่ได้ และไม่ใช่การยืนยันว่าอากาศใส", "Fog, obstruction or a placeholder may remove visual detail. The cause cannot be determined from this frame; this is not a clear-air finding.")}</p>}
         <div className="text-[var(--dim)]">
           {t("ถ่ายภาพ", "frame taken")} {ago(cam.observedAt, lang)}
           {cam.verdict === "calibrating" && ` · ${cam.baselineSamples}/${MIN_BASELINE_SAMPLES} ${t("ภาพกลางวัน", "daylight frames")}`}
@@ -118,6 +120,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
   const pcdAvg = avg(pcd.map((s) => s.pm25));
   const modelAvg = avg(model.map((s) => s.pm25));
   const cams = hazeVision?.cameras ?? [];
+  const scoredCams = cams.filter((c) => c.score !== null && ["clear", "some-haze", "haze-likely"].includes(c.verdict)).length;
   const hazyCams = cams.filter((c) => c.verdict === "haze-likely" || c.verdict === "some-haze").length;
   const reports = citizen?.reports ?? [];
   const agreement = hazeVision?.agreement;
@@ -193,8 +196,8 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
           />
           <Stat
             label={t("เว็บแคม", "Webcams")}
-            value={cams.length ? `${hazyCams}/${cams.length}` : "—"}
-            sub={cams.length ? t("กล้องที่เห็นหมอกควัน", "cameras showing haze") : hazeVision?.note ?? t("กำลังโหลด…", "loading…")}
+            value={scoredCams ? `${hazyCams}/${scoredCams}` : "—"}
+            sub={cams.length ? t(`กล้องที่เห็นหมอกควัน จากที่ประเมินได้ ${scoredCams} · ประเมินไม่ได้ ${cams.length - scoredCams}`, `cameras showing haze · ${scoredCams} assessed · ${cams.length - scoredCams} unassessable`) : hazeVision?.note ?? t("กำลังโหลด…", "loading…")}
           />
         </section>
 
@@ -241,10 +244,10 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
                 : t("คะแนนกล้องหรือค่าภาคพื้นที่จับคู่ไม่แปรผันพอจะคำนวณสหสัมพันธ์", "The camera scores or paired ground readings did not vary enough to calculate a correlation.")
               : lang === "th"
               ? agreement.spansHazeEvent
-                ? `ความสัมพันธ์กับค่า DustBoy ที่ตรงเวลา: r = ${agreement.r.toFixed(2)} จากค่าภาคพื้น ${agreement.pairs} ค่า แต่ละค่านับครั้งเดียวโดยใช้ค่าเฉลี่ยคะแนนกล้องที่จับคู่ ค่าภาคพื้นอยู่ระหว่างมัธยฐาน ${agreement.pm25Median} ถึง p95 ${agreement.pm25P95} µg/m³ มีค่าที่ไม่ดีต่อสุขภาพ ${agreement.eventReadings} ค่า นี่เป็นความสัมพันธ์ที่สังเกตได้ ไม่ใช่การวัดความแม่นยำในการตรวจจับ`
+                ? `ความสัมพันธ์กับค่า DustBoy ที่ตรงเวลา: r = ${agreement.r.toFixed(2)} จากค่าภาคพื้น ${agreement.pairs} ค่า แต่ละค่านับครั้งเดียวโดยใช้ค่าเฉลี่ยคะแนนกล้องที่จับคู่ ค่าภาคพื้นอยู่ระหว่างมัธยฐาน ${agreement.pm25Median} ถึง p95 ${agreement.pm25P95} µg/m³ มีค่าตั้งแต่ 50 µg/m³ ขึ้นไป ${agreement.eventReadings} ค่า นี่เป็นความสัมพันธ์ที่สังเกตได้ ไม่ใช่การวัดความแม่นยำในการตรวจจับ`
                 : `ยังไม่ได้ยืนยันความแม่นยำในการตรวจจับกับช่วงหมอกควันที่หลากหลาย ค่าภาคพื้น ${agreement.pairs} ค่า: มัธยฐาน ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95} และ ${agreement.eventReadings} ค่าที่ 50 ขึ้นไป สหสัมพันธ์ r = ${agreement.r.toFixed(2)} ในช่วงจำกัดนี้ยืนยันไม่ได้ว่ากล้องตรวจจับหมอกควันได้น่าเชื่อถือเพียงใด`
               : agreement.spansHazeEvent
-              ? `Association with time-matched DustBoy readings: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} distinct ground observations. Each sensor reading counts once, using the average of its paired camera scores. Ground readings spanned a median of ${agreement.pm25Median} to p95 ${agreement.pm25P95} µg/m³ with ${agreement.eventReadings} unhealthy readings. This is an observed association, not a measurement of detection accuracy.`
+              ? `Association with time-matched DustBoy readings: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} distinct ground observations. Each sensor reading counts once, using the average of its paired camera scores. Ground readings spanned a median of ${agreement.pm25Median} to p95 ${agreement.pm25P95} µg/m³ with ${agreement.eventReadings} readings at or above 50 µg/m³. This is an observed association, not a measurement of detection accuracy.`
               : `Detection accuracy is not yet established against a varied haze episode. ${agreement.pairs} distinct ground observations: median ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95}, and ${agreement.eventReadings} at or above 50. Correlation r = ${agreement.r.toFixed(2)} on this limited window cannot establish how reliably the cameras detect haze.`}
           </p>
           {cams.length > 0 ? (

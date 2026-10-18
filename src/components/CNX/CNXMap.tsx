@@ -388,6 +388,7 @@ const HAZE_FILL: Record<HazeLabel, [number, number, number, number]> = {
   "too-dark": [107, 107, 107, 200],
   "no-colour": [107, 107, 107, 200],
   calibrating: [107, 107, 107, 200],
+  unusable: [107, 107, 107, 200],
 };
 
 const NO_RTC_LINES: RtcLine[] = [];
@@ -423,6 +424,7 @@ const HAZE_LABEL: Record<HazeLabel, { th: string; en: string }> = {
   "too-dark": { th: "มืดเกินประเมิน", en: "too dark to judge" },
   "no-colour": { th: "ภาพไม่มีสี — ไม่ประเมิน", en: "no colour — not scored" },
   calibrating: { th: "กำลังเรียนรู้ภาพฟ้าใส", en: "calibrating" },
+  unusable: { th: "รายละเอียดภาพไม่พอ — ประเมินไม่ได้ (อาจเกิดจากหมอกหรือสิ่งบดบัง)", en: "insufficient visual detail — cannot assess (fog or obstruction may cause this)" },
 };
 
 /** Building-card labels for the OSM `kind` tag. */

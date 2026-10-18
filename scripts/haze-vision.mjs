@@ -35,6 +35,8 @@ const MAX_SNAPSHOT_PIXELS = 24_000_000;
 const HAZE_TESTABLE_SPREAD = 20;
 /** A reading at or above this is an unhealthy one; an EVENT needs several. */
 const HAZE_EVENT_UG = 50;
+const HAZE_EVENT_MIN_STATIONS = 3;
+const HAZE_EVENT_WINDOW_MS = 3 * 60 * 60_000;
 const DUSTBOY_FEED = "https://www-old.cmuccdc.org/assets/api/haze/pwa/json/stations.json";
 const CACHE_DIR = process.env.CNX_RELAY_CACHE_DIR ?? "/Volumes/Data/CNX/relay-cache";
 const HISTORY_FILE = `${CACHE_DIR}/haze-history.json`;
@@ -148,10 +150,10 @@ function agreement(history) {
   const paired = new Map();
   for (const entries of Object.values(history)) {
     for (const e of entries) {
-      if (e.scorerVersion !== HAZE_SCORER_VERSION || typeof e.pmPairKey !== "string" ||
+      if (e.scorerVersion !== HAZE_SCORER_VERSION || !isScorable(e.m) || typeof e.pmPairKey !== "string" ||
           typeof e.score !== "number" || typeof e.pm25 !== "number") continue;
-      const group = paired.get(e.pmPairKey) ?? { sum: 0, count: 0, pm25: e.pm25 };
-      paired.set(e.pmPairKey, { sum: group.sum + e.score, count: group.count + 1, pm25: group.pm25 });
+      const group = paired.get(e.pmPairKey) ?? { sum: 0, count: 0, pm25: e.pm25, stationId: e.pmStationId, observedAt: Date.parse(e.pmObservedAt ?? "") };
+      paired.set(e.pmPairKey, { ...group, sum: group.sum + e.score, count: group.count + 1 });
     }
   }
   const xs = [...paired.values()].map((p) => p.sum / p.count);
@@ -169,6 +171,21 @@ function agreement(history) {
   // testable window — which is how the first version of this metric
   // reported r = -0.01 over "clean air 3-149 µg/m³".
   const eventReadings = ys.filter((v) => v >= HAZE_EVENT_UG).length;
+  const events = [...paired.values()].filter(p => p.pm25 >= HAZE_EVENT_UG && typeof p.stationId === "string" && p.stationId && Number.isFinite(p.observedAt))
+    .sort((a, b) => a.observedAt - b.observedAt);
+  const stationCounts = new Map();
+  let start = 0;
+  let eventStations = 0;
+  for (const event of events) {
+    stationCounts.set(event.stationId, (stationCounts.get(event.stationId) ?? 0) + 1);
+    while (events[start].observedAt < event.observedAt - HAZE_EVENT_WINDOW_MS) {
+      const station = events[start++].stationId;
+      const count = stationCounts.get(station) - 1;
+      if (count) stationCounts.set(station, count);
+      else stationCounts.delete(station);
+    }
+    eventStations = Math.max(eventStations, stationCounts.size);
+  }
   const robustSpread = median !== null && p95 !== null ? p95 - median : null;
   return {
     r: pearson(xs, ys),
@@ -178,7 +195,8 @@ function agreement(history) {
     pm25Median: median,
     pm25P95: p95,
     eventReadings,
-    spansHazeEvent: robustSpread !== null && robustSpread >= HAZE_TESTABLE_SPREAD && eventReadings >= 3,
+    eventStations,
+    spansHazeEvent: robustSpread !== null && robustSpread >= HAZE_TESTABLE_SPREAD && eventReadings >= 3 && eventStations >= HAZE_EVENT_MIN_STATIONS,
   };
 }
 
@@ -200,7 +218,10 @@ export async function runHazeVision({ baseUrl, secret }) {
     const cutoff = Date.now() - HISTORY_DAYS * 86_400_000;
     const cameras = [];
     for (const [id, entries] of Object.entries(history)) {
-      history[id] = entries.filter((e) => e.t >= cutoff && isScorable(e.m));
+      // Legacy summaries cannot establish scene detail, but their fingerprints
+      // still prove an image was seen earlier. Preserve capture-time evidence
+      // without admitting those summaries to calibration or agreement.
+      history[id] = entries.filter((e) => e.t >= cutoff);
     }
 
     for (const cam of cams) {
@@ -223,7 +244,7 @@ export async function runHazeVision({ baseUrl, secret }) {
         // isScorable (not just isDaylight) so monochrome IR night-vision frames
         // never enter the baseline or the stored history.
         if (!previous && !past.some((e) => e.t === observedAt) && isScorable(metrics)) {
-          past.push({ t: observedAt, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null, pmPairKey: pm ? `${pm.stationId}:${pm.observedAt}` : null, fingerprint, scorerVersion: HAZE_SCORER_VERSION });
+          past.push({ t: observedAt, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null, pmPairKey: pm ? `${pm.stationId}:${pm.observedAt}` : null, pmStationId: pm?.stationId ?? null, pmObservedAt: pm?.observedAt ?? null, fingerprint, scorerVersion: HAZE_SCORER_VERSION });
         }
         history[cam.id] = past;
         cameras.push({
@@ -236,7 +257,7 @@ export async function runHazeVision({ baseUrl, secret }) {
           verdict: verdict.label,
           score: verdict.score,
           metrics,
-          baselineSamples: past.length,
+          baselineSamples: past.filter((e) => isScorable(e.m)).length,
           nearestPm25: pm,
         });
       } catch (e) {
@@ -247,6 +268,7 @@ export async function runHazeVision({ baseUrl, secret }) {
 
     const res = await fetch(`${baseUrl}/api/cnx/haze-vision/ingest`, {
       method: "POST",
+      redirect: "error",
       headers: { "Content-Type": "application/json", "X-Relay-Secret": secret },
       body: JSON.stringify({ generatedAt: new Date().toISOString(), cameras, agreement: agreement(history) }),
       signal: AbortSignal.timeout(20_000),

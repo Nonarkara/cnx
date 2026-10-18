@@ -38,3 +38,8 @@ scripts/relay-flights.env
 
 # maplibre-gl worker files, copied from node_modules by scripts/copy-maplibre-worker.mjs
 /public/maplibre/
+
+# Local Worker credentials and portable snapshots (PR #2)
+.dev.vars
+.dev.vars.*
+.data/

@@ -14,10 +14,10 @@ import type { RiverGauge, RiverLevelResponse } from "./river-level";
 import type { RainResponse } from "./rain";
 import type { DamResponse } from "./dam";
 import type { DamStation } from "./dam-core";
-import type { FloodHubResponse, FloodHubSeverity } from "./floodhub";
+import { summariseFloodHub, type FloodHubResponse, type FloodHubSeverity } from "./floodhub";
 import type { ProvinceOutlook } from "./outlook";
 import { currentRainSummary } from "./rain-core";
-import { damAgeDays, DAM_BAND_EN, DAM_BAND_TH } from "./dam-core";
+import { damAgeDays, summariseDams, DAM_RELAY_MAX_AGE_MS, DAM_BAND_EN, DAM_BAND_TH } from "./dam-core";
 import { outlookTime, outlookTimeEn } from "./outlook";
 import { isCurrentGaugeReading } from "./verdict";
 
@@ -150,12 +150,22 @@ const DAMS: Meta = {
 
 const pct = (s: DamStation) => (s.pctNormal === null ? "—" : `${fmt(s.pctNormal, 0)}%`);
 
-export function damLine(feed: Feed<DamResponse>): DeskLine {
+export function damLine(feed: Feed<DamResponse>, nowMs = Date.now()): DeskLine {
   if (feed.status === "loading") return loading(DAMS);
   if (feed.status === "failed") return unavailable(DAMS, `อ่านข้อมูลเขื่อนไม่ได้ · ${FAILED_TH}`, `Reservoir data could not be read. ${FAILED_EN}`);
-  const d = feed.data;
-  if (d.provenance !== "live") {
-    return unavailable(DAMS, "ไม่มีรายงานเขื่อนล่าสุด — ปริมาณน้ำในอ่างยังไม่ทราบ ไม่ใช่ว่าปกติ", d.unavailableReason ?? "Reservoir report unavailable — storage is unknown, not normal.");
+  const cached = feed.data;
+  if (cached.provenance !== "live") {
+    return unavailable(DAMS, "ไม่มีรายงานเขื่อนล่าสุด — ปริมาณน้ำในอ่างยังไม่ทราบ ไม่ใช่ว่าปกติ", cached.unavailableReason ?? "Reservoir report unavailable — storage is unknown, not normal.");
+  }
+  const age = nowMs - Date.parse(cached.collectedAt ?? cached.generatedAt);
+  if (!Number.isFinite(age) || age < -5 * 60_000 || age > DAM_RELAY_MAX_AGE_MS) {
+    return unavailable(DAMS, "การเก็บข้อมูลเขื่อนเก่าหรือยืนยันเวลาไม่ได้ — ปริมาณน้ำปัจจุบันยังไม่ทราบ", "Reservoir collection is stale or its time cannot be verified — current storage is unknown.");
+  }
+  // Re-grade the retained rows with today's Bangkok report-day cutoff;
+  // a fresh neighbour must not keep an expired overflowing dam alive.
+  const d = summariseDams([...cached.large, ...cached.medium], nowMs);
+  if (d.large.length + d.medium.length === 0) {
+    return unavailable(DAMS, "ไม่มีรายงานเขื่อนที่ยังอยู่ในช่วงอายุที่กำหนด — ปริมาณน้ำปัจจุบันยังไม่ทราบ", "No reservoir report remains within its report-day allowance — current storage is unknown.");
   }
   // Large dams set the level; a full medium reservoir raises attention to watch at most.
   const mediumFull = d.medium.filter((m) => m.band === "over" || m.band === "near-full");
@@ -258,12 +268,21 @@ const FH: Record<FloodHubSeverity, { level: SeverityLevel; th: string; en: strin
 const newestIssued = (fh: FloodHubResponse): string | null =>
   fh.points.reduce<string | null>((n, p) => (p.issuedTime && (!n || Date.parse(p.issuedTime) > Date.parse(n)) ? p.issuedTime : n), null);
 
-export function floodHubLine(feed: Feed<FloodHubResponse>): DeskLine {
+export function floodHubLine(feed: Feed<FloodHubResponse>, nowMs = Date.now()): DeskLine {
   if (feed.status === "loading") return loading(FLOODHUB);
   if (feed.status === "failed") return unavailable(FLOODHUB, `อ่าน Flood Hub ไม่ได้ · ${FAILED_TH}`, `Flood Hub could not be read. ${FAILED_EN}`);
-  const fh = feed.data;
-  if (fh.provenance !== "live" || !fh.worst || fh.worst === "UNKNOWN") {
-    return unavailable(FLOODHUB, "Google Flood Hub ไม่มีการพยากรณ์ — ไม่ใช่การพยากรณ์ว่าไม่มีน้ำท่วม", `Flood Hub unavailable: ${fh.note}`);
+  if (feed.data.provenance !== "live") {
+    return unavailable(FLOODHUB, "Google Flood Hub ไม่มีการพยากรณ์ — ไม่ใช่การพยากรณ์ว่าไม่มีน้ำท่วม", `Flood Hub unavailable: ${feed.data.note}`);
+  }
+  // Reuse the source's issuance/window rules, not a cached worst severity.
+  // Future forecast windows remain valid; expired windows and old issues do not.
+  const fh = summariseFloodHub(feed.data.points, feed.data.points.map(p => ({
+    gaugeId: p.gaugeId, severity: p.severity, forecastTrend: p.trend,
+    issuedTime: p.issuedTime ?? undefined,
+    forecastTimeRange: { start: p.forecastStart ?? undefined, end: p.forecastEnd ?? undefined },
+  })), new Date(nowMs).toISOString());
+  if (!fh.worst || fh.worst === "UNKNOWN") {
+    return unavailable(FLOODHUB, "Google Flood Hub ไม่มีช่วงพยากรณ์ปัจจุบัน — ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม", "No current Flood Hub issuance and forecast window — this does not establish no flooding.");
   }
   const s = FH[fh.worst];
   const rising = fh.points.filter((p) => p.trend === "RISE").length;
@@ -271,7 +290,7 @@ export function floodHubLine(feed: Feed<FloodHubResponse>): DeskLine {
     ...FLOODHUB, status: "ok", level: s.level,
     th: `${s.th}${rising ? ` · ${rising} จุดแนวโน้มสูงขึ้น` : ""}`,
     en: `${s.en}${rising ? ` · ${rising} point${rising > 1 ? "s" : ""} rising` : ""}`,
-    observedAt: newestIssued(fh),
+    observedAt: newestIssued({ ...fh, points: fh.points.filter(p => p.severity !== "UNKNOWN") }),
   };
 }
 
@@ -288,12 +307,12 @@ export interface DeskInputs {
 export function buildDeskAnswer(inputs: DeskInputs, nowMs: number): DeskAnswer {
   const lines = [
     riverLine(inputs.river, nowMs),
-    damLine(inputs.dams),
+    damLine(inputs.dams, nowMs),
     rainLine(inputs.rain, nowMs),
     forecastLine(inputs.outlook),
-    floodHubLine(inputs.floodHub),
+    floodHubLine(inputs.floodHub, nowMs),
   ];
-  const missing = lines.filter((l) => l.status !== "ok").length;
+  const missing = lines.filter((l) => l.status !== "ok" || l.level === "unknown").length;
   const signals = lines.filter((l) => l.status === "ok" && RANK[l.level] >= RANK.watch).sort((a, b) => RANK[b.level] - RANK[a.level]);
   if (signals.length) {
     const top = signals[0];

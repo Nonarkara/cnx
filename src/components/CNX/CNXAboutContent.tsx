@@ -14,6 +14,7 @@
 import { useLang } from "../../hooks/useLang";
 import { FlightRelayDiagram, MaturityDiagram, PipelineDiagram } from "./CNXAboutDiagrams";
 import FindingsTable from "./CNXAboutFindings";
+import CNXDesignCredits from "./CNXDesignCredits";
 import { KICKER, LINK, NOTE, PROSE, Section } from "./CNXAboutSection";
 import { GovernanceSection, StandardsSection } from "./CNXAboutStandards";
 import { OPEN_DATA_SNAPSHOT } from "../../lib/cnx/open-data-snapshot";
@@ -229,6 +230,9 @@ function HonestySection({ th }: { th: boolean }) {
               1) ทุกตัวเลขติดป้ายว่าเป็นข้อมูล <strong>สด / จำลอง / แบบจำลอง</strong> — ไม่มีตัวเลขแต่งขึ้น 2) ภาพกล้องที่ยังไม่ใช่ของจริงติดป้าย <strong>สาธิต</strong> สีเหลืองอำพันเสมอ พร้อมลิงก์ต้นทางและตำแหน่งจริง 3) เมื่อไม่มีข้อมูล ระบบบอกว่า “ข้อมูลไม่พอ” — ไม่แสดงสีเขียวหลอก 4) ชุดข้อมูลที่อ่านไม่ได้ถูกบันทึกไว้ให้เห็น ไม่ถูกซ่อน
             </p>
             <p>
+              การคัดกรองหมอกควันจากภาพกล้องเป็นการเปรียบเทียบลักษณะภาพ ไม่ใช่การวัด PM2.5 ภาพสาธารณะมีจำกัดและอาจอัปเดตห่างกัน จึงไม่แทนทัศนวิสัยทั้งจังหวัด ภาพมืด ไร้สี หรือรายละเอียดไม่พอจะไม่ถูกให้คะแนน หมอก สิ่งบดบัง หรือภาพแทนที่อาจทำให้ประเมินไม่ได้ โดยแยกสาเหตุจากภาพอย่างเดียวไม่ได้ การจับคู่กับ DustBoy แสดงความสัมพันธ์ของข้อมูลที่มี ไม่ใช่การยืนยันความแม่นยำของตัวตรวจจับ
+            </p>
+            <p>
               ตัวอย่างที่เป็นรูปธรรม: รถบัสสนามบิน RTC บนแผนที่คือ <strong>การจำลองจากตารางเวลา</strong> ไม่ใช่ GPS จริง (วิ่งคงที่ 35 กม./ชม. ตามเส้นทาง) — ในขณะที่รถรับส่งมหาวิทยาลัยเชียงใหม่คือ <strong>GPS สดจริง</strong> จากมหาวิทยาลัย ทั้งสองแยกป้ายกำกับชัดเจนบนปุ่มควบคุมแผนที่ ส่วนตัวเลข “ผู้โดยสารประมาณการ” มาจากจำนวนที่นั่งเครื่องบินจริงคูณด้วยอัตราภาระบรรทุกสมมติ (82% สำหรับข้อมูลผู้โดยสารขาเข้า หรือค่าที่นั่งเฉลี่ยตามขนาดเครื่องสำหรับข้อมูลเที่ยวบินขาออก) — เที่ยวบินและประเทศต้นทางเป็นข้อมูลจริง มีเพียงจำนวนผู้โดยสารเท่านั้นที่เป็นค่าประมาณ
             </p>
           </>
@@ -236,6 +240,9 @@ function HonestySection({ th }: { th: boolean }) {
           <>
             <p>
               1) Every number is labelled <strong>live / scenario / model</strong> — nothing is invented. 2) Footage that is not yet real always wears the amber <strong>DEMO</strong> badge, with its source link and real location. 3) When there is no data, the board says “not enough data” — never a false green. 4) Datasets that cannot be read are listed, not hidden.
+            </p>
+            <p>
+              Camera haze screening compares visual features; it does not measure PM2.5. Sparse public frames can refresh far apart and do not represent visibility across the province. Dark, colourless or insufficient-detail frames are not scored. Fog, obstruction or a placeholder may make a frame unassessable, and the cause cannot be determined from the image alone. Time-matched DustBoy observations show association in the available sample, not validated detection accuracy.
             </p>
             <p>
               Concretely: the RTC airport buses on the map are a <strong>timetable simulation</strong> (a constant 35 km/h along the published route), not live GPS — while the CMU campus shuttles are <strong>real, live GPS</strong> from the university’s own feed; both are labelled accordingly on the map controls. “Estimated visitors” multiplies real seat capacity by an assumed load factor (82% for inbound arrivals, or a size-based average for outbound flights) — the flight counts and origin countries are real; only the passenger count is an estimate.
@@ -256,7 +263,7 @@ function ArchitectureSection({ th, t }: { th: boolean; t: T }) {
         {th ? (
           <>
             <p>
-              มีเครื่องเดียวที่ต้องเฝ้า: หน้าเว็บทำงานบน Cloudflare Workers (ผ่าน OpenNext, Next.js 15) และดึงฟีดสดส่วนใหญ่เองทุกนาที แต่มีเจ็ดฟีดที่อ่านหรือประมวลผลบนเครือข่ายของ Cloudflare ไม่ได้ (ต้นทางบล็อกหรือจำกัดจำนวนครั้งตาม IP ที่ใช้ร่วมกัน หรืองานนั้นต้องใช้คอมพิวเตอร์เต็มเครื่อง) จึงมีเครื่องรีเลย์ — Mac หนึ่งเครื่องนอก Cloudflare ที่รันด้วย launchd — ส่งข้อมูลเข้ามาให้: เที่ยวบิน ผู้โดยสารขาเข้า ระดับน้ำ สถานีวัดฝน ปริมาณน้ำในเขื่อน การวัดหมอกควันจากภาพกล้อง และรายงานจากประชาชน รวมถึงข่าวและโซเชียลบางส่วน ถ้าเครื่องนี้หยุด ฟีดเหล่านี้จะขึ้นว่าข้อมูลเก่า แล้วกลายเป็น “ไม่มีข้อมูล” ไม่มีการแสดงค่าเก่าเหมือนเป็นค่าปัจจุบัน ข้อมูลที่เปลี่ยนช้า (ขอบเขต 25 อำเภอ สายน้ำลุ่มปิง เส้นทางรถเมล์ อาคาร 3 มิติ แค็ตตาล็อกราชการ {OPEN_DATA_SNAPSHOT.count} ชุด) ถูก “อบ” เป็นไฟล์ไว้ล่วงหน้าด้วยสคริปต์ที่รันซ้ำได้เสมอ
+              เครื่องรีเลย์หลักยังต้องเฝ้า: หน้าเว็บทำงานบน Cloudflare Workers (ผ่าน OpenNext, Next.js 15) และอ่านฟีดตามรอบที่ประกาศไว้ แต่มีเจ็ดฟีดที่อ่านหรือประมวลผลบนเครือข่ายของ Cloudflare ไม่ได้ (ต้นทางบล็อกหรือจำกัดจำนวนครั้งตาม IP ที่ใช้ร่วมกัน หรืองานนั้นต้องใช้คอมพิวเตอร์เต็มเครื่อง) จึงมีเครื่องรีเลย์ — Mac หนึ่งเครื่องนอก Cloudflare ที่รันด้วย launchd — ส่งข้อมูลเข้ามาให้: เที่ยวบิน ผู้โดยสารขาเข้า ระดับน้ำ สถานีวัดฝน ปริมาณน้ำในเขื่อน การวัดหมอกควันจากภาพกล้อง และรายงานจากประชาชน รวมถึงข่าวและโซเชียลบางส่วน ระดับน้ำและสถานีวัดฝนมีตัวเก็บข้อมูลสำรองนอก Mac ผ่าน GitHub Actions ที่พยายามเข้ารับช่วงเมื่อการเก็บข้อมูลหลักล่าช้า แต่รอบทำงานอาจช้าหรือล้มเหลว จึงไม่รับประกันเวลาฟื้นตัว งานรีเลย์อื่นยังพึ่ง Mac หากการเก็บข้อมูลหยุด กระดานต้องแสดงอายุและข้อมูลที่ขาด ไม่ถือว่าค่าเก่าเป็นค่าปัจจุบัน ข้อมูลที่เปลี่ยนช้า (ขอบเขต 25 อำเภอ สายน้ำลุ่มปิง เส้นทางรถเมล์ อาคาร 3 มิติ แค็ตตาล็อกราชการ {OPEN_DATA_SNAPSHOT.count} ชุด) ถูก “อบ” เป็นไฟล์ไว้ล่วงหน้าด้วยสคริปต์ที่รันซ้ำได้เสมอ
             </p>
             <p>
               แต่ระบบสำรองข้อมูลไม่ได้ใช้แบบเดียวกันหมดทุกจุด — โมดูลส่วนใหญ่ลองดึงข้อมูลสดก่อน แล้วตกไปใช้ “สถานการณ์จำลอง” ที่ติดป้ายชัดเจนเมื่อดึงไม่สำเร็จ, สามโมดูล (เส้นทางรถเมล์ สายน้ำ ข้อมูลเปิด) อ่านไฟล์ที่อบไว้ล่วงหน้าผ่าน Cloudflare Workers เป็นหลัก แล้วเรียก API สดเป็นทางเลือกสุดท้าย, และเที่ยวบิน (ซึ่งซับซ้อนที่สุด) ใช้วิธีที่ต่างออกไปทั้งหมด — ดูแผนภาพที่สองด้านล่าง
@@ -265,7 +272,7 @@ function ArchitectureSection({ th, t }: { th: boolean; t: T }) {
         ) : (
           <>
             <p>
-              There is one machine to watch. The site runs on Cloudflare Workers (via OpenNext, Next.js 15) and fetches most live feeds itself every minute. Seven feeds cannot be read or processed on Cloudflare’s network (the upstream blocks or rate-limits its shared addresses, or the work needs a full computer), so a relay machine — one Mac outside Cloudflare, run by launchd — pushes them in: flights, inbound arrivals, river levels, rain gauges, reservoir storage, camera haze vision and citizen reports, plus part of the news and social feed. If it stops, those feeds turn stale and then unavailable on the board; old values are never shown as current. Slow-changing data (the 25 amphoe boundaries, Ping-basin waterways, bus routes, 3D buildings, the {OPEN_DATA_SNAPSHOT.count}-record government catalogue) is “baked” into files ahead of time by scripts that can always be re-run.
+              There is one machine to watch as the primary relay, with a limited independent standby. The site runs on Cloudflare Workers (via OpenNext, Next.js 15) and reads feeds at their declared cadences. Seven feeds cannot be read or processed on Cloudflare’s network (the upstream blocks or rate-limits its shared addresses, or the work needs a full computer), so a relay machine — one Mac outside Cloudflare, run by launchd — pushes them in: flights, inbound arrivals, river levels, rain gauges, reservoir storage, camera haze vision and citizen reports, plus part of the news and social feed. Rainfall and river gauges have a best-effort off-Mac collector on GitHub Actions that attempts takeover when primary collection is late. Scheduled runs can be delayed or fail, so recovery time is not guaranteed. Other relay functions still depend on the Mac. When collection stops, the board must expose ages and gaps rather than treat retained readings as current. Slow-changing data (the 25 amphoe boundaries, Ping-basin waterways, bus routes, 3D buildings, the {OPEN_DATA_SNAPSHOT.count}-record government catalogue) is “baked” into files ahead of time by scripts that can always be re-run.
             </p>
             <p>
               The fallback is not the same everywhere, though — most modules try live data first and fall back to a clearly labelled “scenario” when the fetch fails; three modules (bus routes, waterways, open data) read their pre-baked files through Cloudflare Workers first and call the live API only as a last resort; and flights, the most complex case, work differently altogether — see the second diagram below.
@@ -532,6 +539,7 @@ export default function CNXAboutContent() {
       <FindingsSection th={th} />
       <WhatSection th={th} />
       <SourcesSection th={th} />
+      <CNXDesignCredits th={th} />
       <ThinkingSection th={th} />
       <HonestySection th={th} />
       <ArchitectureSection th={th} t={t} />

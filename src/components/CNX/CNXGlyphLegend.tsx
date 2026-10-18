@@ -50,7 +50,12 @@ export const LEGEND_ROWS: LegendRow[] = [
   },
   {
     id: "wind-streaks",
-    shape: "arrow",
+    // NOT "arrow". The map draws these as many short STROKED shafts with an
+    // open V head; the city row above is one solid filled dart. Giving both
+    // rows the "arrow" swatch put the same shape in front of the operator
+    // twice with different captions, and the caption is the only thing left
+    // to tell two model-sourced wind marks apart.
+    shape: "streak",
     labelTh: "ลูกศรลมเคลื่อนที่ (การเคลื่อนที่และความสว่างแสดงความเร็ว)",
     labelEn: "Moving wind arrows (motion and brightness = speed)",
     originTh: "แบบจำลอง",
@@ -69,8 +74,8 @@ export const LEGEND_ROWS: LegendRow[] = [
   {
     id: "rain-forecast",
     shape: "rainRamp",
-    labelTh: "ฝนพยากรณ์ (มม./ชม.)",
-    labelEn: "Rain forecast (mm/h)",
+    labelTh: "สีฝนพยากรณ์บนแผนที่ (มม./ชม.)",
+    labelEn: "Forecast rain wash (mm/h)",
     originTh: "แบบจำลอง",
     originEn: "model",
     color: "rgb(8,81,156)",
@@ -123,9 +128,13 @@ export function LegendSwatch({ shape, color }: { shape: LegendShape; color: stri
     return <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center" dangerouslySetInnerHTML={{ __html: glyphMarkup("arrow", 16, color ?? "currentColor") }} />;
   }
   if (shape === "streak") {
+    // Mirrors the mark CNXForecastLayer actually draws: a shaft ending in an
+    // OPEN V head (forecast-render `windArrowSegments` returns a bar and two
+    // barbs, stroked — never filled). The previous swatch was two bare
+    // parallel lines with no head at all, so it matched neither wind mark.
     return (
       <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M1 8h7M5 4h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M1 8H9.5M9 4.5 13 8l-4 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
@@ -151,21 +160,28 @@ export default function CnxGlyphLegend() {
     // top-10, not top-2: CNXMap already owns the top-right corner with the
     // flight-count badge (and the top-left with its layer <details>), so
     // sitting at top-2 would stack the key underneath the badge.
+    //
+    // The width cap matters as much as the offset. An absolutely positioned
+    // box with no width shrink-wraps to its longest label, which is longer
+    // than the map itself — measured at a 513 px viewport the open key covered
+    // ~95% of the map's width and ~54% of its height. The map is the hero of
+    // this board; a key that hides it when opened is worse than no key. Capped
+    // so a column of map stays visible on the left, and the list scrolls.
     <section
       aria-label={th ? "กุญแจสัญลักษณ์บนแผนที่" : "Map symbol key"}
-      className="pointer-events-auto absolute right-2 top-10 z-10 border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
+      className={`pointer-events-auto absolute right-2 top-10 z-10 flex max-h-[calc(100%_-_3rem)] flex-col ${open ? "w-[min(20rem,calc(100%_-_1rem))]" : "max-w-[calc(100%_-_1rem)]"} border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]`}
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex min-h-9 items-center gap-2 px-2 text-[12px] font-semibold"
+        className="flex min-h-9 shrink-0 items-center gap-2 px-2 text-[12px] font-semibold"
       >
         <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-        {th ? "กุญแจสัญลักษณ์" : "Symbol key"}
+        {th ? "สัญลักษณ์ · ลูกศรคือลม" : "Symbols · arrows are wind"}
       </button>
       {open && (
-        <ul className="max-h-[52vh] overflow-y-auto border-t border-[var(--line)] px-2 py-1.5 text-[12px]">
+        <ul className="min-h-0 max-h-[52vh] overflow-y-auto border-t border-[var(--line)] px-2 py-1.5 text-[12px]">
           {LEGEND_ROWS.map((r) => (
             <li key={r.id} className="flex items-center gap-2 py-[3px]">
               <LegendSwatch shape={r.shape} color={r.color} />

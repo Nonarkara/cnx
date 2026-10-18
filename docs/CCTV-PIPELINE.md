@@ -6,12 +6,20 @@
 > dashboard. Written so a municipal technician with no streaming
 > experience can follow it end to end.
 
-## What is live today (no municipal help needed)
+## Camera sources (availability changes)
 
 | Source | Cameras | How | Refresh |
 |---|---|---|---|
-| **Windy.com public webcams** | 9 (basin + Lamphun corridors) | Keyless snapshot JPEG + day-player iframe. Registry: `src/lib/cnx/cctv-windy.ts` | Snapshots ~2.5 min |
-| **Longdo national index** (`camera.longdo.com/feed`) | 1 DOH highway cam in range (+4 more DOH cams shown greyed as out-of-area) | Keyless JSON, HLS + snapshot per camera | 1 min poll |
+| **Windy.com public webcams** | 9 registered (basin + Lamphun corridors); not a live-camera count | Keyless snapshot JPEG + day-player iframe. Registry: `src/lib/cnx/cctv-windy.ts` | The board probes every 2.5 min; capture updates can be much slower |
+| **Longdo national index** (`camera.longdo.com/feed`) | Only cameras returned inside the operating area; no guaranteed count | Keyless JSON, HLS + snapshot per camera | 1 min poll |
+
+At the 2026-10-18 14:57 UTC check, the public CCTV API reported one
+reachable Windy camera out of nine. The other eight carried capture
+stamps from September 26 or October 2. The haze API's one camera was
+monochrome (`no-colour`, score null), so there were **zero usable scored
+camera observations at that check**, despite a working relay. Its 208
+historical ground pairs covered only 1–11 µg/m³; they do not validate haze
+detection. These are dated observations, not promised coverage.
 
 Coverage inside the old city itself is still zero — that gap is exactly
 what the municipal onboarding below closes.
@@ -69,9 +77,19 @@ are normalized by mean luminance to cancel uniform, unclipped exposure
 changes. The dark-channel difference is projected back to the baseline’s
 median exposure to preserve the existing intensity threshold.
 
-The baseline needs 12 usable daylight colour frames. It retains the raw
-image statistics from the preceding 30 days, including existing history,
-and excludes dark and colourless frames. SHA-256 of the resized pixels
+The baseline needs 12 usable daylight colour frames with verified scene
+detail. Only historical summaries carrying a qualifying robust luminance
+range can calibrate; legacy summaries without that feature must
+recalibrate, because contrast alone cannot prove scene detail. History is
+retained for 30 days, but dark, colourless, low-information and unqualified
+legacy summaries are excluded from calibration and agreement. Low-information
+frames have insufficient exposure-normalized contrast or robust
+luminance range (p95 minus p05). The robust range prevents a small
+changing timestamp on an otherwise uniform coloured placeholder from
+supplying calibration samples. These are conservative engineering quality
+gates, not trained haze thresholds. Opaque fog, a blocked lens and a
+placeholder can all fail them: the verdict is `unusable`, score null,
+never an assertion that the air is clear. SHA-256 of the resized pixels
 prevents an identical image from adding samples even if the CDN updates
 `Last-Modified`. A repeated image retains its first known observation time.
 Capture time comes from the snapshot’s `Last-Modified`, falling back to the
@@ -82,10 +100,30 @@ minutes in the future are rejected.
 Ground comparisons use a non-suspect DustBoy reading within 15 km and
 90 minutes of the image. An hourly sensor observation counts once across
 all paired frames and cameras; their visual scores are averaged for the
-comparison. Old-method scores are excluded from agreement while their
-usable raw metrics remain available for calibration. Agreement rebuilds
+comparison. Old-method scores are excluded from agreement; only qualified
+raw metrics remain eligible for calibration. Legacy fingerprint/time
+records still prevent old frozen images from receiving a new first-capture
+time, even when their metrics cannot calibrate. Displayed baseline sample
+counts include only qualified frames. Agreement rebuilds
 from new observations after a scoring-version change. Offline cameras’
 history is also pruned to the 30-day window.
+
+Version 3 starts a new agreement window after the scene-detail eligibility
+change. A varied high-reading window additionally needs at least three
+independent station IDs at or above 50 µg/m³ within three hours. Three
+hours from the same sensor or three sensors on separate days are not a
+regional episode. The payload reports the maximum qualifying station
+count as `eventStations`; even corroborated high readings establish no
+detection-accuracy result. The 20 µg/m³ spread floor is an engineering
+diversity requirement, not a health guideline.
+
+The authenticated haze ingest POST rejects redirects, so its custom relay
+secret header cannot be forwarded to a redirected destination. The camera
+roster and snapshot hosts remain upstream trust boundaries: the relay reads
+public source URLs, and Last-Modified is a source-reported time rather than
+an independently authenticated camera clock. Exact pixel hashes cannot
+prove liveness when scene overlays or pixels change. The board does not
+run validated flood-depth, accident, traffic-queue or person detectors.
 
 A low visual-haze score does not mean measured clean air. This is a
 relative image heuristic, not a trained detector, a PM2.5 measurement, or

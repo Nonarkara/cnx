@@ -16,7 +16,7 @@ import type { BurnSeasonDoc } from "../../lib/cnx/burn-season";
 import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { FloodHubResponse } from "../../lib/cnx/floodhub";
 import { buildTiles, districtTable, isBriefObservationCurrent, lineText, pm25Band, type BriefLevel, type BriefTile } from "../../lib/cnx/governor-brief";
-import { buildExecutiveBrief } from "../../lib/cnx/executive-brief";
+import { buildExecutiveBrief, type ExecutiveMetric } from "../../lib/cnx/executive-brief";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RiverGauge } from "../../lib/cnx/river-level";
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
@@ -28,6 +28,7 @@ import { metricUnit } from "./CNXMetricEvidence";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onOpenMetric?: (id: ExecutiveMetric["id"]) => void;
   air: AirQualityResponse | null;
   dustboy: DustboyResponse | null;
   fires: CnxFiresResponse | null;
@@ -69,7 +70,7 @@ const PM25_BAND_EN: Record<string, string> = {
   "มีผลกระทบต่อสุขภาพ": "Affecting health",
 };
 
-export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null }: Props) {
+export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
   const { lang, t } = useLang();
   const [clock, setClock] = useState(() => Date.now());
@@ -194,6 +195,12 @@ export default function CnxGovernorBrief({ isOpen, onClose, air, dustboy, fires,
                 {/* DataAge prints the source itself; without a time, print it plainly. */}
                 {tile.observedAt ? <DataAge observedAt={tile.observedAt} source={tile.key === "fire" ? `${tile.source} · ${t("ตรวจพบล่าสุด", "latest detection")}` : tile.source} staleAfterMs={(tile.key === "fire" ? 24 : tile.key === "water" && tile.source.includes("rain gauges") ? 6 : 3) * 3600_000} className="!text-[12px] !tracking-normal" /> : tile.source}
               </p>
+              {onOpenMetric && <button type="button" onClick={() => {
+                onClose();
+                onOpenMetric(tile.key === "visitors" ? "mobility" : tile.key);
+              }} className="mt-2 inline-flex min-h-11 items-center border border-[var(--line)] px-3 text-[12px] font-semibold text-[var(--cool)] print:hidden">
+                {t("ตรวจหลักฐาน", "Inspect evidence")}<span className="sr-only"> · {t(tile.titleTh, TILE_TITLE_EN[tile.key])}</span>
+              </button>}
             </div>
           ))}
         </section>

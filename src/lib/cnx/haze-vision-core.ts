@@ -31,6 +31,8 @@ export interface FrameMetrics {
   darkChannel: number;
   /** Mean HSV saturation 0–1. */
   saturation: number;
+  /** Robust (p95 - p05) luminance range; absent on older stored metrics. */
+  luminanceRange?: number;
 }
 
 export interface Baseline {
@@ -43,7 +45,7 @@ export interface Baseline {
   samples: number;
 }
 
-export type HazeLabel = "haze-likely" | "some-haze" | "clear" | "too-dark" | "no-colour" | "calibrating";
+export type HazeLabel = "haze-likely" | "some-haze" | "clear" | "too-dark" | "no-colour" | "unusable" | "calibrating";
 
 export interface HazeVerdict {
   label: HazeLabel;
@@ -57,7 +59,7 @@ export const MIN_DAYLIGHT_LUMINANCE = 0.14;
 /** Daylight frames needed before a camera's baseline is trusted. */
 export const MIN_BASELINE_SAMPLES = 12;
 /** Stored agreement pairs must use the same scoring method. */
-export const HAZE_SCORER_VERSION = 2;
+export const HAZE_SCORER_VERSION = 3;
 /** A frame with no measurable colour is not a daylight RGB scene.
  *
  *  Several Windy cameras switch to monochrome infrared after dusk: the
@@ -69,6 +71,10 @@ export const HAZE_SCORER_VERSION = 2;
 export const MIN_COLOUR_SATURATION = 0.02;
 const PATCH_RADIUS = 3;
 const SKY_FRACTION = 0.25;
+// Conservative quality gates, not calibrated haze thresholds. A flat scene
+// may be a placeholder, obstruction or opaque fog; none supports a clear verdict.
+const MIN_RELATIVE_CONTRAST = 0.025;
+const MIN_RELATIVE_LUMINANCE_RANGE = 0.08;
 
 /** Computes haze statistics from interleaved 8-bit RGB(A) pixels. */
 export function computeFrameMetrics(pixels: Uint8Array, width: number, height: number, channels: number): FrameMetrics {
@@ -79,6 +85,7 @@ export function computeFrameMetrics(pixels: Uint8Array, width: number, height: n
   let lumSum = 0;
   let lumSq = 0;
   let satSum = 0;
+  const luminanceHistogram = new Uint32Array(256);
   for (let y = top; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * channels;
@@ -88,6 +95,7 @@ export function computeFrameMetrics(pixels: Uint8Array, width: number, height: n
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      luminanceHistogram[Math.round(lum * 255)] += 1;
       lumSum += lum;
       lumSq += lum * lum;
       satSum += max === 0 ? 0 : (max - min) / max;
@@ -95,11 +103,20 @@ export function computeFrameMetrics(pixels: Uint8Array, width: number, height: n
     }
   }
   const mean = lumSum / n;
+  const quantile = (p: number) => {
+    let count = 0;
+    for (let i = 0; i < luminanceHistogram.length; i++) {
+      count += luminanceHistogram[i];
+      if (count >= Math.max(1, Math.ceil(n * p))) return i / 255;
+    }
+    return 0;
+  };
   return {
     meanLuminance: mean,
     contrast: Math.sqrt(Math.max(0, lumSq / n - mean * mean)),
     darkChannel: meanOfPatchMin(minRgb, width, rows),
     saturation: satSum / n,
+    luminanceRange: quantile(0.95) - quantile(0.05),
   };
 }
 
@@ -143,7 +160,13 @@ export function isDaylight(m: FrameMetrics): boolean {
 /** True when the frame is bright AND carries colour. Monochrome IR night
  *  vision is bright but has no colour channel to lose to haze. */
 export function isScorable(m: FrameMetrics): boolean {
-  return isDaylight(m) && m.saturation >= MIN_COLOUR_SATURATION;
+  return isDaylight(m) && m.saturation >= MIN_COLOUR_SATURATION && hasSceneDetail(m);
+}
+
+function hasSceneDetail(m: FrameMetrics): boolean {
+  return Number.isFinite(m.contrast) && m.contrast / m.meanLuminance >= MIN_RELATIVE_CONTRAST
+    && typeof m.luminanceRange === "number" && Number.isFinite(m.luminanceRange)
+    && m.luminanceRange / m.meanLuminance >= MIN_RELATIVE_LUMINANCE_RANGE;
 }
 
 /** The camera's "clear day": low dark channel, high contrast, taken as
@@ -174,6 +197,7 @@ export function hazeScore(m: FrameMetrics, base: Baseline): number {
 export function classifyFrame(m: FrameMetrics, history: FrameMetrics[]): HazeVerdict {
   if (!isDaylight(m)) return { label: "too-dark", score: null };
   if (m.saturation < MIN_COLOUR_SATURATION) return { label: "no-colour", score: null };
+  if (!hasSceneDetail(m)) return { label: "unusable", score: null };
   const base = baselineFrom(history);
   if (!base) return { label: "calibrating", score: null };
   const score = hazeScore(m, base);
@@ -199,4 +223,4 @@ export function pearson(xs: number[], ys: number[]): number | null {
 }
 
 export const HAZE_METHODOLOGY =
-  "Classical image statistics on public webcam snapshots (dark-channel prior, He et al. 2009; exposure-normalized dark channel and luminance contrast; saturation), each camera compared with its own clearest daylight frames. Only snapshots with a known capture time are scored; identical images do not add calibration samples. Not a trained model and not a PM2.5 measurement: rain, fog, low cloud and a dirty lens also read as haze; night frames are skipped, as are monochrome infrared frames from cameras that switch to night vision after dusk; a camera that has only seen hazy days under-reports. Uniform exposure changes are normalized; clipping, camera movement and changing shadows can still affect the score. The agreement figure uses this scoring version only, paired with a non-suspect DustBoy ground reading within 15 km and 90 minutes of the frame.";
+  "Classical image statistics on public webcam snapshots (dark-channel prior, He et al. 2009; exposure-normalized dark channel and luminance contrast; saturation), each camera compared with its own clearest daylight frames. Only snapshots with a known capture time are scored; identical images do not add calibration samples. Low-information frames are unassessable, not clear: a placeholder, obstruction or severe fog can all remove scene detail. Not a trained model and not a PM2.5 measurement: rain, fog, low cloud and a dirty lens also read as haze; night frames are skipped, as are monochrome infrared frames from cameras that switch to night vision after dusk; a camera that has only seen hazy days under-reports. Uniform exposure changes are normalized; clipping, camera movement and changing shadows can still affect the score. The agreement figure uses this scoring version only, paired with a non-suspect DustBoy ground reading within 15 km and 90 minutes of the frame. A varied high-reading window requires at least three independent station IDs within three hours; this is corroboration, not validation of detection accuracy.";

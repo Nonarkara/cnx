@@ -73,7 +73,7 @@ describe("haze agreement payload", () => {
 
   it("distinguishes a clean-air window from a real episode", () => {
     const clean = payload({ pm25Median: 7, pm25P95: 13, eventReadings: 0, spansHazeEvent: false });
-    const episode = payload({ pm25Median: 22, pm25P95: 96, eventReadings: 14, spansHazeEvent: true });
+    const episode = payload({ pm25Median: 22, pm25P95: 96, eventReadings: 14, eventStations: 3, spansHazeEvent: true });
     expect(clean.agreement.spansHazeEvent).toBe(false);
     expect(episode.agreement.spansHazeEvent).toBe(true);
     expect(isHazeVisionPayload(clean)).toBe(true);
@@ -106,10 +106,20 @@ describe("haze agreement payload", () => {
     expect(narrow.agreement.spansHazeEvent).toBe(false);
   });
 
-  it("sets the testable-spread floor at the WHO 24h guideline", () => {
-    // 20 µg/m³ — below this a correlation cannot discriminate a working
-    // scorer from a broken one. The September dataset spanned 3-20, i.e.
-    // entirely inside the untestable band.
+  it("rejects a regional-event claim without independent-station evidence", () => {
+    const claim = { pm25Median: 7, pm25P95: 90, eventReadings: 5, spansHazeEvent: true };
+    expect(isHazeVisionPayload(payload(claim))).toBe(false);
+    expect(isHazeVisionPayload(payload({ ...claim, eventStations: 1 }))).toBe(false);
+    expect(isHazeVisionPayload(payload({ ...claim, eventStations: 3 }))).toBe(true);
+    expect(isHazeVisionPayload(payload({ ...claim, eventStations: 6 }))).toBe(false);
+  });
+
+  it("does not trust a claimed event with insufficient spread", () => {
+    expect(isHazeVisionPayload(payload({ pm25Median: 7, pm25P95: 13, eventReadings: 5, eventStations: 3, spansHazeEvent: true }))).toBe(false);
+  });
+
+  it("keeps the operational testable-spread floor explicit", () => {
+    // An engineering diversity gate, not a health guideline or accuracy result.
     expect(HAZE_TESTABLE_SPREAD).toBe(20);
   });
 });

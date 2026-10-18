@@ -31,7 +31,7 @@ Hua Lin, Chaeng Katam) traced in gold.
 ## 1. Prerequisites
 
 - macOS 14+ (Apple Silicon or Intel) or Linux x86_64
-- **Node 20.18+ or 22.x** (`nvm use` reads `.nvmrc` — Node 26 hangs on
+- **Node 20.19+ or Node 22.12+ within 22.x** (`nvm use` reads `.nvmrc` — Node 26 hangs on
   the opennextjs bundler; Node 22 is the supported default)
 - A Cloudflare account with the `cnx.nonarkara.org` zone on it
 - 8 GB RAM minimum (16 GB recommended for `next build` parallelism)
@@ -46,9 +46,10 @@ nvm use    # or: nvm install $(cat .nvmrc)
 ```bash
 git clone https://github.com/Nonarkara/cnx
 cd cnx
-npm install
-cp .env.example .dev.vars
-# Edit .dev.vars — fill in FIRMS_MAP_KEY at minimum
+npm ci
+cp .env.example .env.local
+npm run dev
+# Optional: edit .env.local for keyed feeds; local defaults use project-relative snapshots.
 ```
 
 `FIRMS_MAP_KEY` is required for the FIRMS fire-hotspot feed to work;
@@ -59,10 +60,10 @@ free at <https://firms.modaps.eosdis.nasa.gov/api/>).
 
 The dashboard reads GeoJSON for buildings, temples, walls, waterways,
 and bus routes at runtime — baked from OSM Overpass via the scripts
-under `scripts/`. Run them once before the first build:
+under `scripts/`. Tracked baked files support a first local run. Refresh them only when needed:
 
 ```bash
-npm run fetch:opendata     # 311 data.go.th datasets → public/data/cnx/open-data/
+npm run fetch:opendata     # dated data.go.th snapshot → public/data/cnx/open-data/
 node scripts/fetch-cnx-buildings-3d.mjs  # buildings + temples + walls
 node scripts/fetch-cnx-waterways.mjs      # Ping basin rivers + streams
 node scripts/fetch-cnx-bus-routes.mjs     # bus routes + stops
@@ -85,8 +86,8 @@ the OpenNext adapter). Expected wall time: 2–4 min on Node 22.
 
 > **If the build hangs at 0% CPU**: you've hit Node 26's `process.nextTick`
 > stall on the opennextjs bundler (memory note `Node 26 + @opennextjs/cloudflare`).
-> Switch to Node 22 via `nvm use`, kill any other heavy node processes
-> (airdash / chula / n8n / freellmapi), and retry. If still hung after 5
+> Switch to the pinned Node 22 via `nvm use` and inspect the build log.
+> Preserve other projects’ services; do not stop them to make room for a build. If still hung after 5
 > minutes, kill it and retry — the hang is intermittent and load-dependent.
 
 ## 5. Deploy

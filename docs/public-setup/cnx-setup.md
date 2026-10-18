@@ -1,94 +1,52 @@
-# CNX Dashboard — Clone &amp; Run
+# CNX Dashboard — Clone and Run
 
-> Step-by-step: from a fresh macOS box to a deployed
-> `cnx.nonarkara.org`. Filename mirrors `/docs/lopburi-setup.md` so
-> the Lopburi and Chiang Mai documentation sets look like siblings.
+## Local development
 
-## 0. Prerequisites
-
-- macOS 14+ (Apple Silicon or Intel)
-- Node 20.x (Node 26 mostly works; the build script works around the OpenNext bundler hang by disabling ESLint at build time)
-- A Cloudflare account with a custom domain pointing at `cnx.nonarkara.org`
-
-## 1. Clone
+Use the pinned Node version in `.nvmrc` (supported engines: Node 20.19+ or 22.12+ within 22.x).
 
 ```bash
 git clone https://github.com/Nonarkara/cnx
 cd cnx
-npm install
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-## 2. Configure environment
+Open `http://127.0.0.1:3000/cnx`. Next.js reads `.env.local`; Wrangler local development reads `.dev.vars`. Both local credential files are ignored. Optional keyed feeds require their documented credentials; never commit keys. The example uses project-relative `.data/cnx/` directories for local snapshots.
 
-Create `var/.env.production` (or `.dev.vars` for local wrangler):
+## Static data
 
-```
-CLOUDFLARE_API_TOKEN=cfut_xxx        # worker write scope
-CF_ACCOUNT_ID=74ad6bf8dfaaccf82de6f0847f7d2d54
-FIRMS_MAP_KEY=xxx                    # NASA FIRMS map key
-LONGDO_API_KEY=xxx                   # Longdo CCTV
-ITIC_USERNAME=xxx
-ITIC_PASSWORD=xxx
-```
-
-## 3. Bake static data
+Tracked files under `public/data/cnx/` support the first run. Refresh only when needed:
 
 ```bash
-npm run fetch:opendata      # 311 data.go.th datasets → public/data/cnx/open-data/
-npm run ingest:all         # everything else (RFD snapshot, GISTDA PM2.5 cache, …)
+npm run fetch:opendata
+node scripts/fetch-cnx-buildings-3d.mjs
+node scripts/fetch-cnx-waterways.mjs
+node scripts/fetch-cnx-bus-routes.mjs
 ```
 
-The 25-amphoe boundaries, OSM 3D buildings, Ping waterways, and the heritage POI list are all generated here. The scripts are idempotent — running them twice produces no diff.
+Refreshes query upstream services and can change dated snapshots. `ingest:all` currently aliases `fetch:opendata`; it does not refresh every source.
 
-## 4. Build
+## Check, build, deploy
 
 ```bash
+npm test
+npm run type-check
+npm run lint
 npm run build:cnx
+npx wrangler deploy -c wrangler.cnx.jsonc
+node scripts/verify-deploy.mjs --expect rain --expect river-level
 ```
 
-This runs `next build` with `eslint.ignoreDuringBuilds: true`, then `npx @opennextjs/cloudflare build`, then `node scripts/patch-og-wasm.mjs` (strips the dead `cloudflare/images.js` import and stubs `unenv/internal/tty/write-stream.mjs` — both are post-build fixes required for Node 26).
+Deployment requires an authorized Cloudflare account and the appropriate Worker bindings/secrets. `build:cnx` creates the OpenNext bundle, copies MapLibre workers, stamps build provenance, and applies the adapter patch. Do not deploy a dirty tree or assume a commit string proves tree equivalence. The verification script also checks repository cleanliness and live route health.
 
-## 5. Deploy
+## Runtime responsibilities
 
-```bash
-npm run deploy:cnx
-```
+- Cloudflare Workers serve the application and bundled assets; KV stores relay copies.
+- The existing launchd relay on the primary Mac collects feeds whose upstreams cannot reliably serve Cloudflare, plus camera processing. See `docs/CCTV-PIPELINE.md` and the relay scripts.
+- GitHub Actions provides best-effort rain/river standby. Scheduled jobs may be delayed; it is not a guaranteed recovery timer. Other relay functions still depend on the Mac.
+- Missing or stale readings are evidence gaps, never proof of safety. A fresh collection timestamp does not make an old observation current.
 
-This runs `wrangler deploy -c wrangler.cnx.jsonc`. The route `cnx.nonarkara.org` is auto-created on first deploy via `custom_domain: true`; subsequent deploys update the same route in place.
+Use the supported Node version when diagnosing a build. Preserve other projects’ running services. Inspect logs and stop only the failed build you started if necessary.
 
-## 6. Verify
-
-```bash
-curl -I https://cnx.nonarkara.org                  # 307 → /cnx
-curl -I https://cnx.nonarkara.org/cnx              # 200, dashboard
-curl -I https://cnx.nonarkara.org/cnx/about        # 200, this page
-curl -I https://cnx.nonarkara.org/api/cnx/fires-rfd  # 200, real RFD hotspots
-curl -I https://cnx.nonarkara.org/api/cnx/aqi-amphoe # 200, 25-amphoe PM2.5
-```
-
-## What lives where
-
-| Layer | Lives in | Cost |
-|---|---|---|
-| Edge worker | Cloudflare Workers | free tier (well under) |
-| Static assets (JS / CSS / images / docs) | Cloudflare Pages asset bundle | free tier |
-| Slow-changing data (GeoJSON, open-data catalog) | `public/data/cnx/` (bundled) | free |
-| Flight snapshots (long-term) | `/Volumes/Data/CNX/flight-snapshots/` on the M3 Air | local disk |
-
-## How to add a new city
-
-The dashboard is designed for marginal-cost ~0 reuse across provinces:
-
-1. Copy `src/lib/cnx/` → `src/lib/<new>/` and rename.
-3. Copy `src/components/CNX/` → `src/components/<new>/`.
-4. Copy `src/app/cnx/` → `src/app/<new>/` and the route prefix.
-5. Update `wrangler.cnx.jsonc` → `wrangler.<new>.jsonc` with the new routes.
-6. Update `next.config.mjs` redirects to send `/` → `/<new>` when `NEXT_PUBLIC_PROVINCE=<new>`.
-
-The framework primitives (`CNXApp`, `CNXTopBar`, `CNXLogoRow`, `CNXMap`) are the same shape across provinces — only the data modules swap.
-
-## Known build gotchas on Node 26
-
-- `next build` sometimes hangs at "Creating an optimized production build…" for 30–60s before unblocking. The `eslint: { ignoreDuringBuilds: true }` flag in `next.config.mjs` skips the lint step that's stalling; the actual compilation proceeds.
-- After `npm install`, re-run `node scripts/patch-og-wasm.mjs` if you see `Could not resolve "./internal/tty/write-stream.mjs"` in the worker bundle. The patch is idempotent.
-- The `next.config.mjs` deliberately sets `output: 'export'` → NO; we removed `output: 'standalone'` too. The OpenNext adapter (`@opennextjs/cloudflare`) handles the worker build.
+See the repository README and current Wrangler configuration for deployment details. Do not reuse the CNX custom hostname when setting up another city.

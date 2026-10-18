@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
+import { createHash } from "node:crypto";
 import { isHazeVisionPayload, type HazeVisionPayload } from "./haze-vision";
+import { HAZE_SCORER_VERSION } from "./haze-vision-core";
 
 const storage = vi.hoisted(() => ({ history: "{}" }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -51,6 +53,61 @@ function sensor(log: string, pm25 = 12, name = "Station") {
 }
 
 describe("camera vision relay", () => {
+  it("recalibrates legacy summaries without claiming their scene detail was verified", async () => {
+    storage.history = JSON.stringify({ camera: Array.from({ length: 12 }, (_, i) => ({
+      t: NOW - (i + 1) * 60_000,
+      m: { meanLuminance: 0.558, contrast: 0.0453, darkChannel: 0.392, saturation: 0.371 },
+      scorerVersion: HAZE_SCORER_VERSION, score: 0, pm25: 70, pmPairKey: `legacy:${i}`,
+      pmStationId: "legacy", pmObservedAt: new Date(NOW).toISOString(),
+    })) });
+    await run();
+    expect(payload.cameras[0]).toMatchObject({ verdict: "calibrating", score: null, baselineSamples: 1 });
+    expect(payload.agreement.pairs).toBe(0);
+  });
+
+  it("retains legacy fingerprint capture times while excluding them from calibration", async () => {
+    const { data, info } = await sharp(image).toColourspace("srgb").removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const fingerprint = createHash("sha256").update(`${info.width}:${info.height}:${info.channels}:`).update(data).digest("hex");
+    const original = NOW - 7 * 60 * 60_000;
+    storage.history = JSON.stringify({ camera: [{ t: original, fingerprint, scorerVersion: 2,
+      m: { meanLuminance: 0.558, contrast: 0.0453, darkChannel: 0.392, saturation: 0.371 }, score: 0 }] });
+    await run();
+    expect(payload.cameras).toHaveLength(0);
+    expect(JSON.parse(storage.history).camera[0].t).toBe(original);
+  });
+
+  it("does not learn a coloured placeholder when its small clock changes", async () => {
+    for (let stamp = 0; stamp < 2; stamp++) {
+      const pixels = Buffer.alloc(40 * 40 * 3);
+      for (let i = 0; i < pixels.length; i += 3) pixels.set([120, 160, 100], i);
+      pixels.set([255, 255, 255], ((35 * 40) + stamp) * 3);
+      image = await sharp(pixels, { raw: { width: 40, height: 40, channels: 3 } }).png().toBuffer();
+      vi.spyOn(Date, "now").mockReturnValue(NOW + stamp * 10 * 60_000);
+      modified = new Date(NOW + stamp * 10 * 60_000).toUTCString();
+      await run();
+      expect(payload.cameras[0]).toMatchObject({ verdict: "unusable", score: null, baselineSamples: 0 });
+      expect(JSON.parse(storage.history).camera).toHaveLength(0);
+      expect(isHazeVisionPayload(payload)).toBe(true);
+    }
+  });
+
+  it("never forwards the ingest secret through a redirect", async () => {
+    const ordinaryFetch = fetch;
+    const push = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.endsWith("/ingest")) {
+        if (options?.redirect !== "error") throw new Error("redirect would forward custom secret header");
+        return new Response(null, { status: 307, headers: { location: "https://untrusted.test/collect" } });
+      }
+      return ordinaryFetch(url, options);
+    });
+    vi.stubGlobal("fetch", push);
+    await run();
+    const posts = push.mock.calls.filter(([url]) => url.endsWith("/ingest"));
+    expect(posts).toHaveLength(1);
+    expect(posts[0][1]?.redirect).toBe("error");
+    expect(push.mock.calls.some(([url]) => url.startsWith("https://untrusted.test"))).toBe(false);
+  });
+
   it("rejects a declared oversized snapshot before decoding", async () => {
     const ordinaryFetch = fetch;
     let cancelled = false;
@@ -148,7 +205,7 @@ describe("camera vision relay", () => {
   });
 
   it("counts one hourly sensor observation once across multiple frames and cameras", async () => {
-    const observation = { m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3 }, scorerVersion: 2, pm25: 60, pmPairKey: "Station:2026-10-02T05:00:00Z" };
+    const observation = { m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 }, scorerVersion: HAZE_SCORER_VERSION, pm25: 60, pmPairKey: "Station:2026-10-02T05:00:00Z", pmStationId: "Station", pmObservedAt: "2026-10-02T05:00:00Z" };
     storage.history = JSON.stringify({
       camera: Array.from({ length: 12 }, (_, i) => ({ ...observation, t: NOW - (i + 1) * 60_000, score: i / 12 })),
       other: [{ ...observation, t: NOW, score: 0.5 }],
@@ -162,17 +219,43 @@ describe("camera vision relay", () => {
 
   it("preserves a varied event while averaging camera scores for each ground reading", async () => {
     const readings = [10, 10, 10, 10, 10, 50, 70, 90];
-    const entries = readings.map((pm25, i) => ({ t: NOW - (i + 1) * 60_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3 }, scorerVersion: 2, score: pm25 / 100, pm25, pmPairKey: `Station:${i}` }));
+    const entries = readings.map((pm25, i) => ({ t: NOW - (i + 1) * 60_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 }, scorerVersion: HAZE_SCORER_VERSION, score: pm25 / 100, pm25, pmPairKey: `Station-${i}:${NOW}`, pmStationId: `Station-${i}`, pmObservedAt: new Date(NOW).toISOString() }));
     storage.history = JSON.stringify({ camera: entries, other: entries.map((e) => ({ ...e, score: e.score / 2 })) });
     await run();
     expect(payload.agreement.pairs).toBe(8);
     expect(payload.agreement.eventReadings).toBe(3);
+    expect(payload.agreement.eventStations).toBe(3);
     expect(payload.agreement.spansHazeEvent).toBe(true);
     expect(payload.agreement.r).toBe(1);
   });
 
+  it("does not turn several high hours at one sensor into an independent regional event", async () => {
+    const readings = [10, 10, 10, 10, 10, 50, 70, 90];
+    storage.history = JSON.stringify({ camera: readings.map((pm25, i) => ({
+      t: NOW - i * 60_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 },
+      scorerVersion: HAZE_SCORER_VERSION, score: pm25 / 100, pm25, pmPairKey: `Station:${i}`,
+      pmStationId: "Station", pmObservedAt: new Date(NOW - i * 3_600_000).toISOString(),
+    })) });
+    await run();
+    expect(payload.agreement.eventReadings).toBe(3);
+    expect(payload.agreement.eventStations).toBe(1);
+    expect(payload.agreement.spansHazeEvent).toBe(false);
+  });
+
+  it("does not join high readings on separate days into one regional event", async () => {
+    storage.history = JSON.stringify({ camera: [10, 10, 10, 10, 10, 50, 70, 90].map((pm25, i) => ({
+      t: NOW - i * 86_400_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 },
+      scorerVersion: HAZE_SCORER_VERSION, score: pm25 / 100, pm25, pmPairKey: `Station-${i}:day-${i}`,
+      pmStationId: `Station-${i}`, pmObservedAt: new Date(NOW - i * 86_400_000).toISOString(),
+    })) });
+    await run();
+    expect(payload.agreement.eventReadings).toBe(3);
+    expect(payload.agreement.eventStations).toBe(1);
+    expect(payload.agreement.spansHazeEvent).toBe(false);
+  });
+
   it("prunes offline cameras before calculating agreement", async () => {
-    storage.history = JSON.stringify({ offline: [{ t: NOW - 31 * 86_400_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3 }, scorerVersion: 2, score: 0.8, pm25: 80, pmPairKey: "old" }] });
+    storage.history = JSON.stringify({ offline: [{ t: NOW - 31 * 86_400_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 }, scorerVersion: 2, score: 0.8, pm25: 80, pmPairKey: "old" }] });
     await run();
     expect(JSON.parse(storage.history).offline).toHaveLength(0);
     expect(payload.agreement.pairs).toBe(0);
@@ -204,7 +287,7 @@ describe("camera vision relay", () => {
   });
 
   it("does not mix historical scores from the old method into new agreement", async () => {
-    storage.history = JSON.stringify({ camera: Array.from({ length: 12 }, (_, i) => ({ t: NOW - (i + 1) * 60_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3 }, score: i / 12, pm25: 10 + i })) });
+    storage.history = JSON.stringify({ camera: Array.from({ length: 12 }, (_, i) => ({ t: NOW - (i + 1) * 60_000, m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 }, score: i / 12, pm25: 10 + i })) });
     await run();
     expect(payload.agreement.pairs).toBe(0);
   });

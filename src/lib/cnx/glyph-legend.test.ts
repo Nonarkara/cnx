@@ -89,9 +89,31 @@ describe("the key cannot drift from the map", () => {
   it("labels the arrow as pointing downwind, not from", () => {
     // The bar's text says where the wind comes FROM and the arrow points the
     // other way. Both are true; neither may be left for the reader to infer.
-    const arrow = LEGEND_ROWS.find((r) => r.shape === "arrow");
+    // Pinned to the city arrow BY ID, not by shape: finding "the row with
+    // shape arrow" used to silently return whichever wind row came first.
+    const arrow = LEGEND_ROWS.find((r) => r.id === "wind");
+    expect(arrow?.shape).toBe("arrow");
     expect(arrow?.labelEn.toLowerCase()).toContain("where the air is moving");
     expect(arrow?.labelTh).toContain("ทางที่ลมพัดไป");
+  });
+
+  it("gives the two wind marks different swatches — they are both arrows on screen", () => {
+    // Both come from the same Open-Meteo model field and both answer "which way
+    // is the air moving", so caption text is the only thing left to tell them
+    // apart. If the shapes match, the operator is looking at two identical
+    // glyphs with two different labels and no way to say which is which.
+    const city = LEGEND_ROWS.find((r) => r.id === "wind");
+    const streaks = LEGEND_ROWS.find((r) => r.id === "wind-streaks");
+    expect(streaks).toBeDefined();
+    expect(city!.shape).not.toBe(streaks!.shape);
+    // …and the shape must be one the map genuinely paints: the streaks are
+    // stroked shafts with an open head, not solid filled darts.
+    expect(streaks!.shape).toBe("streak");
+  });
+
+  it("does not hand the same swatch to two different rows", () => {
+    const ink = LEGEND_ROWS.filter((r) => r.color === null);
+    expect(new Set(ink.map((r) => r.shape)).size).toBe(ink.length);
   });
 });
 

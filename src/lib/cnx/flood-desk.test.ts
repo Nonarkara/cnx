@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ageText, buildDeskAnswer, damLine, floodHubLine, forecastLine, rainLine, riverLine, type DeskInputs } from "./flood-desk";
 import { NOW, damsOk, gauge, rainOk, riverOk } from "./flood-desk.fixtures";
-import type { FloodHubResponse } from "./floodhub";
+import type { FloodHubPoint, FloodHubResponse } from "./floodhub";
 import type { ProvinceOutlook } from "./outlook";
 
 const unavailableAll: DeskInputs = {
@@ -52,7 +52,7 @@ describe("answer first", () => {
     expect(line.en).toBe("1 gauge near or over the bank — Ban Mae Taeng (P.67) 0.6 m below bank");
   });
   it("answers 'dams near full?' from the captured report", () => {
-    const line = damLine({ status: "ok", data: damsOk() });
+    const line = damLine({ status: "ok", data: damsOk() }, NOW);
     expect(line.level).toBe("watch"); // Mae Ngat near full; full medium reservoirs cap at watch
     expect(line.th).toMatch(/^แม่งัดสมบูรณ์ชล 95% ของระดับเก็บกักปกติ \(ใกล้เต็ม\)/);
     expect(line.en).toBe("Mae Ngat at 95% of normal storage (near full) · 1 medium reservoir near or above normal storage");
@@ -77,5 +77,92 @@ describe("ageText", () => {
     expect(ageText({ observedAt: "2026-10-11T00:00:00Z", ageMode: "time", staleAfterMs: 3 * 3_600_000 }, NOW, "en")).toEqual({ text: "stale · 5 h ago", stale: true });
     expect(ageText({ observedAt: "2026-10-10", ageMode: "day", staleAfterMs: 2 * 86_400_000 }, NOW, "en")).toEqual({ text: "yesterday's report", stale: false });
     expect(ageText({ observedAt: null, ageMode: "time", staleAfterMs: 1 }, NOW, "th")).toBeNull();
+  });
+});
+
+
+const currentPoint = (over: Partial<FloodHubPoint> = {}): FloodHubPoint => ({
+  gaugeId: "HYBAS1", latitude: 18.8, longitude: 99, kmFromCity: 1, qualityVerified: false,
+  severity: "NO_FLOODING", trend: "NO_CHANGE", issuedTime: new Date(NOW - 3_600_000).toISOString(),
+  forecastStart: new Date(NOW + 86_400_000).toISOString(), forecastEnd: new Date(NOW + 3 * 86_400_000).toISOString(), ...over,
+});
+const floodHub = (points = [currentPoint()], worst: FloodHubResponse["worst"] = "NO_FLOODING"): FloodHubResponse => ({
+  generatedAt: new Date(NOW).toISOString(), provenance: "live", points, worst,
+  outlook: worst === "NO_FLOODING" ? "none-forecast" : "flooding", note: "River model only",
+});
+const calmInputs = (): DeskInputs => ({
+  river: { status: "ok", data: riverOk([gauge({ belowBankM: 4, headroomM: 4, severity: "good" })]) },
+  dams: { status: "ok", data: { ...damsOk(), large: damsOk().large.map(s => ({ ...s, upstreamPct: 50, pctNormal: 50, severity: "good", band: "normal" })), medium: [] } },
+  rain: { status: "ok", data: rainOk(0) }, floodHub: { status: "ok", data: floodHub() },
+  outlook: { available: true, fetchedAt: new Date(NOW).toISOString(), rain: [], air: [], wettest: null, dirtiest: null, hasPm25: false },
+});
+
+describe("flood desk decisions re-age retained evidence", () => {
+  it("counts a measured but ungradable river as a gap instead of a calm all-source answer", () => {
+    const inputs = calmInputs();
+    inputs.river = { status: "ok", data: riverOk([gauge({ belowBankM: null, headroomM: null })]) };
+    const answer = buildDeskAnswer(inputs, NOW);
+    expect(answer.level).toBe("unknown");
+    expect(answer.missing).toBe(1);
+    expect(answer.en).toContain("Incomplete");
+    expect(answer.en).not.toContain("No flood signal from any source");
+  });
+
+  it("does not keep old dam reports current merely because a browser retains a live response", () => {
+    const inputs = calmInputs();
+    const answer = buildDeskAnswer(inputs, NOW + 4 * 86_400_000);
+    expect(answer.lines.find(l => l.key === "dams")).toMatchObject({ status: "unavailable", level: "unknown" });
+    expect(answer.level).toBe("unknown");
+  });
+
+  it.each(["2026-10-08", "2026-10-12", "invalid"])("does not refresh an expired or invalid report day with a new collection (%s)", date => {
+    const data = damsOk();
+    data.large = data.large.map(s => ({ ...s, date })); data.medium = [];
+    expect(damLine({ status: "ok", data }, NOW)).toMatchObject({ status: "unavailable", level: "unknown" });
+  });
+
+  it("recomputes dam grading from current rows, dropping an old overflowing reservoir", () => {
+    const data = damsOk();
+    data.large = [
+      { ...data.large[0], date: "2026-10-08", upstreamPct: 110, pctNormal: 110, severity: "alert", band: "over", spilling: true },
+      { ...data.large[0], id: "current", date: "2026-10-11", upstreamPct: 50, pctNormal: 50, severity: "good", band: "normal", spilling: false },
+    ];
+    data.medium = []; data.spilling = [data.large[0]];
+    const line = damLine({ status: "ok", data }, NOW);
+    expect(line.level).toBe("good");
+    expect(line.en).not.toContain("spilling");
+    expect(line.observedAt).toBe("2026-10-11");
+  });
+
+  it.each(["2026-10-11T01:59:59Z", "2026-10-11T05:06:00Z", "invalid"])("rejects old, future or unreadable dam collection time (%s)", collectedAt => {
+    const line = damLine({ status: "ok", data: { ...damsOk(), collectedAt } }, NOW);
+    expect(line).toMatchObject({ status: "unavailable", level: "unknown" });
+  });
+
+  it("keeps reports within the existing two-day calendar allowance when the relay is current", () => {
+    const data = damsOk();
+    data.large = data.large.map(s => ({ ...s, date: "2026-10-09" })); data.medium = [];
+    expect(damLine({ status: "ok", data }, NOW).status).toBe("ok");
+  });
+
+  it.each([
+    { issuedTime: "2026-10-10T04:59:59Z" },
+    { issuedTime: "2026-10-11T05:06:00Z" },
+    { forecastEnd: new Date(NOW).toISOString() },
+    { forecastEnd: "invalid" },
+    { issuedTime: null },
+  ])("cannot reuse an invalid FloodHub forecast as no flooding (%j)", changes => {
+    const line = floodHubLine({ status: "ok", data: floodHub([currentPoint(changes)]) }, NOW);
+    expect(line).toMatchObject({ status: "unavailable", level: "unknown" });
+  });
+
+  it("keeps a valid future forecast window and derives the grade from usable points", () => {
+    const data = floodHub([currentPoint({ severity: "SEVERE" })], "NO_FLOODING");
+    expect(floodHubLine({ status: "ok", data }, NOW).level).toBe("alert");
+  });
+
+  it("does not let an expired severe point override a current calm forecast", () => {
+    const data = floodHub([currentPoint({ gaugeId: "expired", severity: "SEVERE", forecastEnd: new Date(NOW - 1).toISOString() }), currentPoint()], "SEVERE");
+    expect(floodHubLine({ status: "ok", data }, NOW).level).toBe("good");
   });
 });

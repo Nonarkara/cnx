@@ -50,6 +50,41 @@ describe("computeFrameMetrics", () => {
 describe("classifyFrame", () => {
   const history: FrameMetrics[] = Array.from({ length: MIN_BASELINE_SAMPLES }, (_, i) => metrics(i % 3 === 0 ? 0.4 : 0.05));
 
+  it("withholds a uniform coloured frame rather than learning it as clear", () => {
+    const blank = { meanLuminance: 0.5, contrast: 0, darkChannel: 0.3, saturation: 0.25 };
+    expect(isScorable(blank)).toBe(false);
+    expect(baselineFrom(Array(MIN_BASELINE_SAMPLES).fill(blank))).toBeNull();
+    expect(classifyFrame(blank, history)).toEqual({ label: "unusable", score: null });
+  });
+
+  it("keeps a coloured placeholder with a small changing clock out of calibration", () => {
+    const placeholder = (stamp: number) => {
+      const px = new Uint8Array(320 * 160 * 3);
+      for (let i = 0; i < px.length; i += 3) px.set([120, 160, 100], i);
+      for (let y = 140; y < 150; y++) for (let x = 10; x < 70; x++) {
+        if ((x + stamp) % 3) px.set([255, 255, 255], (y * 320 + x) * 3);
+      }
+      return computeFrameMetrics(px, 320, 160, 3);
+    };
+    const frames = Array.from({ length: MIN_BASELINE_SAMPLES }, (_, i) => placeholder(i));
+    expect(frames.every(m => !isScorable(m))).toBe(true);
+    expect(baselineFrom(frames)).toBeNull();
+    expect(classifyFrame(frames[0], history)).toEqual({ label: "unusable", score: null });
+  });
+
+  it("does not recover missing scene-detail evidence from legacy contrast alone", () => {
+    const legacy = { meanLuminance: 0.558, contrast: 0.0453, darkChannel: 0.392, saturation: 0.371 };
+    expect(isScorable(legacy)).toBe(false);
+    expect(baselineFrom(Array(MIN_BASELINE_SAMPLES).fill(legacy))).toBeNull();
+    expect(classifyFrame(legacy, history)).toEqual({ label: "unusable", score: null });
+  });
+
+  it("treats a nearly opaque fog-like scene as unassessable, never clear", () => {
+    const opaque = classifyFrame(metrics(0.98), history);
+    expect(opaque.score).toBeNull();
+    expect(["unusable", "no-colour"]).toContain(opaque.label);
+  });
+
   it("waits for enough daylight history before judging", () => {
     expect(classifyFrame(metrics(0.7), history.slice(0, 3)).label).toBe("calibrating");
   });
@@ -94,10 +129,10 @@ describe("classifyFrame", () => {
   });
 
   it("does not interpret a uniform exposure change as haze", () => {
-    const clear: FrameMetrics = { meanLuminance: 0.5, darkChannel: 0.2, contrast: 0.15, saturation: 0.3 };
+    const clear: FrameMetrics = { meanLuminance: 0.5, darkChannel: 0.2, contrast: 0.15, saturation: 0.3, luminanceRange: 0.4 };
     const baseline = Array.from({ length: MIN_BASELINE_SAMPLES }, () => clear);
     for (const gain of [0.5, 1, 1.8]) {
-      const exposed = { ...clear, meanLuminance: clear.meanLuminance * gain, darkChannel: clear.darkChannel * gain, contrast: clear.contrast * gain };
+      const exposed = { ...clear, meanLuminance: clear.meanLuminance * gain, darkChannel: clear.darkChannel * gain, contrast: clear.contrast * gain, luminanceRange: clear.luminanceRange! * gain };
       expect(classifyFrame(exposed, baseline)).toEqual({ label: "clear", score: 0 });
     }
   });
