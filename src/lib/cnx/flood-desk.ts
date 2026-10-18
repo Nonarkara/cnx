@@ -42,6 +42,8 @@ export interface DeskLine {
   observedAt: string | null;
   ageMode: "time" | "day";
   staleAfterMs: number;
+  /** A known subset may warn, but cannot clear unassessed current observations. */
+  coverageIncomplete?: boolean;
 }
 
 export interface DeskAnswer {
@@ -120,8 +122,11 @@ export function riverLine(feed: Feed<RiverLevelResponse>, nowMs: number): DeskLi
   const current = d.gauges.filter((g) => isCurrentGaugeReading(g.observedAt, nowMs));
   if (current.length === 0) return unavailable(RIVER, "ไม่มีค่าระดับน้ำภายใน 3 ชม. — สภาพน้ำปัจจุบันยังไม่ทราบ", "No gauge reading from the last 3 hours — current river conditions are unknown.");
   const graded = current.filter(gradable).sort(tightestFirst);
+  const ungraded = current.length - graded.length;
+  const coverageTh = `${graded.length}/${current.length} สถานีปัจจุบันมีเกณฑ์อ้างอิง${ungraded ? ` · อีก ${ungraded} สถานีไม่มีเกณฑ์ จึงประเมินไม่ได้` : ""}`;
+  const coverageEn = `${graded.length}/${current.length} current gauges have thresholds${ungraded ? `; ${ungraded} without thresholds cannot be assessed` : ""}`;
   if (graded.length === 0) {
-    return { ...RIVER, status: "ok", level: "unknown", th: `${current.length} สถานีรายงาน แต่ไม่มีสถานีที่มีข้อมูลตลิ่ง — ประเมินไม่ได้`, en: `${current.length} gauges reporting, none with bank data — cannot be graded.`, observedAt: current[0].observedAt };
+    return { ...RIVER, status: "ok", level: "unknown", coverageIncomplete: true, th: `${coverageTh} — ประเมินไม่ได้`, en: `${coverageEn} — cannot be graded.`, observedAt: current[0].observedAt };
   }
   const top = graded[0];
   const near = graded.filter((g) => g.severity === "alert" || g.severity === "critical");
@@ -131,12 +136,13 @@ export function riverLine(feed: Feed<RiverLevelResponse>, nowMs: number): DeskLi
     ...RIVER,
     status: "ok",
     level: top.severity,
-    th: near.length
-      ? `${near.length} สถานีใกล้หรือล้นตลิ่ง — ${name.th} ${bank.th}`
-      : `ไม่มีสถานีใดอยู่ภายใน 1 ม. จากตลิ่ง · ใกล้สุด ${name.th} ${bank.th}`,
-    en: near.length
-      ? `${near.length} gauge${near.length > 1 ? "s" : ""} near or over the bank — ${name.en} ${bank.en}`
-      : `No gauge within 1 m of its bank · closest: ${name.en}, ${bank.en}`,
+    coverageIncomplete: ungraded > 0,
+    th: (near.length
+      ? `${near.length} สถานีถึงระดับเตือนสูงหรือวิกฤต — ${name.th} ${bank.th}`
+      : `สถานีที่ประเมินได้ไม่ถึงระดับเตือนสูง · ใกล้เกณฑ์ที่สุด ${name.th} ${bank.th}`) + ` · ${coverageTh}`,
+    en: (near.length
+      ? `${near.length} gauge${near.length > 1 ? "s" : ""} at alert or critical level — ${name.en} ${bank.en}`
+      : `No graded gauge reaches alert level · closest: ${name.en}, ${bank.en}`) + ` · ${coverageEn}`,
     observedAt: top.observedAt,
   };
 }
@@ -312,7 +318,7 @@ export function buildDeskAnswer(inputs: DeskInputs, nowMs: number): DeskAnswer {
     forecastLine(inputs.outlook),
     floodHubLine(inputs.floodHub, nowMs),
   ];
-  const missing = lines.filter((l) => l.status !== "ok" || l.level === "unknown").length;
+  const missing = lines.filter((l) => l.status !== "ok" || l.level === "unknown" || l.coverageIncomplete).length;
   const signals = lines.filter((l) => l.status === "ok" && RANK[l.level] >= RANK.watch).sort((a, b) => RANK[b.level] - RANK[a.level]);
   if (signals.length) {
     const top = signals[0];

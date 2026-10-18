@@ -49,7 +49,7 @@ describe("answer first", () => {
   it("names the river closest to its bank", () => {
     const line = riverLine({ status: "ok", data: riverOk([gauge(), gauge({ id: "x", code: "P.67", nameEn: "Ban Mae Taeng", belowBankM: 0.6, headroomM: null, severity: "alert" })]) }, NOW);
     expect(line).toMatchObject({ level: "alert" });
-    expect(line.en).toBe("1 gauge near or over the bank — Ban Mae Taeng (P.67) 0.6 m below bank");
+    expect(line.en).toBe("1 gauge at alert or critical level — Ban Mae Taeng (P.67) 0.6 m below bank · 2/2 current gauges have thresholds");
   });
   it("answers 'dams near full?' from the captured report", () => {
     const line = damLine({ status: "ok", data: damsOk() }, NOW);
@@ -106,6 +106,33 @@ describe("flood desk decisions re-age retained evidence", () => {
     expect(answer.missing).toBe(1);
     expect(answer.en).toContain("Incomplete");
     expect(answer.en).not.toContain("No flood signal from any source");
+  });
+
+  it.each([
+    ["good", "unknown", 4], ["critical", "critical", -0.2], ["watch", "watch", 2],
+  ] as const)("keeps partial threshold coverage a gap while retaining the %s measured signal", (severity, expected, belowBankM) => {
+    const inputs = calmInputs();
+    inputs.river = { status: "ok", data: riverOk([
+      gauge({ belowBankM, headroomM: null, severity }),
+      gauge({ id: "ungraded", code: "P.unknown", belowBankM: null, headroomM: null }),
+    ]) };
+    const answer = buildDeskAnswer(inputs, NOW);
+    const line = answer.lines.find(l => l.key === "river")!;
+    expect(line).toMatchObject({ level: severity, coverageIncomplete: true });
+    expect(line.en).toContain("1/2 current gauges have thresholds");
+    expect(line.en).toContain("1 without thresholds cannot be assessed");
+    expect(line.th).toContain("1/2");
+    expect(answer.level).toBe(expected);
+    expect(answer.missing).toBe(1);
+    expect(answer.en).not.toContain("No flood signal from any source");
+    if (severity === "good") expect(line.en).not.toContain("No gauge within");
+  });
+
+  it("does not invent a coverage gap when every current river gauge is gradable", () => {
+    const answer = buildDeskAnswer(calmInputs(), NOW);
+    expect(answer.lines.find(l => l.key === "river")?.en).toContain("1/1 current gauges have thresholds");
+    expect(answer.missing).toBe(0);
+    expect(answer.level).toBe("good");
   });
 
   it("does not keep old dam reports current merely because a browser retains a live response", () => {

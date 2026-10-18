@@ -51,7 +51,7 @@ describe("flood desk — answer first, evidence after", () => {
   it("leads with the worst live signal and lists the evidence", () => {
     const river = riverOk([gauge(), gauge({ id: "t", code: "P.67", nameTh: "บ้านแม่แตง", belowBankM: 0.6, headroomM: null, severity: "alert" })]);
     const html = render({ ...allFailed, river: { status: "ok", data: river }, dams: { status: "ok", data: damsOk() } });
-    const answerAt = html.indexOf("แม่น้ำ: 1 สถานีใกล้หรือล้นตลิ่ง");
+    const answerAt = html.indexOf("แม่น้ำ: 1 สถานีถึงระดับเตือนสูงหรือวิกฤต");
     expect(answerAt).toBeGreaterThan(-1);
     expect(html.indexOf("สถานีใกล้ตลิ่งที่สุด")).toBeGreaterThan(answerAt);
     expect(html).toContain("แม่งัดสมบูรณ์ชล");
