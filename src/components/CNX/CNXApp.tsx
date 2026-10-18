@@ -546,7 +546,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
 
 
-      <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] xl:flex-1">
+      <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] lg:h-[60dvh] xl:h-auto xl:flex-1">
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
             from xl onwards on desktop with full width. */}
         {layout.socialRail && <aside
@@ -668,7 +668,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
               aria-label={t.label}
               aria-pressed={mobileTab === t.id}
               onClick={() => setMobileTab(t.id)}
-              className={`flex min-h-[44px] min-w-[64px] flex-1 items-center justify-center gap-1 border-r border-[var(--line)] px-2 text-[11px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
+              className={`flex min-h-[44px] min-w-max flex-none items-center justify-center gap-1 border-r border-[var(--line)] px-2 text-[11px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
                 mobileTab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)]"
               }`}
             >
