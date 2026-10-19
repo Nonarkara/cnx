@@ -188,7 +188,7 @@ function MapToggleButton({
       title={title}
       className={`min-h-11 border px-3 py-2 text-left text-[13px] font-semibold transition-colors ${
         disabled
-          ? "cursor-not-allowed border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] opacity-70"
+          ? "cursor-not-allowed border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)]"
           : pressed
           ? activeClassName
           : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)] hover:border-[var(--cool)]"
@@ -1474,7 +1474,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={templesOn}
           onClick={() => setTemplesOn((v) => !v)}
-          activeClassName="border-[#b8860b] bg-[#b8860b] text-white"
+          activeClassName="border-[#856000] bg-[#856000] text-white"
         >
           {templesOn ? t("วัด: สีทอง", "Temples: gold") : t("วัด: ปิด", "Temples: off")}
         </MapToggleButton>
@@ -1497,7 +1497,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={busesOn}
           onClick={() => setBusesOn((v) => !v)}
-          activeClassName="border-[#b8860b] bg-[#b8860b] text-white"
+          activeClassName="border-[#856000] bg-[#856000] text-white"
         >
           {busesOn ? t("รถเมล์: เปิด", "Buses: on") : t("รถเมล์: ปิด", "Buses: off")}
         </MapToggleButton>
@@ -1512,7 +1512,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={airportBusOn}
           onClick={() => setAirportBusOn((v) => !v)}
-          activeClassName="border-[#e53935] bg-[#e53935] text-white"
+          activeClassName="border-[#c62828] bg-[#c62828] text-white"
           title={t(`รถ RTC สนามบิน 24A/24B/24C จำลองจากตารางเดินรถที่ประกาศ ความเร็ว ${SIM_SPEED_KMH} กม./ชม. — ไม่ใช่ GPS จริง`, `RTC 24A/24B/24C airport buses, simulated from the published timetable at ${SIM_SPEED_KMH} km/h — not live GPS`)}
         >
           {airportBusOn ? t(`รถสนามบิน: จำลอง (${airportBuses.length})`, `Airport Bus: sim (${airportBuses.length})`) : t("รถสนามบิน: ปิด", "Airport Bus: off")}
@@ -1522,7 +1522,7 @@ export default function CNXMap({
         <MapToggleButton
           pressed={rainRadarOn}
           onClick={() => pickOverlay("rain")}
-          activeClassName="border-[#0891b2] bg-[#0891b2] text-white"
+          activeClassName="border-[#0e7490] bg-[#0e7490] text-white"
           disabled={!weatherLayers?.rainRadar}
           title={t("เรดาร์ฝนสด — RainViewer อัปเดตราว 10 นาที", "Live precipitation radar — RainViewer, refreshes ~every 10 min")}
         >
@@ -1644,7 +1644,7 @@ export default function CNXMap({
           <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] pb-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="inline-block bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white">
+                <span className="inline-block bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--bg)]">
                   {KIND_LABEL[selectedBuilding.kind] ? t(KIND_LABEL[selectedBuilding.kind].th, KIND_LABEL[selectedBuilding.kind].en) : selectedBuilding.kind.toUpperCase()}
                 </span>
                 <span className="inline-block border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">

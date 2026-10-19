@@ -99,9 +99,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                   key={s.id}
                   type="button"
                   onClick={() => setSelected(s)}
-                  className={`group relative flex min-h-[88px] w-[300px] shrink-0 items-center gap-3 border-r border-[var(--line)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-surface)] ${
-                    reachable ? "" : "opacity-70"
-                  }`}
+                  className={`group relative flex min-h-[88px] w-[300px] shrink-0 items-center gap-3 border-r border-[var(--line)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-surface)]`}
                   style={{ borderTop: `2px solid ${reachable ? color : "var(--dim)"}` }}
                   title={`${t(s.labelTh ?? s.label, s.labelEn ?? s.label)} — ${t("คลิกดูภาพใหญ่", "click for a larger view")}`}
                 >

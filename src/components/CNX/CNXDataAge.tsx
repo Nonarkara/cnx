@@ -83,7 +83,7 @@ export interface AgeVerdict {
    *  colour lives in globals.css as `.text-status-watch`, so a re-anchor
    *  of the palette changes the colour and not this contract. */
   text: string | null;
-  tone: "opacity-70" | "text-status-watch";
+  tone: "text-[var(--dim)]" | "text-status-watch";
 }
 
 /**
@@ -104,15 +104,15 @@ export function ageVerdict(
 
   // No clock yet (server render, pre-hydration). We know whether an
   // observation exists; we do not know how old it is. Make no claim.
-  if (now === null) return { text: null, tone: "opacity-70" };
-  if (!hasObservation) return { text: missing ?? w.missing, tone: "opacity-70" };
+  if (now === null) return { text: null, tone: "text-[var(--dim)]" };
+  if (!hasObservation) return { text: missing ?? w.missing, tone: "text-[var(--dim)]" };
 
   const ms = ageMs(observedAt, now);
-  if (ms === null) return { text: w.unreadable, tone: "opacity-70" };
+  if (ms === null) return { text: w.unreadable, tone: "text-[var(--dim)]" };
   // Publisher clock skew. "in 4 h" would be absurd; name the skew.
   if (ms < 0) return { text: w.future, tone: "text-status-watch" };
   if (ms > staleAfterMs) return { text: `${w.stale} · ${humanAge(ms, lang)}`, tone: "text-status-watch" };
-  return { text: humanAge(ms, lang), tone: "opacity-70" };
+  return { text: humanAge(ms, lang), tone: "text-[var(--dim)]" };
 }
 
 export interface DataAgeProps {
@@ -156,9 +156,16 @@ export function DataAge({
     return <span className={`font-mono text-[11px] tracking-[0.08em] ${tone} ${className}`.trim()}>{source}</span>;
   }
 
+  const stamp = observedAt == null ? NaN : typeof observedAt === "number" ? observedAt : Date.parse(observedAt);
+  const absolute = Number.isFinite(stamp)
+    ? new Date(stamp).toLocaleString(lang === "th" ? "th-TH" : "en-GB", {
+      timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short",
+    }) + " (UTC+7)"
+    : null;
+
   return (
     <span className={`font-mono text-[11px] tracking-[0.08em] ${tone} ${className}`.trim()}>
-      {source} · {text}
+      {source} · {absolute ? <time dateTime={new Date(stamp).toISOString()} title={absolute} aria-label={`${text} · ${absolute}`}>{text}</time> : text}
     </span>
   );
 }

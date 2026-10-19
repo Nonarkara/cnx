@@ -69,6 +69,8 @@
   --wada-dominant: #f99d1b; /* Yellow Orange — retired from the UI */
   --wada-counter: #12354e;  /* Dark Tyrian Blue */
 
+  color-scheme: light;
+
   /* Light theme — museum white */
   --bg: #ffffff;
   --bg-raised: #ffffff;
@@ -112,6 +114,7 @@
  */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #051230;         /* Deep Indigo — plate 139 */
     --bg-raised: #111e3c;  /* Deep Indigo → Salvia Blue 8% */
     --bg-surface: #051230;
@@ -131,6 +134,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #051230;
   --bg-raised: #111e3c;
   --bg-surface: #051230;

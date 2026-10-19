@@ -130,3 +130,27 @@ describe("globals.css design tokens", () => {
     });
   });
 });
+
+// Test the pairs used by real controls, not only the palette in isolation.
+// A valid --cool token still fails when a component puts white text on it in dark mode.
+describe("filled operational controls", () => {
+  const files = ["CNXMap", "CNXTicker", "CNXTopBar"];
+  for (const file of files) {
+    const source = readFileSync(resolve(process.cwd(), `src/components/CNX/${file}.tsx`), "utf8");
+    const pairs = [...source.matchAll(/(?:hover:)?bg-\[(#[0-9a-fA-F]{6}|var\(--[a-z-]+\))\]([^"`\n]*?)(?:hover:)?text-(white|\[var\(--[a-z-]+\)\])/g)];
+    it(`${file} fills keep normal-size text at 4.5:1 in both themes`, () => {
+      expect(pairs.length).toBeGreaterThan(0);
+      for (const [, fill, , foreground] of pairs) {
+        for (const [theme, tokens] of THEMES) {
+          const resolveColour = (value: string) => {
+            if (value === "white") return "#ffffff";
+            if (value.startsWith("#")) return value;
+            const token = value.match(/--([a-z-]+)/)![1];
+            return tokens[token === "danger" ? "sev-critical" : token];
+          };
+          expect(contrast(resolveColour(fill), resolveColour(foreground)), `${file} ${theme}: ${foreground} on ${fill}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    });
+  }
+});

@@ -118,7 +118,7 @@ export default function CnxTicker({
 
   return (
     <div lang={lang} className="flex min-h-[36px] shrink-0 items-stretch overflow-hidden border-t border-[var(--line)] bg-[var(--bg)] font-mono text-[11px]">
-      <div className="flex shrink-0 items-center gap-1.5 border-r border-[var(--line)] bg-[var(--cool)] px-3 text-white">
+      <div className="flex shrink-0 items-center gap-1.5 border-r border-[var(--line)] bg-[var(--cool)] px-3 text-[var(--bg)]">
         <Activity aria-hidden="true" className="h-3 w-3" />
         <span className="text-[11px] font-bold uppercase tracking-[0.16em]">{t("CNX ปฏิบัติการ", "CNX OPS")}</span>
       </div>

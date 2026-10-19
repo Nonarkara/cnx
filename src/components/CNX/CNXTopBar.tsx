@@ -141,11 +141,11 @@ export function VerdictStrip({
   // part of the same chrome, not a foreign block.
   const colour =
     level === "danger"
-      ? "border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 text-[var(--sev-critical)]"
+      ? "border-[var(--sev-critical)] bg-[var(--bg)] text-[var(--sev-critical)]"
       : level === "prepare"
-      ? "border-[var(--sev-alert)] bg-[var(--sev-alert)]/10 text-[var(--sev-alert)]"
+      ? "border-[var(--sev-alert)] bg-[var(--bg)] text-[var(--sev-alert)]"
       : level === "watch"
-      ? "border-[var(--sev-watch)] bg-[var(--sev-watch)]/10 text-[var(--sev-watch)]"
+      ? "border-[var(--sev-watch)] bg-[var(--bg)] text-[var(--sev-watch)]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
   const chipLabel = t(...CHIP_LABEL[level]);
   const topReason = v.reasons[0];
@@ -175,10 +175,10 @@ export function VerdictStrip({
             ...v.reasons.filter((r) => r.isCaveat),
           ].map((reason) => (
             <div key={`${reason.domain}-${reason.evidence ?? reason.en}`} className="flex flex-wrap items-baseline gap-x-3">
-              <span className="font-mono uppercase tracking-[0.14em] opacity-60">
+              <span className="font-mono uppercase tracking-[0.14em]">
                 {reason.isCaveat ? t("ช่องว่างหลักฐาน", "Evidence gap") : t(...DOMAIN_LABEL[reason.domain])}
               </span>
-              <span className={reason.isCaveat ? "italic opacity-90" : undefined}>{t(reason.th, reason.en)}</span>
+              <span className={reason.isCaveat ? "italic" : undefined}>{t(reason.th, reason.en)}</span>
             </div>
           ))}
         </div>
@@ -196,16 +196,16 @@ export function VerdictStrip({
         </button>
         <details className="min-w-0 flex-1 text-[12px]">
           <summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("รายการตรวจเพื่อวางแผนและรายละเอียดหลักฐาน", "Planning checklist & evidence details")}</summary>
-          <p className="mb-2 opacity-80">{t("รายการตรวจที่แนะนำสำหรับการวางแผน การปฏิบัติและคำสั่งอพยพต้องเป็นไปตามหน่วยงานที่รับผิดชอบ", "Suggested planning checks; actions and evacuation orders must follow the responsible authority.")}</p>
+          <p className="mb-2">{t("รายการตรวจที่แนะนำสำหรับการวางแผน การปฏิบัติและคำสั่งอพยพต้องเป็นไปตามหน่วยงานที่รับผิดชอบ", "Suggested planning checks; actions and evacuation orders must follow the responsible authority.")}</p>
           <ul className="list-disc space-y-2 pl-5 leading-relaxed">
             {v.checklist.map((item) => <li key={item.en}>{t(item.th, item.en)}</li>)}
           </ul>
-          <p className="mt-3 text-[11px] opacity-70">{t(
+          <p className="mt-3 text-[11px]">{t(
             `คะแนนประเมินของแดชบอร์ด ${v.score}/100 ระดับ${t(...BAND_LABEL[v.band])} ไม่ใช่ความน่าจะเป็นของเหตุการณ์หรือคำเตือนทางการ`,
             `Dashboard heuristic score ${v.score}/100; ${v.band} band. This is not an event probability or an official warning.`,
           )}</p>
           {/* Evidence strings are machine readings (e.g. pm25=48) — shown as recorded. */}
-          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[11px] opacity-70">{t(...DOMAIN_LABEL[reason.domain])}: {reason.evidence}</p>)}
+          {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[11px]">{t(...DOMAIN_LABEL[reason.domain])}: {reason.evidence}</p>)}
         </details>
       </div>
   </>;
@@ -215,10 +215,10 @@ export function VerdictStrip({
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
           {compact && level === "safe" ? t("สถานการณ์", "CONTEXT") : chipLabel}
         </span>
-        <span className="text-[11px] leading-relaxed opacity-80">
+        <span className="text-[11px] leading-relaxed">
           {evidenceLabel}
         </span>
-        <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[11px] uppercase tracking-[0.14em] opacity-70`}>
+        <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[11px] uppercase tracking-[0.14em]`}>
           {t(`${twin.province_th} · ปภ. ${HOTLINES.ddpm} · การแพทย์ฉุกเฉิน ${HOTLINES.ems}`, `${twin.province_en} · DDPM ${HOTLINES.ddpm} · EMS ${HOTLINES.ems}`)}
         </span>
       </div>
@@ -256,7 +256,7 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
       title={head || chipLabel}
     >
       <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">{chipLabel}</span>
-      <span className="hidden max-w-[22ch] truncate font-mono text-[11px] uppercase tracking-[0.1em] opacity-80 sm:inline">
+      <span className="hidden max-w-[22ch] truncate font-mono text-[11px] uppercase tracking-[0.1em] sm:inline">
         {head}
       </span>
     </div>
@@ -311,7 +311,7 @@ export default function CnxTopBar(props: TopBarProps) {
         <div className="cnx-header-actions ml-auto flex min-w-0 items-center gap-1">
           {officeNotice && (
             <details className="sm:relative">
-              <summary aria-label={t("ประกาศหน่วยงาน", "Agency notice")} className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--sev-critical)]/10 px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
+              <summary aria-label={t("ประกาศหน่วยงาน", "Agency notice")} className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 border border-[var(--sev-critical)] bg-[var(--bg)] px-3 text-[12px] font-semibold text-[var(--sev-critical)]">
               <Bell className="h-3 w-3" />
               <span className="hidden lg:inline">{t("ประกาศหน่วยงาน", "Agency notice")}</span> ⌄
               </summary>
@@ -336,7 +336,7 @@ export default function CnxTopBar(props: TopBarProps) {
 <button
             onClick={onOpenEmergency}
             aria-label={t("ติดต่อฉุกเฉิน", "SOS — Emergency contacts")}
-            className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white "
+            className="flex min-h-11 items-center gap-1.5 border border-[var(--danger)] bg-[var(--bg)] px-3 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.04em] text-[var(--danger)] hover:bg-[var(--danger)] hover:text-[var(--bg)] "
           >
             <PhoneCall className="h-3 w-3" />
             <span className="lg:hidden">{t("ฉุกเฉิน", "SOS")}</span><span className="hidden lg:inline">{t("ติดต่อฉุกเฉิน", "Emergency contacts")}</span>

@@ -206,7 +206,7 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
           ) : slot.posterUrl ? (
             <SnapshotView key={slot.id} slot={slot} />
           ) : (
-            <div className="flex aspect-video items-center justify-center font-mono text-[11px] text-[var(--dim)]">
+            <div className="flex aspect-video items-center justify-center bg-[var(--bg-raised)] font-mono text-[11px] text-[var(--dim)]">
               {t("กล้องนี้ไม่มีสตรีม", "This camera has no stream")} — {sourceLabel}
             </div>
           )}
