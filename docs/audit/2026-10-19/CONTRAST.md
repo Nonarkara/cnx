@@ -28,3 +28,28 @@ Initial checks: 57 focused tests passed; typecheck and lint passed. Independent 
 - Local KV is separate from production: unavailable local feeds were not represented as live production coverage.
 
 CI: https://github.com/Nonarkara/cnx/actions/runs/39202094365
+
+## Production contrast verification and camera follow-up
+
+Release 04a870b passed the live gate: 49 routes, live rain (347 current gauges at that check) and river data (45 gauges). Browser matrix: Thai/English × light/dark × 390/1024/1440 CSS px; no page overflow and no detected visible text below 4.5:1 in the checked landing states. Expanded layer controls, CCTV strip, camera metadata and water-evidence handoff were also checked. These are targeted checks, not a guarantee about every possible state or third-party iframe.
+
+Independent review approved the app-owned surfaces, but found the known-offline Windy player still rendered a dark link on black inside cross-origin content. Parent CSS cannot repair that content. The follow-up renders a content-fit, themed offline message instead of the known-dead player, retains the last capture time, and links to the attribution page (or player URL when attribution is absent). Reachable players remain available. Regression tests cover the offline-to-reachable transition and source-link fallback; 21 focused checks passed.
+
+Artifacts: `/Volumes/Data/CNX/audit-artifacts/2026-10-19/` (12 viewport/theme/language screenshots, expanded states and contrast-matrix.json). The 12-screen matrix records 04a870b; the later camera-only change requires a fresh modal check, not a claim that the earlier captures show its fallback.
+
+### Camera follow-up candidate 5fa9579
+
+CI 39203288651 is green: Node 22 passed 1,121 tests in 113 files; Node 20 passed 1,120 with the expected native-TypeScript import skip. Typecheck, lint and Worker build passed. Local production build also passed. The known-offline external player is not mounted; a reachable player still mounts normally. The source link prefers `upstreamUrl` and falls back to `playerUrl`, covered by a regression with the optional attribution URL absent.
+
+CI: https://github.com/Nonarkara/cnx/actions/runs/39203288651
+
+## Final deployed camera follow-up
+
+- Deployed code: `5fa95793880b2d5aa4a03da6bfc01e42691e7c71`.
+- Cloudflare version: `7840691f-77e5-4741-b6d3-d92d495d5fb6`.
+- Live fallback verified in Thai/English, light/dark at 390 and 1440 CSS px (eight checks): no detected low-contrast visible text. The offline player iframe is absent, with the source link, last capture time and close control visible. Browser error log was empty during these checks.
+- Independent source and final screenshot reviews approved the fallback. No app-owned contrast/layout blocker was found in the reviewed captures; reachable third-party players are not certified by parent-page contrast scans.
+- Final screenshot: `/Volumes/Data/CNX/audit-artifacts/2026-10-19/final-live-map-th-dark-1440.png`. Modal captures use `final-camera-*.png`; machine-readable results are `final-camera-checks.json`.
+- Final release gate transcript is generated after committing this evidence at `/Volumes/Data/CNX/audit-artifacts/2026-10-19/final-release-gate.txt`.
+
+The map remains the landing workspace. Header dimensions and content-fit controls were preserved. The public tab was restored to Thai dark mode and the temporary viewport override was cleared. The temporary local preview was stopped; no relay restart was needed for these frontend-only changes.
