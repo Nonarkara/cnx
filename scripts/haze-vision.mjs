@@ -33,7 +33,7 @@ const MAX_SNAPSHOT_PIXELS = 24_000_000;
  * does not cover this, so it is asserted in the relay's own smoke check.
  */
 const HAZE_TESTABLE_SPREAD = 20;
-/** A reading at or above this is an unhealthy one; an EVENT needs several. */
+/** Operational high-reading gate for inspecting association, not a health assessment. */
 const HAZE_EVENT_UG = 50;
 const HAZE_EVENT_MIN_STATIONS = 3;
 const HAZE_EVENT_WINDOW_MS = 3 * 60 * 60_000;
@@ -55,6 +55,10 @@ function saveHistory(history) {
   mkdirSync(CACHE_DIR, { recursive: true });
   writeFileSync(HISTORY_FILE, JSON.stringify(history));
 }
+
+// Hash/time records can outlive scoring eligibility. In particular, two
+// different images with one source timestamp must not become two samples.
+const calibrationEligible = (entry) => entry.calibrationEligible !== false && isScorable(entry.m);
 
 function distanceKm(aLat, aLon, bLat, bLon) {
   const r = (d) => (d * Math.PI) / 180;
@@ -150,7 +154,7 @@ function agreement(history) {
   const paired = new Map();
   for (const entries of Object.values(history)) {
     for (const e of entries) {
-      if (e.scorerVersion !== HAZE_SCORER_VERSION || !isScorable(e.m) || typeof e.pmPairKey !== "string" ||
+      if (e.scorerVersion !== HAZE_SCORER_VERSION || !calibrationEligible(e) || typeof e.pmPairKey !== "string" ||
           typeof e.score !== "number" || typeof e.pm25 !== "number") continue;
       const group = paired.get(e.pmPairKey) ?? { sum: 0, count: 0, pm25: e.pm25, stationId: e.pmStationId, observedAt: Date.parse(e.pmObservedAt ?? "") };
       paired.set(e.pmPairKey, { ...group, sum: group.sum + e.score, count: group.count + 1 });
@@ -164,8 +168,8 @@ function agreement(history) {
   const pm25Max = sorted.length ? sorted[sorted.length - 1] : null;
   const median = pct(0.5);
   const p95 = pct(0.95);
-  // A haze EVENT means readings a sensor network would call unhealthy,
-  // sustained. Haze is regional: it lifts many stations at once. One
+  // A varied high-reading window needs corroboration across stations.
+  // It does not establish a health assessment or detection accuracy. One
   // spiking station is the fault we already detect in dustboy.ts, and
   // counting it as an "event" lets a single broken unit manufacture a
   // testable window — which is how the first version of this metric
@@ -221,7 +225,7 @@ export async function runHazeVision({ baseUrl, secret }) {
       // Legacy summaries cannot establish scene detail, but their fingerprints
       // still prove an image was seen earlier. Preserve capture-time evidence
       // without admitting those summaries to calibration or agreement.
-      history[id] = entries.filter((e) => e.t >= cutoff);
+      history[id] = entries.filter((e) => Number.isFinite(e.t) && e.t >= cutoff && e.t <= Date.now() + CLOCK_SKEW_MS);
     }
 
     for (const cam of cams) {
@@ -238,13 +242,15 @@ export async function runHazeVision({ baseUrl, secret }) {
           console.warn(`[haze] ${cam.id}: unchanged snapshot is older than 6 hours — not scored`);
           continue;
         }
-        const verdict = classifyFrame(metrics, past.map((e) => e.m));
+        const verdict = classifyFrame(metrics, past.filter(calibrationEligible).map((e) => e.m));
         const pm = nearestPm25(cam, sensors, observedAt);
-        // Same frame as last run (Windy refreshes slower than we poll) — don't double-count it.
-        // isScorable (not just isDaylight) so monochrome IR night-vision frames
-        // never enter the baseline or the stored history.
-        if (!previous && !past.some((e) => e.t === observedAt) && isScorable(metrics)) {
-          past.push({ t: observedAt, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null, pmPairKey: pm ? `${pm.stationId}:${pm.observedAt}` : null, pmStationId: pm?.stationId ?? null, pmObservedAt: pm?.observedAt ?? null, fingerprint, scorerVersion: HAZE_SCORER_VERSION });
+        // Remember rejected frames too: a CDN timestamp must not refresh a
+        // frozen night/placeholder image. isScorable gates baseline and
+        // agreement separately; rejected or duplicate-time records supply
+        // capture-time evidence without becoming calibration samples.
+        if (!previous) {
+          const eligible = isScorable(metrics) && !past.some((e) => e.t === observedAt);
+          past.push({ t: observedAt, calibrationEligible: eligible, m: metrics, score: verdict.score, pm25: pm?.pm25 ?? null, pmPairKey: pm ? `${pm.stationId}:${pm.observedAt}` : null, pmStationId: pm?.stationId ?? null, pmObservedAt: pm?.observedAt ?? null, fingerprint, scorerVersion: HAZE_SCORER_VERSION });
         }
         history[cam.id] = past;
         cameras.push({
@@ -257,7 +263,7 @@ export async function runHazeVision({ baseUrl, secret }) {
           verdict: verdict.label,
           score: verdict.score,
           metrics,
-          baselineSamples: past.filter((e) => isScorable(e.m)).length,
+          baselineSamples: past.filter(calibrationEligible).length,
           nearestPm25: pm,
         });
       } catch (e) {

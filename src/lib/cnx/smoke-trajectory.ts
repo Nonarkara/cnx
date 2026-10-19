@@ -109,10 +109,12 @@ export interface SmokeTrajectoryResponse {
   /** Honest methodology — every prediction surface carries this. */
   methodology_th: string;
   methodology_en: string;
-  /** `live` means the hotspots came from a FIRMS pass. Never advect illustrations. */
+  /** `live` requires a FIRMS pass and at least one complete path, or zero detections. */
   provenance: "live" | "unavailable";
   hotspotSource: "firms" | "none";
   note: string | null;
+  /** Fire detections without a completed six-hour path; not a zero-smoke finding. */
+  omittedTrajectories?: number;
   /** How the plume lines were made: integrated through the hourly forecast
    *  wind field (curves with the flow), or one city wind as a straight line. */
   method?: "forecast-field" | "straight-line";
@@ -267,9 +269,10 @@ export function computeTrajectories(
       },
       methodology_th: "ไม่มีข้อมูลลม — ไม่สามารถคำนวณการเคลื่อนที่ของควันได้",
       methodology_en: "No wind reading — smoke advection cannot be computed.",
-      provenance: "live",
+      provenance: hotspots.length > 0 ? "unavailable" : "live",
       hotspotSource: hotspots.length > 0 ? "firms" : "none",
-      note: null,
+      omittedTrajectories: hotspots.length,
+      note: hotspots.length > 0 ? "No usable wind reading: all six-hour smoke outcomes are unknown, not evidence of no smoke." : null,
     };
   }
   if (wind.speedKmh < 1) {
@@ -288,9 +291,10 @@ export function computeTrajectories(
       },
       methodology_th: "ลมสงบ — ไม่สามารถคำนวณการเคลื่อนที่ของควันได้",
       methodology_en: "Calm wind — smoke advection cannot be computed reliably.",
-      provenance: "live",
+      provenance: hotspots.length > 0 ? "unavailable" : "live",
       hotspotSource: hotspots.length > 0 ? "firms" : "none",
-      note: null,
+      omittedTrajectories: hotspots.length,
+      note: hotspots.length > 0 ? "Calm wind prevents reliable advection: all six-hour smoke outcomes are unknown, not evidence of no smoke." : null,
     };
   }
   for (const h of hotspots) {
@@ -357,11 +361,17 @@ export function computeFieldTrajectories(
 ): SmokeTrajectoryResponse {
   const t0 = nowMs / 1000;
   const segments: TrajectorySegment[] = [];
+  let omittedTrajectories = 0;
   for (const h of hotspots) {
     const origin = { latitude: h.latitude, longitude: h.longitude };
     const points: TrajectoryPoint[] = traceTrajectory(field, PLUME_LEVEL, h.longitude, h.latitude, t0, 6);
-    if (points.length === 0) continue;
     const end = points[points.length - 1];
+    // The integration stops at missing cells or the model window edge.
+    // Its last known position is not a forecast at six hours.
+    if (!end || end.hoursAhead !== 6) {
+      omittedTrajectories += 1;
+      continue;
+    }
     segments.push({
       hotspotId: h.id,
       origin,
@@ -372,7 +382,9 @@ export function computeFieldTrajectories(
       weight: Math.min(1, Math.max(0.2, (h.frp ?? 5) / 30)),
     });
   }
-  const origin = describeOrigin(segments.map((s) => s.origin));
+  const origin = hotspots.length > 0 && segments.length === 0
+    ? { th: "ยังไม่ทราบทิศทางต้นทางควัน", en: "smoke origin unknown" }
+    : describeOrigin(segments.map((s) => s.origin));
   return {
     generatedAt: new Date(nowMs).toISOString(),
     wind: null,
@@ -389,9 +401,12 @@ export function computeFieldTrajectories(
       "แนวควันคำนวณตามลมพยากรณ์รายชั่วโมงระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนไปตามเวลาและตำแหน่ง — เป็นเส้นแกนกลาง ไม่รวมการแผ่กระจายหรือการตกสะสม",
     methodology_en:
       "Plume centrelines integrated through the hourly 850 hPa (~1.5 km) forecast wind field (advection, RK2) — they bend as the wind turns. No spread, mixing or deposition.",
-    provenance: "live",
+    provenance: hotspots.length > 0 && segments.length === 0 ? "unavailable" : "live",
     hotspotSource: hotspots.length > 0 ? "firms" : "none",
-    note: null,
+    omittedTrajectories,
+    note: omittedTrajectories
+      ? `${omittedTrajectories} of ${hotspots.length} detections lack a complete six-hour wind-field trajectory. Their six-hour outcome is unknown, not evidence of no smoke; completed trajectories are shown separately.`
+      : null,
     method: "forecast-field",
   };
 }

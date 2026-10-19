@@ -2,6 +2,7 @@
 // what /api/cnx/haze-vision serves. Scoring maths lives in haze-vision-core.ts.
 
 import { HAZE_METHODOLOGY, type FrameMetrics, type HazeLabel } from "./haze-vision-core";
+import { isAssessedHazeCamera } from "./haze-watch-state";
 import { isHttpsUrl, isIsoDate, isNum, isNumOrNull, isObj, isStr, readRelayJson } from "./relay-kv";
 
 export const HAZE_VISION_KV_KEY = "haze-vision-latest";
@@ -83,7 +84,7 @@ export interface HazeVisionResponse extends HazeVisionPayload {
 }
 
 function isMetrics(v: unknown): v is FrameMetrics {
-  return isObj(v) && isNum(v.meanLuminance) && isNum(v.contrast) && isNum(v.darkChannel) && isNum(v.saturation)
+  return isObj(v) && [v.meanLuminance, v.contrast, v.darkChannel, v.saturation].every(n => isNum(n) && n >= 0 && n <= 1)
     && (v.luminanceRange === undefined || isNum(v.luminanceRange) && v.luminanceRange >= 0 && v.luminanceRange <= 1);
 }
 
@@ -92,19 +93,21 @@ function isCamera(v: unknown): v is CameraHaze {
   const pm = v.nearestPm25;
   const pmOk =
     pm === null ||
-    (isObj(pm) && isStr(pm.stationName, 200) && isNum(pm.pm25) && isNum(pm.distanceKm) && isIsoDate(pm.observedAt));
+    (isObj(pm) && isStr(pm.stationName, 200) && isNum(pm.pm25) && pm.pm25 >= 0 && isNum(pm.distanceKm) && pm.distanceKm >= 0 && pm.distanceKm <= 15 && isIsoDate(pm.observedAt)
+      && isIsoDate(v.observedAt) && Math.abs(Date.parse(pm.observedAt) - Date.parse(v.observedAt)) <= 90 * 60_000);
   return (
     isStr(v.cameraId, 100) &&
     isStr(v.label, 200) &&
-    isNum(v.latitude) &&
-    isNum(v.longitude) &&
+    isNum(v.latitude) && v.latitude >= -90 && v.latitude <= 90 &&
+    isNum(v.longitude) && v.longitude >= -180 && v.longitude <= 180 &&
     isHttpsUrl(v.snapshotUrl) &&
     isIsoDate(v.observedAt) &&
     LABELS.includes(v.verdict as HazeLabel) &&
     isNumOrNull(v.score) &&
     (v.metrics === null || isMetrics(v.metrics)) &&
-    isNum(v.baselineSamples) &&
-    pmOk
+    isNum(v.baselineSamples) && Number.isInteger(v.baselineSamples) && v.baselineSamples >= 0 &&
+    pmOk && (["clear", "some-haze", "haze-likely"].includes(v.verdict as string)
+      ? isAssessedHazeCamera(v as unknown as CameraHaze) : v.score === null)
   );
 }
 
@@ -115,6 +118,11 @@ export function isHazeVisionPayload(v: unknown): v is HazeVisionPayload {
     Array.isArray(v.cameras) &&
     v.cameras.length <= MAX_CAMERAS &&
     v.cameras.every(isCamera) &&
+    v.cameras.every(c => {
+      const age = Date.parse(v.generatedAt as string) - Date.parse(c.observedAt);
+      return age >= -5 * 60_000 && age <= 6 * 3_600_000 &&
+        (!c.nearestPm25 || Date.parse(c.nearestPm25.observedAt) <= Date.parse(v.generatedAt as string) + 5 * 60_000);
+    }) &&
     isObj(v.agreement) &&
     isNumOrNull(v.agreement.r) &&
     isNum(v.agreement.pairs) &&

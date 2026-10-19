@@ -2,12 +2,14 @@
 // closing together and restores focus to the control that opened each one.
 const dialogs: HTMLElement[] = [];
 let originalOverflow = "";
-const FOCUSABLE = 'a[href], button, input, select, textarea, iframe, video[controls], [tabindex]';
+const FOCUSABLE = 'a[href], button, input, select, textarea, summary, iframe, video[controls], [tabindex]';
 
 function controls(dialog: HTMLElement): HTMLElement[] {
   return [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((element) => {
     if (element.tabIndex < 0 || element.matches(':disabled') || element.closest('[hidden], [inert]')) return false;
     for (let current: HTMLElement | null = element; current; current = current.parentElement) {
+      if (current.tagName === 'DETAILS' && !current.hasAttribute('open')
+        && !current.querySelector(':scope > summary')?.contains(element)) return false;
       const style = getComputedStyle(current);
       if (style.display === 'none' || style.visibility === 'hidden') return false;
       if (current === dialog) break;

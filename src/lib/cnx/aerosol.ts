@@ -21,6 +21,8 @@ const OPEN_METEO_CAMS = "https://air-quality-api.open-meteo.com/v1/air-quality";
 
 export interface AerosolResponse {
   generatedAt: string;
+  /** Actual CAMS model hour, not JSON assembly time. */
+  observedAt?: string | null;
   /** AOD at 550 nm — province average. */
   aod550: number | null;
   /** Range across stations. */
@@ -82,10 +84,11 @@ export async function fetchCnxAerosol(): Promise<AerosolResponse> {
           if (Number.isFinite(t) && t <= Date.now() && Date.now() - t <= 3 * 3_600_000 && (idx < 0 || times[i] > times[idx])) idx = i;
         }
         const value = idx < 0 ? null : j.hourly?.aerosol_optical_depth?.[idx];
-        return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+        return typeof value === "number" && Number.isFinite(value) && value >= 0 ? { value, observedAt: new Date(times[idx] * 1000).toISOString() } : null;
       }),
     );
-    const live = vals.filter((v): v is number => v !== null);
+    const readings = vals.filter((v): v is { value: number; observedAt: string } => v !== null);
+    const live = readings.map(r => r.value);
     const aod = live.length ? live.reduce((a, b) => a + b, 0) / live.length : null;
     const aodMin = live.length ? Math.min(...live) : null;
     const aodMax = live.length ? Math.max(...live) : null;
@@ -93,6 +96,7 @@ export async function fetchCnxAerosol(): Promise<AerosolResponse> {
     const tileUrl = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Aerosol_Optical_Depth/default/${day}/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png`;
     const response: AerosolResponse = {
       generatedAt: now,
+      observedAt: readings.length ? readings.map(r => r.observedAt).sort()[0] : null,
       aod550: aod === null ? null : Math.round(aod * 1000) / 1000,
       aodMin: aodMin === null ? null : Math.round(aodMin * 1000) / 1000,
       aodMax: aodMax === null ? null : Math.round(aodMax * 1000) / 1000,
@@ -105,6 +109,7 @@ export async function fetchCnxAerosol(): Promise<AerosolResponse> {
   } catch {
     const fallback: AerosolResponse = {
       generatedAt: now,
+      observedAt: null,
       aod550: null,
       aodMin: null,
       aodMax: null,

@@ -88,7 +88,6 @@ export async function fetchSmokeTrajectory(): Promise<SmokeTrajectoryResponse> {
   const full = field ? { ...computeFieldTrajectories(hotspots, field), wind } : computeTrajectories(hotspots, wind);
   const data = presentForOperator({
     ...full,
-    provenance: "live",
     hotspotSource: hotspots.length > 0 ? "firms" : "none",
     note:
       hotspots.length === 0

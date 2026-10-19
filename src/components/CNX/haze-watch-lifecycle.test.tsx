@@ -1,0 +1,86 @@
+// @vitest-environment happy-dom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { __resetLangForTests } from "../../hooks/useLang";
+import { fetchJsonOrNull } from "../../lib/client-requests";
+import type { AeronetResponse } from "../../lib/cnx/aeronet";
+import type { AirQualityResponse } from "../../types/cnx";
+import type { CameraHaze, HazeVisionResponse } from "../../lib/cnx/haze-vision";
+import type { SmokeTrajectoryResponse } from "../../lib/cnx/smoke-trajectory";
+import CnxHazeModal from "./CNXHazeModal";
+vi.mock("../../lib/client-requests", () => ({ fetchJsonOrNull: vi.fn() }));
+vi.mock("./CNXBurnSeason", () => ({ default: () => null }));
+const NOW = Date.parse("2026-10-19T08:00:00Z");
+const ago = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
+const empty = { air: null, dustboy: null, aerosol: null, hazeVision: null, citizen: null, smoke: null };
+const aeronet: AeronetResponse = { generatedAt: ago(0), site: "Chiang_Mai_Met_Sta", level: "1.5", latest: { date: "2026-10-19", aod500: 0.42, angstrom440_870: 1.1 }, days: [], note: "Source note in English" };
+const camera = (patch: Partial<CameraHaze> = {}): CameraHaze => ({ cameraId: "one", label: "Public camera", latitude: 18.8, longitude: 99, snapshotUrl: "https://example.test/camera.jpg", observedAt: ago(10), verdict: "clear", score: 0.1, metrics: { meanLuminance: 0.5, contrast: 0.2, saturation: 0.3, darkChannel: 0.1, luminanceRange: 0.7 }, baselineSamples: 12, nearestPm25: null, ...patch });
+const vision = (cameras: CameraHaze[]): HazeVisionResponse => ({ cameras, generatedAt: ago(1), provenance: "live", methodology: "English server methodology", note: null, agreement: { r: null, pairs: 0, pm25Min: null, pm25Max: null, pm25Median: null, pm25P95: null, eventReadings: 0, spansHazeEvent: false } });
+let container: HTMLDivElement;
+let root: Root;
+beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); vi.useFakeTimers(); vi.setSystemTime(NOW); __resetLangForTests("en");
+  vi.mocked(fetchJsonOrNull).mockReset().mockResolvedValue(null);
+  container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+});
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+const render = (props: Partial<React.ComponentProps<typeof CnxHazeModal>> = {}) => act(async () => root.render(<CnxHazeModal {...empty} isOpen onClose={vi.fn()} {...props} />));
+it("finishes failed AERONET loading, retries, refreshes, and stops requests while closed", async () => {
+  let finish!: (value: null) => void;
+  vi.mocked(fetchJsonOrNull).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await render(); expect(container.textContent).toContain("Checking AERONET…");
+  await act(async () => finish(null)); expect(container.textContent).toContain("AERONET unavailable");
+  vi.mocked(fetchJsonOrNull).mockResolvedValueOnce(aeronet);
+  await act(async () => [...container.querySelectorAll("button")].find(button => button.textContent === "Retry AERONET")!.click());
+  expect(container.textContent).toContain("0.42");
+  await act(async () => vi.advanceTimersByTimeAsync(10 * 60_000));
+  expect(container.textContent).not.toContain("0.42"); expect(container.textContent).toContain("AERONET unavailable");
+  const count = vi.mocked(fetchJsonOrNull).mock.calls.length;
+  await render({ isOpen: false }); await act(async () => vi.advanceTimersByTimeAsync(20 * 60_000));
+  expect(fetchJsonOrNull).toHaveBeenCalledTimes(count);
+  await render(); expect(fetchJsonOrNull).toHaveBeenCalledTimes(count + 1);
+});
+it("re-ages ground readings and camera classifications without a new payload", async () => {
+  const air: AirQualityResponse = { generatedAt: ago(0), stations: [{ stationId: "pcd", name: "Reference station", source: "pcd", pm25: 23.4, longitude: 99, latitude: 18.8, observedAt: ago(179) }] };
+  await render({ air, hazeVision: vision([camera({ observedAt: ago(44) })]) });
+  expect(container.textContent).toContain("Mean of usable PCD stations");
+  expect(container.querySelector("figure")?.textContent).toContain("Low visual haze");
+  await act(async () => vi.advanceTimersByTimeAsync(2 * 60_000));
+  expect(container.textContent).toContain("Current ground PM2.5 cannot be established");
+  expect(container.querySelector("figure")?.textContent).toContain("Historical analysis");
+  expect(container.querySelector("figure")?.textContent).not.toContain("Low visual haze");
+  expect(container.querySelector("figure")?.textContent).not.toContain("Recorded visual score");
+});
+it("separates a current nighttime relay from a usable camera assessment", async () => {
+  await render({ hazeVision: vision([camera({ verdict: "too-dark", score: null })]) });
+  expect(container.textContent).toContain("Relay analysis is within its time window");
+  expect(container.textContent).toContain("No current assessable haze frames");
+  expect(container.textContent).toContain("0 assessed · 1 unassessable");
+  expect(container.querySelector("figure")?.textContent).toContain("Too dark to judge");
+  await render({ hazeVision: vision([camera({ metrics: null })]) });
+  expect(container.querySelector("figure")?.textContent).toContain("Insufficient validated image evidence");
+  expect(container.querySelector("figure")?.textContent).not.toContain("Low visual haze");
+});
+it("handles failed mutable previews without relabeling an image or changing recorded scores", async () => {
+  await render({ hazeVision: vision([camera()]) });
+  const image = container.querySelector("figure img")!;
+  await act(async () => image.dispatchEvent(new Event("error")));
+  const figure = container.querySelector("figure")!;
+  expect(figure.textContent).toContain("Preview unavailable");
+  expect(figure.textContent).toContain("Recorded visual score 0.10");
+  expect(figure.textContent).toContain("not confirmed as the analyzed frame");
+  await act(async () => [...figure.querySelectorAll("button")].find(button => button.textContent === "Retry preview")!.click());
+  expect(figure.querySelector("img")?.getAttribute("src")).toBe("https://example.test/camera.jpg");
+  expect(figure.textContent).toContain("Recorded visual score 0.10");
+});
+it.each(["en", "th"] as const)("shows hourly wind-field limits and missing trajectories in %s", async lang => {
+  __resetLangForTests(lang);
+  const smoke: SmokeTrajectoryResponse = { generatedAt: ago(0), wind: { speedKmh: 999, fromDirectionDeg: 180 }, segments: [], summary: { total: 2, shown: 0, hitsCnx: 0, nearCnx: 0, origin_th: "ตะวันตก", origin_en: "west" }, methodology_th: "ข้อความจากเซิร์ฟเวอร์", methodology_en: "Server text", provenance: "unavailable", hotspotSource: "firms", method: "forecast-field", omittedTrajectories: 2, note: "English partial-path note" };
+  await render({ smoke, hazeVision: vision([]) });
+  expect(container.textContent).toContain(lang === "en" ? "Hourly forecast wind field at 850 hPa" : "สนามลมพยากรณ์รายชั่วโมงที่ 850 hPa");
+  expect(container.textContent).toContain(lang === "en" ? "2 trajectories lack full 6 h coverage" : "เส้นทาง 2 เส้นไม่มีข้อมูลครบ 6 ชม.");
+  expect(container.textContent).not.toContain("999");
+  expect(container.textContent).not.toContain("English server methodology");
+  expect(container.textContent).not.toContain("English partial-path note");
+});

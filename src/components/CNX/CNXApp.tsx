@@ -6,6 +6,7 @@
 // the map. The social rail appears at 1024 px; the full desk at 1280 px.
 
 import type { RainResponse } from "../../lib/cnx/rain";
+import { buildHazeWatchState } from "../../lib/cnx/haze-watch-state";
 import { currentRainSummary } from "../../lib/cnx/rain-core";
 import CnxRainPanel from "./CNXRainPanel";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -174,6 +175,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   }, []);
   const [rainClock, setRainClock] = useState(() => Date.now());
   useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
+  const currentHaze = useMemo(() => buildHazeWatchState({ air, dustboy, hazeVision, citizen, smoke, now: rainClock }), [air, dustboy, hazeVision, citizen, smoke, rainClock]);
   const currentRain = useMemo(() => currentRainSummary(rain, rainClock), [rain, rainClock]);
   const activeForecast = useMemo(() => currentForecast(forecast, rainClock), [forecast, rainClock]);
   const outlook = useMemo(() => buildOutlook(activeForecast, shelters?.shelters ?? [], currentRain), [activeForecast, shelters, currentRain]);
@@ -481,7 +483,11 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   >("watch");
 
   const [pendingEvidence, setPendingEvidence] = useState(false);
-  const openMetric = (id: ExecutiveMetric["id"] | "model" | "watch") => {
+  const openMetric = (id: ExecutiveMetric["id"] | "model" | "watch" | "haze") => {
+    if (id === "haze") {
+      setIsHazeOpen(true);
+      return;
+    }
     setDeskTab(id === "mobility" ? "visitors" : id);
     setMobileTab(id === "water" || id === "model" ? "flood" : id === "mobility" ? "visitors" : id);
     setView("map");
@@ -574,7 +580,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             heritage={heritage}
             floodCameras={floodCameras}
             riverGauges={riverGauges}
-            airStations={air?.stations ?? []}
+            airStations={[...currentHaze.freshPcd, ...currentHaze.freshModel]}
             fireHotspots={allFireHotspots}
             floodGauges={flood?.provenance === "live" ? flood.gauges : []}
             cctv={cctv?.slots ?? []}
@@ -585,12 +591,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             cmuRoutes={cmuRoutes}
             rtcLines={rtcLines}
             weatherLayers={weatherLayers}
-            cameraHaze={hazeVision?.cameras ?? []}
-            citizenReports={citizen?.reports ?? []}
+            cameraHaze={currentHaze.currentCameras}
+            citizenReports={currentHaze.reports}
             rainStations={currentRain?.stations ?? []}
             rainAvailable={currentRain !== null}
-            dustboyStations={dustboy?.provenance === "live" ? dustboy.stations.filter((s) => s.pm25 !== null) : []}
-            smokeSegments={smoke?.provenance === "live" ? smoke.segments : []}
+            dustboyStations={currentHaze.freshDustboy}
+            smokeSegments={currentHaze.currentSmoke ? smoke!.segments : []}
+            smokeMethod={smoke?.method}
             forecast={activeForecast}
             focus={mapFocus}
             shelters={shelters?.shelters ?? []}

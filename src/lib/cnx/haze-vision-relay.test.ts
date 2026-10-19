@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import { createHash } from "node:crypto";
 import { isHazeVisionPayload, type HazeVisionPayload } from "./haze-vision";
-import { HAZE_SCORER_VERSION } from "./haze-vision-core";
+import { HAZE_SCORER_VERSION, isScorable } from "./haze-vision-core";
 
 const storage = vi.hoisted(() => ({ history: "{}" }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -23,7 +23,8 @@ let sensors: object[];
 beforeEach(async () => {
   vi.resetModules();
   storage.history = "{}";
-  vi.spyOn(Date, "now").mockReturnValue(NOW);
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
   relay = await import("../../../scripts/haze-vision.mjs");
   const pixels = Buffer.alloc(40 * 40 * 3);
   for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
@@ -45,7 +46,7 @@ beforeEach(async () => {
   }));
 });
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 const run = () => relay.runHazeVision({ baseUrl: "https://relay.test", secret: "test-secret" });
 
 function sensor(log: string, pm25 = 12, name = "Station") {
@@ -76,17 +77,71 @@ describe("camera vision relay", () => {
     expect(JSON.parse(storage.history).camera[0].t).toBe(original);
   });
 
+  it.each(["too-dark", "no-colour", "unusable"])("retains first capture time for rejected %s frames across CDN updates", async verdict => {
+    image = await sharp({ create: { width: 40, height: 40, channels: 3,
+      background: verdict === "too-dark" ? { r: 0, g: 0, b: 0 } : verdict === "no-colour" ? { r: 130, g: 130, b: 130 } : { r: 120, g: 160, b: 100 },
+    } }).png().toBuffer();
+    await run();
+    expect(payload.cameras[0]).toMatchObject({ verdict, score: null, baselineSamples: 0 });
+    vi.setSystemTime(NOW + 10 * 60_000);
+    modified = new Date(NOW + 10 * 60_000).toUTCString();
+    await run();
+    expect(payload.cameras[0].observedAt).toBe(new Date(NOW).toISOString());
+    expect(JSON.parse(storage.history).camera).toHaveLength(1);
+    expect(payload.agreement.pairs).toBe(0);
+    vi.setSystemTime(NOW + 7 * 60 * 60_000);
+    modified = new Date(NOW + 7 * 60 * 60_000).toUTCString();
+    await run();
+    expect(payload.cameras).toHaveLength(0);
+  });
+
+  it("remembers different rejected fingerprints sharing a source capture timestamp", async () => {
+    image = await sharp({ create: { width: 40, height: 40, channels: 3, background: "black" } }).png().toBuffer();
+    await run();
+    vi.setSystemTime(NOW + 10 * 60_000);
+    image = await sharp({ create: { width: 40, height: 40, channels: 3, background: { r: 130, g: 130, b: 130 } } }).png().toBuffer();
+    // Source metadata can keep the same timestamp across different frames.
+    await run();
+    vi.setSystemTime(NOW + 20 * 60_000);
+    modified = new Date(NOW + 20 * 60_000).toUTCString();
+    await run();
+    expect(payload.cameras[0]).toMatchObject({ verdict: "no-colour", baselineSamples: 0, observedAt: new Date(NOW).toISOString() });
+    expect(JSON.parse(storage.history).camera).toHaveLength(2);
+  });
+
+  it("remembers a changed detailed frame without counting a duplicate capture timestamp twice", async () => {
+    await run();
+    vi.setSystemTime(NOW + 10 * 60_000);
+    image = await sharp(image).tint({ r: 180, g: 80, b: 30 }).png().toBuffer();
+    await run();
+    expect(JSON.parse(storage.history).camera).toHaveLength(2);
+    expect(payload.cameras[0]).toMatchObject({ verdict: "calibrating", baselineSamples: 1 });
+    expect(JSON.parse(storage.history).camera[1].calibrationEligible).toBe(false);
+  });
+
+  it("does not calibrate from future-dated stored history", async () => {
+    storage.history = JSON.stringify({ camera: Array.from({ length: 12 }, (_, i) => ({
+      t: NOW + 6 * 60_000 + i * 60_000,
+      m: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.15, saturation: 0.3, luminanceRange: 0.4 },
+      scorerVersion: HAZE_SCORER_VERSION, score: 0, pm25: 10, pmPairKey: `future:${i}`,
+    })) });
+    await run();
+    expect(payload.cameras[0]).toMatchObject({ verdict: "calibrating", score: null, baselineSamples: 1 });
+    expect(payload.agreement.pairs).toBe(0);
+  });
+
   it("does not learn a coloured placeholder when its small clock changes", async () => {
     for (let stamp = 0; stamp < 2; stamp++) {
       const pixels = Buffer.alloc(40 * 40 * 3);
       for (let i = 0; i < pixels.length; i += 3) pixels.set([120, 160, 100], i);
       pixels.set([255, 255, 255], ((35 * 40) + stamp) * 3);
       image = await sharp(pixels, { raw: { width: 40, height: 40, channels: 3 } }).png().toBuffer();
-      vi.spyOn(Date, "now").mockReturnValue(NOW + stamp * 10 * 60_000);
+      vi.setSystemTime(NOW + stamp * 10 * 60_000);
       modified = new Date(NOW + stamp * 10 * 60_000).toUTCString();
       await run();
       expect(payload.cameras[0]).toMatchObject({ verdict: "unusable", score: null, baselineSamples: 0 });
-      expect(JSON.parse(storage.history).camera).toHaveLength(0);
+      expect(JSON.parse(storage.history).camera.filter((e: { m: Parameters<typeof isScorable>[0] }) => isScorable(e.m))).toHaveLength(0);
+      expect(JSON.parse(storage.history).camera).toHaveLength(stamp + 1);
       expect(isHazeVisionPayload(payload)).toBe(true);
     }
   });
@@ -163,7 +218,7 @@ describe("camera vision relay", () => {
     modified = new Date(NOW + 60 * 60_000).toUTCString();
     await run();
     expect(payload.cameras).toHaveLength(0);
-    vi.spyOn(Date, "now").mockReturnValue(NOW + 10 * 60_000);
+    vi.setSystemTime(NOW + 10 * 60_000);
     modified = new Date(NOW - 7 * 60 * 60_000).toUTCString();
     await run();
     expect(payload.cameras).toHaveLength(0);
@@ -171,7 +226,7 @@ describe("camera vision relay", () => {
 
   it("does not count an identical image twice when the CDN changes its timestamp", async () => {
     await run();
-    vi.spyOn(Date, "now").mockReturnValue(NOW + 10 * 60_000);
+    vi.setSystemTime(NOW + 10 * 60_000);
     modified = new Date(NOW + 10 * 60_000).toUTCString();
     await run();
     expect(JSON.parse(storage.history).camera).toHaveLength(1);
@@ -181,7 +236,7 @@ describe("camera vision relay", () => {
 
   it("allows a genuinely changed image to add a calibration sample", async () => {
     await run();
-    vi.spyOn(Date, "now").mockReturnValue(NOW + 10 * 60_000);
+    vi.setSystemTime(NOW + 10 * 60_000);
     modified = new Date(NOW + 10 * 60_000).toUTCString();
     image = await sharp(image).tint({ r: 180, g: 80, b: 30 }).png().toBuffer();
     await run();
@@ -190,7 +245,7 @@ describe("camera vision relay", () => {
 
   it("expires a frozen image even when its CDN timestamp keeps advancing", async () => {
     await run();
-    vi.spyOn(Date, "now").mockReturnValue(NOW + 7 * 60 * 60_000);
+    vi.setSystemTime(NOW + 7 * 60 * 60_000);
     modified = new Date(NOW + 7 * 60 * 60_000).toUTCString();
     await run();
     expect(payload.cameras).toHaveLength(0);

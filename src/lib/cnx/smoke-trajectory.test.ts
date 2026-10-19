@@ -22,12 +22,24 @@ describe("computeTrajectories — advection math", () => {
     expect(r.segments).toEqual([]);
     expect(r.summary.total).toBe(HOTSPOTS_SOUTHEAST.length);
     expect(r.wind).toBeNull();
+    expect(r.provenance).toBe("unavailable");
+    expect(r.omittedTrajectories).toBe(HOTSPOTS_SOUTHEAST.length);
+    expect(r.note).toMatch(/unknown/i);
   });
 
   it("returns empty segments when wind speed is below threshold (<1 km/h)", () => {
     const r = computeTrajectories(HOTSPOTS_SOUTHEAST, { speedKmh: 0.5, fromDirectionDeg: 270 });
     expect(r.segments).toEqual([]);
     expect(r.wind?.speedKmh).toBe(0.5);
+    expect(r.provenance).toBe("unavailable");
+    expect(r.omittedTrajectories).toBe(HOTSPOTS_SOUTHEAST.length);
+    expect(r.note).toMatch(/unknown/i);
+  });
+
+  it("preserves a genuine empty detection result without usable wind", () => {
+    for (const wind of [null, { speedKmh: 0.5, fromDirectionDeg: 270 }]) {
+      expect(computeTrajectories([], wind)).toMatchObject({ provenance: "live", hotspotSource: "none", omittedTrajectories: 0, summary: { total: 0 } });
+    }
   });
 
   it("west wind (from 270°) pushes a CNX-area hotspot east in 6 h", () => {
@@ -181,6 +193,43 @@ describe("computeFieldTrajectories — through the forecast wind field", () => {
   const times = Array.from({ length: 13 }, (_, i) => T0 + i * 3600);
   const frames = (v: number) => times.map(() => Array.from({ length: n }, () => v));
 
+  it("does not publish a one-hour endpoint as a six-hour city impact", () => {
+    const field = { grid, times: times.slice(0, 2), u10: frames(0).slice(0, 2), v10: frames(0).slice(0, 2), u850: frames(1).slice(0, 2), v850: frames(0).slice(0, 2) };
+    const r = computeFieldTrajectories([{ id: "in-city", latitude: 18.788, longitude: 98.985 }], [field], T0 * 1000);
+    expect(r.segments).toEqual([]);
+    expect(r.summary).toMatchObject({ total: 1, shown: 0, hitsCnx: 0, nearCnx: 0 });
+    expect(r.omittedTrajectories).toBe(1);
+    expect(r.provenance).toBe("unavailable");
+    expect(r.hotspotSource).toBe("firms");
+    expect(r.summary.origin_en).toBe("smoke origin unknown");
+    expect(r.summary.origin_th).toBe("ยังไม่ทราบทิศทางต้นทางควัน");
+    expect(r.note).toMatch(/six.hour|6.hour/i);
+    expect(r.note).toMatch(/unknown|not.*no smoke/i);
+  });
+
+  it("preserves completed city-bound trajectories while identifying omitted coverage", () => {
+    const full = { grid: { lon0: 98, lat0: 18, d: 1, nx: 3, ny: 3 }, times, u10: times.map(() => Array(9).fill(0)), v10: times.map(() => Array(9).fill(0)), u850: times.map(() => Array(9).fill(0)), v850: times.map(() => Array(9).fill(0)) };
+    const partial = { ...full, grid: { ...full.grid, lon0: 101 }, times: times.slice(0, 2) };
+    const r = computeFieldTrajectories([{ id: "complete", latitude: 18.788, longitude: 98.985 }, { id: "short", latitude: 19, longitude: 102 }], [full, partial], T0 * 1000);
+    expect(r.provenance).toBe("live");
+    expect(r.omittedTrajectories).toBe(1);
+    expect(r.segments.map(s => s.hotspotId)).toEqual(["complete"]);
+    expect(r.segments[0].points.at(-1)?.hoursAhead).toBe(6);
+    expect(r.summary).toMatchObject({ total: 2, shown: 1, hitsCnx: 1, nearCnx: 1 });
+    expect(presentForOperator(r).omittedTrajectories).toBe(1);
+    expect(r.note).toMatch(/unknown/i);
+  });
+
+  it("keeps an actually empty VIIRS result distinct from missing trajectory coverage", () => {
+    const field = { grid, times, u10: frames(0), v10: frames(0), u850: frames(5), v850: frames(0) };
+    const r = computeFieldTrajectories([], [field], T0 * 1000);
+    expect(r.provenance).toBe("live");
+    expect(r.summary.total).toBe(0);
+    expect(r.omittedTrajectories).toBe(0);
+    expect(r.summary.origin_en).toBe("no hotspots");
+    expect(r.summary.origin_th).toBe("ไม่มีจุดความร้อน");
+  });
+
   it("carries a Chiang Rai-side fire west into the province on an east wind aloft", () => {
     // 850 hPa wind from the east at 8 m/s ≈ 173 km in 6 h.
     const field = { grid, times, u10: frames(0), v10: frames(0), u850: frames(-8), v850: frames(0) };
@@ -197,5 +246,8 @@ describe("computeFieldTrajectories — through the forecast wind field", () => {
     const r = computeFieldTrajectories([{ id: "far", latitude: 10, longitude: 90 }], [field], T0 * 1000);
     expect(r.segments).toHaveLength(0);
     expect(r.summary.total).toBe(1);
+    expect(r.omittedTrajectories).toBe(1);
+    expect(r.provenance).toBe("unavailable");
+    expect(r.note).toMatch(/unknown/i);
   });
 });

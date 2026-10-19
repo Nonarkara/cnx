@@ -198,8 +198,8 @@ describe("buildWatchList ranking and honesty", () => {
       hazeVision: {
         generatedAt: "2026-10-09T02:55:00Z",
         cameras: [
-          { cameraId: "a", label: "A", latitude: 18.8, longitude: 98.9, snapshotUrl: "https://example.test/a.jpg", observedAt: "2026-10-09T02:50:00Z", verdict: "haze-likely", score: 4, metrics: null, baselineSamples: 10, nearestPm25: null },
-          { cameraId: "b", label: "B", latitude: 18.9, longitude: 99.0, snapshotUrl: "https://example.test/b.jpg", observedAt: "2026-10-09T02:50:00Z", verdict: "clear", score: 0, metrics: null, baselineSamples: 10, nearestPm25: null },
+          { cameraId: "a", label: "A", latitude: 18.8, longitude: 98.9, snapshotUrl: "https://example.test/a.jpg", observedAt: "2026-10-09T02:50:00Z", verdict: "haze-likely", score: 0.7, metrics: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.1, saturation: 0.3, luminanceRange: 0.7 }, baselineSamples: 12, nearestPm25: null },
+          { cameraId: "b", label: "B", latitude: 18.9, longitude: 99.0, snapshotUrl: "https://example.test/b.jpg", observedAt: "2026-10-09T02:50:00Z", verdict: "clear", score: 0, metrics: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.1, saturation: 0.3, luminanceRange: 0.7 }, baselineSamples: 12, nearestPm25: null },
         ],
         agreement: { r: 0.1, pairs: 40, pm25Min: 3, pm25Max: 20, pm25Median: 7, pm25P95: 18, eventReadings: 0, spansHazeEvent: false },
         provenance: "live",
@@ -322,7 +322,7 @@ describe("buildWatchList ranking and honesty", () => {
     expect(aeronet?.level).toBe("critical");
     expect(aeronet?.valueTh).toContain("ลักษณะควัน");
     expect(aeronet?.evidenceTh).toContain("ไม่ใช่เกณฑ์สุขภาพ");
-    expect(aeronet?.openMetric).toBeNull();
+    expect(aeronet?.openMetric).toBe("haze");
   });
 
   it("marks imagery layers available only when the tile URL exists", () => {
@@ -429,7 +429,7 @@ describe("official TMD warnings lead the board", () => {
 describe("camera evidence must support a current verdict", () => {
   const camera = (verdict: string, observedAt = "2026-10-09T02:55:00Z") => ({
     cameraId: verdict, label: verdict, latitude: 18.8, longitude: 99, snapshotUrl: "https://example.test/frame.jpg",
-    observedAt, verdict, score: null, metrics: null, baselineSamples: 0, nearestPm25: null,
+    observedAt, verdict, score: verdict === "clear" ? 0.1 : verdict === "haze-likely" ? 0.7 : null, metrics: { meanLuminance: 0.5, contrast: 0.2, darkChannel: 0.1, saturation: 0.3, luminanceRange: 0.7 }, baselineSamples: 12, nearestPm25: null,
   });
   const vision = (cameras: ReturnType<typeof camera>[], generatedAt = "2026-10-09T02:55:00Z") => ({
     generatedAt, cameras, provenance: "live", agreement: null,
@@ -484,5 +484,37 @@ describe("daily reference evidence follows its declared SLO", () => {
     expect(board.systems.find(s => s.id === "aeronet")?.evidenceEn).toContain("Historical reference");
     expect(board.systems.find(s => s.id === "jaxa-aot")?.evidenceEn).toContain("Historical scene");
     expect(board.watch.some(s => s.id === "aeronet")).toBe(false);
+  });
+});
+
+describe("retained haze feeds do not stay current indefinitely", () => {
+  it("does not refresh old model AOD with a new JSON timestamp", () => {
+    const board = buildWatchList({ ...baseInput(), aerosol: { generatedAt: "2026-10-09T03:00:00Z", observedAt: "2026-10-08T03:00:00Z", provenance: "model", aod550: 0.05, aodMin: 0.05, aodMax: 0.05, level: "good", tileUrl: "" } });
+    expect(board.systems.find(s => s.id === "aerosol-cams")?.level).toBe("unknown");
+  });
+  it("ages retained smoke paths out of the watch list", () => {
+    const board = buildWatchList({ ...baseInput(), smoke: { generatedAt: "2026-10-08T03:00:00Z", provenance: "live", summary: { nearCnx: 4, hitsCnx: 4, total: 4 }, segments: [] } as never });
+    expect(board.systems.find(s => s.id === "smoke")?.level).toBe("unknown");
+  });
+  it("does not trust retained DustBoy aggregate counts when every observation has expired", () => {
+    const board = buildWatchList({ ...baseInput(), dustboy: { provenance: "live", basin: { maxPm25: 20, onlineCount: 1, stationCount: 1 }, stations: [{ province: "เชียงใหม่", observedAt: "2026-10-08T03:00:00Z", pm25: 20, suspect: false }] } as never });
+    expect(board.systems.find(s => s.id === "dustboy")?.level).toBe("unknown");
+  });
+});
+
+
+describe("haze watch evidence destinations", () => {
+  it("keeps deeper haze evidence reachable even when its feed is unavailable", () => {
+    const board = buildWatchList(baseInput());
+    for (const id of ["aerosol-cams", "aeronet", "smoke", "haze-vision"]) {
+      expect(board.systems.find(item => item.id === id)).toMatchObject({ openMetric: "haze", level: "unknown" });
+    }
+  });
+  it("displays the actual model observation time and never substitutes a JSON refresh", () => {
+    const aerosol = { generatedAt: "2026-10-09T03:00:00Z", observedAt: "2026-10-09T02:00:00Z", provenance: "model" as const, aod550: 0.3, aodMin: 0.2, aodMax: 0.4, level: "alert" as const, tileUrl: "" };
+    const row = (data: Omit<typeof aerosol, "observedAt"> & { observedAt?: string }) => buildWatchList({ ...baseInput(), aerosol: data }).systems.find(item => item.id === "aerosol-cams")!;
+    expect(row(aerosol)).toMatchObject({ openMetric: "haze", level: "alert", observedAt: aerosol.observedAt });
+    const undated = { ...aerosol, observedAt: undefined };
+    expect(row(undated)).toMatchObject({ openMetric: "haze", level: "unknown", observedAt: null });
   });
 });

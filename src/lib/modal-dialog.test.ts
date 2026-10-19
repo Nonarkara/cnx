@@ -59,3 +59,15 @@ describe('modal dialog keyboard behaviour', () => {
     expect(document.body.style.overflow).toBe('hidden');
   });
 });
+it('includes disclosure summaries but skips their closed contents in the focus loop', () => {
+  document.body.innerHTML = '<div id="dialog" tabindex="-1"><button id="first">Close</button><details><summary tabindex="0">Evidence</summary><button id="inside">Hidden evidence action</button></details></div>';
+  const dialog = document.querySelector<HTMLElement>('#dialog')!;
+  cleanups.push(activateModalDialog(dialog, vi.fn()));
+  document.querySelector<HTMLElement>('#first')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+  expect(document.activeElement?.tagName).toBe('SUMMARY');
+  document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+  expect(document.activeElement?.id).toBe('first');
+  document.querySelector('details')!.open = true;
+  document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+  expect(document.activeElement?.id).toBe('inside');
+});

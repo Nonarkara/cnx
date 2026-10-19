@@ -14,6 +14,7 @@
 // No thresholds live here that don't live in the source module — this
 // file composes, it does not invent.
 
+import { buildHazeWatchState } from "./haze-watch-state";
 import type { ExecutiveMetric } from "./executive-brief";
 import type { RfdFiresResponse } from "./fire-rfd";
 import type { AerosolResponse } from "./aerosol";
@@ -62,7 +63,7 @@ export interface WatchItem {
   /** Direct source evidence when the publisher supplies a safe HTTP(S) URL. */
   evidenceUrl?: string;
   /** Desk/panel to open for the evidence. Null = no deeper surface exists. */
-  openMetric: "water" | "air" | "fire" | "mobility" | "model" | null;
+  openMetric: "water" | "air" | "fire" | "mobility" | "model" | "haze" | null;
   /** Chip wording that replaces the level label, shown neutral — used for
    *  "no official warning", which must not read as a green "normal". */
   chipTh?: string;
@@ -206,7 +207,7 @@ function gistdaItem(gistda: GistdaPm25Response | null): WatchItem {
   };
 }
 
-function dustboyItem(dustboy: DustboyResponse | null): WatchItem {
+function dustboyItem(dustboy: DustboyResponse | null, now: Date): WatchItem {
   const base = {
     id: "dustboy",
     domain: "air" as const,
@@ -229,22 +230,24 @@ function dustboyItem(dustboy: DustboyResponse | null): WatchItem {
       observedAt: null,
     };
   }
-  const max = finite(dustboy.basin.maxPm25) ? dustboy.basin.maxPm25 : null;
+  const readings = buildHazeWatchState({ dustboy, now: now.getTime() }).chiangMaiDustboy;
+  const values = readings.map(s => s.pm25!).sort((a, b) => a - b);
+  const max = values.length ? values[Math.min(values.length - 1, Math.floor(values.length * 0.95))] : null;
   const level: WatchLevel = max === null ? "unknown" : max < 25 ? "good" : max < 50 ? "watch" : max < 90 ? "alert" : "critical";
   return {
     ...base,
     level,
-    valueTh: `${dustboy.basin.onlineCount}/${dustboy.basin.stationCount} สถานีออนไลน์ · สูงสุด (p95) ${max ?? "—"} µg/m³`,
-    valueEn: `${dustboy.basin.onlineCount}/${dustboy.basin.stationCount} stations online; p95 max ${max ?? "—"} µg/m³`,
+    valueTh: `เชียงใหม่ ${readings.length}/${dustboy.stations.filter(s => s.province === "เชียงใหม่").length} สถานีล่าสุด · สูงสุด (p95) ${max ?? "—"} µg/m³`,
+    valueEn: `Chiang Mai ${readings.length}/${dustboy.stations.filter(s => s.province === "เชียงใหม่").length} current stations; p95 max ${max ?? "—"} µg/m³`,
     evidenceTh: "ค่าสูงสุดใช้ p95 ที่คัดเซนเซอร์ผิดปกติแล้ว · เป็นการคัดกรอง ไม่ใช่เกณฑ์สุขภาพเฉลี่ย 24 ชม.",
     evidenceEn: "Max is the outlier-screened p95; screening value, not a 24-hour health grade",
-    actionTh: level === "good" ? null : "ตรวจสอบอำเภอที่เซนเซอร์สูงและประกาศทางการ",
-    actionEn: level === "good" ? null : "Check districts with elevated sensors and official notices",
-    observedAt: newestStamp(dustboy.stations as unknown as Array<Record<string, unknown>>, "observedAt"),
+    actionTh: level === "good" || level === "unknown" ? null : "ตรวจสอบอำเภอที่เซนเซอร์สูงและประกาศทางการ",
+    actionEn: level === "good" || level === "unknown" ? null : "Check districts with elevated sensors and official notices",
+    observedAt: newestStamp(readings as unknown as Array<Record<string, unknown>>, "observedAt"),
   };
 }
 
-function aerosolItem(aerosol: AerosolResponse | null): WatchItem {
+function aerosolItem(aerosol: AerosolResponse | null, now: Date): WatchItem {
   const base = {
     id: "aerosol-cams",
     domain: "haze" as const,
@@ -252,9 +255,9 @@ function aerosolItem(aerosol: AerosolResponse | null): WatchItem {
     systemTh: "คอลัมน์ละอองฝุ่น CAMS (AOD 550)",
     systemEn: "CAMS aerosol column (AOD 550)",
     source: "CAMS โมเดลบรรยากาศ · ชั้นคอลัมน์ทั้งหุบเขา",
-    openMetric: "fire" as const,
+    openMetric: "haze" as const,
   };
-  if (!aerosol || aerosol.provenance !== "model") {
+  if (!aerosol || !buildHazeWatchState({ aerosol, now: now.getTime() }).currentAerosol) {
     return {
       ...base,
       level: "unknown" as WatchLevel,
@@ -276,7 +279,7 @@ function aerosolItem(aerosol: AerosolResponse | null): WatchItem {
     evidenceEn: "Whole-column model value; not surface PM2.5 and not a health threshold",
     actionTh: null,
     actionEn: null,
-    observedAt: aerosol.generatedAt,
+    observedAt: aerosol.observedAt ?? null,
   };
 }
 
@@ -288,7 +291,7 @@ function aeronetItem(aeronet: AeronetResponse | null, now: Date): WatchItem {
     systemTh: "AERONET · AOD อ้างอิงภาคพื้นดิน",
     systemEn: "AERONET ground-truth AOD",
     source: "NASA AERONET · สถานีอุตุนิยมวิทยาเชียงใหม่ · Level 1.5",
-    openMetric: null,
+    openMetric: "haze" as const,
   };
   if (!aeronet || !aeronet.latest) {
     return {
@@ -358,17 +361,17 @@ function jaxaItem(jaxa: JaxaAotResponse | null, now: Date): WatchItem {
   };
 }
 
-function smokeItem(smoke: SmokeTrajectoryResponse | null): WatchItem {
+function smokeItem(smoke: SmokeTrajectoryResponse | null, now: Date): WatchItem {
   const base = {
     id: "smoke",
     domain: "haze" as const,
     kind: "model" as const,
     systemTh: "แนวการเคลื่อนที่ของควัน",
     systemEn: "Smoke trajectory",
-    source: "FIRMS จุดความร้อนสด × ลมปัจจุบัน · การแพร่กระจายแบบเส้นตรง",
-    openMetric: null,
+    source: smoke?.method === "forecast-field" ? "NASA FIRMS × 850 hPa hourly forecast wind" : "NASA FIRMS × surface wind · straight-line fallback",
+    openMetric: "haze" as const,
   };
-  if (!smoke || smoke.provenance !== "live") {
+  if (!smoke || !buildHazeWatchState({ smoke, now: now.getTime() }).currentSmoke) {
     return {
       ...base,
       level: "unknown" as WatchLevel,
@@ -382,16 +385,17 @@ function smokeItem(smoke: SmokeTrajectoryResponse | null): WatchItem {
     };
   }
   const s = smoke.summary;
-  const level: WatchLevel = s.hitsCnx > 0 ? "alert" : s.nearCnx > 0 ? "watch" : "good";
+  const incomplete = (smoke.omittedTrajectories ?? 0) > 0;
+  const level: WatchLevel = s.hitsCnx > 0 ? "alert" : s.nearCnx > 0 ? "watch" : incomplete ? "unknown" : "good";
   return {
     ...base,
     level,
     valueTh: `ควันจาก ${s.total} จุดปล่อง · เข้าเขต CNX ${s.hitsCnx} · ใกล้เขต ${s.nearCnx} · ทิศ ${s.origin_th}`,
     valueEn: `Smoke from ${s.total} sources; reaches CNX ${s.hitsCnx}, near ${s.nearCnx}; ${s.origin_en}`,
-    evidenceTh: smoke.methodology_th,
-    evidenceEn: smoke.methodology_en,
-    actionTh: level === "good" ? null : "ตรวจสอบแนวควันบนแผนที่และค่าฝุ่นภาคพื้นดินควบคู่กัน",
-    actionEn: level === "good" ? null : "Check the plume lines on the map together with ground PM2.5",
+    evidenceTh: `${smoke.methodology_th}${incomplete ? " · บางเส้นทางไม่มีลมพยากรณ์ครบ 6 ชม. ไม่ใช่การยืนยันว่าไม่มีควันเข้าเขต" : ""}`,
+    evidenceEn: `${smoke.methodology_en}${incomplete ? "; some trajectories lack six-hour coverage — not an all-clear" : ""}`,
+    actionTh: level === "good" || level === "unknown" ? null : "ตรวจสอบแนวควันบนแผนที่และค่าฝุ่นภาคพื้นดินควบคู่กัน",
+    actionEn: level === "good" || level === "unknown" ? null : "Check the plume lines on the map together with ground PM2.5",
     observedAt: smoke.generatedAt,
   };
 }
@@ -451,7 +455,7 @@ function hazeVisionItem(hazeVision: HazeVisionResponse | null, now: Date): Watch
     systemTh: "กล้องวิสัยทัศน์หมอกควัน",
     systemEn: "Haze webcam vision",
     source: "เรลาย์วิเคราะห์ภาพกล้อง · เทียบ DustBoy อัตโนมัติ",
-    openMetric: null,
+    openMetric: "haze" as const,
   };
   if (!hazeVision || hazeVision.provenance !== "live") {
     return {
@@ -468,9 +472,7 @@ function hazeVisionItem(hazeVision: HazeVisionResponse | null, now: Date): Watch
   }
   // A fresh relay push does not refresh an old frame, and a dark,
   // monochrome or calibrating frame carries no verdict about clear air.
-  const fresh = (stamp: string) => currentEvidence("haze-vision", stamp, now);
-  const cams = fresh(hazeVision.generatedAt) ? hazeVision.cameras.filter(c => fresh(c.observedAt)
-    && (c.verdict === "clear" || c.verdict === "some-haze" || c.verdict === "haze-likely")) : [];
+  const cams = buildHazeWatchState({ hazeVision, now: now.getTime() }).assessedCameras;
   const excluded = hazeVision.cameras.length - cams.length;
   const likely = cams.filter((c) => c.verdict === "haze-likely").length;
   const some = cams.filter((c) => c.verdict === "some-haze").length;
@@ -486,7 +488,7 @@ function hazeVisionItem(hazeVision: HazeVisionResponse | null, now: Date): Watch
     valueTh: `${cams.length} กล้องที่ประเมินได้ล่าสุด · สันนิษฐานหมอก ${likely} · มีหมอกบางส่วน ${some} · ชัด ${clear}${excluded ? ` · ${excluded} กล้องเก่า/ยังประเมินไม่ได้` : ""}`,
     valueEn: `${cams.length} current usable cameras; haze-likely ${likely}, some-haze ${some}, clear ${clear}${excluded ? `; ${excluded} stale/unusable cameras` : ""}`,
     evidenceTh: `${agreement} · คำตัดสินจากภาพเป็นการคัดกรอง ไม่ใช่การวัดฝุ่นโดยตรง`,
-    evidenceEn: `${agreement}; image verdicts are screening, not direct measurement`,
+    evidenceEn: `${a && a.pairs > 0 ? `Camera/ground association r=${a.r ?? "—"} (${a.pairs} distinct pairs); detection accuracy not established` : "Insufficient paired ground observations"}; image screening is not a PM2.5 measurement`,
     actionTh: likely + some > 0 ? "เปิดภาพกล้องจุดที่สันนิษฐานหมอกเพื่อยืนยันด้วยตา" : null,
     actionEn: likely + some > 0 ? "Open the flagged camera snapshots and verify visually" : null,
     observedAt: newestStamp(cams as unknown as Array<Record<string, unknown>>, "observedAt"),
@@ -634,11 +636,11 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
     rainItem(rainSummary),
     ...(input.outlook ? outlookWatchItems(input.outlook) : []),
     gistdaItem(input.gistda),
-    dustboyItem(input.dustboy),
-    aerosolItem(input.aerosol),
+    dustboyItem(input.dustboy, now),
+    aerosolItem(input.aerosol, now),
     aeronetItem(input.aeronet, now),
     jaxaItem(input.jaxa, now),
-    smokeItem(input.smoke),
+    smokeItem(input.smoke, now),
     floodHubItem(input.floodhub),
     hazeVisionItem(input.hazeVision, now),
     rfdItem(input.firesRfd),

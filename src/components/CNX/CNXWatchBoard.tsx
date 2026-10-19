@@ -119,7 +119,7 @@ interface Props {
   riverGauges: RiverGauge[];
   rain: RainResponse | null;
   outlook?: ProvinceOutlook | null;
-  onOpenMetric: (id: "water" | "air" | "fire" | "mobility" | "model" | "watch") => void;
+  onOpenMetric: (id: "water" | "air" | "fire" | "mobility" | "model" | "watch" | "haze") => void;
   /**
    * Injectable clock. `buildWatchList` takes a `now`, but this component
    * used to leave it unset, so the board silently read the wall clock and

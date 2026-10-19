@@ -23,7 +23,7 @@ describe("current model conditions", () => {
   it("uses current model AOD, keeping genuine zero values", async () => {
     feed([], [0.1, 0, 0.9]);
     const data = await (await import("./aerosol")).fetchCnxAerosol();
-    expect(data).toMatchObject({ aod550: 0, aodMin: 0, aodMax: 0, provenance: "model" });
+    expect(data).toMatchObject({ aod550: 0, aodMin: 0, aodMax: 0, provenance: "model", observedAt: "2026-10-02T06:00:00.000Z" });
   });
   it("reports unavailable AOD when every model request fails", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));

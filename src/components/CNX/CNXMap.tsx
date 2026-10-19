@@ -30,6 +30,7 @@ import { clampView } from "../../lib/cnx/map-bounds";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CameraHaze } from "../../lib/cnx/haze-vision";
+import { isAssessedHazeCamera } from "../../lib/cnx/haze-watch-state";
 import type { HazeLabel } from "../../lib/cnx/haze-vision-core";
 import type { CitizenReport } from "../../lib/cnx/citizen-core";
 import type { DustboyStation } from "../../lib/cnx/dustboy";
@@ -365,6 +366,7 @@ interface MapProps {
   dustboyStations?: DustboyStation[];
   /** Live plume polylines. Empty when FIRMS did not answer. */
   smokeSegments?: TrajectorySegment[];
+  smokeMethod?: "forecast-field" | "straight-line";
   /** 48 h model field (wind, rain, PM2.5) for the animated forecast layer. */
   forecast?: ForecastFieldResponse | null;
   /** Fly-to request from outside the map (e.g. a warned district). */
@@ -468,6 +470,7 @@ export default function CNXMap({
   rainAvailable = false,
   dustboyStations = NO_DUSTBOY,
   smokeSegments = NO_PLUMES,
+  smokeMethod = "straight-line",
   forecast = null,
   focus = null,
   shelters = NO_SHELTERS,
@@ -911,7 +914,7 @@ export default function CNXMap({
       getFillColor: (d) => {
         if (!d.reachable) return [107, 107, 107, 200];
         const haze = hazeById.get(d.id);
-        if (haze) return HAZE_FILL[haze.verdict];
+        if (haze) return isAssessedHazeCamera(haze) ? HAZE_FILL[haze.verdict] : HAZE_FILL.unusable;
         switch (d.category) {
           case "traffic":
           case "highway":
@@ -1393,8 +1396,11 @@ export default function CNXMap({
           if (layer.id === "cnx-cctv") {
             const c = object as CctvSlot;
             const haze = hazeById.get(c.id);
-            const verdict = haze ? (HAZE_LABEL[haze.verdict] ? t(HAZE_LABEL[haze.verdict].th, HAZE_LABEL[haze.verdict].en) : haze.verdict) : "";
-            const hazeLine = haze ? `\n${t("หมอกควัน", "Haze")}: ${verdict}${haze.score !== null ? ` (${haze.score.toFixed(2)})` : ""} · ${t("ภาพ", "frame")} ${haze.observedAt.slice(11, 16)} UTC` : "";
+            const assessed = haze && isAssessedHazeCamera(haze);
+            const displayVerdict = haze && (assessed || ["too-dark", "no-colour", "unusable", "calibrating"].includes(haze.verdict)) ? haze.verdict : "unusable";
+            const verdict = haze ? t(HAZE_LABEL[displayVerdict].th, HAZE_LABEL[displayVerdict].en) : "";
+            const score = assessed ? haze.score : null;
+            const hazeLine = haze ? `\n${t("หมอกควัน", "Haze")}: ${verdict}${score !== null ? ` (${score.toFixed(2)})` : ""} · ${t("ภาพ", "frame")} ${haze.observedAt.slice(11, 16)} UTC` : "";
             return `${c.label}\n${c.source} · ${c.reachable ? (c.hlsUrl ? t("วิดีโอสด", "live video") : t("ภาพนิ่งรีเฟรช", "refreshing still")) : t("ออฟไลน์", "OFFLINE")} — ${t("เปิดดูในแถบ CCTV ด้านบน", "open it in the CCTV strip above")}${hazeLine}`;
           }
           if (layer.id === "cnx-shelters") {
@@ -1427,7 +1433,10 @@ export default function CNXMap({
               : s.hitsCnxBbox
               ? t("เข้าเขตจังหวัดที่ 6 ชม.", "enters the province at 6 h")
               : t("ไม่ผ่านตัวเมืองที่ 6 ชม.", "misses the city at 6 h");
-            return t(`แนวควัน ${s.hotspotId}\n${where}\nเส้นกลางตามลมพยากรณ์ระดับ 850 hPa (~1.5 กม.) — ไม่รวมการแผ่กระจายหรือการตกสะสม`, `Plume ${s.hotspotId}\n${where}\nCentreline along the forecast 850 hPa wind (~1.5 km) — no spread or deposition`);
+            const method = smokeMethod === "forecast-field"
+              ? t("ลมพยากรณ์ระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนตามเวลา", "hourly forecast 850 hPa wind (~1.5 km)")
+              : t("ลมผิวพื้นจุดเดียวแบบเส้นตรง (วิธีสำรอง)", "one surface-wind vector, straight-line fallback");
+            return t(`แนวควัน ${s.hotspotId}\n${where}\nเส้นกลางตาม${method} — ไม่รวมการแผ่กระจายหรือการตกสะสม`, `Plume ${s.hotspotId}\n${where}\nCentreline using ${method} — no spread or deposition`);
           }
           return null;
         }}

@@ -1,15 +1,8 @@
 "use client";
 
-// Haze Watch — one screen that puts every haze signal side by side, each
-// with its source, age and limits: ground monitors (PCD Air4Thai, CMU
-// DustBoy), model (Open-Meteo CAMS), model column aerosol (CAMS AOD) and ground
-// photometer (NASA AERONET), webcam haze scoring, and citizen / local-news
-// reports. Nothing here is fused into one number — disagreements between
-// sources are information the operator should see.
-
 import { useEffect, useState } from "react";
-import { useModalDialog } from "../../hooks/useModalDialog";
 import { ExternalLink, X } from "lucide-react";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { AeronetResponse } from "../../lib/cnx/aeronet";
 import type { CitizenResponse } from "../../lib/cnx/citizen-reports";
@@ -17,12 +10,11 @@ import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { SmokeTrajectoryResponse } from "../../lib/cnx/smoke-trajectory";
 import type { CameraHaze, HazeVisionResponse } from "../../lib/cnx/haze-vision";
 import { MIN_BASELINE_SAMPLES, type HazeLabel } from "../../lib/cnx/haze-vision-core";
+import { buildHazeWatchState } from "../../lib/cnx/haze-watch-state";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
 import type { AirQualityResponse } from "../../types/cnx";
-import { DataAge, newest } from "./CNXDataAge";
 import CnxBurnSeason from "./CNXBurnSeason";
 import { useLang } from "../../hooks/useLang";
-import { pick, type Lang } from "../../lib/i18n";
 
 interface Props {
   isOpen: boolean;
@@ -44,259 +36,155 @@ const VERDICT: Record<HazeLabel, { th: string; en: string; cls: string }> = {
   calibrating: { th: "กำลังเรียนรู้ภาพฟ้าใส", en: "Calibrating", cls: "border-[var(--line)] text-[var(--dim)]" },
   unusable: { th: "รายละเอียดภาพไม่พอ — ประเมินไม่ได้", en: "Insufficient visual detail — cannot assess", cls: "border-[var(--line)] text-[var(--dim)]" },
 };
+const mean = (values: (number | null | undefined)[]) => {
+  const usable = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0);
+  return usable.length ? Math.round(usable.reduce((sum, value) => sum + value, 0) / usable.length * 10) / 10 : null;
+};
+const oldest = (rows: { observedAt: string }[]) => rows.map(row => row.observedAt).sort((a, b) => Date.parse(a) - Date.parse(b))[0];
 
-function ago(iso: string | undefined | null, lang: Lang): string {
-  if (!iso) return "—";
-  const min = Math.round((Date.now() - Date.parse(iso)) / 60_000);
-  if (!Number.isFinite(min)) return "—";
-  if (min < 60) return pick(lang, `${Math.max(0, min)} นาทีที่แล้ว`, `${Math.max(0, min)} min ago`);
-  if (min < 48 * 60) return pick(lang, `${Math.round(min / 60)} ชม.ที่แล้ว`, `${Math.round(min / 60)} h ago`);
-  return pick(lang, `${Math.round(min / 1440)} วันที่แล้ว`, `${Math.round(min / 1440)} d ago`);
-}
-
-function Stat({ label, value, sub, extra }: { label: string; value: string; sub: string; extra?: React.ReactNode }) {
-  return (
-    <div className="border border-[var(--line)] bg-[var(--bg-surface)] p-3">
-      <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--dim)]">{label}</div>
-      <div className="mt-1 text-[22px] font-bold tabular-nums text-[var(--ink)]">{value}</div>
-      <div className="mt-0.5 text-[11px] leading-snug text-[var(--dim)]">{sub}</div>
-      {extra}
-    </div>
-  );
-}
-
-function CameraCard({ cam }: { cam: CameraHaze }) {
+function Observation({ at, label }: { at?: string | null; label?: string }) {
   const { lang, t } = useLang();
-  const v = VERDICT[cam.verdict];
-  return (
-    <figure className="border border-[var(--line)] bg-[var(--bg-surface)]">
+  const stamp = Date.parse(at ?? "");
+  return <span className="text-[12px] leading-relaxed text-[var(--dim)]">{label && `${label} · `}{Number.isFinite(stamp)
+    ? <time dateTime={at!}>{new Date(stamp).toLocaleString(lang === "th" ? "th-TH" : "en-GB", { timeZone: "Asia/Bangkok", dateStyle: "medium", timeStyle: "short" })} (UTC+7)</time>
+    : t("ไม่ทราบเวลาสังเกต", "Observation time unknown")}</span>;
+}
+
+function Stat({ label, value, children }: { label: string; value: string; children: React.ReactNode }) {
+  return <div className="min-w-0 border-t border-[var(--line)] pt-3">
+    <h3 className="text-[14px] font-semibold text-[var(--ink)]">{label}</h3>
+    <p className="mt-2 text-[26px] font-semibold tabular-nums text-[var(--ink)]">{value}</p>
+    <div className="mt-1 space-y-1 text-[13px] leading-relaxed text-[var(--dim)]">{children}</div>
+  </div>;
+}
+
+function CameraCard({ cam, current, assessed }: { cam: CameraHaze; current: boolean; assessed: boolean }) {
+  const { t } = useLang();
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const verdict = current && (!(["clear", "some-haze", "haze-likely"].includes(cam.verdict)) || assessed) ? VERDICT[cam.verdict] : current ? { th: "หลักฐานภาพไม่พอ — ประเมินไม่ได้", en: "Insufficient validated image evidence — cannot assess", cls: "border-[var(--line)] text-[var(--dim)]" } : { th: "ข้อมูลวิเคราะห์เก่า — ไม่ใช้ประเมินปัจจุบัน", en: "Historical analysis — not a current assessment", cls: "border-[var(--line)] text-[var(--dim)]" };
+  return <figure className="min-w-0 border border-[var(--line)] bg-[var(--bg-raised)]">
+    {previewFailed ? <div role="status" className="p-3 text-[13px] leading-relaxed text-[var(--ink)]">
+      <p>{t("ภาพตัวอย่างโหลดไม่ได้ ข้อมูลวิเคราะห์ด้านล่างอ้างอิงเวลาที่บันทึกไว้เท่านั้น", "Preview unavailable. The recorded analysis below refers only to its stated capture time.")}</p>
+      <button type="button" onClick={() => setPreviewFailed(false)} className="mt-1 min-h-11 underline">{t("ลองโหลดภาพอีกครั้ง", "Retry preview")}</button>
+    </div> : <>
+      {/* The source URL is mutable; do not cache-bust or relabel its image as the scored capture. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={cam.snapshotUrl} alt={cam.label} loading="lazy" className="aspect-video w-full object-cover" />
-      <figcaption className="space-y-1 p-2 text-[11px]">
-        <div className="truncate font-bold text-[var(--ink)]" title={cam.label}>{cam.label}</div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`border px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] ${v.cls}`}>
-            {t(v.th, v.en)}
-          </span>
-          {cam.score !== null && <span className="font-mono tabular-nums text-[var(--dim)]">{t("คะแนน", "score")} {cam.score.toFixed(2)}</span>}
-        </div>
-        {cam.verdict === "unusable" && <p className="text-[var(--dim)]">{t("หมอก สิ่งบดบัง หรือภาพแทนที่อาจทำให้รายละเอียดไม่พอ แยกสาเหตุจากภาพนี้ไม่ได้ และไม่ใช่การยืนยันว่าอากาศใส", "Fog, obstruction or a placeholder may remove visual detail. The cause cannot be determined from this frame; this is not a clear-air finding.")}</p>}
-        <div className="text-[var(--dim)]">
-          {t("ถ่ายภาพ", "frame taken")} {ago(cam.observedAt, lang)}
-          {cam.verdict === "calibrating" && ` · ${cam.baselineSamples}/${MIN_BASELINE_SAMPLES} ${t("ภาพกลางวัน", "daylight frames")}`}
-        </div>
-        <div className="text-[var(--dim)]">
-          {cam.nearestPm25
-            ? t(`DustBoy ใกล้สุด ${cam.nearestPm25.distanceKm} กม.: PM2.5 ${cam.nearestPm25.pm25} µg/m³`, `nearest DustBoy ${cam.nearestPm25.distanceKm} km: PM2.5 ${cam.nearestPm25.pm25} µg/m³`)
-            : t("ไม่มีค่า DustBoy ภายใน 15 กม. และ 90 นาทีจากเวลาภาพ", "no matching DustBoy reading within 15 km and 90 min of the frame")}
-        </div>
-      </figcaption>
-    </figure>
-  );
+      <img src={cam.snapshotUrl} alt={t(`ภาพตัวอย่างจาก ${cam.label}`, `Source preview from ${cam.label}`)} loading="lazy" decoding="async" onError={() => setPreviewFailed(true)} className="aspect-video w-full object-cover" />
+    </>}
+    <figcaption className="space-y-2 p-3 text-[13px] leading-relaxed">
+      <h4 className="font-semibold text-[var(--ink)]">{cam.label}</h4>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`border px-2 py-1 text-[12px] ${verdict.cls}`}>{t(verdict.th, verdict.en)}</span>
+        {assessed && cam.score !== null && <span className="tabular-nums text-[var(--dim)]">{t("คะแนนภาพที่บันทึก", "Recorded visual score")} {cam.score.toFixed(2)}</span>}
+      </div>
+      {current && cam.verdict === "unusable" && <p className="text-[var(--dim)]">{t("หมอก สิ่งบดบัง หรือภาพแทนที่อาจทำให้รายละเอียดไม่พอ แยกสาเหตุจากภาพนี้ไม่ได้ และไม่ใช่การยืนยันว่าอากาศใส", "Fog, obstruction or a placeholder may remove visual detail. The cause cannot be determined from this frame; this is not a clear-air finding.")}</p>}
+      <Observation at={cam.observedAt} label={t("เวลาภาพที่ใช้วิเคราะห์", "Analysis capture")} />
+      {current && cam.verdict === "calibrating" && <p className="text-[var(--dim)]">{cam.baselineSamples}/{MIN_BASELINE_SAMPLES} {t("ภาพกลางวันสำหรับเรียนรู้ค่าฐาน", "daylight frames for the baseline")}</p>}
+      <p className="text-[12px] text-[var(--dim)]">{t("ภาพตัวอย่างอาจเปลี่ยนที่ต้นทาง ไม่ยืนยันว่าเป็นภาพเดียวกับรอบวิเคราะห์ และคะแนนภาพไม่ใช่ PM2.5", "The source preview can change independently; it is not confirmed as the analyzed frame. A visual score is not PM2.5.")}</p>
+      {cam.nearestPm25 && <p className="text-[var(--dim)]">{t(`DustBoy ที่จับคู่กับเวลาภาพ: ${cam.nearestPm25.pm25} µg/m³ ห่าง ${cam.nearestPm25.distanceKm} กม.`, `Time-matched DustBoy: ${cam.nearestPm25.pm25} µg/m³, ${cam.nearestPm25.distanceKm} km away`)} <Observation at={cam.nearestPm25.observedAt} /></p>}
+    </figcaption>
+  </figure>;
 }
 
 export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, hazeVision, citizen, smoke }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
-  const { lang, t } = useLang();
+  const { t } = useLang();
+  const [clock, setClock] = useState(() => Date.now());
   const [aeronet, setAeronet] = useState<AeronetResponse | null>(null);
-
+  const [aeronetStatus, setAeronetStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!isOpen) return;
+    const tick = () => setClock(Date.now());
+    tick();
+    const timer = window.setInterval(tick, 60_000);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", tick); document.removeEventListener("visibilitychange", tick); };
+  }, [isOpen]);
   useEffect(() => {
     if (!isOpen) return;
     const controller = new AbortController();
-    if (!aeronet) void fetchJsonOrNull<AeronetResponse>("/api/cnx/aeronet", { signal: controller.signal }).then((next) => {
-      if (!controller.signal.aborted) setAeronet(next);
-    });
-    return () => controller.abort();
-  }, [isOpen, aeronet]);
-
+    const load = async () => {
+      setAeronetStatus("loading");
+      const next = await fetchJsonOrNull<AeronetResponse>("/api/cnx/aeronet", { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setAeronet(next);
+      setAeronetStatus(next ? "ready" : "error");
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 10 * 60_000);
+    return () => { controller.abort(); window.clearInterval(timer); };
+  }, [isOpen, attempt]);
   if (!isOpen) return null;
 
-  const pcd = (air?.stations ?? []).filter((s) => s.source === "pcd");
-  const model = (air?.stations ?? []).filter((s) => s.source === "open-meteo");
-  const avg = (xs: (number | undefined)[]) => {
-    const v = xs.filter((x): x is number => typeof x === "number");
-    return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null;
-  };
-  const pcdAvg = avg(pcd.map((s) => s.pm25));
-  const modelAvg = avg(model.map((s) => s.pm25));
-  const cams = hazeVision?.cameras ?? [];
-  const scoredCams = cams.filter((c) => c.score !== null && ["clear", "some-haze", "haze-likely"].includes(c.verdict)).length;
-  const hazyCams = cams.filter((c) => c.verdict === "haze-likely" || c.verdict === "some-haze").length;
-  const reports = citizen?.reports ?? [];
+  const now = Math.max(clock, Date.now());
+  const state = buildHazeWatchState({ air, dustboy, aerosol, hazeVision, citizen, smoke, now });
+  const pcdAvg = mean(state.freshPcd.map(station => station.pm25));
+  const dustAvg = mean(state.chiangMaiDustboy.map(station => station.pm25));
+  const modelAvg = mean(state.freshModel.map(station => station.pm25));
+  const primary = pcdAvg ?? dustAvg;
+  const primaryRows = pcdAvg !== null ? state.freshPcd : state.chiangMaiDustboy;
+  const districts = new Set(state.chiangMaiDustboy.map(station => station.district).filter(Boolean)).size;
   const agreement = hazeVision?.agreement;
+  const aeronetDay = Date.parse(aeronet?.latest?.date ?? "");
+  const aeronetFresh = aeronetStatus === "ready" && Number.isFinite(aeronet?.latest?.aod500) && Number.isFinite(aeronetDay) && now - aeronetDay >= 0 && now - aeronetDay <= 3 * 86_400_000;
+  const assessed = new Set(state.assessedCameras);
+  const current = new Set(state.currentCameras);
+  const cameras = [...state.currentCameras, ...state.staleCameras];
+  const citizenCurrent = citizen?.provenance === "live" && now - Date.parse(citizen.generatedAt) >= -300_000 && now - Date.parse(citizen.generatedAt) <= 3 * 3_600_000;
 
-  return (
-    <div
-      ref={dialogRef}
-      tabIndex={-1}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t("เฝ้าระวังหมอกควัน", "Haze watch")}
-      className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative my-6 w-full max-w-[1100px] border border-[var(--line)] bg-[var(--bg)] p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          aria-label={t("ปิดหน้าเฝ้าระวังหมอกควัน", "Close haze watch")}
-          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)] hover:text-[var(--ink)]"
-        >
-          <X className="h-4 w-4" />
-        </button>
+  return <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("เฝ้าระวังหมอกควัน", "Haze watch")} className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto bg-black/60 p-3 sm:p-4" onClick={onClose}>
+    <div className="my-3 w-full max-w-[1100px] border border-[var(--line)] bg-[var(--bg)] p-4 text-[var(--ink)] sm:my-6 sm:p-6" onClick={event => event.stopPropagation()}>
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0"><h2 className="text-[24px] font-semibold leading-snug">{t("เฝ้าระวังหมอกควัน", "Haze watch")}</h2><p className="mt-2 max-w-[65ch] text-[14px] leading-relaxed text-[var(--dim)]">{t("เริ่มจากค่าภาคพื้นใกล้พื้นที่ แล้วเทียบแบบจำลองและภาพกล้อง หลักฐานต่างชนิดไม่ถูกรวมเป็นคะแนนเดียว", "Start with ground readings near the affected area, then compare models and cameras. Different evidence types are never fused into one score.")}</p></div>
+        <button type="button" onClick={onClose} aria-label={t("ปิดหน้าเฝ้าระวังหมอกควัน", "Close haze watch")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center border border-[var(--line)]"><X aria-hidden="true" className="h-4 w-4" /></button>
+      </header>
 
-        <h2 className="text-[22px] font-bold text-[var(--ink)]">{t("เฝ้าระวังหมอกควัน — ทุกแหล่งข้อมูลเทียบกัน", "Haze watch — every source side by side")}</h2>
-        <p className="mt-1 max-w-[80ch] text-[13px] leading-relaxed text-[var(--dim)]">
-          {t("สัญญาณหมอกควันทุกแหล่งวางเทียบกันพร้อมแหล่งที่มาและอายุข้อมูล ไม่ได้รวมเป็นตัวเลขเดียว: เครื่องวัดภาคพื้น แบบจำลองพยากรณ์ ดาวเทียม กล้อง และประชาชน ต่างเห็นคนละมุม และความเห็นที่ไม่ตรงกันเป็นสิ่งที่ควรสังเกต", "Every haze signal side by side with its source and age. They are not merged into one number: ground sensors, a forecast model, satellites, cameras and people each see something different, and disagreement is worth noticing.")}
-        </p>
+      <section aria-label={t("หลักฐานภาคพื้นปัจจุบัน", "Current ground evidence")} className="mt-6 grid gap-5 border-y border-[var(--line)] py-5 md:grid-cols-[1.2fr_1fr]">
+        <div><p className="text-[14px] font-semibold">{primary === null ? t("ยังยืนยัน PM2.5 ภาคพื้นปัจจุบันไม่ได้", "Current ground PM2.5 cannot be established") : pcdAvg !== null ? t("ค่าเฉลี่ยสถานี คพ. ที่ใช้ได้ในเชียงใหม่", "Mean of usable PCD stations in Chiang Mai") : t("ค่าเฉลี่ยเซนเซอร์ DustBoy ที่ใช้ได้ในเชียงใหม่", "Mean of usable DustBoy sensors in Chiang Mai")}</p>
+          <p className="mt-3 text-[40px] font-semibold leading-none tabular-nums">{primary ?? "—"}<span className="ml-2 text-[16px] font-normal">{primary !== null && "µg/m³"}</span></p>
+          <p className="mt-3 text-[13px] leading-relaxed text-[var(--dim)]">{pcdAvg !== null ? t(`${state.freshPcd.length} สถานีอ้างอิง คพ.`, `${state.freshPcd.length} PCD reference stations`) : dustAvg !== null ? t(`${state.chiangMaiDustboy.length} เซนเซอร์ราคาประหยัด ไม่ใช่สถานีอ้างอิงทางการ`, `${state.chiangMaiDustboy.length} low-cost sensors, not official reference monitors`) : t("ไม่มีสถานีที่มีค่าฝุ่นใช้ได้ภายใน 3 ชม. ข้อมูลขาดไม่ใช่อากาศดี", "No usable ground PM2.5 within 3 h. Missing data is not clean air.")} {t("ค่าเฉลี่ยของจุดที่รายงาน ไม่ใช่ค่าฝุ่นทุกพื้นที่ของจังหวัด", "A mean of reporting points, not conditions everywhere in the province.")}</p>
+          {primaryRows.length > 0 && <Observation at={oldest(primaryRows)} label={t("เวลาเก่าสุดที่รวมในค่าเฉลี่ย", "Oldest included observation")} />}
+        </div>
+        <div className="space-y-3 text-[14px] leading-relaxed"><h3 className="font-semibold">{t("ตรวจสอบก่อนตัดสินใจ", "Before deciding")}</h3><p>{t("เปิดรายชื่อสถานีด้านล่าง เลือกจุดใกล้พื้นที่และดูเวลาวัด ความต่างระหว่างสถานีมีความหมายมากกว่าค่าเฉลี่ยอย่างเดียว", "Open the station list below, find the nearest reporting point and check its time. Differences between stations matter more than the mean alone.")}</p><p className="text-[var(--dim)]">{t(`DustBoy ที่ใช้ได้ในเชียงใหม่ ${state.chiangMaiDustboy.length} จุด จาก ${districts} อำเภอ; ภาคเหนือตอนบน ${state.freshDustboy.length} จุด ไม่มีสถานีไม่ได้แปลว่าปลอดภัย`, `Usable DustBoy: ${state.chiangMaiDustboy.length} points in ${districts} Chiang Mai districts; ${state.freshDustboy.length} across the upper north. No station is not proof of safety.`)}</p><a href="https://air4thai.pcd.go.th/" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 text-[var(--cool)] underline">{t("ตรวจข้อมูลและประกาศ คพ.", "Check PCD readings and notices")}<ExternalLink aria-hidden="true" className="h-4 w-4" /></a></div>
+      </section>
+      <details className="mt-3"><summary className="min-h-11 cursor-pointer py-3 text-[14px] font-semibold">{t(`รายชื่อสถานีที่ใช้ได้ · คพ. ${state.freshPcd.length} / DustBoy เชียงใหม่ ${state.chiangMaiDustboy.length}`, `Usable station list · PCD ${state.freshPcd.length} / Chiang Mai DustBoy ${state.chiangMaiDustboy.length}`)}</summary>
+        <ul className="grid max-h-80 gap-x-6 divide-y divide-[var(--line)] overflow-y-auto text-[13px] sm:grid-cols-2">{[...state.freshPcd.map(station => ({ id: `pcd-${station.stationId}`, name: station.name, value: station.pm25, at: station.observedAt, source: "PCD" })), ...state.chiangMaiDustboy.map(station => ({ id: `dust-${station.stationId}`, name: `${station.nameTh} · ${station.district}`, value: station.pm25, at: station.observedAt, source: "DustBoy" }))].map(station => <li key={station.id} className="min-w-0 py-3"><p className="font-semibold">{station.name}</p><p>{station.source} · {station.value} µg/m³</p><Observation at={station.at} /></li>)}</ul>
+        {primary === null && <p className="text-[13px] text-[var(--dim)]">{t("ยังไม่มีสถานีที่ผ่านเงื่อนไขเวลาและคุณภาพ", "No stations currently meet the time and quality checks.")}</p>}
+      </details>
 
-        <section className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
-          <Stat
-            label={t("ภาคพื้น คพ. (Air4Thai)", "PCD ground (Air4Thai)")}
-            value={pcdAvg === null ? "—" : `${pcdAvg}`}
-            sub={pcd.length ? t(`µg/m³ · สถานีทางการ ${pcd.length} แห่ง · ${ago(pcd[0]?.observedAt, lang)}`, `µg/m³ · ${pcd.length} official monitor(s) · ${ago(pcd[0]?.observedAt, lang)}`) : t("ไม่มีค่าล่าสุดจาก คพ.", "no fresh PCD reading")}
-          />
-          <Stat
-            label={t("ภาคพื้น DustBoy (มช.)", "DustBoy ground (CMU)")}
-            value={dustboy?.basin.chiangMai.avgPm25 != null ? `${dustboy.basin.chiangMai.avgPm25}` : "—"}
-            sub={
-              dustboy?.provenance === "live" && dustboy.basin.chiangMai.onlineCount > 0
-                ? t(`µg/m³ · เชียงใหม่ออนไลน์ ${dustboy.basin.chiangMai.onlineCount} · ภาคเหนือตอนบน ${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`, `µg/m³ · Chiang Mai ${dustboy.basin.chiangMai.onlineCount} online · upper north ${dustboy.basin.avgPm25 ?? "—"} (${dustboy.basin.onlineCount})`)
-                : t(`เครื่องวัด ${dustboy?.basin.stationCount ?? 0} เครื่อง ไม่มีค่าในเชียงใหม่ที่อายุไม่เกิน 3 ชม.`, `${dustboy?.basin.stationCount ?? 0} sensors, none with a Chiang Mai reading < 3 h old`)
-            }
-            // The batch is hourly and the rule is 3 h, so say which
-            // reading is behind the number rather than leaving the reader
-            // to assume it is current.
-            extra={
-              <DataAge
-                className="mt-0.5 block"
-                source={t("รอบข้อมูล มช.", "CMU batch")}
-                observedAt={newest(dustboy?.stations)}
-                staleAfterMs={3 * 3_600_000}
-                missing={t("ไม่มีค่าที่วัด", "no reading")}
-              />
-            }
-          />
-          <Stat
-            label={t("แบบจำลอง (Open-Meteo CAMS)", "Model (Open-Meteo CAMS)")}
-            value={modelAvg === null ? "—" : `${modelAvg}`}
-            sub={t(`µg/m³ · แบบจำลองพยากรณ์ ${model.length} จุดกริด — ไม่ใช่ค่าที่วัด`, `µg/m³ · forecast model, ${model.length} grid points — not a measurement`)}
-          />
-          <Stat
-            label={t("AOD ทั้งคอลัมน์จากแบบจำลอง (CAMS)", "Model column AOD (CAMS)")}
-            value={aerosol?.aod550?.toFixed(2) ?? "—"}
-            sub={t("กริดแบบจำลอง · ความลึกเชิงแสงของละอองลอยทั้งคอลัมน์ที่ 550 nm ไม่ใช่ PM2.5 ภาคพื้น", "Model grid · column aerosol optical depth at 550 nm, not ground PM2.5")}
-          />
-          <Stat
-            label={t("AOD ภาคพื้น (AERONET)", "Ground AOD (AERONET)")}
-            value={aeronet?.latest ? aeronet.latest.aod500.toFixed(2) : "—"}
-            sub={aeronet?.latest ? t(`500 nm · ${aeronet.latest.date} · ระดับ 1.5 (ชั่วคราว)`, `500 nm · ${aeronet.latest.date} · Level 1.5 provisional`) : aeronet ? t("ไม่มีค่าใน 30 วัน", "no reading in 30 days") : t("กำลังโหลด…", "loading…")}
-          />
-          <Stat
-            label={t("เว็บแคม", "Webcams")}
-            value={scoredCams ? `${hazyCams}/${scoredCams}` : "—"}
-            sub={cams.length ? t(`กล้องที่เห็นหมอกควัน จากที่ประเมินได้ ${scoredCams} · ประเมินไม่ได้ ${cams.length - scoredCams}`, `cameras showing haze · ${scoredCams} assessed · ${cams.length - scoredCams} unassessable`) : hazeVision?.note ?? t("กำลังโหลด…", "loading…")}
-          />
-        </section>
+      <section aria-label={t("บริบทแบบจำลองและคอลัมน์ละอองลอย", "Model and column-aerosol context")} className="mt-5 grid gap-5 sm:grid-cols-3">
+        <Stat label={t("PM2.5 จากแบบจำลอง CAMS", "CAMS model PM2.5")} value={modelAvg === null ? "—" : `${modelAvg} µg/m³`}><p>{t(`${state.freshModel.length} จุดกริดที่มีข้อมูลปัจจุบัน ไม่ใช่การวัดภาคพื้น`, `${state.freshModel.length} current grid points; not a ground measurement`)}</p><Observation at={oldest(state.freshModel)} /></Stat>
+        <Stat label={t("AOD ทั้งคอลัมน์จาก CAMS", "CAMS column AOD")} value={state.currentAerosol ? aerosol!.aod550!.toFixed(2) : "—"}><p>{t("550 nm · ปริมาณเชิงแสงทั้งคอลัมน์ ไม่ใช่ PM2.5 และไม่ใช่เกณฑ์สุขภาพ", "550 nm · optical column quantity, not PM2.5 or a health threshold")}</p><Observation at={aerosol?.observedAt} label={t("เวลาแบบจำลอง", "Model time")} /></Stat>
+        <Stat label={t("AOD รายวันจาก AERONET", "AERONET daily AOD")} value={aeronetFresh && aeronet?.latest ? aeronet.latest.aod500.toFixed(2) : "—"}>
+          <p role="status">{aeronetStatus === "loading" ? t("กำลังตรวจข้อมูล AERONET…", "Checking AERONET…") : aeronetStatus === "error" ? t("เข้าถึง AERONET ไม่ได้ ลองใหม่ได้ ไม่ตีความว่าอากาศใส", "AERONET unavailable. Retry; this does not mean clear air.") : aeronet?.latest ? t(`ค่าเฉลี่ยรายวัน ${aeronet.latest.date}${aeronetFresh ? "" : " · ข้อมูลเก่า ไม่ใช้แทนค่าปัจจุบัน"}`, `Daily average ${aeronet.latest.date}${aeronetFresh ? "" : " · old reference, not current conditions"}`) : t("ต้นทางไม่มีค่ารายวันที่ใช้ได้ในช่วงค้นหา หรืออ่านข้อมูลไม่ได้", "No usable daily reading in the source window, or the source could not be read")}</p><p>{t("500 nm · โฟโตมิเตอร์หนึ่งสถานี · ระดับ 1.5 ชั่วคราว ไม่ใช่ PM2.5", "500 nm · one sun photometer · Level 1.5 provisional, not PM2.5")}</p><button type="button" onClick={() => setAttempt(value => value + 1)} className="min-h-11 border border-[var(--line)] px-3 text-[13px] text-[var(--cool)]">{t("ตรวจ AERONET อีกครั้ง", "Retry AERONET")}</button>
+        </Stat>
+      </section>
 
-        {dustboy?.caveat && (
-          <p className="mt-3 border-l-2 border-[var(--sev-watch)] bg-[var(--bg-surface)] px-3 py-2 text-[12px] leading-relaxed text-[var(--dim)]">
-            <span className="font-semibold text-[var(--ink)]">
-              {t("ตรวจสอบเครื่องก่อน", "Check the sensor first")}
-            </span>{" "}
-            <span>{t(dustboy.caveat.th, dustboy.caveat.en)}</span>
-          </p>
-        )}
+      <section className="mt-6 border-t border-[var(--line)] pt-5"><h3 className="text-[18px] font-semibold">{t("กล้องเห็นอะไร — และยังบอกอะไรไม่ได้", "What cameras show — and cannot establish")}</h3>
+        <p className="mt-2 max-w-[65ch] text-[14px] leading-relaxed text-[var(--dim)]">{t("คะแนนเปรียบเทียบรายละเอียดภาพกับค่าฐานรายกล้อง ไม่ใช่การวัดฝุ่น หมอก เมฆ แสงอาทิตย์ สิ่งบดบัง และภาพแทนที่อาจเปลี่ยนภาพได้ กลางคืนหรือภาพที่ใช้ไม่ได้ไม่ใช่หลักฐานว่าอากาศใส", "Scores compare image detail with a per-camera baseline, not particle concentration. Fog, cloud, sunlight, obstruction and placeholders can change the image. Nighttime or unusable images are not evidence of clear air.")}</p>
+        <p className="mt-3 text-[14px] font-semibold">{state.relayCurrent ? t("รอบวิเคราะห์จากรีเลย์ยังอยู่ในช่วงเวลา", "Relay analysis is within its time window") : t("รอบวิเคราะห์จากรีเลย์ขาดหายหรือเก่า", "Relay analysis is missing or stale")}</p>
+        <p className="mt-1 text-[14px]">{state.assessedCameras.length ? t(`เห็นสัญญาณหมอกควัน ${state.hazyCameras.length}/${state.assessedCameras.length} ภาพที่ประเมินได้`, `Haze signal in ${state.hazyCameras.length}/${state.assessedCameras.length} assessable frames`) : t("ยังไม่มีภาพที่ใช้ประเมินหมอกควันปัจจุบันได้", "No current assessable haze frames")}</p>
+        <p className="mt-1 text-[13px] text-[var(--dim)]">{t(`ประเมินได้ ${state.assessedCameras.length} · ประเมินไม่ได้ ${state.currentCameras.length - state.assessedCameras.length} · ภาพเก่าหรือรอบไม่ยืนยัน ${state.staleCameras.length}`, `${state.assessedCameras.length} assessed · ${state.currentCameras.length - state.assessedCameras.length} unassessable · ${state.staleCameras.length} historical or unconfirmed`)}</p>
+        <Observation at={hazeVision?.generatedAt} label={t("รับรอบวิเคราะห์เมื่อ", "Analysis batch")} />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cameras.map(cam => <CameraCard key={`${cam.cameraId}-${cam.observedAt}`} cam={cam} current={current.has(cam)} assessed={assessed.has(cam)} />)}</div>
+        {cameras.length === 0 && <p className="mt-3 text-[14px] text-[var(--dim)]">{t("ยังไม่มีภาพวิเคราะห์ให้ตรวจสอบ ไม่ใช่การยืนยันว่าไม่มีหมอกควัน", "No analyzed frames are available to inspect; this is not a no-haze finding.")}</p>}
+        <details className="mt-3"><summary className="min-h-11 cursor-pointer py-3 text-[14px] font-semibold">{t("หลักฐานการตรวจสอบตัววิเคราะห์ · ไม่ใช่ความแม่นยำที่ยืนยันแล้ว", "Analyzer validation evidence · not proven accuracy")}</summary><p className="max-w-[65ch] text-[13px] leading-relaxed text-[var(--dim)]">{agreement?.r != null ? t(`สหสัมพันธ์ r=${agreement.r.toFixed(2)} จากค่าภาคพื้น ${agreement.pairs} ค่าที่จับคู่เวลา แต่ละค่านับครั้งเดียว ช่วงมัธยฐาน ${agreement.pm25Median ?? "—"} ถึง p95 ${agreement.pm25P95 ?? "—"} µg/m³ มีค่าตั้งแต่ 50 ขึ้นไป ${agreement.eventReadings} ค่า สหสัมพันธ์ไม่ใช่อัตราตรวจพบหรืออัตราพลาด`, `Correlation r=${agreement.r.toFixed(2)} over ${agreement.pairs} distinct time-matched ground readings, each counted once; median ${agreement.pm25Median ?? "—"} and p95 ${agreement.pm25P95 ?? "—"} µg/m³, ${agreement.eventReadings} readings at or above 50. Correlation is not a detection or miss rate.`) : t("ยังไม่มีข้อมูลจับคู่ที่พอคำนวณความสัมพันธ์ได้ ต้องตรวจทั้งช่วงอากาศใสและหมอกควันกับค่าภาคพื้นที่ตรงเวลา", "No sufficient paired evidence to calculate association. Evaluation needs both clear and hazy periods with time-matched ground readings.")}</p></details>
+      </section>
 
-        <section className="mt-6">
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-            {t("ควันกำลังไปทางไหน (6 ชม.)", "Where the smoke is going (6 h)")}
-          </h3>
-          <p className="mt-1 max-w-[90ch] text-[12px] leading-relaxed text-[var(--dim)]">
-            {smoke ? t(smoke.methodology_th, smoke.methodology_en) : t("การเคลื่อนที่แนวตรงตามลมผิวพื้น ไม่ใช่การพยากรณ์", "Straight-line advection from surface wind. Not a forecast.")}
-          </p>
-          {smoke?.provenance === "live" ? (
-            <p className="mt-2 text-[13px] text-[var(--ink)]">
-              {t("ลม", "Wind")} {smoke.wind ? t(`${smoke.wind.speedKmh} กม./ชม. จากทิศ ${smoke.wind.fromDirectionDeg}°`, `${smoke.wind.speedKmh} km/h from ${smoke.wind.fromDirectionDeg}°`) : t("ไม่มีข้อมูล", "unavailable")}.
-              {" "}{t("จุดไฟอยู่", "Fires sit")} <span className="font-semibold">{t(smoke.summary.origin_th, smoke.summary.origin_en)}</span>.
-              {" "}{lang === "en"
-                ? `${smoke.summary.nearCnx} plume${smoke.summary.nearCnx === 1 ? "" : "s"} within 50 km of the city, ${smoke.summary.hitsCnx} enter the province, ${smoke.summary.total} detection${smoke.summary.total === 1 ? "" : "s"} in the 350 km window${smoke.summary.shown < smoke.summary.total ? ` (map shows ${smoke.summary.shown})` : ""}.`
-                : `กลุ่มควัน ${smoke.summary.nearCnx} กลุ่มอยู่ภายใน 50 กม. จากตัวเมือง, ${smoke.summary.hitsCnx} กลุ่มเข้าเขตจังหวัด, จุดตรวจจับ ${smoke.summary.total} จุดในรัศมี 350 กม.${smoke.summary.shown < smoke.summary.total ? ` (แผนที่แสดง ${smoke.summary.shown})` : ""}`}
-            </p>
-          ) : (
-            <p className="mt-2 border border-[var(--line)] bg-[var(--bg-surface)] p-3 text-[12px] text-[var(--dim)]">
-              {smoke?.note ?? t("กำลังโหลดรอบ VIIRS ล่าสุด…", "Loading the live VIIRS pass…")}
-            </p>
-          )}
-        </section>
+      <section className="mt-6 border-t border-[var(--line)] pt-5"><h3 className="text-[18px] font-semibold">{t("บริบทการพัดพาควันใน 6 ชม.", "Six-hour smoke transport context")}</h3><p className="mt-2 text-[14px] font-semibold">{smoke?.method === "forecast-field" ? t("สนามลมพยากรณ์รายชั่วโมงที่ 850 hPa ไม่ใช่ลมผิวพื้นที่วัดได้", "Hourly forecast wind field at 850 hPa, not measured surface wind") : smoke?.method === "straight-line" ? t("เส้นตรงจากลมผิวพื้นหนึ่งจุด ไม่ใช่ลมที่วัดตามเส้นทาง", "Straight-line model from one surface-wind point, not wind measured along the path") : t("ยังไม่ยืนยันวิธีคำนวณการพัดพาควันรอบนี้", "Transport method is not confirmed for this run")}</p><p className="mt-2 max-w-[65ch] text-[14px] leading-relaxed text-[var(--dim)]">{t("การเคลื่อนที่ตามลมเป็นเพียงแบบจำลอง ไม่ใช่หลักฐานว่าควันมาถึงหรือการพยากรณ์คุณภาพอากาศ ไม่รวมการฟุ้งกระจายหรือการตกสะสม", "Wind advection is a model, not proof of smoke arrival or an air-quality forecast. Dispersion and deposition are not resolved.")}</p>
+        {state.currentSmoke && smoke ? <><p className="mt-2 text-[14px]">{t(`เส้นทางจำลอง ${smoke.summary.nearCnx} เส้นอยู่ภายใน 50 กม. ของตัวเมือง และ ${smoke.summary.hitsCnx} เส้นเข้าเขตจังหวัด จากจุดตรวจจับ ${smoke.summary.total} จุด`, `${smoke.summary.nearCnx} modeled paths within 50 km of the city and ${smoke.summary.hitsCnx} entering the province, from ${smoke.summary.total} detections`)}</p><Observation at={smoke.generatedAt} label={t("รอบแบบจำลอง", "Model batch")} /></> : <p className="mt-2 text-[14px]">{t("ยังไม่มีรอบการพัดพาควันที่ยืนยันว่าปัจจุบัน ข้อมูลขาดไม่ใช่ไม่มีควัน", "No verified current smoke-transport run. Missing data is not no smoke.")}</p>}
+        {(smoke?.omittedTrajectories ?? 0) > 0 && <p className="mt-2 text-[14px] text-[var(--dim)]">{t(`เส้นทาง ${smoke!.omittedTrajectories} เส้นไม่มีข้อมูลครบ 6 ชม. จึงไม่รวมในเส้นทางที่แสดง ข้อมูลขาดไม่ใช่ไม่มีควัน`, `${smoke!.omittedTrajectories} trajectories lack full 6 h coverage and are omitted from displayed paths. Missing paths do not establish no smoke.`)}</p>}
+      </section>
 
-        <section className="mt-6">
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">{t("การให้คะแนนหมอกควันจากเว็บแคม", "Webcam haze scoring")}</h3>
-          <p lang="en" className="mt-1 max-w-[90ch] text-[12px] leading-relaxed text-[var(--dim)]">{hazeVision?.methodology}</p>
-          <p className="mt-1 text-[12px] text-[var(--ink)]">
-            {!agreement
-              ? t("ยังไม่มีการวัดความสอดคล้อง", "No agreement measurement yet.")
-              : agreement.r === null
-              ? agreement.pairs < 8
-                ? t(`ค่าภาคพื้นที่จับคู่กับภาพกล้องยังไม่พอ (${agreement.pairs}; ต้องการ 8)`, `Not enough distinct ground readings paired with camera frames yet (${agreement.pairs}; needs 8).`)
-                : t("คะแนนกล้องหรือค่าภาคพื้นที่จับคู่ไม่แปรผันพอจะคำนวณสหสัมพันธ์", "The camera scores or paired ground readings did not vary enough to calculate a correlation.")
-              : lang === "th"
-              ? agreement.spansHazeEvent
-                ? `ความสัมพันธ์กับค่า DustBoy ที่ตรงเวลา: r = ${agreement.r.toFixed(2)} จากค่าภาคพื้น ${agreement.pairs} ค่า แต่ละค่านับครั้งเดียวโดยใช้ค่าเฉลี่ยคะแนนกล้องที่จับคู่ ค่าภาคพื้นอยู่ระหว่างมัธยฐาน ${agreement.pm25Median} ถึง p95 ${agreement.pm25P95} µg/m³ มีค่าตั้งแต่ 50 µg/m³ ขึ้นไป ${agreement.eventReadings} ค่า นี่เป็นความสัมพันธ์ที่สังเกตได้ ไม่ใช่การวัดความแม่นยำในการตรวจจับ`
-                : `ยังไม่ได้ยืนยันความแม่นยำในการตรวจจับกับช่วงหมอกควันที่หลากหลาย ค่าภาคพื้น ${agreement.pairs} ค่า: มัธยฐาน ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95} และ ${agreement.eventReadings} ค่าที่ 50 ขึ้นไป สหสัมพันธ์ r = ${agreement.r.toFixed(2)} ในช่วงจำกัดนี้ยืนยันไม่ได้ว่ากล้องตรวจจับหมอกควันได้น่าเชื่อถือเพียงใด`
-              : agreement.spansHazeEvent
-              ? `Association with time-matched DustBoy readings: r = ${agreement.r.toFixed(2)} over ${agreement.pairs} distinct ground observations. Each sensor reading counts once, using the average of its paired camera scores. Ground readings spanned a median of ${agreement.pm25Median} to p95 ${agreement.pm25P95} µg/m³ with ${agreement.eventReadings} readings at or above 50 µg/m³. This is an observed association, not a measurement of detection accuracy.`
-              : `Detection accuracy is not yet established against a varied haze episode. ${agreement.pairs} distinct ground observations: median ${agreement.pm25Median} µg/m³, p95 ${agreement.pm25P95}, and ${agreement.eventReadings} at or above 50. Correlation r = ${agreement.r.toFixed(2)} on this limited window cannot establish how reliably the cameras detect haze.`}
-          </p>
-          {cams.length > 0 ? (
-            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
-              {cams.map((c) => (
-                <CameraCard key={c.cameraId} cam={c} />
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 border border-[var(--line)] bg-[var(--bg-surface)] p-3 text-[12px] text-[var(--dim)]">
-              {hazeVision?.note ?? t("กำลังโหลด…", "Loading…")} {t("เว็บแคมสาธารณะในเชียงใหม่ (Windy) อัปเดตเพียงไม่กี่ครั้งต่อวัน และภาพที่เก่ากว่า 6 ชม. จะไม่ถูกให้คะแนน", "Public Chiang Mai webcams (Windy) refresh only a few times a day, and frames older than 6 h are not scored.")}
-            </p>
-          )}
-        </section>
-
-        <CnxBurnSeason />
-
-        <section className="mt-6">
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-            {t(`รายงานจากประชาชนและข่าวท้องถิ่น (${reports.length}, 7 วันล่าสุด)`, `Citizen & local-news reports (${reports.length}, last 7 days)`)}
-          </h3>
-          <p lang="en" className="mt-1 max-w-[90ch] text-[12px] leading-relaxed text-[var(--dim)]">{citizen?.note}</p>
-          {reports.length > 0 ? (
-            <ul className="mt-2 divide-y divide-[var(--line)] border border-[var(--line)]">
-              {reports.slice(0, 60).map((r) => (
-                <li key={r.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-2 text-[12px]">
-                  <span className="font-mono text-[11px] uppercase text-[var(--cool)]">{r.source === "reddit" ? "Reddit" : t("ข่าว", "News")}</span>
-                  <a href={r.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 text-[var(--ink)] hover:underline">
-                    {r.title} <ExternalLink className="inline h-3 w-3" />
-                  </a>
-                  <span className="text-[var(--dim)]">
-                    {r.place
-                      ? `📍 ${t(r.place.nameTh, r.place.nameEn)} (±${r.place.precisionKm} ${t("กม.", "km")})`
-                      : t("ไม่ระบุสถานที่ — ไม่ปักหมุด", "no place named — not pinned")}{" "}
-                    · {ago(r.publishedAt, lang)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-[12px] text-[var(--dim)]">{t("ไม่มีรายงานหมอกควันใน 7 วันที่ผ่านมา", "No haze reports in the last 7 days.")}</p>
-          )}
-          {citizen && citizen.sources.length > 0 && (
-            <p className="mt-2 font-mono text-[11px] text-[var(--dim)]">
-              {t("แหล่งข้อมูลรอบนี้", "Sources this cycle")}: {citizen.sources.map((s) => `${s.label} ${s.ok ? `✓ ${s.items}` : `✗ ${t("ล้มเหลว", "failed")}`}`).join(" · ")}
-            </p>
-          )}
-        </section>
-      </div>
+      <section className="mt-6 border-t border-[var(--line)] pt-5"><h3 className="text-[18px] font-semibold">{citizenCurrent ? t(`รายงานสาธารณะและข่าว · ${state.reports.length} รายการใน 7 วัน`, `Public reports and news · ${state.reports.length} items in 7 days`) : t("รายงานสาธารณะและข่าว · ยังยืนยันจำนวนไม่ได้", "Public reports and news · count unconfirmed")}</h3><p className="mt-2 max-w-[65ch] text-[14px] leading-relaxed text-[var(--dim)]">{t("ค้นจากคำเกี่ยวกับหมอกควันในข่าวและ Reddit ไม่รวมทุกช่องทาง และยังไม่ยืนยันเหตุการณ์ รายการคงภาษาต้นฉบับ พิกัดเป็นเพียงพื้นที่ที่ข้อความเอ่ยถึง ไม่ใช่ตำแหน่งผู้รายงาน", "Keyword matches from news and Reddit do not cover every channel or confirm an incident. Titles retain their source language. Locations approximate places named in the text, not the reporter's position.")}</p>
+        {!citizenCurrent && <p className="mt-2 text-[14px]">{t("ฟีดรายงานขาดหายหรือเก่า จึงยืนยันจำนวนรายงานปัจจุบันไม่ได้", "Report feed is unavailable or stale; a current report count cannot be established")}</p>}
+        {citizenCurrent && state.reports.length === 0 && <p className="mt-2 text-[14px]">{t("ไม่มีรายการที่ผ่านเงื่อนไขในฟีดรอบนี้ ไม่ได้แปลว่าไม่มีหมอกควันหรือเหตุการณ์", "No qualifying items in this feed cycle; this does not mean no haze or incidents")}</p>}
+        <ul className="mt-3 divide-y divide-[var(--line)]">{state.reports.slice(0, 60).map(report => <li key={report.id} className="py-3 text-[14px] leading-relaxed"><a href={report.url} target="_blank" rel="noopener noreferrer" className="text-[var(--cool)] underline">{report.title}<ExternalLink aria-hidden="true" className="ml-1 inline h-3 w-3" /></a><p className="text-[13px] text-[var(--dim)]">{report.source === "reddit" ? "Reddit" : t("ข่าว", "News")} · {report.place ? t(`${report.place.nameTh} (±${report.place.precisionKm} กม.)`, `${report.place.nameEn} (±${report.place.precisionKm} km)`) : t("ไม่ระบุสถานที่", "No place named")}</p><Observation at={report.publishedAt} label={t("เผยแพร่", "Published")} /></li>)}</ul>
+        {citizen && <Observation at={citizen.generatedAt} label={t("รอบรวบรวมรายงาน", "Report collection batch")} />}
+      </section>
+      <details className="mt-6 border-t border-[var(--line)] pt-3"><summary className="min-h-11 cursor-pointer py-3 text-[14px] font-semibold">{t("พื้นที่เผาย้อนหลัง · บริบทฤดูกาล ไม่ใช่เหตุการณ์วันนี้", "Historical burn areas · seasonal context, not today's incidents")}</summary><CnxBurnSeason /></details>
     </div>
-  );
+  </div>;
 }
