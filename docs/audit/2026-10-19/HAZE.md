@@ -65,3 +65,40 @@ representative event-labelled evaluation are the next evidence gaps.
 ## Release verification
 
 Final checks and deployment evidence are appended after execution.
+
+Verified release: `3a55dbde8affb7bcdd703b3dae20743c8ce5f93f`, pushed to main.
+Cloudflare version: `c6243a39-2517-4260-acc9-eef4c0d80aaa`.
+
+- CI run 39270329938: full workflow green. Node 22.12.0: 1,167 tests in
+  117 files; Node 20.19.0: 1,166 passed, one expected skip. Typecheck/lint
+  pass on both. Plain Node relay imports and Worker build pass.
+- Local typecheck, lint, relay imports and production build pass. The first
+  local whole-suite run predated the final test-clock correction; it found two
+  inconsistent mocked-Date cases. Focused relay/contract rerun passed 45 tests;
+  the exact pushed commit then passed the full CI matrix above. The redundant
+  older local run was stopped rather than reported as green.
+- Independent code reviews covered relay/state contracts, smoke engine/feed,
+  modal lifecycle/focus and watch routing. Independent visual review covered
+  desktop/tablet/phone, English/dark, expanded stations and lower camera/smoke
+  evidence. No blocking findings remained.
+- `verify-deploy.mjs --expect haze-vision --expect rain --expect river-level`:
+  PASS, 49 routes, clean/pushed release identity; rain 346 current gauges,
+  river 45 current gauges; unauthorized ingestion denied.
+- Only `org.nonarkara.cnx-flights-relay` was restarted (new PID 90949).
+  Production haze batch 14:47:55 UTC is live; its frame remains dated 14:23:05
+  UTC and `no-colour`, score null. Persisted dedup-only history is present.
+  Separate computer-vision services were not changed.
+- Production ground panel: PCD mean 19.4 µg/m³ from two stations; 109 usable
+  DustBoy points across 21 Chiang Mai districts. CAMS AOD now explicitly carries
+  model observation time 14:00 UTC, separate from assembly time 14:47:44 UTC.
+  Smoke response identifies forecast-field method and two omitted paths.
+- Live browser: Thai/English × light/dark × 1440/1024/390 px (12 states), no
+  horizontal overflow or sub-4.5 contrast among 66 rendered essential text
+  nodes per state. Expanded station disclosure: 399 checked text nodes pass.
+  Real Shift-Tab from Close wraps to the last disclosure summary, not hidden
+  controls. No browser console errors recorded in the verification tab.
+- Evidence files: `/Volumes/Data/CNX/audit-artifacts/2026-10-19/haze/`, including
+  twelve labeled live screenshots, lower/station screenshots, contrast matrix
+  and sampled API JSON. These are local audit evidence, not bundled assets.
+- Production tab restored to Thai dark operations map; temporary local preview
+  stopped and viewport override reset.
