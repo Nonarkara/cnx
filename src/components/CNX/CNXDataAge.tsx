@@ -165,7 +165,7 @@ export function DataAge({
 
   return (
     <span className={`font-mono text-[11px] tracking-[0.08em] ${tone} ${className}`.trim()}>
-      {source} · {absolute ? <time dateTime={new Date(stamp).toISOString()} title={absolute} aria-label={`${text} · ${absolute}`}>{text}</time> : text}
+      {source} · {absolute ? <time dateTime={typeof observedAt === "string" ? observedAt : new Date(stamp).toISOString()} title={absolute} aria-label={`${text} · ${absolute}`}>{text}</time> : text}
     </span>
   );
 }
