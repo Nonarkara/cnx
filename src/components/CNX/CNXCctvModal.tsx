@@ -231,8 +231,8 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
             {slot.hlsUrl ? ` · ${t("สตรีมวิดีโอจากต้นทาง", "upstream video stream")}` : slot.playerUrl ? ` · ${t("เครื่องเล่นต้นทาง อาจรวมภาพย้อนหลัง", "upstream player; may include recordings")}` : slot.posterUrl ? ` · ${t(`รีเฟรชภาพทุก ${Math.max(30, slot.snapshotRefreshSec ?? 150)} วินาที`, `image refresh every ${Math.max(30, slot.snapshotRefreshSec ?? 150)} seconds`)}` : ""}
             {slot.source === "municipal" && ` · ${t("เครือข่ายกล้องเทศบาล/อบจ.", "municipal / PAO camera network")}`}
           </span>
-          {slot.upstreamUrl && (
-            <a href={slot.upstreamUrl} target="_blank" rel="noreferrer" className="underline hover:text-[var(--ink)]">
+          {(slot.upstreamUrl || slot.playerUrl) && (
+            <a href={slot.upstreamUrl || slot.playerUrl} target="_blank" rel="noreferrer" className="underline hover:text-[var(--ink)]">
               {t("เปิดต้นทาง", "Open source")} ↗
             </a>
           )}

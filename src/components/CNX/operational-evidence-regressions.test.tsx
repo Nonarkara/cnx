@@ -83,7 +83,7 @@ it("replaces a known offline external player with a readable fallback and source
   expect(container.textContent).toContain("cannot confirm current conditions");
   expect(container.textContent).toContain("stale");
   expect(container.querySelector("time")?.dateTime).toBe(camera.capturedAt);
-  expect(container.querySelector('a[target="_blank"]')).not.toBeNull();
+  expect(container.querySelector('a[target="_blank"]')?.getAttribute("href")).toBe(offline.playerUrl);
   await act(async () => root.render(<CnxCctvModal slot={{ ...offline, reachable: true }} onClose={vi.fn()} />));
   expect(container.querySelector("iframe")?.src).toBe(offline.playerUrl);
 });
