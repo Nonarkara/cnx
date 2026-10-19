@@ -74,3 +74,16 @@ it("keeps modeled forecast actions in the visible printable brief and copied LIN
   expect(writeText.mock.calls[0][0]).toContain("48 ชม. ฝุ่น (แบบจำลอง)");
   expect(writeText.mock.calls[0][0]).toContain("แม่ริม");
 });
+
+it("replaces a known offline external player with a readable fallback and source link", async () => {
+  const offline = { ...camera, source: "windy" as const, reachable: false, playerUrl: "https://example.test/player" };
+  await act(async () => root.render(<CnxCctvModal slot={offline} onClose={vi.fn()} />));
+  expect(container.querySelector("iframe")).toBeNull();
+  expect(container.textContent).toContain("Camera view unavailable");
+  expect(container.textContent).toContain("cannot confirm current conditions");
+  expect(container.textContent).toContain("stale");
+  expect(container.querySelector("time")?.dateTime).toBe(camera.capturedAt);
+  expect(container.querySelector('a[target="_blank"]')).not.toBeNull();
+  await act(async () => root.render(<CnxCctvModal slot={{ ...offline, reachable: true }} onClose={vi.fn()} />));
+  expect(container.querySelector("iframe")?.src).toBe(offline.playerUrl);
+});

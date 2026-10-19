@@ -5,7 +5,7 @@
 // Stream strategy, by what the camera actually publishes (same priority
 // as NST's CctvStreamModal):
 //   hlsUrl    → <video> via lazily-loaded hls.js (Safari plays natively)
-//   playerUrl → <iframe> of the upstream day-player (Windy)
+//   playerUrl → upstream day-player when reachable; readable offline fallback otherwise
 //   posterUrl → refreshing JPEG snapshot
 //   none      → honest "no stream" message (never a fake frame)
 //
@@ -191,6 +191,14 @@ export default function CnxCctvModal({ slot, onClose }: Props) {
         <div className="min-h-0 shrink overflow-y-auto bg-black">
           {slot.hlsUrl ? (
             <HlsVideo src={slot.hlsUrl} label={t(slot.labelTh ?? slot.label, slot.labelEn ?? slot.label)} />
+          ) : slot.playerUrl && !slot.reachable ? (
+            <div className="bg-[var(--bg-raised)] p-4 text-[13px] leading-relaxed text-[var(--ink)]">
+              <p className="font-semibold">{t("ภาพกล้องไม่พร้อมใช้งาน", "Camera view unavailable")}</p>
+              <p className="mt-1 max-w-[65ch] text-[var(--dim)]">{t(
+                "ต้นทางรายงานว่ากล้องออฟไลน์ จึงใช้ยืนยันสภาพปัจจุบันไม่ได้ ตรวจเวลาถ่ายล่าสุดและเปิดแหล่งข้อมูลด้านล่างเพื่อตรวจสอบต่อ",
+                "The source reports this camera offline, so it cannot confirm current conditions. Check the last capture time and use the source link below to follow up.",
+              )}</p>
+            </div>
           ) : slot.playerUrl ? (
             <iframe
               key={slot.id}
