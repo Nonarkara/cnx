@@ -70,9 +70,15 @@ async function collectAndPush({ baseUrl, secret }) {
     }
   }
   saveState(state);
+  const generatedAt = new Date().toISOString();
+  // Ingest validates against this shared clock; serial captures can cross an age boundary.
+  const batchTime = Date.parse(generatedAt);
+  const agedCameras = cameras.map(camera => camera.metrics
+    ? { ...camera, status: waterImageStatus(camera.metrics, camera.observedAt, batchTime) }
+    : camera);
   const response = await fetch(`${baseUrl}/api/cnx/water-vision/ingest`, {
     method: "POST", redirect: "error", headers: { "Content-Type": "application/json", "X-Relay-Secret": secret },
-    body: JSON.stringify({ generatedAt: new Date().toISOString(), cameras }), signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({ generatedAt, cameras: agedCameras }), signal: AbortSignal.timeout(20_000),
   });
   if (!response.ok) throw new Error(`water-view ingest ${response.status}`);
   console.log(`[water] sampled ${cameras.filter(c => c.metrics !== null).length}/${WATER_CAMERAS.length} DWR views (image quality only)`);

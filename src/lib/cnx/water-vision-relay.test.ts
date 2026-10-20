@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import { WATER_CAMERAS } from "./water-vision-core";
+import { isWaterVisionPayload } from "./water-vision";
 const disk = vi.hoisted(() => ({ value: "{}" }));
 vi.mock("node:fs", async original => ({ ...await original<typeof import("node:fs")>(), readFileSync: vi.fn(() => disk.value), mkdirSync: vi.fn(), writeFileSync: vi.fn((_p: string, text: string) => { disk.value = text; }), renameSync: vi.fn() }));
 let relay: typeof import("../../../scripts/water-vision.mjs");
@@ -19,6 +20,19 @@ beforeEach(async () => {
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 const run = () => relay.runWaterVision({ baseUrl: "https://cnx.test", secret: "test-secret" });
 const pushed = () => JSON.parse(fetcher.mock.calls.find(call => call[1]?.method === "POST")![1].body);
+
+it("ages every image at the final batch clock when serial collection crosses the stale boundary", async () => {
+  takenAt = new Date(NOW - 45 * 60_000 + 1000).toISOString();
+  let captures = 0;
+  fetcher.mockImplementation(async (_url: string, init?: RequestInit) => {
+    if (init?.method === "POST") return Response.json({ ok: true });
+    if (++captures === 2) vi.setSystemTime(NOW + 2000);
+    return new Response(new Uint8Array(frame), { headers: { "content-type": "image/png", "x-taken-at": takenAt! } });
+  });
+  await run();
+  expect(pushed().cameras[0].status).toBe("stale");
+  expect(isWaterVisionPayload(pushed())).toBe(true);
+});
 
 it("captures exactly three pinned DWR views, retains credit and separates known capture from collection", async () => {
   await run();
