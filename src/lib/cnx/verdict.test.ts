@@ -550,3 +550,46 @@ describe("computeVerdict — measured rain at gauges", () => {
     }
   });
 });
+
+describe("smoke reason reports the transport method", () => {
+  const input: VerdictInputs = { pm25_now: null, pm25_fc_24h: null, rain_fc_24h_mm: null, rain_now_24h_mm: null, ping_capacity_ratio: null, reservoir_surge: false, fire_count: null, wind_kmh: null, provenance: "mixed", flood_provenance: "unavailable", smoke_near_cnx: 1, smoke_hits_cnx: 2 };
+  const reason = (smoke_method: "forecast-field" | "straight-line" | null) => computeVerdict({ ...input, smoke_method }).reasons.find(r => r.evidence === "near=1 hits=2")!;
+  it("describes forecast-field hourly paths rather than claiming straight-line advection", () => {
+    const r = reason("forecast-field");
+    expect(r.en).toContain("850 hPa hourly wind model");
+    expect(r.th).toContain("850 hPa");
+    expect(r.en).toContain("sampled positions over 0–6 h");
+    expect(r.en).toContain("not observed smoke arrival");
+    expect(r.en).not.toContain("Straight-line");
+    expect(r.th).not.toContain("แนวลมตรง");
+  });
+  it("identifies the single-wind straight-line fallback", () => {
+    const r = reason("straight-line");
+    expect(r.en).toContain("Single city surface-wind straight-line fallback");
+    expect(r.th).toContain("ลมผิวพื้นเมืองจุดเดียว");
+    expect(r.en).not.toContain("850 hPa");
+  });
+  it("keeps an unknown method neutral without asserting arrival or a named model", () => {
+    const r = reason(null);
+    expect(r.en).toContain("transport method unconfirmed");
+    expect(r.en).not.toContain("Straight-line");
+    expect(r.en).not.toContain("850 hPa");
+    expect(r.en).toContain("not observed smoke arrival");
+  });
+});
+
+describe("VIIRS count reasons do not infer land use or spread", () => {
+  it.each([[10, 6], [30, 12], [100, 20]])("keeps %i detections factual without changing the score", (fire_count, score) => {
+    const v = computeVerdict({ pm25_now: null, pm25_fc_24h: null, rain_fc_24h_mm: null, rain_now_24h_mm: null, ping_capacity_ratio: null, reservoir_surge: false, fire_count, wind_kmh: null, provenance: "mixed", flood_provenance: "unavailable" });
+    const r = v.reasons.find(reason => reason.evidence === `hotspots=${fire_count}`)!;
+    expect(v.score).toBe(score);
+    expect(r.en).toContain("24 h satellite detections");
+    expect(r.en).toContain("field verification");
+    expect(r.en).toContain("cloud can hide detections");
+    expect(r.en).not.toMatch(/agricultural|forest|expanding|intense/i);
+    expect(r.th).toContain("24 ชม.");
+    expect(r.th).toContain("ตรวจสอบภาคสนาม");
+    expect(r.th).toContain("เมฆ");
+    expect(r.th).not.toMatch(/เผาป่า|กำลังขยาย/);
+  });
+});

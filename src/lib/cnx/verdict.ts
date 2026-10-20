@@ -312,10 +312,11 @@ export interface VerdictInputs {
   flood_provenance: "live" | "scenario" | "unavailable";
   /** Chiang Mai DustBoy average, µg/m³. Omit when the feed is not live. */
   dustboy_pm25?: number | null;
-  /** Plumes whose 6 h endpoint falls inside the province bbox. */
+  /** Complete modeled paths with origin/hourly samples inside the province outline. */
   smoke_hits_cnx?: number | null;
-  /** Plumes whose 6 h endpoint is within 50 km of the city centre. */
+  /** Complete modeled paths with origin/hourly samples within 50 km of the city. */
   smoke_near_cnx?: number | null;
+  smoke_method?: "forecast-field" | "straight-line" | null;
   smoke_origin_th?: string | null;
   smoke_origin_en?: string | null;
   /**
@@ -552,12 +553,16 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   const near = input.smoke_near_cnx;
   const hits = input.smoke_hits_cnx;
   if ((typeof near === "number" && near > 0) || (typeof hits === "number" && hits > 0)) {
-    const originTh = input.smoke_origin_th || "รอบเชียงใหม่";
-    const originEn = input.smoke_origin_en || "around Chiang Mai";
+    const methodTh = input.smoke_method === "forecast-field" ? "แบบจำลองลมรายชั่วโมง 850 hPa"
+      : input.smoke_method === "straight-line" ? "แนวตรงจากลมผิวพื้นเมืองจุดเดียว" : "ยังไม่ยืนยันวิธีคำนวณลม";
+    const methodEn = input.smoke_method === "forecast-field" ? "850 hPa hourly wind model"
+      : input.smoke_method === "straight-line" ? "Single city surface-wind straight-line fallback" : "transport method unconfirmed";
+    const originTh = input.smoke_origin_th ? ` · จุดความร้อน${input.smoke_origin_th}` : "";
+    const originEn = input.smoke_origin_en ? `; detections ${input.smoke_origin_en}` : "";
     reasons.push({
       domain: "haze",
-      th: `ควัน ${near ?? 0} กลุ่มเข้าใกล้เมืองใน 6 ชม. (${hits ?? 0} กลุ่มเข้าจังหวัด) — มาจาก${originTh} แนวลมตรง ไม่ใช่พยากรณ์`,
-      en: `${near ?? 0} plume(s) within 50 km at 6 h (${hits ?? 0} enter the province) — from ${originEn}. Straight-line advection, not a forecast`,
+      th: `จุดตัวอย่างเส้นทางจำลอง 0–6 ชม.: ${near ?? 0} แนวใน 50 กม. จากเมือง (${hits ?? 0} แนวในจังหวัด) · ${methodTh}${originTh} ไม่ใช่การยืนยันว่าควันมาถึง`,
+      en: `${near ?? 0} modeled paths with sampled positions over 0–6 h within 50 km (${hits ?? 0} in province); ${methodEn}${originEn}; not observed smoke arrival`,
       evidence: `near=${near ?? 0} hits=${hits ?? 0}`,
     });
   }
@@ -569,24 +574,24 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
       fireScore = 20;
       reasons.push({
         domain: "fire",
-        th: `จุดความร้อน VIIRS ${input.fire_count} จุดใน 24 ชม. — เผาป่าเข้มข้น`,
-        en: `VIIRS hotspots ${input.fire_count} in 24h — intense agricultural burning`,
+        th: `จุดความร้อนดาวเทียม VIIRS ${input.fire_count} จุดใน 24 ชม. — ต้องตรวจสอบภาคสนาม เมฆอาจบดบังจุดความร้อน`,
+        en: `VIIRS: ${input.fire_count} 24 h satellite detections — field verification needed; cloud can hide detections`,
         evidence: `hotspots=${input.fire_count}`,
       });
     } else if (input.fire_count >= 30) {
       fireScore = 12;
       reasons.push({
         domain: "fire",
-        th: `จุดความร้อน VIIRS ${input.fire_count} จุด — เผาป่ากำลังขยาย`,
-        en: `VIIRS hotspots ${input.fire_count} — burning expanding`,
+        th: `จุดความร้อนดาวเทียม VIIRS ${input.fire_count} จุดใน 24 ชม. — ต้องตรวจสอบภาคสนาม เมฆอาจบดบังจุดความร้อน`,
+        en: `VIIRS: ${input.fire_count} 24 h satellite detections — field verification needed; cloud can hide detections`,
         evidence: `hotspots=${input.fire_count}`,
       });
     } else if (input.fire_count >= 10) {
       fireScore = 6;
       reasons.push({
         domain: "fire",
-        th: `จุดความร้อน VIIRS ${input.fire_count} จุด`,
-        en: `VIIRS hotspots ${input.fire_count}`,
+        th: `จุดความร้อนดาวเทียม VIIRS ${input.fire_count} จุดใน 24 ชม. — ต้องตรวจสอบภาคสนาม เมฆอาจบดบังจุดความร้อน`,
+        en: `VIIRS: ${input.fire_count} 24 h satellite detections — field verification needed; cloud can hide detections`,
         evidence: `hotspots=${input.fire_count}`,
       });
     }

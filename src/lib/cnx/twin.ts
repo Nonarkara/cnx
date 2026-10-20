@@ -323,6 +323,7 @@ export async function fetchCnxTwin(): Promise<CnxTwinResponse> {
     smoke_near_cnx: smokeLive ? smoke.summary.nearCnx : null,
     smoke_origin_th: smokeLive ? smoke.summary.origin_th : null,
     smoke_origin_en: smokeLive ? smoke.summary.origin_en : null,
+    smoke_method: smokeLive ? smoke.method ?? null : null,
   };
   const verdict = computeVerdict(verdictInputs);
 
