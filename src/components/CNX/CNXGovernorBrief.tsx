@@ -194,7 +194,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
         {floodStatus !== "loading" && !brief.currentFloodForecast && <p role="status" className="mt-2 text-[12px] text-[var(--dim)]">{floodStatus === "error"
           ? t("Google Flood Hub อ่านไม่ได้ในรอบนี้ ไม่ใช้ค่าที่เก็บจากรอบก่อน ให้ดูระดับน้ำและประกาศทางการ", "Google Flood Hub is unavailable this check. Prior results are excluded; use measured river levels and official notices.")
           : t("ไม่มีพยากรณ์ Google Flood Hub ที่ยังใช้ได้ในขณะนี้ ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม", "No current Google Flood Hub forecast is available; this does not confirm an absence of flooding.")}</p>}
-        <section className="mt-6 grid gap-3 sm:grid-cols-2">
+        <section className="mt-6 grid items-start gap-3 sm:grid-cols-2">
           {brief.tiles.map((tile) => (
             <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
               <div className="flex items-baseline justify-between gap-2">
@@ -218,15 +218,15 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
 
         {operationalNotes.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
           <h3 className="text-lg font-semibold">{t("หลักฐานปฏิบัติการเพิ่มเติม", "Additional operational evidence")}</h3>
-          <ul className="mt-3 space-y-2">{operationalNotes.map((note, index) => <li key={index} className="text-sm leading-relaxed">{t(note.th, note.en)}</li>)}</ul>
+          <ul className="mt-3 grid items-start gap-x-6 gap-y-3 md:grid-cols-2">{operationalNotes.map((note, index) => <li key={index} className="min-w-0 max-w-[65ch] break-words text-sm leading-relaxed">{t(note.th, note.en)}</li>)}</ul>
         </section>}
         {brief.actions.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
           <h3 className="text-lg font-semibold">{t("ประเด็นที่ควรตรวจสอบต่อ", "Points to check next")}</h3>
-          <ol className="mt-3 space-y-3">{brief.actions.map((action) => <li key={action.id} className="text-sm leading-relaxed">{t(action.th, action.en)}</li>)}</ol>
+          <ol className="mt-3 space-y-3">{brief.actions.map((action) => <li key={action.id} className="min-w-0 max-w-[65ch] break-words text-sm leading-relaxed">{t(action.th, action.en)}</li>)}</ol>
         </section>}
         <section className="mt-6 overflow-x-auto">
           <h3 className="text-[13px] font-bold text-[var(--ink)]">{t("อำเภอที่มีหลักฐานสำหรับติดตาม", "Districts with evidence to follow")}</h3>
-          <p className="text-[11px] text-[var(--dim)]">
+          <p className="max-w-[65ch] text-[11px] text-[var(--dim)]">
             {t(
               "PM2.5 คือค่าเฉลี่ยสถานี DustBoy ที่ใช้ได้ในอำเภอ ไม่ครอบคลุมทุกพื้นที่ ส่วนพื้นที่เผาปีก่อนมาจาก HII Tamroypao และอาจนับพื้นที่เดิมซ้ำเมื่อเผาหลายครั้ง ไม่ใช่เหตุการณ์วันนี้",
               "PM2.5 is the average of usable DustBoy stations in the district and does not cover every area. Last season's burned area comes from HII Tamroypao and may count the same land twice when it burned more than once; it is not today's event.",
