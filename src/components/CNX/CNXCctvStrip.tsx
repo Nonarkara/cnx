@@ -4,6 +4,7 @@
 // Reachability and image errors are explicit; still images are never labelled live.
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Cctv } from "lucide-react";
 import type { CctvFeedResponse, CctvSlot } from "../../types/cnx";
 import CnxCctvModal from "./CNXCctvModal";
@@ -143,7 +144,10 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
           )}
         </div>
       </div>
-      <CnxCctvModal slot={selected} onClose={() => setSelected(null)} />
+      {selected && createPortal(
+        <CnxCctvModal slot={selected} onClose={() => setSelected(null)} />,
+        document.body,
+      )}
     </section>
   );
 }

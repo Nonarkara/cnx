@@ -9,6 +9,7 @@ import type { CctvSlot } from "../../types/cnx";
 import type { ProvinceOutlook } from "../../lib/cnx/outlook";
 import CnxArrivalsPanel from "./CNXArrivalsPanel";
 import CnxCctvModal from "./CNXCctvModal";
+import CnxCctvStrip from "./CNXCctvStrip";
 import CnxGovernorBrief from "./CNXGovernorBrief";
 vi.mock("../../lib/client-requests", () => ({ fetchJsonOrNull: vi.fn() }));
 let container: HTMLDivElement;
@@ -62,6 +63,18 @@ it("names missing camera capture time instead of implying freshness", async () =
   await act(async () => root.render(<CnxCctvModal slot={{ ...camera, capturedAt: undefined }} onClose={vi.fn()} />));
   expect(container.textContent).toContain("Capture time unknown");
   expect(container.querySelector("time")).toBeNull();
+});
+it("keeps an open camera dialog outside a hidden responsive gallery and allows Escape", async () => {
+  await act(async () => root.render(<CnxCctvStrip feed={{ generatedAt: new Date().toISOString(), slots: [camera], totalCount: 1, reachableCount: 1 }} />));
+  await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+  container.style.display = "none";
+  const dialog = document.body.querySelector('[role="dialog"]');
+  expect(dialog).not.toBeNull();
+  expect(container.contains(dialog)).toBe(false);
+  expect(dialog?.contains(document.activeElement)).toBe(true);
+  await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.body.style.overflow).not.toBe("hidden");
 });
 it("keeps modeled forecast actions in the visible printable brief and copied LINE text", async () => {
   const outlook: ProvinceOutlook = { available: true, fetchedAt: "2026-10-14T16:00:00Z", rain: [], air: [{ district: { nameTh: "แม่ริม", nameEn: "Mae Rim", rain6h: 0, rain24h: 0, rain48h: 0, peakRainMmH: 0, peakRainAt: null, pm25Peak: 90, pm25PeakAt: Date.now() / 1000 }, level: "alert", peak: 90, peakAt: Date.now() / 1000, point: { lat: 18.8, lon: 99 } }], wettest: null, dirtiest: null, hasPm25: true };
