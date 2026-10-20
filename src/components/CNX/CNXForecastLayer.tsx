@@ -133,6 +133,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
   const [overlay, setOverlay] = useState<ForecastOverlay>("none");
   const [hour, setHour] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const basisRef = useRef<ScreenBasis | null>(null);
@@ -410,15 +411,15 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
       <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] h-full w-full" />
       <section
         aria-label={tr("พยากรณ์ลม ฝน และฝุ่น 48 ชั่วโมง", "48-hour wind, rain and PM2.5 forecast")}
-        className="absolute bottom-8 left-1/2 z-10 w-[min(640px,calc(100%-1rem))] -translate-x-1/2 border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
+        className="absolute bottom-8 left-1/2 z-10 w-fit max-w-[calc(100%-1rem)] -translate-x-1/2 border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
       >
         {!field ? (
-          <p className="px-3 py-2 text-[13px] text-[var(--dim)]">
+          <p className="max-w-[320px] px-2 py-1 text-[12px] text-[var(--dim)]">
             {tr("พยากรณ์ลม/ฝน/ฝุ่น: ไม่มีข้อมูลขณะนี้", "Wind/rain/PM2.5 forecast: no data right now")} — {forecast ? tr(NOTE_TH_UNAVAILABLE, forecast.note) : tr("กำลังโหลด…", "loading…")}
           </p>
         ) : (
           <>
-            <div className="flex items-center gap-2 px-2 pt-2">
+            <div className="flex w-[320px] max-w-full items-center gap-1 px-1">
               <button
                 type="button"
                 onClick={() => {
@@ -426,44 +427,45 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
                   setPlaying((p) => !p);
                 }}
                 aria-label={playing ? tr("หยุดเล่นพยากรณ์", "Pause forecast") : tr("เล่นพยากรณ์ 48 ชั่วโมง", "Play 48-hour forecast")}
-                className="flex h-11 w-11 shrink-0 items-center justify-center border border-[var(--line)] text-[16px]"
+                aria-pressed={playing}
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-[14px] focus-visible:outline-2 focus-visible:outline-[var(--cool)]"
               >
                 {playing ? "❚❚" : "▶"}
               </button>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[14px] font-semibold tabular-nums">{timeFmt[lang].format(new Date(t * 1000))}</span>
-                  <span className="shrink-0 text-[12px] text-[var(--dim)]">{hour === 0 ? tr("ตอนนี้", "now") : tr(`อีก ${hour} ชม.`, `+${hour} h`)}</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={maxHour}
-                  step={1}
-                  value={hour}
-                  onChange={(e) => {
-                    setPlaying(false);
-                    setHour(Number(e.target.value));
-                  }}
-                  aria-label={tr("เวลาพยากรณ์", "Forecast time")}
-                  aria-valuetext={`${timeFmt[lang].format(new Date(t * 1000))}, ${tr(`อีก ${hour} ชั่วโมง`, `in ${hour} ${hour === 1 ? "hour" : "hours"}`)}`}
-                  className="h-6 w-full cursor-pointer accent-[var(--cool)]"
-                />
+              <div className="min-w-0 flex-1 text-[12px] leading-tight">
+                <time dateTime={new Date(t * 1000).toISOString()} title={timeFmt[lang].format(new Date(t * 1000))} className="block truncate text-[13px] font-semibold tabular-nums">
+                  {new Intl.DateTimeFormat(lang === "th" ? "th-TH" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(new Date(t * 1000))}
+                </time>
+                <span className="block truncate text-[var(--dim)]" title={tr("แบบจำลอง ไม่ใช่ค่าวัด", "Model, not a measurement")}>
+                  {tr("แบบจำลอง", "Model")} · {windOn ? level === "10m" ? tr("ลม 10 ม.", "Wind 10 m") : tr("ลม 850 hPa", "Wind 850 hPa") : tr("ปิดลม", "Wind off")}{overlay !== "none" ? ` · ${overlay === "rain" ? tr("ฝน", "Rain") : "PM2.5"}` : ""}
+                </span>
               </div>
-              {hour > 0 && (
-                <button type="button" onClick={() => { setPlaying(false); setHour(0); }} className="h-11 shrink-0 border border-[var(--line)] px-2 text-[12px] font-semibold">
-                  {tr("กลับมาตอนนี้", "Back to now")}
-                </button>
-              )}
+              <input
+                type="range" min={0} max={maxHour} step={1} value={hour}
+                onChange={(e) => { setPlaying(false); setHour(Number(e.target.value)); }}
+                aria-label={tr("เวลาพยากรณ์", "Forecast time")}
+                aria-valuetext={`${timeFmt[lang].format(new Date(t * 1000))}, ${tr(`อีก ${hour} ชั่วโมง`, `in ${hour} ${hour === 1 ? "hour" : "hours"}`)}`}
+                className="h-11 w-16 shrink-0 cursor-pointer accent-[var(--cool)] focus-visible:outline-2 focus-visible:outline-[var(--cool)]"
+              />
+              <button type="button" aria-expanded={detailsOpen} aria-controls="cnx-forecast-details" onClick={() => setDetailsOpen(open => !open)}
+                aria-label={tr("รายละเอียดและชั้นพยากรณ์", "Forecast layers and details")}
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-[16px] focus-visible:outline-2 focus-visible:outline-[var(--cool)]">
+                <span aria-hidden="true">{detailsOpen ? "⌃" : "⋯"}</span>
+              </button>
             </div>
+            <div id="cnx-forecast-details" hidden={!detailsOpen} className="max-w-[320px]">
+              <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] px-2 text-[12px]">
+                <span>{hour === 0 ? tr("ตอนนี้ · UTC+7", "Now · UTC+7") : tr(`อีก ${hour} ชม. · UTC+7`, `+${hour} h · UTC+7`)}</span>
+                <button type="button" onClick={() => { setPlaying(false); setHour(0); }} className="min-h-11 px-1 text-[var(--cool)] underline focus-visible:outline-2 focus-visible:outline-[var(--cool)]">{tr("กลับมาตอนนี้", "Back to now")}</button>
+              </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 pb-2 pt-1 text-[12px]">
-              <fieldset className="flex items-center gap-1">
+              <fieldset className="flex flex-wrap items-center gap-1">
                 <legend className="sr-only">{tr("ชั้นลม", "Wind layer")}</legend>
                 <ChipButton pressed={windOn && level === "10m"} onClick={() => { setWindOn(true); setLevel("10m"); }} title={tr("ลมที่ความสูง 10 เมตร — ลมที่คนบนพื้นรู้สึก", "Wind at 10 m — the wind people feel on the ground")}>{tr("ลมผิวพื้น", "Surface wind")}</ChipButton>
                 <ChipButton pressed={windOn && level === "850hPa"} onClick={() => { setWindOn(true); setLevel("850hPa"); }} title={tr("ลมระดับ 850 hPa (~1.5 กม.) — ระดับที่พาควันเดินทางข้ามเขา ใช้คำนวณแนวควัน", "Wind at 850 hPa (~1.5 km) — the level that carries smoke over the hills; used for smoke paths")}>{tr("ลมพาควัน ~1.5 กม.", "Smoke wind ~1.5 km")}</ChipButton>
                 <ChipButton pressed={!windOn} onClick={() => setWindOn(false)} title={tr("ซ่อนลูกศรลม", "Hide wind arrows")}>{tr("ปิดลม", "Wind off")}</ChipButton>
               </fieldset>
-              <fieldset className="flex items-center gap-1">
+              <fieldset className="flex flex-wrap items-center gap-1">
                 <legend className="sr-only">{tr("ชั้นพยากรณ์", "Forecast layer")}</legend>
                 <ChipButton pressed={overlay === "rain"} onClick={() => setOverlay((o) => (o === "rain" ? "none" : "rain"))} title={tr("ฝนพยากรณ์รายชั่วโมง (มม./ชม.)", "Hourly rain forecast (mm/h)")}>{tr("ฝน", "Rain")}</ChipButton>
                 <ChipButton pressed={overlay === "pm25"} onClick={() => setOverlay((o) => (o === "pm25" ? "none" : "pm25"))} disabled={!field.pm25} title={field.pm25 ? tr("PM2.5 พยากรณ์จากแบบจำลอง CAMS (µg/m³)", "PM2.5 forecast from the CAMS model (µg/m³)") : tr("แบบจำลองฝุ่น CAMS ไม่ตอบ", "The CAMS dust model did not answer")}>PM2.5</ChipButton>
@@ -480,6 +482,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
               {" · "}
               <span title={forecast?.note ? tr(NOTE_TH_GRID, forecast.note) : undefined}>{tr(`แบบจำลอง Open-Meteo${field.pm25 ? " · CAMS" : ""} ไม่ใช่ค่าวัด`, `Open-Meteo${field.pm25 ? " · CAMS" : ""} model, not a measurement`)}{fetchedAgo !== null ? tr(` · ดึงเมื่อ ${fetchedAgo} ชม.ก่อน`, ` · fetched ${fetchedAgo} h ago`) : ""}</span>
             </p>
+            </div>
             {overlay !== "none" && <Legend overlay={overlay} />}
           </>
         )}
@@ -496,7 +499,7 @@ function ChipButton({ pressed, onClick, children, title, disabled }: { pressed: 
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`min-h-9 border px-2 font-semibold disabled:opacity-40 ${pressed ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--bg)]" : "border-[var(--line)] text-[var(--ink)]"}`}
+      className={`min-h-11 border px-2 font-semibold focus-visible:outline-2 focus-visible:outline-[var(--cool)] disabled:cursor-not-allowed disabled:text-[var(--dim)] ${pressed ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--bg)]" : "border-[var(--line)] text-[var(--ink)]"}`}
     >
       {children}
     </button>

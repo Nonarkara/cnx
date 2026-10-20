@@ -45,3 +45,16 @@ it.each([false, true])("hands off all four brief topics to the real operations s
     expect(document.activeElement?.id).toBe(desktop ? "operation-evidence" : "hazard-panels");
   }
 });
+
+it.each([false, true])("keeps camera sources available on demand, desktop=%s", async desktop => {
+  vi.spyOn(window, "matchMedia").mockImplementation(query => ({ matches: query.includes("1280") ? desktop : query.includes("1024") ? desktop : false, media: query, onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: () => true }));
+  await act(async () => root.render(<CnxApp />));
+  if (!desktop) await act(async () => [...container.querySelectorAll<HTMLButtonElement>('#hazard-panels button')].find(button => button.textContent?.trim() === "Water & rain")!.click());
+  const host = desktop ? container.querySelector('[aria-label="Measured operational conditions"]')! : container.querySelector('#hazard-panels')!;
+  const details = host.querySelector('details')!;
+  expect(host.querySelector('[aria-label="CNX CCTV — all real cameras"]')).toBeNull();
+  await act(async () => { details.open = true; details.dispatchEvent(new Event("toggle")); });
+  expect(host.querySelector('[aria-label="CNX CCTV — all real cameras"]')).not.toBeNull();
+  await act(async () => { details.open = false; details.dispatchEvent(new Event("toggle")); });
+  expect(host.querySelector('[aria-label="CNX CCTV — all real cameras"]')).toBeNull();
+});

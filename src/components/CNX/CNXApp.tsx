@@ -70,6 +70,19 @@ function MapLoading() {
 }
 const CNXMap = dynamic(() => import("./CNXMap"), { ssr: false, loading: () => <MapLoading /> });
 const CnxGlyphLegend = dynamic(() => import("./CNXGlyphLegend"), { ssr: false });
+
+function CameraAccess({ feed, className = "", floating = false }: { feed: CctvFeedResponse | null; className?: string; floating?: boolean }) {
+  const { t } = useLang();
+  const [open, setOpen] = useState(false);
+  return <details className={`${floating ? "static" : "relative"} ${className}`} onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary className="flex min-h-11 w-fit cursor-pointer items-center gap-1.5 text-[12px] text-[var(--dim)]">
+      <span className="font-semibold text-[var(--ink)]">CCTV</span>
+      <span>{feed ? `${feed.reachableCount}/${feed.totalCount}` : "—"}</span><span aria-hidden="true">⌄</span>
+      <span className="sr-only">{t("แหล่งภาพตอบสนอง · เปิดภาพและเวลาถ่าย", "image sources responding · open images and capture times")}</span>
+    </summary>
+    {open && <div className={floating ? "absolute right-2 top-full z-50 w-[min(36rem,calc(100vw-1rem))] border border-[var(--line)] bg-[var(--bg-raised)]" : "border border-[var(--line)]"}><CnxCctvStrip feed={feed} /></div>}
+  </details>;
+}
 import CnxStoryModal from "./CNXStoryModal";
 import CnxManualModal from "./CNXManualModal";
 import CnxAboutModal from "./CNXAboutModal";
@@ -562,11 +575,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       {view === "overview" ? (
         <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenMetric={openMetric} />
       ) : <>
-      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} onOpenMetric={openMetric} />
-      <details className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
-        <summary className="flex min-h-11 cursor-pointer items-center gap-3 px-4 text-[12px] text-[var(--dim)]"><span className="font-semibold text-[var(--ink)]">{t("กล้อง CCTV", "CCTV")}</span><span>{cctv ? t(`${cctv.reachableCount}/${cctv.totalCount} แหล่งภาพตอบสนอง`, `${cctv.reachableCount}/${cctv.totalCount} image sources responding`) : t("กำลังตรวจสอบแหล่งภาพ", "Checking image sources")}</span><span className="ml-auto">{t("เปิดภาพและเวลาถ่าย", "Open images and capture times")} ⌄</span></summary>
-        <CnxCctvStrip feed={cctv} />
-      </details>
+      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} onOpenMetric={openMetric}><CameraAccess feed={cctv} floating className="hidden sm:block" /></CnxOperationalPulse>
 
 
 
@@ -575,7 +584,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             from xl onwards on desktop with full width. */}
         {layout.socialRail && <aside
           aria-label={t("ข่าวและสื่อสังคม", "Social listening stream")}
-          className="hidden min-h-0 w-[240px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col xl:w-[240px] 2xl:w-[280px]"
+          className="hidden min-h-0 w-[220px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col"
         >
           {twin && <div className="shrink-0 border-b border-[var(--line)] p-2">
             <VerdictStrip compact twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
@@ -625,22 +634,22 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         </section>
 
         {/* The desk changes topic without burying other hazards below long gauge lists. */}
-        {layout.desktop && <aside aria-label={t("โต๊ะปฏิบัติการ", "Operations desk")} className="hidden min-h-0 w-[300px] shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-raised)] xl:flex 2xl:w-[360px]">
+        {layout.desktop && <aside aria-label={t("โต๊ะปฏิบัติการ", "Operations desk")} className="hidden min-h-0 w-[300px] shrink-0 flex-col border-l border-[var(--line)] bg-[var(--bg-raised)] xl:flex">
+          <div role="group" aria-label={t("หัวข้อโต๊ะปฏิบัติการ", "Operations desk topics")} className="flex shrink-0 flex-wrap items-center gap-x-1 border-b border-[var(--line)] px-2">
           <button
             type="button"
             aria-pressed={deskTab === "watch"}
             onClick={() => setDeskTab("watch")}
-            className={`flex min-h-11 w-full shrink-0 items-center justify-center gap-2 border-b border-[var(--line)] px-1 py-1.5 ${deskTab === "watch" ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
+            className={`min-h-11 shrink-0 border-b-2 px-1 text-[13px] ${deskTab === "watch" ? "border-[var(--cool)] text-[var(--ink)]" : "border-transparent text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
             <span className="text-[13px] font-semibold">{t("เฝ้าระวังทั้งจังหวัด", "Province watch")}</span>
           </button>
-          <div role="group" aria-label={t("หัวข้อโต๊ะปฏิบัติการ", "Operations desk topics")} className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
             {([
               { id: "water", label: "น้ำ", en: "Water" }, { id: "air", label: "อากาศ", en: "Air" },
               { id: "fire", label: "ไฟ", en: "Fire" }, { id: "model", label: "แบบจำลอง", en: "Models" },
               { id: "visitors", label: "การบิน", en: "Aviation" }, { id: "cameras", label: "กล้อง", en: "Cameras" },
               { id: "data", label: "ข้อมูล", en: "Data" }, { id: "ask", label: "ค้นหา", en: "Search" },
-            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`flex min-h-11 flex-col items-center justify-center border-r border-b border-[var(--line)] px-1 py-1.5 ${deskTab === topic.id ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}><span className="text-[13px] font-semibold">{t(topic.label, topic.en)}</span></button>)}
+            ] as const).map((topic) => <button key={topic.id} type="button" aria-pressed={deskTab === topic.id} onClick={() => setDeskTab(topic.id)} className={`min-h-11 shrink-0 border-b-2 px-1 text-[13px] font-semibold ${deskTab === topic.id ? "border-[var(--cool)] text-[var(--ink)]" : "border-transparent text-[var(--dim)] hover:text-[var(--ink)]"}`}>{t(topic.label, topic.en)}</button>)}
           </div>
           <div id="operation-evidence" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
             {deskTab === "watch" && <>
@@ -653,7 +662,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             {deskTab === "fire" && <div className="h-full min-h-[230px]"><CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} /></div>}
             {deskTab === "model" && <div className="h-full min-h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} outlook={outlook} /></div>}
             {deskTab === "visitors" && <><div className="h-[320px]"><CnxVisitorPanel onData={setVisitorAnalytics} /></div><CnxArrivalsPanel />{outbound && <CnxOutboundPanel snapshot={outbound} />}</>}
-            {deskTab === "cameras" && <><CnxWaterVisionPanel feed={waterVision} onShowOnMap={point => showOnMap({ ...point, amphoeTh: null })} /><CnxFloodCamerasPanel /></>}
+            {deskTab === "cameras" && <><div className="px-3"><CameraAccess feed={cctv} /></div><CnxWaterVisionPanel feed={waterVision} onShowOnMap={point => showOnMap({ ...point, amphoeTh: null })} /><CnxFloodCamerasPanel /></>}
             {deskTab === "data" && <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />}
             {deskTab === "ask" && <div className="h-full min-h-[240px]"><CnxAskChat /></div>}
           </div>
@@ -709,6 +718,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
           {mobileTab === "air" && <CnxAirQualityPanel />}
           {mobileTab === "flood" && <>
+            <div className="px-3"><CameraAccess feed={cctv} /></div>
             <CnxRainPanel rain={rain} />
             <div className="h-[400px]"><CnxRiverLevelPanel /></div>
             <CnxWaterVisionPanel feed={waterVision} onShowOnMap={point => showOnMap({ ...point, amphoeTh: null })} />

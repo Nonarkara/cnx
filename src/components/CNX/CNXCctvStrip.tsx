@@ -66,15 +66,15 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
 
   return (
     <section aria-label={t("CNX CCTV — กล้องจริงทั้งหมด", "CNX CCTV — all real cameras")} className="shrink-0 border-b border-[var(--line)] bg-[var(--bg-raised)]">
-      <div className="flex items-stretch">
-        <div className="flex w-[104px] sm:w-[128px] shrink-0 flex-col justify-center border-r border-[var(--line)] px-3 py-2">
+      <div className="flex flex-col">
+        <div className="flex flex-wrap items-center gap-x-2 px-3 py-1">
           <div className="flex items-center gap-1.5">
             <Cctv className="h-4 w-4 text-[var(--cool)]" />
             <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--ink)]">
               CCTV
             </span>
           </div>
-          <div className="mt-1 text-[12px] tabular-nums text-[var(--dim)]">
+          <div className="text-[12px] tabular-nums text-[var(--dim)]">
             {feed ? `${slots.filter((slot) => slot.reachable && !failedImages.has(slot.id)).length}/${feed.totalCount} ${t("ใช้ได้", "usable")}` : t("กำลังโหลด…", "Loading…")}
           </div>
           <div className="text-[12px] text-[var(--dim)]">{t("ภาพ / วิดีโอ", "Stills / video")}</div>
@@ -82,9 +82,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
 
         <div className="flex min-w-0 flex-1 overflow-x-auto">
           {!feed ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[88px] w-[288px] shrink-0 animate-pulse border-r border-[var(--line)] bg-[var(--bg)]" />
-            ))
+            <p role="status" className="px-3 py-2 text-[12px] text-[var(--dim)]">{t("รายการแหล่งภาพยังไม่พร้อม", "Camera source list is not available yet")}</p>
           ) : slots.length === 0 ? (
             <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-[var(--dim)]">
               <span>{t("ยังไม่มีกล้องที่ดูได้ในขณะนี้", "No viewable cameras right now")}</span>
@@ -99,7 +97,7 @@ export default function CnxCctvStrip({ feed }: { feed: CctvFeedResponse | null }
                   key={s.id}
                   type="button"
                   onClick={() => setSelected(s)}
-                  className={`group relative flex min-h-[88px] w-[300px] shrink-0 items-center gap-3 border-r border-[var(--line)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-surface)]`}
+                  className={`group relative flex min-h-[88px] w-[300px] max-w-full shrink-0 items-center gap-3 border-r border-[var(--line)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-surface)]`}
                   style={{ borderTop: `2px solid ${reachable ? color : "var(--dim)"}` }}
                   title={`${t(s.labelTh ?? s.label, s.labelEn ?? s.label)} — ${t("คลิกดูภาพใหญ่", "click for a larger view")}`}
                 >

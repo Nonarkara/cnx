@@ -90,18 +90,16 @@ function OfficialRows({ items }: { items: WatchItem[] }) {
     <section aria-labelledby="watch-official" className="flex flex-col gap-2">
       <h3 id="watch-official" className="sr-only">{t("ประกาศทางการ", "Official warnings")}</h3>
       {items.map((item) => (
-        <div key={item.id} className={`border-2 ${OFFICIAL_FRAME[item.level] ?? OFFICIAL_FRAME.unknown} bg-[var(--bg-raised)] p-2.5`}>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--ink)]">{t(item.systemTh, item.systemEn)}</p>
-          <div className="mt-1.5 flex items-start gap-2">
+        <div key={item.id} className={`border-l-2 ${OFFICIAL_FRAME[item.level] ?? OFFICIAL_FRAME.unknown} py-1.5 pl-2`}>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <LevelChip level={item.level} chipTh={item.chipTh} chipEn={item.chipEn} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
-              {item.actionTh && <p className="mt-1 text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
-              <p className="mt-1 text-[11px] leading-snug text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
-              {item.evidenceUrl && <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 items-center text-[12px] text-[var(--cool)] underline">{t("อ่านประกาศจากหน่วยงาน", "Read official warning")} ↗</a>}
-              <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={45 * 60_000} className="mt-1 block" />
-            </div>
+            <p className="min-w-0 text-[12px] font-semibold text-[var(--ink)]">{t(item.systemTh, item.systemEn)}</p>
           </div>
+          <p className="mt-1.5 max-w-[65ch] break-words text-[14px] font-semibold text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
+          {item.actionTh && <p className="mt-1 max-w-[65ch] break-words text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
+          <p className="mt-1 max-w-[65ch] break-words text-[12px] leading-relaxed text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
+          {item.evidenceUrl && <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 items-center text-[12px] text-[var(--cool)] underline">{t("อ่านประกาศจากหน่วยงาน", "Read official warning")} ↗</a>}
+          <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={45 * 60_000} className="mt-1 block" />
         </div>
       ))}
       <p className="text-[12px] leading-relaxed text-[var(--dim)]">{t("ประกาศ CAP ไม่แทนพยากรณ์อากาศประจำวันหรือ 7 วัน", "CAP notices do not replace the daily or seven-day weather forecast.")}</p>
@@ -144,7 +142,7 @@ function EvidenceButton({ item, onOpenMetric }: { item: WatchItem; onOpenMetric:
     <button
       type="button"
       onClick={() => onOpenMetric(item.openMetric!)}
-      className="min-h-11 shrink-0 self-center border border-[var(--line)] px-3 text-[12px] font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--cool-dim)]"
+      className="mt-1 inline-flex min-h-11 items-center border border-[var(--line)] px-2 text-[12px] font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--cool-dim)]"
     >
       {t("ดูหลักฐาน", "View evidence")}
     </button>
@@ -239,24 +237,23 @@ export default function CnxWatchBoard({
           {t("ต้องเฝ้าระวังตอนนี้", "Watching now")}
         </h3>
         {watchNow.length === 0 ? (
-          <p className="border border-[var(--line)] bg-[var(--bg)] p-3 text-[12px] text-[var(--dim)]">
+          <p className="max-w-[65ch] text-[12px] leading-relaxed text-[var(--dim)]">
             {t("ไม่มีสัญญาณเฝ้าระวังจากข้อมูลที่วัดได้ในขณะนี้ — ไม่ใช่การยืนยันว่าทั้งจังหวัดปลอดภัย", "No current concern from measured evidence; this is not a province-wide all-clear.")}
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col divide-y divide-[var(--line)]">
             {watchNow.map((item) => (
-              <li key={item.id} className="border border-[var(--line)] bg-[var(--bg)] p-2.5">
-                <div className="flex items-start gap-2">
+              <li key={item.id} className="min-w-0 py-2 first:pt-0">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <LevelChip level={item.level} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold">{t(item.systemTh, item.systemEn)} <span className="text-[11px] font-normal text-[var(--dim)]">{t(...KIND_LABEL[item.kind])}</span></p>
-                    <p className="mt-0.5 text-[13px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
-                    {item.actionTh && <p className="mt-1 text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
-                    <p className="mt-1 text-[11px] leading-snug text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
-                    <DataAge observedAt={item.observedAt} source={item.source} className="mt-1 block" />
-                  </div>
-                  <EvidenceButton item={item} onOpenMetric={onOpenMetric} />
+                  <p className="min-w-0 text-[12px] font-semibold">{t(item.systemTh, item.systemEn)}</p>
+                  <span className="text-[11px] text-[var(--dim)]">{t(...KIND_LABEL[item.kind])}</span>
                 </div>
+                <p className="mt-1 max-w-[65ch] break-words text-[13px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
+                {item.actionTh && <p className="mt-1 max-w-[65ch] break-words text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
+                <p className="mt-1 max-w-[65ch] break-words text-[12px] leading-relaxed text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
+                <DataAge observedAt={item.observedAt} source={item.source} className="mt-1 block" />
+                <EvidenceButton item={item} onOpenMetric={onOpenMetric} />
               </li>
             ))}
           </ul>
