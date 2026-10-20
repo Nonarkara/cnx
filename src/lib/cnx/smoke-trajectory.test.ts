@@ -60,11 +60,10 @@ describe("computeTrajectories — advection math", () => {
     expect(seg.travelKm6h).toBeLessThan(220);
   });
 
-  it("counts a plume as entering the province only if it ends inside Chiang Mai, not just the query box", () => {
-    // 30 km/h × 6 h = 180 km west. From (20.0, 99.5) the plume ends near
-    // (20.0, 97.8) — inside the old rectangular box (west 97.5) but in Mae
-    // Hong Son, outside Chiang Mai. This test used to assert it counted.
-    const out = computeTrajectories([{ id: "mmr-1", latitude: 20.0, longitude: 99.5, frp: 25 }], { speedKmh: 30, fromDirectionDeg: 90 });
+  it("uses the province outline for sampled positions, not just the rectangular query box", () => {
+    // At latitude20.4 the entire path remains north of Chiang Mai,
+    // despite sampled points falling inside the old rectangular query box.
+    const out = computeTrajectories([{ id: "mmr-1", latitude: 20.4, longitude: 99.5, frp: 25 }], { speedKmh: 30, fromDirectionDeg: 90 });
     const six = out.segments[0].points[out.segments[0].points.length - 1];
     expect(six.longitude).toBeLessThan(99.5);
     expect(out.segments[0].hitsCnxBbox).toBe(false);
@@ -93,6 +92,38 @@ describe("computeTrajectories — advection math", () => {
       { speedKmh: 5, fromDirectionDeg: 90 },
     );
     expect(r.segments[0].nearCnx).toBe(true);
+  });
+});
+
+describe("six-hour path screening, not final-endpoint screening", () => {
+  const hotspot = { id: "crosses-city", latitude: 18.788, longitude: 100.5 };
+  it("flags surface paths that cross the city before leaving it by hour six", () => {
+    const result = computeTrajectories([hotspot], { speedKmh: 72, fromDirectionDeg: 90 });
+    const segment = result.segments[0];
+    expect(segment.points.at(-1)!.longitude).toBeLessThan(97);
+    expect(segment).toMatchObject({ nearCnx: true, hitsCnxBbox: true });
+    expect(segment.points.map(p => p.hoursAhead)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(result.methodology_en).toMatch(/hourly.*sampl|sampl.*hourly/i);
+    expect(result.methodology_en).toMatch(/between samples/i);
+  });
+  it("includes the origin without claiming a future arrival for smoke already at the city", () => {
+    const result = computeTrajectories([{ ...hotspot, longitude: 98.985 }], { speedKmh: 120, fromDirectionDeg: 90 });
+    expect(result.segments[0].nearCnx).toBe(true);
+    expect(result.segments[0].hitsCnxBbox).toBe(true);
+  });
+  it("flags complete field paths crossing the city before a distant six-hour endpoint, with an outside control", () => {
+    const grid = { lon0: 95.5, lat0: 15.5, d: 0.75, nx: 10, ny: 10 };
+    const start = 1_791_698_400;
+    const times = Array.from({ length: 13 }, (_, i) => start + i * 3600);
+    const frames = (v: number) => times.map(() => Array(100).fill(v));
+    const field = { grid, times, u10: frames(0), v10: frames(0), u850: frames(-20), v850: frames(0) };
+    const result = computeFieldTrajectories([hotspot, { ...hotspot, id: "outside", latitude: 20.4 }], [field], start * 1000);
+    expect(result.omittedTrajectories).toBe(0);
+    expect(result.segments[0].points.at(-1)!.longitude).toBeLessThan(97);
+    expect(result.segments[0]).toMatchObject({ nearCnx: true, hitsCnxBbox: true });
+    expect(result.segments[1]).toMatchObject({ nearCnx: false, hitsCnxBbox: false });
+    expect(result.summary).toMatchObject({ nearCnx: 1, hitsCnx: 1 });
+    expect(result.methodology_en).toMatch(/between samples/i);
   });
 });
 

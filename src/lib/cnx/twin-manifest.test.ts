@@ -19,6 +19,8 @@ import { RAIN_KV_KEY } from "./rain";
 import { RAIN_RELAY_MAX_AGE_MS } from "./rain-core";
 import { DAM_KV_KEY } from "./dam";
 import { DAM_RELAY_MAX_AGE_MS } from "./dam-core";
+import { WATER_VISION_KV_KEY } from "./water-vision";
+import { WATER_CAPTURE_MAX_AGE_MS } from "./water-vision-core";
 import { HAZE_VISION_KV_KEY } from "./haze-vision";
 import { CITIZEN_KV_KEY } from "./citizen-reports";
 import { SOCIAL_RSS_KV_KEY } from "./social-feeds";
@@ -78,11 +80,15 @@ describe("twin manifest registry", () => {
 
   it("names the relay KV keys and stale limits the modules actually use", () => {
     const relay = Object.fromEntries(TWIN_ENTITIES.filter((e) => e.transport === "relay").map((e) => [e.id, e]));
-    expect(Object.keys(relay).sort()).toEqual(["arrivals", "citizen", "dam", "flights", "haze-vision", "rain", "river-level", "social"]);
+    expect(Object.keys(relay).sort()).toEqual(["arrivals", "citizen", "dam", "flights", "haze-vision", "rain", "river-level", "social", "water-vision"]);
     expect(relay["river-level"].relayKey).toBe(RIVER_LEVEL_KV_KEY);
     expect(relay.rain.relayKey).toBe(RAIN_KV_KEY);
     expect(relay.dam.relayKey).toBe(DAM_KV_KEY);
     expect(relay["haze-vision"].relayKey).toBe(HAZE_VISION_KV_KEY);
+    expect(relay["water-vision"].relayKey).toBe(WATER_VISION_KV_KEY);
+    expect(relay["water-vision"].cadenceSec).toBe(15 * 60);
+    expect(relay["water-vision"].staleAfterSec! * 1000).toBe(WATER_CAPTURE_MAX_AGE_MS);
+    expect(RELAY_HEALTH_IDS).toContain("water-vision");
     expect(relay.citizen.relayKey).toBe(CITIZEN_KV_KEY);
     expect(relay.social.relayKey).toBe(SOCIAL_RSS_KV_KEY);
     expect(relay.flights.relayKey).toBe(FLIGHTS_KV_KEY);
@@ -216,4 +222,15 @@ describe("live probe helpers", () => {
     expect(gibsTime("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/Himawari_AHI_Band13_Clean_Infrared/default/2026-10-11T04:50:00Z/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png")).toBe("2026-10-11T04:50:00.000Z");
     expect(gibsTime(null)).toBeNull();
   });
+});
+
+it("keeps camera relay health distinct from capture freshness and detection validation", () => {
+  const water = getTwinEntity("water-vision")!;
+  expect(water.kind).toBe("vision");
+  expect(water.clock).toBe("relay-push");
+  expect(water.validation).toBe("none");
+  expect(water.mustNotConclude.en).toMatch(/not.*flood|not.*water/i);
+  expect(water.failureMode).toMatch(/capture/i);
+  expect(getTwinEntity("haze-vision")!.failureMode).toMatch(/independent station/i);
+  expect(getTwinEntity("haze-vision")!.failureMode).toMatch(/not.*validated/i);
 });

@@ -33,11 +33,11 @@ export default function CnxTicker({
 }: TickerProps) {
   const { lang, t } = useLang();
   const segments = useMemo(() => {
-    const out: { key: string; icon: string; label: string; value: string; level?: string }[] = [];
+    const out: { key: string; label: string; value: string; level?: string }[] = [];
     if (air?.provinceAvgPm25 != null) {
       out.push({
         key: "pm25",
-        icon: "🌫",
+
         label: "PM2.5",
         value: `${air.provinceAvgPm25} µg/m³`,
         level: air.provinceAvgAqiLevel,
@@ -50,7 +50,7 @@ export default function CnxTicker({
     if (flood && flood.provenance === "live" && typeof flood.pingCapacityFraction === "number") {
       out.push({
         key: "ping",
-        icon: "🌊",
+
         label: t("แม่น้ำปิง", "Ping"),
         value: t(`${(flood.pingCapacityFraction * 100).toFixed(0)}% ของระดับตลิ่ง`, `${(flood.pingCapacityFraction * 100).toFixed(0)}% bank-full`),
         level: flood.pingCapacityFraction > 0.85 ? "critical" : flood.pingCapacityFraction > 0.7 ? "alert" : undefined,
@@ -61,7 +61,7 @@ export default function CnxTicker({
       const outside = fires.provinceCount != null && fires.totalCount > count ? fires.totalCount - count : 0;
       out.push({
         key: "fires",
-        icon: "🔥",
+
         label: fires.provinceCount != null ? t("FIRMS · เชียงใหม่", "FIRMS · Chiang Mai") : t("FIRMS · พื้นที่ติดตาม", "FIRMS · watch area"),
         // The provincial count leads; detections outside the province are
         // named as such, never folded into a bare hotspot total.
@@ -74,7 +74,7 @@ export default function CnxTicker({
     if (cctv) {
       out.push({
         key: "cctv",
-        icon: "📹",
+
         label: "CCTV",
         value: t(`${cctv.reachableCount}/${cctv.totalCount} ตอบสนอง`, `${cctv.reachableCount}/${cctv.totalCount} reachable`),
       });
@@ -88,7 +88,7 @@ export default function CnxTicker({
       const withheld = (flights.quality?.rejected ?? 0) + (flights.quality?.nulled ?? 0);
       out.push({
         key: "flights",
-        icon: "✈",
+
         label: t("น่านฟ้า", "Airspace"),
         value: withheld
           ? t(`${total} ลำ · ไม่ผ่านเกณฑ์ ${withheld}`, `${total} aircraft · ${withheld} withheld`)
@@ -98,7 +98,7 @@ export default function CnxTicker({
     if (social) {
       out.push({
         key: "social",
-        icon: "📰",
+
         label: t("ข่าว", "News"),
         value: t(`${social.items.length} รายการ`, `${social.items.length} mentions`),
       });
@@ -106,7 +106,7 @@ export default function CnxTicker({
     if (story?.headline) {
       out.push({
         key: "story",
-        icon: "📌",
+
         label: t("เรื่องเด่น", "Story"),
         value: story.headline,
       });
@@ -126,7 +126,7 @@ export default function CnxTicker({
         <div className="flex w-max items-center gap-6 whitespace-nowrap px-4">
           {segments.map((s) => (
             <span key={s.key} className="flex items-center gap-1.5 text-[var(--ink)]">
-              <span aria-hidden="true" className="text-[11px]">{s.icon}</span>
+
               <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">{s.label}</span>
               <span className={`tabular-nums ${s.level === "critical" ? "text-[var(--sev-critical)]" : s.level === "alert" ? "text-[var(--sev-alert)]" : ""}`}>
                 {s.value}

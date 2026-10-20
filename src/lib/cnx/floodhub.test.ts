@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nearestGauges, summariseFloodHub, floodHubNote } from "./floodhub";
+import { nearestGauges, summariseFloodHub, floodHubNote, isCurrentFloodHub, currentFloodHub } from "./floodhub";
 
 const statusTime = () => ({ issuedTime: new Date(Date.now() - 3_600_000).toISOString(), forecastTimeRange: { start: new Date(Date.now() - 3_600_000).toISOString(), end: new Date(Date.now() + 24 * 3_600_000).toISOString() } });
 const gauge = (id: string, lat: number, lon: number) => ({ gaugeId: id, location: { latitude: lat, longitude: lon }, qualityVerified: false });
@@ -103,5 +103,29 @@ describe("floodHubNote — the caveat must describe the points actually shown", 
     const note = floodHubNote(unverified(12));
     expect(note).toMatch(/is a reason to prepare/);
     expect(note).toMatch(/is not an all-clear/);
+  });
+});
+
+
+describe("retained Flood Hub evidence at decision time", () => {
+  const now = new Date("2026-10-20T14:00:00Z");
+  const point = { gaugeId: "a", latitude: 18.8, longitude: 99, kmFromCity: 1, qualityVerified: false, severity: "NO_FLOODING" as const, trend: "FALL" as const, issuedTime: "2026-10-20T01:00:00Z", forecastStart: "2026-10-22T00:00:00Z", forecastEnd: "2026-10-23T00:00:00Z" };
+  const response = { generatedAt: now.toISOString(), provenance: "live" as const, points: [point], outlook: "none-forecast" as const, worst: "NO_FLOODING" as const, note: floodHubNote([point]) };
+  it("accepts future forecast windows within the declared 30-hour issuance budget", () => {
+    expect(isCurrentFloodHub({ ...point, issuedTime: "2026-10-19T08:00:00Z" }, now)).toBe(true);
+    expect(isCurrentFloodHub({ ...point, issuedTime: "2026-10-19T07:59:59Z" }, now)).toBe(false);
+    expect(currentFloodHub(response, now)?.outlook).toBe("none-forecast");
+  });
+  it("rejects expired, invalid, future-issued and failed-refresh evidence regardless of response time", () => {
+    for (const patch of [{ forecastEnd: now.toISOString() }, { forecastStart: null }, { issuedTime: "bad" }, { issuedTime: "2026-10-20T14:06:00Z" }, { forecastStart: point.forecastEnd }]) {
+      expect(isCurrentFloodHub({ ...point, ...patch }, now)).toBe(false);
+      expect(currentFloodHub({ ...response, points: [{ ...point, ...patch }] }, now)).toBeNull();
+    }
+    expect(currentFloodHub({ ...response, provenance: "unavailable" }, now)).toBeNull();
+  });
+  it("does not let one current no-flood point clear missing coverage, but retains a current warning", () => {
+    const partial = { ...response, points: [point, { ...point, gaugeId: "b", issuedTime: "2026-10-15T01:00:00Z" }] };
+    expect(currentFloodHub(partial, now)?.outlook).toBe("unknown");
+    expect(currentFloodHub({ ...partial, points: [{ ...point, severity: "SEVERE" }, partial.points[1]] }, now)?.outlook).toBe("flooding");
   });
 });

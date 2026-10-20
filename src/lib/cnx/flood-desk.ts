@@ -290,12 +290,23 @@ export function floodHubLine(feed: Feed<FloodHubResponse>, nowMs = Date.now()): 
   if (!fh.worst || fh.worst === "UNKNOWN") {
     return unavailable(FLOODHUB, "Google Flood Hub ไม่มีช่วงพยากรณ์ปัจจุบัน — ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม", "No current Flood Hub issuance and forecast window — this does not establish no flooding.");
   }
+  const known = fh.points.filter(p => p.severity !== "UNKNOWN");
+  const coverageIncomplete = known.length < fh.points.length;
+  const coverageTh = coverageIncomplete ? ` · ใช้ได้ ${known.length}/${fh.points.length} จุด` : "";
+  const coverageEn = coverageIncomplete ? `; ${known.length}/${fh.points.length} points current` : "";
+  if (fh.outlook === "unknown") {
+    return { ...FLOODHUB, status: "ok", level: "unknown", coverageIncomplete,
+      th: `ช่วงพยากรณ์ปัจจุบันมีข้อมูลไม่ครบ${coverageTh} — ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม`,
+      en: `Incomplete current forecast coverage${coverageEn} — not confirmation of no flooding`,
+      observedAt: newestIssued({ ...fh, points: known }),
+    };
+  }
   const s = FH[fh.worst];
   const rising = fh.points.filter((p) => p.trend === "RISE").length;
   return {
-    ...FLOODHUB, status: "ok", level: s.level,
-    th: `${s.th}${rising ? ` · ${rising} จุดแนวโน้มสูงขึ้น` : ""}`,
-    en: `${s.en}${rising ? ` · ${rising} point${rising > 1 ? "s" : ""} rising` : ""}`,
+    ...FLOODHUB, status: "ok", level: s.level, coverageIncomplete,
+    th: `${s.th}${coverageTh}${rising ? ` · ${rising} จุดแนวโน้มสูงขึ้น` : ""}`,
+    en: `${s.en}${coverageEn}${rising ? ` · ${rising} point${rising > 1 ? "s" : ""} rising` : ""}`,
     observedAt: newestIssued({ ...fh, points: fh.points.filter(p => p.severity !== "UNKNOWN") }),
   };
 }

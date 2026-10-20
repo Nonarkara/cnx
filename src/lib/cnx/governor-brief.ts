@@ -3,6 +3,7 @@
 // board already has, so every number keeps its source and age, and a feed
 // that is missing says "no data" instead of reading as calm.
 
+import { currentFloodHub, type FloodHubResponse } from "./floodhub";
 import type { BurnSeasonDoc } from "./burn-season";
 import type { DustboyStation } from "./dustboy";
 
@@ -85,7 +86,7 @@ export interface BriefInputs {
   worstDistrict: BriefDistrict | null;
   fires: { live: boolean; count: number | null; observedAt: string | null; source: string };
   river: { th: string; en: string; level: BriefLevel; observedAt: string | null; source?: string; kind?: "rain" | "river" } | null;
-  floodForecast: { outlook: "flooding" | "none-forecast" | "unknown"; points: number } | null;
+  floodForecast: FloodHubResponse | null;
   arrivals: { date: string; flights: number; international: number; estimatedVisitors: number } | null;
 }
 
@@ -119,23 +120,32 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
         observedAt: i.fires.observedAt,
       };
 
-  const forecast =
-    i.floodForecast?.outlook === "flooding"
-      ? " · Google คาดการณ์น้ำล้นตลิ่ง"
-      : i.floodForecast?.outlook === "none-forecast"
-        ? " · Google ไม่คาดการณ์น้ำท่วม (ไม่ใช่การยืนยันว่าปลอดภัย)"
-        : "";
+  const flood = currentFloodHub(i.floodForecast, i.now);
+  const currentPoints = flood?.points.filter(p => p.severity !== "UNKNOWN") ?? [];
+  const coverage = flood ? `${currentPoints.length}/${flood.points.length}` : "0";
+  const forecastTh = flood?.outlook === "flooding"
+    ? "Google คาดการณ์ระดับน้ำสูงกว่าปกติในแม่น้ำ ไม่ใช่การวัดจริง"
+    : flood?.outlook === "none-forecast"
+      ? "Google ไม่คาดการณ์น้ำท่วมแม่น้ำ (ไม่ใช่การยืนยันว่าปลอดภัย)"
+      : flood ? "พยากรณ์แม่น้ำ Google มีข้อมูลไม่ครบ" : "ไม่มีพยากรณ์แม่น้ำ Google ที่เป็นปัจจุบัน";
+  const forecastEn = flood?.outlook === "flooding"
+    ? "Google forecasts above-normal river water; model, not a measurement"
+    : flood?.outlook === "none-forecast"
+      ? "Google forecasts no river flooding (not an all-clear)"
+      : flood ? "Incomplete Google river-forecast coverage" : "No current Google river forecast";
+  const coverageTh = ` · ${forecastTh}${flood ? ` · ใช้ได้ ${coverage} จุด` : ""} · ไม่ครอบคลุมน้ำท่วมขังในเมืองหรือน้ำป่าไหลหลาก`;
+  const coverageEn = `; ${forecastEn}${flood ? `; ${coverage} points current` : ""}; does not cover urban or flash flooding`;
   const water: BriefTile = i.river && isBriefObservationCurrent(i.river.observedAt, i.now, i.river.kind === "rain" ? 6 : 3)
     ? {
         key: "water",
         titleTh: "น้ำ",
-        level: i.floodForecast?.outlook === "flooding" && i.river.level === "good" ? "watch" : i.river.level,
-        th: `${i.river.th}${forecast}`,
-        en: i.river.en,
-        source: `${i.river.source ?? "ThaiWater"}${i.floodForecast ? " · Google Flood Hub" : ""}`,
+        level: flood?.outlook === "flooding" && i.river.level === "good" ? "watch" : i.river.level,
+        th: `${i.river.th}${coverageTh}`,
+        en: `${i.river.en}${coverageEn}`,
+        source: `${i.river.source ?? "ThaiWater"}${flood ? " · Google Flood Hub" : ""}`,
         observedAt: i.river.observedAt,
       }
-    : { key: "water", titleTh: "น้ำ", level: "unknown", th: `ไม่มีข้อมูลระดับน้ำที่วัดได้จริง${forecast}`, en: "No measured river level", source: "ThaiWater", observedAt: null };
+    : { key: "water", titleTh: "น้ำ", level: "unknown", th: `ไม่มีข้อมูลระดับน้ำที่วัดได้จริง${coverageTh}`, en: `No current measured river level${coverageEn}`, source: flood ? "ThaiWater · Google Flood Hub" : "ThaiWater", observedAt: null };
 
   const visitors: BriefTile = i.arrivals
     ? {
@@ -143,7 +153,7 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
         titleTh: "การบิน · ข้อมูลย้อนหลัง",
         level: "good",
         th: `ตรวจพบเที่ยวบินเข้าเชียงใหม่ ${i.arrivals.flights} เที่ยว (ต่างประเทศ ${i.arrivals.international}) — ${thaiDate(i.arrivals.date)} · ประมาณผู้โดยสาร ${i.arrivals.estimatedVisitors.toLocaleString("en-US")} คนจากจำนวนที่นั่งและอัตราบรรทุกสมมติ ไม่ใช่ยอดผู้โดยสารจริงหรือจำนวนนักท่องเที่ยว`,
-        en: `${i.arrivals.flights} arrivals (${i.arrivals.international} international), ~${i.arrivals.estimatedVisitors} passengers (estimate: seats × load factor)`,
+        en: `${i.arrivals.flights} arrivals (${i.arrivals.international} international) on ${i.arrivals.date}; ~${i.arrivals.estimatedVisitors} passengers (estimate: seats × assumed load factor, not measured passengers or tourists)`,
         source: "OpenSky arrivals at VTCC",
         observedAt: null,
       }

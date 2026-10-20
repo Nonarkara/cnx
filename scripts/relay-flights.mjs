@@ -32,6 +32,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { runHazeVision } from "./haze-vision.mjs";
+import { runWaterVision } from "./water-vision.mjs";
 import { runCitizenReports } from "./citizen-reports.mjs";
 import { runSocialRelay } from "./social-relay.mjs";
 import { runRainRelay } from "./rain-relay.mjs";
@@ -447,6 +448,7 @@ async function tick() {
   void pushRiverLevels();
   void warmVisitorArchive();
   void runHazeVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
+  void runWaterVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runSocialRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runRainRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });

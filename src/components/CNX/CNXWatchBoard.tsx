@@ -21,7 +21,7 @@
 // present — a warning, "no TMD warning in force", or "unavailable" — and
 // framed apart from the board's own model and measured rows.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, Satellite } from "lucide-react";
 import type { ExecutiveMetric } from "../../lib/cnx/executive-brief";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
@@ -104,6 +104,11 @@ function OfficialRows({ items }: { items: WatchItem[] }) {
           </div>
         </div>
       ))}
+      <p className="text-[12px] leading-relaxed text-[var(--dim)]">{t("ประกาศ CAP ไม่แทนพยากรณ์อากาศประจำวันหรือ 7 วัน", "CAP notices do not replace the daily or seven-day weather forecast.")}</p>
+      <div className="flex flex-wrap gap-x-4 text-[12px] text-[var(--cool)]">
+        <a href="https://www.tmd.go.th/forecast/daily" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">{t("TMD ประจำวัน ↗", "TMD daily ↗")}</a>
+        <a href="https://tmd.go.th/en/forecast/sevenday" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline">{t("TMD 7 วัน ↗", "TMD seven-day ↗")}</a>
+      </div>
     </section>
   );
 }
@@ -128,6 +133,8 @@ interface Props {
    * second later. Default stays the real clock in production.
    */
   now?: Date;
+  /** Official and current concerns always precede model/context content. */
+  afterWatch?: ReactNode;
 }
 
 function EvidenceButton({ item, onOpenMetric }: { item: WatchItem; onOpenMetric: Props["onOpenMetric"] }) {
@@ -157,6 +164,7 @@ export default function CnxWatchBoard({
   outlook = null,
   onOpenMetric,
   now,
+  afterWatch,
 }: Props) {
   const { lang, t } = useLang();
   const [clock, setClock] = useState(() => new Date());
@@ -254,6 +262,8 @@ export default function CnxWatchBoard({
           </ul>
         )}
       </section>
+
+      {afterWatch}
 
       <section aria-labelledby="watch-systems">
         <h3 id="watch-systems" className="mb-2 border-b border-[var(--line)] pb-1 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">

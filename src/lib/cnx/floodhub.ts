@@ -1,3 +1,5 @@
+import { getTwinEntity } from "./twin-manifest";
+
 // Google Flood Hub forecasts for the Ping at Chiang Mai.
 //
 // What this is (from probing the API, 2026-10-01): Flood Hub has 337
@@ -43,6 +45,28 @@ export interface FloodHubResponse {
   outlook: "flooding" | "none-forecast" | "unknown";
   worst: FloodHubSeverity | null;
   note: string;
+}
+
+/** Re-age the model issuance/window at the decision clock, never the response clock. */
+export function isCurrentFloodHub(point: Pick<FloodHubPoint, "issuedTime" | "forecastStart" | "forecastEnd">, now: Date | number = Date.now()): boolean {
+  const nowMs = now instanceof Date ? now.getTime() : now;
+  const issued = Date.parse(point.issuedTime ?? "");
+  const start = Date.parse(point.forecastStart ?? "");
+  const end = Date.parse(point.forecastEnd ?? "");
+  const budget = (getTwinEntity("floodhub")?.staleAfterSec ?? 30 * 3600) * 1000;
+  return Number.isFinite(issued) && issued <= nowMs + 5 * 60_000 && nowMs - issued <= budget &&
+    Number.isFinite(start) && Number.isFinite(end) && start < end && end > nowMs;
+}
+
+/** A retained copy may lose coverage as points expire. Missing coverage cannot clear it. */
+export function currentFloodHub(response: FloodHubResponse | null, now: Date | number = Date.now()): FloodHubResponse | null {
+  if (!response || response.provenance !== "live") return null;
+  const at = new Date(now instanceof Date ? now.getTime() : now).toISOString();
+  const current = summariseFloodHub(response.points, response.points.map(p => ({
+    gaugeId: p.gaugeId, severity: p.severity, forecastTrend: p.trend, issuedTime: p.issuedTime ?? undefined,
+    forecastTimeRange: { start: p.forecastStart ?? undefined, end: p.forecastEnd ?? undefined },
+  })), at);
+  return current.provenance === "live" ? { ...current, generatedAt: response.generatedAt, note: response.note } : null;
 }
 
 const RANK: Record<FloodHubSeverity, number> = { UNKNOWN: 0, NO_FLOODING: 1, ABOVE_NORMAL: 2, SEVERE: 3, EXTREME: 4 };
@@ -128,22 +152,8 @@ export function summariseFloodHub(
   const byId = new Map(statuses.map((s) => [s.gaugeId, s]));
   const points: FloodHubPoint[] = gauges.map((g) => {
     const s = byId.get(g.gaugeId);
-    const issued = Date.parse(s?.issuedTime ?? "");
-    const end = Date.parse(s?.forecastTimeRange?.end ?? "");
-    const start = Date.parse(s?.forecastTimeRange?.start ?? "");
-    const nowMs = Date.parse(now);
-    // Current = issued in the last 24 h and its window not yet over. The
-    // window is the period FORECAST, normally days ahead (2026-10-03: issued
-    // today for 6–7 Oct), so it must not be required to have started — that
-    // rule marked every real forecast UNKNOWN and the strip "unavailable".
-    const usable =
-      Number.isFinite(issued) &&
-      issued <= nowMs + 5 * 60_000 &&
-      nowMs - issued <= 24 * 3_600_000 &&
-      Number.isFinite(start) &&
-      Number.isFinite(end) &&
-      start < end &&
-      end > nowMs;
+    // A window days ahead is valid; it need not have started yet.
+    const usable = isCurrentFloodHub({ issuedTime: s?.issuedTime ?? null, forecastStart: s?.forecastTimeRange?.start ?? null, forecastEnd: s?.forecastTimeRange?.end ?? null }, Date.parse(now));
     const severity = usable && SEVERITIES.includes(s?.severity as FloodHubSeverity) ? (s?.severity as FloodHubSeverity) : "UNKNOWN";
     const trend = usable && TRENDS.includes(s?.forecastTrend as (typeof TRENDS)[number]) ? (s?.forecastTrend as FloodHubPoint["trend"]) : "UNKNOWN";
     return {
@@ -157,7 +167,7 @@ export function summariseFloodHub(
   });
   const known = points.filter((p) => p.severity !== "UNKNOWN");
   const worst = known.length ? known.reduce((a, b) => (RANK[b.severity] > RANK[a.severity] ? b : a)).severity : null;
-  const outlook = worst === null ? "unknown" : RANK[worst] >= RANK.ABOVE_NORMAL ? "flooding" : "none-forecast";
+  const outlook = worst === null ? "unknown" : RANK[worst] >= RANK.ABOVE_NORMAL ? "flooding" : known.length === points.length ? "none-forecast" : "unknown";
   return { generatedAt: now, provenance: known.length ? "live" : "unavailable", points, outlook, worst, note: floodHubNote(points) };
 }
 

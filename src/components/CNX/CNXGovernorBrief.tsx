@@ -14,7 +14,7 @@ import { fetchJsonOrNull } from "../../lib/client-requests";
 import type { ArrivalsResponse } from "../../lib/cnx/arrivals";
 import type { BurnSeasonDoc } from "../../lib/cnx/burn-season";
 import type { DustboyResponse } from "../../lib/cnx/dustboy";
-import type { FloodHubResponse } from "../../lib/cnx/floodhub";
+import { currentFloodHub, type FloodHubResponse } from "../../lib/cnx/floodhub";
 import { buildTiles, districtTable, isBriefObservationCurrent, lineText, pm25Band, type BriefLevel, type BriefTile } from "../../lib/cnx/governor-brief";
 import { buildExecutiveBrief, type ExecutiveMetric } from "../../lib/cnx/executive-brief";
 import type { FetchResult } from "../../lib/cnx/opensky";
@@ -26,6 +26,7 @@ import { useLang } from "../../hooks/useLang";
 import { metricUnit } from "./CNXMetricEvidence";
 
 interface Props {
+  operationalNotes?: { th: string; en: string }[];
   isOpen: boolean;
   onClose: () => void;
   onOpenMetric?: (id: ExecutiveMetric["id"]) => void;
@@ -70,7 +71,7 @@ const PM25_BAND_EN: Record<string, string> = {
   "มีผลกระทบต่อสุขภาพ": "Affecting health",
 };
 
-export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null }: Props) {
+export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null, operationalNotes = [] }: Props) {
   const dialogRef = useModalDialog(isOpen, onClose);
   const { lang, t } = useLang();
   const [clock, setClock] = useState(() => Date.now());
@@ -81,6 +82,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
   }, [isOpen]);
   const [arrivals, setArrivals] = useState<ArrivalsResponse | null>(null);
   const [floodhub, setFloodhub] = useState<FloodHubResponse | null>(null);
+  const [floodStatus, setFloodStatus] = useState<"loading" | "ready" | "error">("loading");
   const [burn, setBurn] = useState<BurnSeasonDoc | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   useEffect(() => {
@@ -94,7 +96,13 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
     const controller = new AbortController();
     const opts = { signal: controller.signal };
     void fetchJsonOrNull<ArrivalsResponse>("/api/cnx/arrivals", opts).then((d) => d && setArrivals(d));
-    void fetchJsonOrNull<FloodHubResponse>("/api/cnx/floodhub", opts).then((d) => d && setFloodhub(d));
+    setFloodhub(null);
+    setFloodStatus("loading");
+    void fetchJsonOrNull<FloodHubResponse>("/api/cnx/floodhub", opts).then((d) => {
+      if (controller.signal.aborted) return;
+      setFloodhub(d);
+      setFloodStatus(d ? "ready" : "error");
+    });
     void fetchJsonOrNull<BurnSeasonDoc>("/data/cnx/burn-season.json", opts).then((d) => d && setBurn(d));
     return () => controller.abort();
   }, [isOpen]);
@@ -123,7 +131,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
         source: fires?.liveSource === "open-24h" ? "NASA VIIRS (open 24 h)" : "NASA FIRMS",
       },
       river,
-      floodForecast: floodhub && floodhub.provenance === "live" ? { outlook: floodhub.outlook, points: floodhub.points.length } : null,
+      floodForecast: floodhub,
       arrivals: yesterday
         ? { date: yesterday.date, flights: yesterday.totalFlights, international: yesterday.internationalFlights, estimatedVisitors: yesterday.estimatedVisitors }
         : null,
@@ -137,8 +145,8 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
       ...(outlook?.rain[0] ? [{ id: "forecast-rain", th: `48 ชม. ฝน (แบบจำลอง): ${rainActionTh(outlook.rain[0])}`, en: `48 h rain (model): ${rainActionEn(outlook.rain[0])}` }] : []),
       ...(outlook?.air[0] ? [{ id: "forecast-air", th: `48 ชม. ฝุ่น (แบบจำลอง): ${airActionTh(outlook.air[0])}`, en: `48 h air (model): ${airActionEn(outlook.air[0])}` }] : []),
     ];
-    return { now, tiles, districts, actions, text: lineText(tiles, districts, now, url, actions.map(action => action.th)) };
-  }, [air, dustboy, fires, twin, riverGauges, flights, rain, outlook, arrivals, floodhub, burn, clock, isOpen]);
+    return { now, tiles, districts, actions, currentFloodForecast: currentFloodHub(floodhub, now), text: [lineText(tiles, districts, now, url, actions.map(action => action.th)), ...(operationalNotes.length ? ["หลักฐานปฏิบัติการเพิ่มเติม:", ...operationalNotes.map(note => `• ${note.th}`)] : [])].join("\n") };
+  }, [air, dustboy, fires, twin, riverGauges, flights, rain, outlook, arrivals, floodhub, burn, clock, isOpen, operationalNotes]);
 
   if (!isOpen) return null;
 
@@ -183,6 +191,9 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
         </div>
 
         <p role="status" className="mt-3 text-sm text-[var(--dim)] print:hidden">{copyState === "failed" ? t("คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง", "Copy failed; open the text below and copy it manually.") : copyState === "copied" ? t("คัดลอกข้อความพร้อมแหล่งที่มาและเวลาอ้างอิงแล้ว", "Copied, with sources and reference times.") : t("พร้อมส่งต่อทาง LINE หรือพิมพ์ โดยคงแหล่งที่มาและเวลาอ้างอิง", "Ready to forward on LINE (in Thai) or print, with sources and reference times kept.")}</p>
+        {floodStatus !== "loading" && !brief.currentFloodForecast && <p role="status" className="mt-2 text-[12px] text-[var(--dim)]">{floodStatus === "error"
+          ? t("Google Flood Hub อ่านไม่ได้ในรอบนี้ ไม่ใช้ค่าที่เก็บจากรอบก่อน ให้ดูระดับน้ำและประกาศทางการ", "Google Flood Hub is unavailable this check. Prior results are excluded; use measured river levels and official notices.")
+          : t("ไม่มีพยากรณ์ Google Flood Hub ที่ยังใช้ได้ในขณะนี้ ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม", "No current Google Flood Hub forecast is available; this does not confirm an absence of flooding.")}</p>}
         <section className="mt-6 grid gap-3 sm:grid-cols-2">
           {brief.tiles.map((tile) => (
             <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
@@ -205,6 +216,10 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           ))}
         </section>
 
+        {operationalNotes.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
+          <h3 className="text-lg font-semibold">{t("หลักฐานปฏิบัติการเพิ่มเติม", "Additional operational evidence")}</h3>
+          <ul className="mt-3 space-y-2">{operationalNotes.map((note, index) => <li key={index} className="text-sm leading-relaxed">{t(note.th, note.en)}</li>)}</ul>
+        </section>}
         {brief.actions.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
           <h3 className="text-lg font-semibold">{t("ประเด็นที่ควรตรวจสอบต่อ", "Points to check next")}</h3>
           <ol className="mt-3 space-y-3">{brief.actions.map((action) => <li key={action.id} className="text-sm leading-relaxed">{t(action.th, action.en)}</li>)}</ol>

@@ -116,7 +116,7 @@ const DAY = 86_400;
 export const RELAY_OFFLINE_AFTER_SEC = 45 * MIN;
 
 /** Relay-written feeds whose newest `generatedAt` is the relay's heartbeat. */
-export const RELAY_HEALTH_IDS = ["river-level", "rain", "social", "citizen", "haze-vision", "flights", "dam"] as const;
+export const RELAY_HEALTH_IDS = ["river-level", "rain", "social", "citizen", "haze-vision", "water-vision", "flights", "dam"] as const;
 
 const NOT_STATED = "Not stated by the publisher; public keyless endpoint, attributed on the panel";
 const OPEN_METEO = "CC BY 4.0 (Open-Meteo), attributed";
@@ -340,7 +340,18 @@ export const TWIN_ENTITIES: readonly TwinEntity[] = [
     fidelity: "Image statistics from a few cameras turned into a haze screening verdict; no images are kept.",
     mustNotConclude: { th: "คำตัดสินจากภาพเป็นการคัดกรอง ไม่ใช่การวัดฝุ่น", en: "An image verdict is screening, not a dust measurement" },
     layerContract: null, validation: "cross-checked",
-    failureMode: "Agreement is gated on a robust spread and ≥3 unhealthy readings; relay silent > 45 min → unavailable.",
+    failureMode: "Agreement requires varied paired readings and at least 3 independent station IDs in a 3-hour high-reading window; this is an engineering corroboration gate, not validated detection accuracy. Relay silent > 45 min → unavailable.",
+    clock: "relay-push",
+  },
+  {
+    id: "water-vision", name_th: "ตรวจคุณภาพภาพแม่น้ำ", name_en: "River image inspection",
+    kind: "vision", upstream: { agency: "Department of Water Resources snapshots via FloodDash", host: "flood.nonarkara.org" },
+    licence: NOT_STATED, route: "/api/cnx/water-vision", cadenceSec: 15 * MIN, staleAfterSec: 45 * MIN,
+    transport: "relay", relayKey: "water-vision-latest",
+    fidelity: "Image quality and repeated-pixel checks on three pinned public DWR riverside snapshots; not flood detection, water segmentation, depth or flow measurement.",
+    mustNotConclude: { th: "ภาพที่ตรวจได้ไม่ยืนยันน้ำท่วม ระดับน้ำ หรือความปลอดภัยของถนน", en: "An inspectable image is not flood detection, a water-level measurement or road-safety evidence" },
+    layerContract: null, validation: "none",
+    failureMode: "Relay batch silent > 45 min → unavailable. Capture timestamps are aged separately at 45 min; unknown capture time, low light, low detail or repeated old pixels never establish current water conditions. Manifest clock is relay-push, not camera capture.",
     clock: "relay-push",
   },
   // ── Civic and media ──

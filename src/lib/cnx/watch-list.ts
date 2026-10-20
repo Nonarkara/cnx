@@ -20,7 +20,7 @@ import type { RfdFiresResponse } from "./fire-rfd";
 import type { AerosolResponse } from "./aerosol";
 import type { AeronetResponse } from "./aeronet";
 import type { JaxaAotResponse } from "./jaxa-aot";
-import type { FloodHubResponse, FloodHubSeverity } from "./floodhub";
+import { currentFloodHub, type FloodHubResponse, type FloodHubSeverity } from "./floodhub";
 import type { GistdaPm25Response } from "./gistda-pm25";
 import type { SmokeTrajectoryResponse } from "./smoke-trajectory";
 import type { HazeVisionResponse } from "./haze-vision";
@@ -400,7 +400,8 @@ function smokeItem(smoke: SmokeTrajectoryResponse | null, now: Date): WatchItem 
   };
 }
 
-function floodHubItem(floodhub: FloodHubResponse | null): WatchItem {
+function floodHubItem(input: FloodHubResponse | null, now: Date): WatchItem {
+  const floodhub = currentFloodHub(input, now);
   const base = {
     id: "floodhub",
     domain: "water" as const,
@@ -416,8 +417,8 @@ function floodHubItem(floodhub: FloodHubResponse | null): WatchItem {
       level: "unknown" as WatchLevel,
       valueTh: "ไม่มีข้อมูลพยากรณ์",
       valueEn: "No forecast data",
-      evidenceTh: "FloodHub ไม่ตอบสนอง · ไม่มีข้อมูลไม่ใช่การยืนยันว่าไม่มีน้ำท่วม",
-      evidenceEn: "FloodHub is not answering; absence of data is not absence of flooding",
+      evidenceTh: "ไม่มีช่วงพยากรณ์ FloodHub ที่เป็นปัจจุบัน · ไม่มีข้อมูลไม่ใช่การยืนยันว่าไม่มีน้ำท่วม",
+      evidenceEn: "No current FloodHub issuance and forecast window; absence of data is not absence of flooding",
       actionTh: null,
       actionEn: null,
       observedAt: null,
@@ -425,25 +426,29 @@ function floodHubItem(floodhub: FloodHubResponse | null): WatchItem {
   }
   const worstLevel = (worst: FloodHubSeverity | null): WatchLevel =>
     worst === "EXTREME" ? "critical" : worst === "SEVERE" ? "alert" : worst === "ABOVE_NORMAL" ? "watch" : "good";
+  const known = floodhub.points.filter(p => p.severity !== "UNKNOWN");
+  const elevated = known.filter(p => p.severity !== "NO_FLOODING").length;
+  const coverageTh = ` · ใช้ได้ ${known.length}/${floodhub.points.length} จุด`;
+  const coverageEn = `; ${known.length}/${floodhub.points.length} points current`;
   const level = floodhub.outlook === "flooding" ? worstLevel(floodhub.worst) : floodhub.outlook === "none-forecast" ? "good" : "unknown";
   return {
     ...base,
     level,
     valueTh: floodhub.outlook === "flooding"
-      ? `คาดการณ์น้ำสูงกว่าปกติ ${floodhub.points.length} จุดตรวจ · ระดับสูงสุด ${floodhub.worst ?? "—"}`
+      ? `คาดการณ์น้ำสูงกว่าปกติ ${elevated} จุดตรวจ · ระดับสูงสุด ${floodhub.worst ?? "—"}`
       : floodhub.outlook === "none-forecast"
         ? "ไม่มีจุดตรวจที่คาดการณ์น้ำล้นตลิ่ง"
         : "สถานะพยากรณ์ไม่ทราบ",
     valueEn: floodhub.outlook === "flooding"
-      ? `Above-normal water forecast at ${floodhub.points.length} gauge points; worst ${floodhub.worst ?? "—"}`
+      ? `Above-normal water forecast at ${elevated} gauge points; worst ${floodhub.worst ?? "—"}`
       : floodhub.outlook === "none-forecast"
         ? "No gauge point forecasts above-normal water"
         : "Forecast status unknown",
-    evidenceTh: floodhub.note,
-    evidenceEn: floodhub.note,
+    evidenceTh: `${floodhub.note}${coverageTh}`,
+    evidenceEn: `${floodhub.note}${coverageEn}`,
     actionTh: floodhub.outlook === "flooding" ? "ตรวจสอบจุดตรวจที่ระดับสูงและประกาศทางการริมน้ำ" : null,
     actionEn: floodhub.outlook === "flooding" ? "Check elevated gauge points and official notices along the river" : null,
-    observedAt: newestStamp(floodhub.points as unknown as Array<Record<string, unknown>>, "issuedTime"),
+    observedAt: newestStamp(known as unknown as Array<Record<string, unknown>>, "issuedTime"),
   };
 }
 
@@ -641,7 +646,7 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
     aeronetItem(input.aeronet, now),
     jaxaItem(input.jaxa, now),
     smokeItem(input.smoke, now),
-    floodHubItem(input.floodhub),
+    floodHubItem(input.floodhub, now),
     hazeVisionItem(input.hazeVision, now),
     rfdItem(input.firesRfd),
     imageryItem(

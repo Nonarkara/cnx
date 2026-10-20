@@ -1420,7 +1420,7 @@ export default function CNXMap({
           if (layer.id === "cnx-citizen") {
             const r = object as CitizenReport;
             const place = r.place ? t(r.place.nameTh, r.place.nameEn) : "";
-            return `${r.source === "reddit" ? t("โพสต์ Reddit", "Reddit post") : t("ข่าว", "News")} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n📍 ${place} (${t(`±${r.place?.precisionKm} กม. จากชื่อสถานที่`, `±${r.place?.precisionKm} km, from the place name`)})`;
+            return `${r.source === "reddit" ? t("โพสต์ Reddit", "Reddit post") : t("ข่าว", "News")} · ${r.publishedAt.slice(0, 10)}\n${r.title}\n${place} (${t(`±${r.place?.precisionKm} กม. จากชื่อสถานที่`, `±${r.place?.precisionKm} km, from the place name`)})`;
           }
           if (layer.id === "cnx-dustboy") {
             const s = object as DustboyStation;
@@ -1429,10 +1429,10 @@ export default function CNXMap({
           if (layer.id === "cnx-smoke") {
             const s = object as TrajectorySegment;
             const where = s.nearCnx
-              ? t("อยู่ภายใน 50 กม. จากตัวเมืองที่ 6 ชม.", "within 50 km of the city at 6 h")
+              ? t("จุดตัวอย่างอยู่ภายใน 50 กม. จากตัวเมืองในช่วง 0–6 ชม.", "sampled within 50 km of the city during 0–6 h")
               : s.hitsCnxBbox
-              ? t("เข้าเขตจังหวัดที่ 6 ชม.", "enters the province at 6 h")
-              : t("ไม่ผ่านตัวเมืองที่ 6 ชม.", "misses the city at 6 h");
+              ? t("จุดตัวอย่างเข้าเขตจังหวัดในช่วง 0–6 ชม.", "sampled inside the province during 0–6 h")
+              : t("ไม่พบจุดตัวอย่างใกล้เมืองในช่วง 0–6 ชม. แต่ระหว่างจุดอาจผ่านได้", "no sampled near-city point during 0–6 h; crossings between samples can be missed");
             const method = smokeMethod === "forecast-field"
               ? t("ลมพยากรณ์ระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนตามเวลา", "hourly forecast 850 hPa wind (~1.5 km)")
               : t("ลมผิวพื้นจุดเดียวแบบเส้นตรง (วิธีสำรอง)", "one surface-wind vector, straight-line fallback");
@@ -1599,7 +1599,7 @@ export default function CNXMap({
           onClick={() => setPlumesOn((v) => !v)}
           activeClassName="border-[#c2410c] bg-[#c2410c] text-white"
           disabled={smokeSegments.length === 0}
-          title={t("ควันจากจุดไฟ VIIRS ล่าสุดจะถูกพาไปทางไหนใน 6 ชม. ข้างหน้า ตามลมพยากรณ์ที่ ~1.5 กม. เป็นเส้นกลาง — ไม่รวมการแผ่กระจายหรือการตกสะสม สีแดงคือถึงตัวเมือง", "Where smoke from a live VIIRS fire is carried in the next 6 hours, following the forecast wind at ~1.5 km as it turns. A centreline — no spread or deposition. Red reaches the city.")}
+          title={t("แนวควันจำลองจากจุดไฟ VIIRS ในช่วง 0–6 ชม. ตรวจวิธีคำนวณลมที่แต่ละเส้น สีแดงคือจุดตัวอย่างใกล้เมือง ไม่ใช่การยืนยันว่าควันถึงจริง", "Modeled VIIRS smoke paths over 0–6 hours. Check each line for the wind method used. Red is a modeled near-city sample, not observed smoke arrival.")}
         >
           {smokeSegments.length ? (plumesOn ? t(`แนวควัน: เปิด (${smokeSegments.length})`, `Plumes: on (${smokeSegments.length})`) : t("แนวควัน: ปิด", "Plumes: off")) : t("แนวควัน: ไม่มี", "Plumes: none")}
         </MapToggleButton>

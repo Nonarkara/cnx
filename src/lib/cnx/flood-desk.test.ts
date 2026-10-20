@@ -173,7 +173,7 @@ describe("flood desk decisions re-age retained evidence", () => {
   });
 
   it.each([
-    { issuedTime: "2026-10-10T04:59:59Z" },
+    { issuedTime: "2026-10-09T22:59:59Z" },
     { issuedTime: "2026-10-11T05:06:00Z" },
     { forecastEnd: new Date(NOW).toISOString() },
     { forecastEnd: "invalid" },
@@ -183,13 +183,24 @@ describe("flood desk decisions re-age retained evidence", () => {
     expect(line).toMatchObject({ status: "unavailable", level: "unknown" });
   });
 
+  it("uses the declared 30-hour issuance allowance at the desk", () => {
+    const line = (hours: number) => floodHubLine({ status: "ok", data: floodHub([currentPoint({ issuedTime: new Date(NOW - hours * 3_600_000).toISOString() })]) }, NOW);
+    expect(line(29).status).toBe("ok");
+    expect(line(31)).toMatchObject({ status: "unavailable", level: "unknown" });
+  });
+
   it("keeps a valid future forecast window and derives the grade from usable points", () => {
     const data = floodHub([currentPoint({ severity: "SEVERE" })], "NO_FLOODING");
     expect(floodHubLine({ status: "ok", data }, NOW).level).toBe("alert");
   });
 
-  it("does not let an expired severe point override a current calm forecast", () => {
+  it("marks partial no-flood coverage unknown instead of reusing an expired severe point", () => {
     const data = floodHub([currentPoint({ gaugeId: "expired", severity: "SEVERE", forecastEnd: new Date(NOW - 1).toISOString() }), currentPoint()], "SEVERE");
-    expect(floodHubLine({ status: "ok", data }, NOW).level).toBe("good");
+    expect(floodHubLine({ status: "ok", data }, NOW)).toMatchObject({ level: "unknown", coverageIncomplete: true });
+  });
+
+  it("retains a current severe warning while exposing missing forecast coverage", () => {
+    const data = floodHub([currentPoint({ severity: "SEVERE" }), currentPoint({ gaugeId: "expired", forecastEnd: new Date(NOW - 1).toISOString() })]);
+    expect(floodHubLine({ status: "ok", data }, NOW)).toMatchObject({ level: "alert", status: "ok", coverageIncomplete: true });
   });
 });

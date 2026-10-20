@@ -126,7 +126,7 @@ describe("buildWatchList ranking and honesty", () => {
           {
             gaugeId: "hybas", latitude: 18.8, longitude: 98.9, kmFromCity: 12,
             qualityVerified: false, severity: "SEVERE", trend: "RISE",
-            issuedTime: "2026-10-09T01:00:00Z", forecastStart: null, forecastEnd: null,
+            issuedTime: "2026-10-09T01:00:00Z", forecastStart: "2026-10-10T00:00:00Z", forecastEnd: "2026-10-11T00:00:00Z",
           },
         ],
         outlook: "flooding",
@@ -146,7 +146,7 @@ describe("buildWatchList ranking and honesty", () => {
       floodhub: {
         generatedAt: "2026-10-09T02:00:00Z",
         provenance: "live",
-        points: [],
+        points: [{ gaugeId: "a", latitude: 18.8, longitude: 99, kmFromCity: 1, qualityVerified: false, severity: "NO_FLOODING", trend: "UNKNOWN", issuedTime: "2026-10-09T01:00:00Z", forecastStart: "2026-10-10T00:00:00Z", forecastEnd: "2026-10-11T00:00:00Z" }],
         outlook: "none-forecast",
         worst: null,
         note: "no forecast = no riverine alert, not proof of safety",
@@ -516,5 +516,16 @@ describe("haze watch evidence destinations", () => {
     expect(row(aerosol)).toMatchObject({ openMetric: "haze", level: "alert", observedAt: aerosol.observedAt });
     const undated = { ...aerosol, observedAt: undefined };
     expect(row(undated)).toMatchObject({ openMetric: "haze", level: "unknown", observedAt: null });
+  });
+});
+
+
+describe("FloodHub retained-copy freshness", () => {
+  it("does not show an old no-flood copy as good or an expired severe copy as an alert", () => {
+    for (const severity of ["NO_FLOODING", "SEVERE"] as const) {
+      const board = buildWatchList({ ...baseInput(), floodhub: { generatedAt: new Date().toISOString(), provenance: "live", outlook: severity === "SEVERE" ? "flooding" : "none-forecast", worst: severity, note: "Riverine only", points: [{ gaugeId: "old", latitude: 18.8, longitude: 99, kmFromCity: 1, qualityVerified: false, severity, trend: "UNKNOWN", issuedTime: "2026-10-01T01:00:00Z", forecastStart: "2026-10-02T00:00:00Z", forecastEnd: "2026-10-03T00:00:00Z" }] } });
+      expect(board.systems.find(s => s.id === "floodhub")?.level).toBe("unknown");
+      expect(board.watch.some(s => s.id === "floodhub")).toBe(false);
+    }
   });
 });

@@ -57,7 +57,7 @@ function RainRow({ r, onShowOnMap }: { r: RainOutlook; onShowOnMap: Props["onSho
           <p className="mt-1 text-[13px] leading-snug text-[var(--ink)]">▸ {t(rainActionTh(r), rainActionEn(r))}</p>
           {shelterCount > 0 && (
             <details className="mt-1 text-[12px]">
-              <summary className="min-h-9 cursor-pointer py-1 font-semibold text-[var(--cool)]">{t(`ศูนย์พักพิง ${shelterCount} แห่งใน อ.${d.nameTh}`, `${shelterCount} ${shelterCount === 1 ? "shelter" : "shelters"} in ${d.nameEn}`)}</summary>
+              <summary className="min-h-11 cursor-pointer py-2 font-semibold text-[var(--cool)]">{t(`ศูนย์พักพิง ${shelterCount} แห่งใน อ.${d.nameTh}`, `${shelterCount} ${shelterCount === 1 ? "shelter" : "shelters"} in ${d.nameEn}`)}</summary>
               <ul className="mt-1 flex flex-col gap-1">
                 {r.shelters.map((s) => (
                   <li key={s.id} className="leading-snug">
@@ -75,8 +75,8 @@ function RainRow({ r, onShowOnMap }: { r: RainOutlook; onShowOnMap: Props["onSho
               </ul>
             </details>
           )}
+          <div className="mt-2"><MapButton onClick={() => onShowOnMap({ ...r.point, amphoeTh: d.nameTh })} label={t("ดูบนแผนที่", "Show on map")} /></div>
         </div>
-        <MapButton onClick={() => onShowOnMap({ ...r.point, amphoeTh: d.nameTh })} label={t("ดูบนแผนที่", "Show on map")} />
       </div>
     </li>
   );
@@ -92,8 +92,8 @@ function AirRow({ a, onShowOnMap }: { a: AirOutlook; onShowOnMap: Props["onShowO
           <p className="text-[14px] font-semibold">{t(`อ.${a.district.nameTh} · PM2.5 สูงสุด ${a.peak} µg/m³`, `${a.district.nameEn} · PM2.5 peak ${a.peak} µg/m³`)}</p>
           <p className="text-[12px] text-[var(--dim)]">{t(`ช่วง ${outlookTime(a.peakAt)} · แบบจำลอง CAMS`, `Around ${outlookTimeEn(a.peakAt)} · CAMS model`)}</p>
           <p className="mt-1 text-[13px] leading-snug text-[var(--ink)]">▸ {t(airActionTh(a), airActionEn(a))}</p>
+          <div className="mt-2"><MapButton onClick={() => onShowOnMap({ ...a.point, amphoeTh: null })} label={t("ดูบนแผนที่", "Show on map")} /></div>
         </div>
-        <MapButton onClick={() => onShowOnMap({ ...a.point, amphoeTh: null })} label={t("ดูบนแผนที่", "Show on map")} />
       </div>
     </li>
   );
@@ -150,7 +150,7 @@ export default function CnxOutlookPanel({ outlook, shelters, onShowOnMap }: Prop
       )}
 
       {shelters && (
-        <div className="flex items-center gap-2 border-t border-[var(--line)] pt-2">
+        <div className="flex flex-col items-start gap-2 border-t border-[var(--line)] pt-2">
           <p className="min-w-0 flex-1 text-[12px] leading-snug text-[var(--dim)]">
             {t(
               `ศูนย์พักพิงชั่วคราวทางการ ${shelters.counts.total} แห่ง (${shelters.source.publisher}) · พิกัดตรงอาคาร ${shelters.counts.place + (shelters.counts.official ?? 0)} แห่ง ที่เหลือเป็นตำแหน่งโดยประมาณ`,

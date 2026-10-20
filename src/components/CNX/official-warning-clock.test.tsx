@@ -40,3 +40,17 @@ it.each(["expiry", "stale check", "return to screen"])("rechecks a retained warn
     expect(official()).toContain(reason === "expiry" ? "No TMD warning in force" : "TMD warnings unavailable");
   } finally { await act(async () => root.unmount()); }
 });
+
+it("puts official warnings and current concerns before model/context content", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  state.feed = null;
+  const container=document.createElement("div"); const root=createRoot(container);
+  try {
+    await act(async()=>root.render(createElement(CnxWatchBoard,{metrics:[],firesRfd:null,aerosol:null,smoke:null,hazeVision:null,dustboy:null,weatherLayers:null,riverGauges:[],rain:null,onOpenMetric:vi.fn(),afterWatch:createElement("section",{"data-test":"model"},"Model context")})));
+    const official=container.querySelector('[aria-labelledby="watch-official"]')!;
+    const concerns=container.querySelector('[aria-labelledby="watch-now"]')!;
+    const model=container.querySelector('[data-test="model"]')!;
+    expect(official.compareDocumentPosition(concerns)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(concerns.compareDocumentPosition(model)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  } finally {await act(async()=>root.unmount());}
+});

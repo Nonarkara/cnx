@@ -6,14 +6,14 @@
 //
 // Algorithm (deliberately simple, transparent, honest):
 //   1. For each hotspot, compute a line of predicted positions at
-//      t=1h, 3h, 6h using straight-line wind advection
+//      t=1h through 6h using straight-line fallback wind advection
 //      (x = x0 + windSpeed * cos(bearing) * dt)
 //      (y = y0 + windSpeed * sin(bearing) * dt)
 //   2. Tag every point with the predicted time so the panel can
 //      colour by "in 1h / 3h / 6h".
-//   3. Measure the 6 h endpoint against the CNX bbox and a 50 km
+//   3. Screen the origin and hourly positions against the province outline and a 50 km
 //      radius of the city centre, and summarise how many plumes
-//      arrive and roughly where they come from.
+//      have sampled positions there; this does not establish smoke arrival.
 //
 // There is deliberately NO plume widening: the wire format is a
 // centreline, and a synthetic Gaussian spread would draw a modelled
@@ -42,7 +42,7 @@
 // Output:
 //   - TrajectorySegment[] — one per hotspot, with predicted points
 //   - hazeWatch — operator-visible verdict: "smoke heading toward CNX?"
-//     = "any trajectory segment endpoint falls within CNX bbox"
+//     = "any sampled position falls within the province outline"
 
 import { CNX_PROVINCE } from "./config";
 import { inChiangMaiProvince } from "./province-boundary";
@@ -79,11 +79,11 @@ export interface TrajectorySegment {
   hotspotId: string;
   /** Origin (the fire itself). */
   origin: { latitude: number; longitude: number };
-  /** Predicted plume points at t=1h, 3h, 6h. */
+  /** Predicted plume positions sampled hourly at t=1h through 6h. */
   points: TrajectoryPoint[];
-  /** Does the 6 h prediction fall inside the CNX bbox? */
+  /** Does the origin or any hourly modeled position fall inside the province outline? */
   hitsCnxBbox: boolean;
-  /** Does the 6 h prediction fall within 50 km of CNX centre? */
+  /** Does the origin or any hourly modeled position fall within 50 km of CNX centre? */
   nearCnx: boolean;
   /** Distance from origin to the 6 h endpoint in km. */
   travelKm6h: number;
@@ -156,7 +156,7 @@ export function presentForOperator(response: SmokeTrajectoryResponse): SmokeTraj
   };
 }
 
-const HOURS = [1, 3, 6] as const;
+const HOURS = [1, 2, 3, 4, 5, 6] as const;
 
 /**
  * Compute the plume destination at t hours.
@@ -304,8 +304,9 @@ export function computeTrajectories(
       ...advect(origin, wind, hAhead),
     }));
     const endpoint6 = points[points.length - 1];
-    const hitsCnx = inCnxBbox(endpoint6);
-    const nearCnx = inCnxCore(endpoint6);
+    const path = [origin, ...points];
+    const hitsCnx = path.some(inCnxBbox);
+    const nearCnx = path.some(inCnxCore);
     const weight = Math.min(1, Math.max(0.2, (h.frp ?? 5) / 30));
     segments.push({
       hotspotId: h.id,
@@ -333,9 +334,9 @@ export function computeTrajectories(
       origin_en: origin.en,
     },
     methodology_th:
-      "การเคลื่อนที่ของควันคำนวณจากลมผิวพื้นที่เมือง — ไม่รวม turbulence, mixing, deposition",
+      "การเคลื่อนที่ของควันคำนวณจากลมผิวพื้นที่เมือง — ตรวจต้นทางและจุดรายชั่วโมงตลอด 6 ชม. อาจพลาดการผ่านพื้นที่ระหว่างจุดตัวอย่าง ไม่ใช่การยืนยันว่าควันมาถึง ไม่รวม turbulence, mixing, deposition",
     methodology_en:
-      "Plume advection from surface wind only — straight-line, no turbulence or deposition.",
+      "Plume advection from surface wind only — straight-line, no turbulence or deposition. Screens the origin and hourly sampled positions over six hours; can miss crossings between samples. Not observed smoke arrival.",
     provenance: "live",
     hotspotSource: hotspots.length > 0 ? "firms" : "none",
     note: null,
@@ -376,8 +377,8 @@ export function computeFieldTrajectories(
       hotspotId: h.id,
       origin,
       points,
-      hitsCnxBbox: inCnxBbox(end),
-      nearCnx: inCnxCore(end),
+      hitsCnxBbox: [origin, ...points].some(inCnxBbox),
+      nearCnx: [origin, ...points].some(inCnxCore),
       travelKm6h: distKm(origin, end),
       weight: Math.min(1, Math.max(0.2, (h.frp ?? 5) / 30)),
     });
@@ -398,9 +399,9 @@ export function computeFieldTrajectories(
       origin_en: hotspots.length ? origin.en : "no hotspots",
     },
     methodology_th:
-      "แนวควันคำนวณตามลมพยากรณ์รายชั่วโมงระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนไปตามเวลาและตำแหน่ง — เป็นเส้นแกนกลาง ไม่รวมการแผ่กระจายหรือการตกสะสม",
+      "แนวควันคำนวณตามลมพยากรณ์รายชั่วโมงระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนไปตามเวลาและตำแหน่ง — เป็นเส้นแกนกลาง ไม่รวมการแผ่กระจายหรือการตกสะสม ตรวจต้นทางและจุดรายชั่วโมงตลอด 6 ชม. อาจพลาดการผ่านพื้นที่ระหว่างจุดตัวอย่าง ไม่ใช่การยืนยันว่าควันมาถึง",
     methodology_en:
-      "Plume centrelines integrated through the hourly 850 hPa (~1.5 km) forecast wind field (advection, RK2) — they bend as the wind turns. No spread, mixing or deposition.",
+      "Plume centrelines integrated through the hourly 850 hPa (~1.5 km) forecast wind field (advection, RK2) — they bend as the wind turns. No spread, mixing or deposition. Screens the origin and hourly sampled positions over six hours; can miss crossings between samples. Not observed smoke arrival.",
     provenance: hotspots.length > 0 && segments.length === 0 ? "unavailable" : "live",
     hotspotSource: hotspots.length > 0 ? "firms" : "none",
     omittedTrajectories,

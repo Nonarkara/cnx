@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTiles, canonicalDistrict, districtTable, lineText, pm25Band, thaiDate, type BriefInputs } from "./governor-brief";
+import type { FloodHubResponse } from "./floodhub";
 import type { BurnSeasonDoc } from "./burn-season";
 import type { DustboyStation } from "./dustboy";
 
@@ -49,13 +50,15 @@ describe("pm25Band", () => {
   });
 });
 
+const floodForecast = (severity: "NO_FLOODING" | "SEVERE" = "NO_FLOODING"): FloodHubResponse => ({ generatedAt: "2026-10-03T15:00:00Z", provenance: "live", outlook: severity === "SEVERE" ? "flooding" : "none-forecast", worst: severity, note: "Riverine only", points: [{ gaugeId: "a", latitude: 18.8, longitude: 99, kmFromCity: 1, qualityVerified: false, severity, trend: "UNKNOWN", issuedTime: "2026-10-03T12:00:00Z", forecastStart: "2026-10-04T00:00:00Z", forecastEnd: "2026-10-05T00:00:00Z" }] });
+
 const inputs = (over: Partial<BriefInputs> = {}): BriefInputs => ({
   now: new Date("2026-10-03T15:00:00Z"),
   airGround: { avg: 12, stations: 108, observedAt: "2026-10-03T14:00:00Z", source: "CMU DustBoy" },
   worstDistrict: null,
   fires: { live: true, count: 0, observedAt: "2026-10-03T15:00:00Z", source: "NASA VIIRS" },
   river: { th: "สถานี P.1 ต่ำกว่าตลิ่ง 2.49 ม.", en: "P.1 2.49 m below bank", level: "good", observedAt: "2026-10-03T14:00:00Z" },
-  floodForecast: { outlook: "none-forecast", points: 12 },
+  floodForecast: floodForecast(),
   arrivals: { date: "2026-10-02", flights: 97, international: 30, estimatedVisitors: 12000 },
   ...over,
 });
@@ -96,7 +99,7 @@ describe("buildTiles", () => {
   });
 
   it("raises water to watch when Google forecasts flooding even if the river is low now", () => {
-    expect(buildTiles(inputs({ floodForecast: { outlook: "flooding", points: 12 } })).find((t) => t.key === "water")!.level).toBe("watch");
+    expect(buildTiles(inputs({ floodForecast: floodForecast("SEVERE") })).find((t) => t.key === "water")!.level).toBe("watch");
   });
 });
 
@@ -118,5 +121,32 @@ describe("lineText", () => {
 
   it("formats Thai dates in the Buddhist era", () => {
     expect(thaiDate("2026-04-15")).toBe("15 เม.ย. 2569");
+  });
+});
+
+
+describe("bilingual retained forecast briefing", () => {
+  it("keeps expired no-flood and severe copies out of the current narrative", () => {
+    for (const severity of ["NO_FLOODING", "SEVERE"] as const) {
+      const tile = buildTiles(inputs({ now: new Date("2026-10-04T19:00:00Z"), floodForecast: floodForecast(severity), river: null })).find(t => t.key === "water")!;
+      expect(tile.en).toContain("No current Google river forecast");
+      expect(tile.th).toContain("ไม่มีพยากรณ์แม่น้ำ Google ที่เป็นปัจจุบัน");
+      expect(tile.level).toBe("unknown");
+    }
+  });
+  it("includes modeled warning and scope in both languages without hiding missing measurement", () => {
+    const tile = buildTiles(inputs({ floodForecast: floodForecast("SEVERE"), river: null })).find(t => t.key === "water")!;
+    expect(tile.th).toContain("คาดการณ์ระดับน้ำสูงกว่าปกติ");
+    expect(tile.en).toContain("Google forecasts above-normal river water");
+    expect(tile.en).toContain("does not cover urban or flash flooding");
+    expect(tile.source).toContain("Google Flood Hub");
+    expect(tile.level).toBe("unknown");
+    expect(tile.observedAt).toBeNull();
+  });
+  it("includes aviation date and estimation limitation in English without inventing an observation time", () => {
+    const tile = buildTiles(inputs()).find(t => t.key === "visitors")!;
+    expect(tile.en).toContain("2026-10-02");
+    expect(tile.en).toContain("not measured passengers or tourists");
+    expect(tile.observedAt).toBeNull();
   });
 });

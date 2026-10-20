@@ -91,7 +91,7 @@ const DIRECT: Record<string, Probe> = {
   },
   "cams-aod": async () => {
     const r = await fetchCnxAerosol();
-    return when(r.provenance === "model", r.provenance, r.generatedAt);
+    return when(r.provenance === "model", r.provenance, r.observedAt);
   },
   aeronet: async () => {
     const r = await fetchCnxAeronet();

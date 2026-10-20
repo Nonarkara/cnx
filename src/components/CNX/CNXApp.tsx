@@ -55,6 +55,10 @@ import CnxOperationalPulse from "./CNXOperationalPulse";
 import CnxMetricEvidence from "./CNXMetricEvidence";
 import CnxWatchBoard from "./CNXWatchBoard";
 import CnxOutlookPanel from "./CNXOutlookPanel";
+import CnxOperationalHandoff from "./CNXOperationalHandoff";
+import CnxWaterVisionPanel from "./CNXWaterVisionPanel";
+import type { WaterVisionResponse } from "../../lib/cnx/water-vision";
+import { buildOperationalHandoff } from "../../lib/cnx/operational-handoff";
 import { buildOutlook, currentForecast } from "../../lib/cnx/outlook";
 import { isSheltersFile, type SheltersFile } from "../../lib/cnx/shelters";
 import { buildExecutiveBrief, type ExecutiveMetric } from "../../lib/cnx/executive-brief";
@@ -133,6 +137,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [asmc, setAsmc] = useState<import("../../lib/cnx/asmc").AsmcResponse | null>(null);
   const [hazeVision, setHazeVision] = useState<import("../../lib/cnx/haze-vision").HazeVisionResponse | null>(null);
   const [citizen, setCitizen] = useState<import("../../lib/cnx/citizen-reports").CitizenResponse | null>(null);
+  const [waterVision, setWaterVision] = useState<WaterVisionResponse | null>(null);
   const [isHazeOpen, setIsHazeOpen] = useState(false);
   const [isBriefOpen, setIsBriefOpen] = useState(false);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
@@ -177,6 +182,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   useEffect(() => { const timer = window.setInterval(() => setRainClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const currentHaze = useMemo(() => buildHazeWatchState({ air, dustboy, hazeVision, citizen, smoke, now: rainClock }), [air, dustboy, hazeVision, citizen, smoke, rainClock]);
   const currentRain = useMemo(() => currentRainSummary(rain, rainClock), [rain, rainClock]);
+  const operationalHandoff = useMemo(() => buildOperationalHandoff({ now: rainClock, rain: currentRain, gauges: riverGauges, smoke }), [rainClock, currentRain, riverGauges, smoke]);
+  const operationalNotes = useMemo(() => operationalHandoff.map(row => ({ th: `${row.titleTh}: ${row.th} ${row.actionTh} · ${row.sourceUrl}`, en: `${row.titleEn}: ${row.en} ${row.actionEn} · ${row.sourceUrl}` })).concat([{ th: "ตรวจพยากรณ์ TMD ประจำวันและ 7 วันควบคู่ประกาศ CAP: https://www.tmd.go.th/forecast/daily · https://tmd.go.th/en/forecast/sevenday", en: "Check TMD daily and seven-day forecasts alongside CAP notices: https://www.tmd.go.th/forecast/daily · https://tmd.go.th/en/forecast/sevenday" }]), [operationalHandoff]);
   const activeForecast = useMemo(() => currentForecast(forecast, rainClock), [forecast, rainClock]);
   const outlook = useMemo(() => buildOutlook(activeForecast, shelters?.shelters ?? [], currentRain), [activeForecast, shelters, currentRain]);
   const showOnMap = (target: { lat: number; lon: number; amphoeTh: string | null }) => {
@@ -325,6 +332,17 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       window.clearInterval(interval);
     };
   }, [scenarioId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      const data = await fetchJsonOrNull<WaterVisionResponse>("/api/cnx/water-vision", { signal: controller.signal });
+      if (!controller.signal.aborted) setWaterVision(data);
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 5 * 60_000);
+    return () => { controller.abort(); window.clearInterval(timer); };
+  }, []);
 
   // 3-min secondary
   useEffect(() => {
@@ -614,7 +632,6 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
             onClick={() => setDeskTab("watch")}
             className={`flex min-h-11 w-full shrink-0 items-center justify-center gap-2 border-b border-[var(--line)] px-1 py-1.5 ${deskTab === "watch" ? "bg-[var(--cool-dim)] text-[var(--ink)]" : "text-[var(--dim)] hover:text-[var(--ink)]"}`}
           >
-            <span aria-hidden="true">🛰</span>
             <span className="text-[13px] font-semibold">{t("เฝ้าระวังทั้งจังหวัด", "Province watch")}</span>
           </button>
           <div role="group" aria-label={t("หัวข้อโต๊ะปฏิบัติการ", "Operations desk topics")} className="grid shrink-0 grid-cols-4 border-b border-[var(--line)]">
@@ -627,16 +644,16 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           </div>
           <div id="operation-evidence" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
             {deskTab === "watch" && <>
-              <CnxOutlookPanel outlook={outlook} shelters={shelters} onShowOnMap={showOnMap} />
-              <CnxWatchBoard metrics={metrics} firesRfd={firesRfd} aerosol={aerosol} smoke={smoke} hazeVision={hazeVision} dustboy={dustboy} weatherLayers={weatherLayers} riverGauges={riverGauges} rain={rain} outlook={outlook} onOpenMetric={openMetric} />
+              <CnxWatchBoard metrics={metrics} firesRfd={firesRfd} aerosol={aerosol} smoke={smoke} hazeVision={hazeVision} dustboy={dustboy} weatherLayers={weatherLayers} riverGauges={riverGauges} rain={rain} outlook={outlook} onOpenMetric={openMetric}
+                afterWatch={<><CnxOutlookPanel outlook={outlook} shelters={shelters} onShowOnMap={showOnMap} /><CnxOperationalHandoff rows={operationalHandoff} onOpenMetric={openMetric} /></>} />
             </>}
             {deskMetric && <CnxMetricEvidence metric={deskMetric} />}
-            {deskTab === "water" && <><CnxRainPanel rain={rain} /><div className="min-h-[350px]"><CnxRiverLevelPanel /></div></>}
+            {deskTab === "water" && <><CnxRainPanel rain={rain} /><div className="min-h-[350px]"><CnxRiverLevelPanel /></div><CnxWaterVisionPanel feed={waterVision} onShowOnMap={point => showOnMap({ ...point, amphoeTh: null })} /></>}
             {deskTab === "air" && <div className="h-full min-h-[300px]"><CnxAirQualityPanel /></div>}
             {deskTab === "fire" && <div className="h-full min-h-[230px]"><CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} /></div>}
             {deskTab === "model" && <div className="h-full min-h-[300px]"><CnxFloodPanel flood={flood} air={air} fires={fires} outlook={outlook} /></div>}
             {deskTab === "visitors" && <><div className="h-[320px]"><CnxVisitorPanel onData={setVisitorAnalytics} /></div><CnxArrivalsPanel />{outbound && <CnxOutboundPanel snapshot={outbound} />}</>}
-            {deskTab === "cameras" && <div className="h-full min-h-[240px]"><CnxFloodCamerasPanel /></div>}
+            {deskTab === "cameras" && <><CnxWaterVisionPanel feed={waterVision} onShowOnMap={point => showOnMap({ ...point, amphoeTh: null })} /><CnxFloodCamerasPanel /></>}
             {deskTab === "data" && <CnxOpenData onOpenWorkbench={() => setIsDataOpen(true)} />}
             {deskTab === "ask" && <div className="h-full min-h-[240px]"><CnxAskChat /></div>}
           </div>
@@ -660,14 +677,14 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         >
           {(
             [
-              { id: "watch", label: t("เฝ้าระวัง", "Watch"), icon: "🛰" },
-              { id: "air", label: t("อากาศ", "Air"), icon: "🌫" },
-              { id: "flood", label: t("น้ำและฝน", "Water & rain"), icon: "🌊" },
-              { id: "fire", label: t("ไฟป่า", "Fire"), icon: "🔥" },
-              { id: "visitors", label: t("การบิน", "Aviation"), icon: "✈" },
-              { id: "social", label: t("ข่าว", "News"), icon: "📰" },
-              { id: "data", label: t("ข้อมูล", "Data"), icon: "🗂" },
-              { id: "ask", label: t("ค้นหา", "Search"), icon: "🔍" },
+              { id: "watch", label: t("เฝ้าระวัง", "Watch") },
+              { id: "air", label: t("อากาศ", "Air") },
+              { id: "flood", label: t("น้ำและฝน", "Water & rain") },
+              { id: "fire", label: t("ไฟป่า", "Fire") },
+              { id: "visitors", label: t("การบิน", "Aviation") },
+              { id: "social", label: t("ข่าว", "News") },
+              { id: "data", label: t("ข้อมูล", "Data") },
+              { id: "ask", label: t("ค้นหา", "Search") },
             ] as const
           ).map((t) => (
             <button
@@ -679,15 +696,14 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
                 mobileTab === t.id ? "bg-[var(--bg)] text-[var(--ink)]" : "text-[var(--dim)]"
               }`}
             >
-              <span aria-hidden="true">{t.icon}</span>
               <span>{t.label}</span>
             </button>
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--bg-raised)]">
           {mobileTab === "watch" && <>
-              <CnxOutlookPanel outlook={outlook} shelters={shelters} onShowOnMap={showOnMap} />
-              <CnxWatchBoard metrics={metrics} firesRfd={firesRfd} aerosol={aerosol} smoke={smoke} hazeVision={hazeVision} dustboy={dustboy} weatherLayers={weatherLayers} riverGauges={riverGauges} rain={rain} outlook={outlook} onOpenMetric={openMetric} />
+              <CnxWatchBoard metrics={metrics} firesRfd={firesRfd} aerosol={aerosol} smoke={smoke} hazeVision={hazeVision} dustboy={dustboy} weatherLayers={weatherLayers} riverGauges={riverGauges} rain={rain} outlook={outlook} onOpenMetric={openMetric}
+                afterWatch={<><CnxOutlookPanel outlook={outlook} shelters={shelters} onShowOnMap={showOnMap} /><CnxOperationalHandoff rows={operationalHandoff} onOpenMetric={openMetric} /></>} />
             </>}
           {mobileMetric && <CnxMetricEvidence metric={mobileMetric} />}
           {mobileTab === "fire" && <CnxFirePanel firms={fires} rfd={firesRfd} aerosol={aerosol} />}
@@ -695,6 +711,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           {mobileTab === "flood" && <>
             <CnxRainPanel rain={rain} />
             <div className="h-[400px]"><CnxRiverLevelPanel /></div>
+            <CnxWaterVisionPanel feed={waterVision} onShowOnMap={point => showOnMap({ ...point, amphoeTh: null })} />
             <div className="h-[300px]"><CnxFloodCamerasPanel /></div>
           </>}
           {mobileTab === "visitors" && <>
@@ -728,7 +745,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
       <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
-      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} onOpenMetric={openMetric} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} outlook={outlook} />
+      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} onOpenMetric={openMetric} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} outlook={outlook} operationalNotes={operationalNotes} />
       <CnxHazeModal
         isOpen={isHazeOpen}
         onClose={() => setIsHazeOpen(false)}
