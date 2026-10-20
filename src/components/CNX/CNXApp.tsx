@@ -575,7 +575,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       {view === "overview" ? (
         <CnxExecutiveOverview air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} social={social} onOpenMap={() => setView("map")} onOpenBrief={() => setIsBriefOpen(true)} onOpenEmergency={() => setIsEmergencyOpen(true)} onOpenData={() => setIsDataOpen(true)} onOpenMetric={openMetric} />
       ) : <>
-      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} onOpenMetric={openMetric}><CameraAccess feed={cctv} floating className="hidden sm:block" /></CnxOperationalPulse>
+      <CnxOperationalPulse air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} onOpenMetric={openMetric}><CameraAccess feed={cctv} floating className="hidden lg:block" /></CnxOperationalPulse>
 
 
 
