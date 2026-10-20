@@ -95,3 +95,114 @@ The wider vision service was healthy but its running 1.18.0 differed from its
 
 Release, checks, visual evidence and remaining maintenance findings are recorded
 below after execution. No claim of validated flood/haze detector accuracy is made.
+
+### Shipped and independently checked
+
+- Production code: `4b925dc7b842ce63f778cbafa66e01a128544fc8`, pushed to
+  `origin/main`. Cloudflare version `a9184412-bcdf-4d11-86e6-8310c4961a68`.
+- CI: https://github.com/Nonarkara/cnx/actions/runs/39441025772 — Node 20.19
+  and 22.12 type checks, lint, **1,225 tests in 123 files**, and Worker build pass.
+- Local production Worker build passes. Read-only release verification passes
+  **51 routes**, matching deployed/published source and a clean tree, including
+  rejection of unauthenticated water/haze ingest. Full gate:
+  `/tmp/cnx-oct20-release-gate.log`.
+- `npm audit --omit=dev`: zero reported production dependency vulnerabilities.
+  This is the package advisories result, not a certification of the whole system.
+- No open PRs awaited incorporation. Other codebases' changes were preserved.
+- Mac on AC, Data mounted with approximately 5.6 TiB free. Only the existing CNX
+  relay was restarted; launchd reports running, PID 1868. The final frontend/text
+  release did not require another restart of unchanged relay code.
+
+The final review also repaired retained RFD query aging (a successful empty query
+expires after the declared two-hour window), the situation rail's stale
+straight-line/endpoint-only wording, and unsupported agricultural/forest-burning
+or spread claims inferred from VIIRS counts. Scores were preserved; attribution
+now requires field verification. The actual transport method is passed through
+the twin aggregation and covered by an integration regression.
+
+Serial camera collection now finalizes every image status at the shared ingest
+clock. A RED test crossing the 45-minute boundary reproduced rejection of an
+otherwise valid batch; recomputing at `generatedAt` closes it. Source capture
+times and persistent fingerprints are preserved.
+
+### Real camera cycles, not just test fixtures
+
+The production collector completed its first cycle at 21:33:49 Bangkok with all
+three decoded views captured at 21:30. Its next ordinary 15-minute cycle completed
+at 21:48:52: all three source captures advanced to **21:45**, all were readable,
+and all had changed scene pixels. No extra restart or forced source sweep was
+needed. Changed pixels do not establish rising water. The API and visible panel
+both retained the capture clock separately from collection/batch time.
+
+The haze screen was checked against actual data: two PCD reference stations,
+114 usable Chiang Mai DustBoy points across 21 districts, separate CAMS PM2.5
+and column AOD context, and one unassessable nighttime camera. The camera was
+not promoted into a clear-air verdict. Sparse camera coverage remains explicit.
+
+At the 21:34 release snapshot, the rain API returned 357 current gauges, maximum
+3.5 mm/24 h at Doi Tao (21:00 observation). The handoff separately showed upstream
+Mae Taeng 0.2 mm/24 h and Saraphi 3 mm/24 h with their own clocks. These later
+point observations do not retroactively change the dated 20:51 audit snapshot
+above. The river response contained 45 gauges; P.1 still carried its 18:00 reading
+and was excluded from the current handoff. A fresh CHM004 reading is not a
+substitute for P.1 or basin-wide assurance.
+
+The smoke response used the 850 hPa hourly forecast field: 85 detections,
+79 complete paths, three paths with sampled positions inside the province,
+one within 50 km of the city, and six incomplete paths. This is model screening
+over 0–6 h, not observed ground-level smoke or an arrival forecast. Detections
+were described as east of Chiang Mai; no Myanmar/agricultural attribution was
+manufactured from that direction.
+
+### Visual and human review
+
+Final production was checked in Thai and English at 1440, 1024 and 390 px, with
+light/dark checks on desktop and phone. DOM width matched the viewport, normal
+visual scale was 1, and sampled visible operational text had no contrast failures
+below 4.5:1. This is a sampled composited-text check, not a blanket accessibility
+certification. Selected water controls, river captions, haze evidence, source
+times and briefing content were included. No new browser console errors were
+captured after the final public reload.
+
+Independent review inspected seven operational screenshots and both final
+briefing captures: no material visual blockers. The map remains the landing
+hero; the desktop header stays on one row. New briefing prose uses two readable
+columns on desktop and one on phones, bounded to 65ch. Short summary tiles no
+longer stretch to match their neighbours. Native disclosures keep secondary
+evidence available without adding permanent map chrome.
+
+Evidence directory: `/Volumes/Data/CNX/audit-artifacts/2026-10-20/`:
+
+- `final-operations-{th,en}-dark-{1440,1024,390}.jpg`
+- `final-operations-{th,en}-light-{1440,390}.jpg`
+- `final-river-th-dark-1440.jpg`, `river-th-light-390.jpg`
+- `haze-en-light-1440.jpg`, `haze-th-light-390.jpg`
+- `final-brief-th-light-top-1440.jpg`, `final-brief-th-light-1440.jpg`
+
+The visible Thai copy text included RID, ASMC, historical PRD and TMD URLs and
+reference times. The copy control reported success; the browser connector's
+clipboard readback was empty, so an OS-level paste was not independently proven.
+The visible copy text and UI regressions verify the handoff contents. Final
+browser state was restored to the Thai dark operations map with normal viewport.
+
+### Operational limits and next confirmation
+
+- Obtain a fresh P.1 reading directly from RID before a threshold decision.
+  Historical gauge observations remain inspectable with timestamps; use the
+  age-filtered Watch/Water/briefing decisions rather than interpreting every
+  map point as a current condition.
+- River analysis depends on this Mac's relay and the existing FloodDash snapshot
+  service. Missing/stale batches become unavailable; public mutable previews do
+  not refresh analyzed capture times. The three views do not cover the province.
+- No calibrated waterline/depth/flow detector or validated camera haze accuracy
+  is claimed. Such a capability needs matched gauge/image labels across daylight,
+  night, glare, muddy water and obstruction before operational thresholds.
+- Hourly modeled path samples can miss crossings between samples; incomplete
+  paths and unresolved dispersion/deposition preclude an all-clear or smoke ETA.
+- GDELT/news may recirculate old warnings; treat the news rail as leads, not
+  current official applicability. ADS-B provider throttling remained intermittent;
+  the relay continued serving OpenSky/merged observations through its existing
+  fallback. No claim of complete aircraft or social-platform coverage is made.
+- Historical Saraphi lowlands and seasonal burn areas are context, not a current
+  flood extent or proof that flood and haze affect identical locations. District
+  staff must confirm drains, pumps, open shelters and passable routes.
