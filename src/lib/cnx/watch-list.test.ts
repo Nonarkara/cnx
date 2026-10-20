@@ -529,3 +529,20 @@ describe("FloodHub retained-copy freshness", () => {
     }
   });
 });
+
+describe("RFD seven-day query freshness", () => {
+  const now = new Date("2026-10-20T14:00:00Z");
+  const stamp = (hours: number) => new Date(now.getTime() - hours * 3_600_000).toISOString();
+  const row = (generatedAt: string, count = 0) => buildWatchList({ ...baseInput(), now, firesRfd: { generatedAt, provenance: "live", note: null, totalCount: count, hotspots: [], byType: {}, forestShare: 0 } }).systems.find(item => item.id === "fires-rfd")!;
+  it("keeps a successful empty query current within the declared two-hour SLO without inventing a detection time", () => {
+    expect(row(stamp(2))).toMatchObject({ level: "good", observedAt: null });
+    expect(row(stamp(2)).valueEn).toContain("0 detections");
+  });
+  it.each([stamp(2 + 1 / 3600), "", "invalid", new Date(now.getTime() + 6 * 60_000).toISOString()])("does not reuse stale, missing or future query batches (%s)", generatedAt => {
+    for (const count of [0, 1]) {
+      const item = row(generatedAt, count);
+      expect(item.level).toBe("unknown");
+      expect(item.valueEn).not.toContain("detections");
+    }
+  });
+});

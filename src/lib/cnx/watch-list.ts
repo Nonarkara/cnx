@@ -500,7 +500,7 @@ function hazeVisionItem(hazeVision: HazeVisionResponse | null, now: Date): Watch
   };
 }
 
-function rfdItem(rfd: RfdFiresResponse | null): WatchItem {
+function rfdItem(rfd: RfdFiresResponse | null, now: Date): WatchItem {
   const base = {
     id: "fires-rfd",
     domain: "fire" as const,
@@ -510,14 +510,14 @@ function rfdItem(rfd: RfdFiresResponse | null): WatchItem {
     source: "wildfire.forest.go.th · รายงานภาคสนาม/ดาวเทียม",
     openMetric: "fire" as const,
   };
-  if (!rfd || rfd.provenance !== "live") {
+  if (!rfd || rfd.provenance !== "live" || !currentEvidence("rfd-fires", rfd.generatedAt, now)) {
     return {
       ...base,
       level: "unknown" as WatchLevel,
       valueTh: "ไม่มีข้อมูลหน่วยงาน",
       valueEn: "Agency feed unavailable",
-      evidenceTh: "ไม่มีข้อมูลจากกรมอุทยานฯ ไม่ได้แปลว่าไม่มีจุดความร้อน",
-      evidenceEn: "No RFD data does not establish zero hotspots",
+      evidenceTh: "ข้อมูลกรมป่าไม้ขาดหายหรือเกินอายุ ไม่ได้แปลว่าไม่มีจุดความร้อน",
+      evidenceEn: "Missing or stale RFD data does not establish zero hotspots",
       actionTh: null,
       actionEn: null,
       observedAt: null,
@@ -648,7 +648,7 @@ export function buildWatchList(input: WatchListInput): WatchBoardModel {
     smokeItem(input.smoke, now),
     floodHubItem(input.floodhub, now),
     hazeVisionItem(input.hazeVision, now),
-    rfdItem(input.firesRfd),
+    rfdItem(input.firesRfd, now),
     imageryItem(
       "weather-himawari",
       "Himawari-9 · ความร้อนอินฟราเรด",
