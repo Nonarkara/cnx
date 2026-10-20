@@ -206,3 +206,64 @@ browser state was restored to the Thai dark operations map with normal viewport.
 - Historical Saraphi lowlands and seasonal burn areas are context, not a current
   flood extent or proof that flood and haze affect identical locations. District
   staff must confirm drains, pumps, open shelters and passable routes.
+
+## Map-space correction, 20 October 23:10 Bangkok
+
+Shipped `e997437` (with `095c735` and `76f5a6e`), Cloudflare version
+`9944083f-e25e-499d-a98a-e06ca8064d0a`. The earlier design review missed
+unnecessary layout tracks identified in the user's three screenshots.
+
+- Removed the separate CCTV status band. Desktop access shares the compact
+  measured-conditions line; below 1024px it stays in the Water panel. Opening
+  the gallery does not displace the map. Camera source and capture clocks remain
+  visible in the gallery. Selected camera dialogs render into the document body
+  so a responsive hidden gallery cannot hide an active, focus-trapping dialog.
+- Measured-condition controls use content width on desktop. Normal repeated
+  monitoring labels remain accessible; warning and missing-data states remain
+  visibly explicit. Desktop desk navigation flows around its labels instead of
+  filling a boxed grid. News and desk rails now occupy 220px and 300px.
+- Official-warning and watch-item text use the whole rail width below compact
+  status/title lines. Removed permanent badge gutters and repeated card frames;
+  kept source times, model/measurement distinctions, limits and evidence actions.
+- Forecast details fold behind a 44px control. Play, current model time, active
+  wind level and a keyboard-operable slider remain visible. Expanded controls
+  retain layer choices, source/age, values and Back to now. Active rain/PM2.5
+  legends remain visible when details are closed. No model math or feed changed.
+
+Measured at 1440×900, before `4b925dc` versus live `e997437`:
+
+| Element | Before | After |
+| --- | --- | --- |
+| Map | 900×731px, y=132 | 920×776px, y=87 |
+| Collapsed forecast | 640×140px | 322×46px |
+| Desk navigation including Province watch | 133px tall | 89px tall |
+
+The map gains 8.5% area and starts 45px higher; the collapsed forecast covers
+83.5% less map area. At 768px the conditions line is 45px tall with no isolated
+CCTV row. At 390px Thai the map starts at y=139 rather than y=192; the two-column
+metrics retain readable units and visible warning states. A 44px touch target
+remains intentional space, not a reason to stretch a whole row or card.
+
+Validation: CI run `39452716858` passed typechecking, lint and the Worker build;
+Node 22 passed 1,228 tests, Node 20 passed 1,227 with the native-TypeScript
+import check intentionally skipped. The new modal regression also passed
+locally. Its first local attempt failed to start a test worker; the completed
+retry ran all seven evidence regressions successfully. The production build and
+deployment completed. `verify-deploy.mjs` passed 51 routes, clean/pushed/deployed
+identity and ingest protections; rain had 355 current gauges and river-level
+had 45 timestamped gauges at verification. These are feed checks, not flood
+safety conclusions.
+
+Actual browser checks covered 390, 768, 1024 and 1440px, Thai/English and both
+themes. Sampled visible text contrast checks found no failures; this is not a
+claim of complete accessibility certification. Verified keyboard forecast time,
+Back to now, gallery access and an open camera's 1024→768px resize followed by
+Escape. Independent screenshot review found no blockers. Added the geometry
+and intermediate-width requirement to `AGENTS.md`.
+
+Evidence: `/Volumes/Data/CNX/audit-artifacts/2026-10-20/space/`, including
+`before-1440.jpg`, `before-390.jpg`, `final-preview-1024-cctv.jpg`,
+`final-preview-768-th-dark-top.jpg`, `final-preview-390-th-light.jpg`,
+`final-preview-1440-en-light.jpg`, `live-1440-th-dark.jpg`,
+`live-390-th-dark.jpg`, `live-390-en-light.jpg` and `live-768-en-light.jpg`.
+No relay restart or data-source/AI changes were required.
