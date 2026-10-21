@@ -44,8 +44,7 @@ const nextConfig = {
       destination: `https://cnx.nonarkara.org/api/cnx/${feed}`,
     })) : [], afterFiles: [], fallback: [] };
   },
-  // ESLint runs at build time. CI fails the build on lint errors —
-  // prettier to fail early than ship a warning.
+  // Next 16 does not lint during builds; CI runs npm run lint separately.
   async redirects() {
     if (process.env.NEXT_PUBLIC_PROVINCE === "cnx") {
       return [{ source: "/", destination: "/cnx", permanent: false }];

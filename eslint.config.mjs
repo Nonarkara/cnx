@@ -1,8 +1,5 @@
-import { FlatCompat } from "@eslint/eslintrc";
-
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-});
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const config = [
   {
@@ -12,7 +9,15 @@ const config = [
     // CI lint step meaningless.
     ignores: [".next/**", ".open-next/**", "node_modules/**", "out/**", "public/**", "next-env.d.ts", ".claude/**"],
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // Preserve the existing Hooks checks during the framework migration.
+  // React Compiler diagnostics need a separate rollout across the map renderers.
+  ...nextVitals.map(entry => !entry.rules ? entry : {
+    ...entry,
+    rules: Object.fromEntries(Object.entries(entry.rules).filter(([rule]) =>
+      !rule.startsWith("react-hooks/") || ["react-hooks/rules-of-hooks", "react-hooks/exhaustive-deps"].includes(rule),
+    )),
+  }),
+  ...nextTypescript,
   {
     rules: {
       "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
