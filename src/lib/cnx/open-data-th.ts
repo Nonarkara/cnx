@@ -142,10 +142,10 @@ export async function fetchCnxOpenDataIndex(): Promise<OpenDataIndex> {
     // (CNXOpenData.tsx) directly above an empty list — a live claim that
     // 311 datasets exist while showing none of them. The bake is a
     // snapshot of ONE Thai-language query ("เชียงใหม่") on a single day;
-    // it was 311 on 2026-09-15 and 316 when re-queried on 2026-10-01, out
-    // of 44,207 in the whole catalogue. It is not a population count and
-    // must never be rendered as one. If we cannot read the bake, we know
-    // of zero datasets, not 311.
+    // it was 311 on 2026-09-15, 316 when re-queried on 2026-10-01 and 682
+    // on 2026-10-21, out of 44,207 in the whole catalogue. It is not a
+    // population count of the catalogue and must never be rendered as one.
+    // If we cannot read the bake, we know of zero datasets, not 311.
     const empty: OpenDataIndex = {
       // No bake was read, so there is no observation to age. "" renders as
       // "no bake" rather than a fresh-looking "just now".

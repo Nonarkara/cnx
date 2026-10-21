@@ -73,8 +73,10 @@ export default function CnxOpenData({ onOpenWorkbench }: { onOpenWorkbench?: () 
               14 d, not the default 3 h: `npm run fetch:opendata` is a
               manual script with no cron, so a fortnight is the honest point
               at which "someone should re-bake this" rather than "this is
-              broken". The current bake reads amber, which is correct — it
-              is 16 days old and the catalogue has drifted 311 -> 316. */}
+              broken". The 21 Oct 2026 bake is a day old and reads 682 — it
+              went green because the bake was re-run, not because the SLO
+              was widened. Before that it read amber, which was correct: it
+              was 19 days old. */}
           <DataAge
             observedAt={data?.generatedAt}
             source={t("แค็ตตาล็อก", "catalogue")}

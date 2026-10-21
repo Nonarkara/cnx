@@ -60,9 +60,9 @@ describe("fetchCnxOpenDataIndex", () => {
     // reader sees. This used to hardcode `totalDatasets: 311`, printing
     // "0/311" above an empty list — asserting that 311 datasets exist while
     // showing none of them. The bake is a dated snapshot of ONE filtered
-    // query (311 on 2026-09-15, 316 on 2026-10-01, out of 44,207 in the
-    // catalogue); it is not a population count. When we cannot read the
-    // bake we know of zero datasets, not 311.
+    // query (311 on 2026-09-15, 316 on 2026-10-01, 682 on 2026-10-21, out
+    // of 44,207 in the catalogue); it is not a population count. When we
+    // cannot read the bake we know of zero datasets, not 311.
     expect(idx.datasets).toEqual([]);
     expect(idx.fetched).toBe(0);
     expect(idx.totalDatasets).toBe(0);

@@ -136,9 +136,13 @@ describe("open-data/index.json", () => {
     datasets: Array<{ id: string; titleTh?: string; nameTh?: string; nameEn?: string }>;
   };
 
-  it("reaches 311 datasets on the typical fetch", () => {
-    expect(data.totalDatasets).toBeGreaterThanOrEqual(300);
-    expect(data.datasets.length).toBeGreaterThanOrEqual(300);
+  it("holds the whole catalogue, not the partial one the old bake published", () => {
+    // The 2 Oct 2026 bake published 316 of 682 because a failed search was
+    // swallowed. A floor of 300 could not see that; 500 sits well above the
+    // partial figure and still leaves headroom for ordinary drift in
+    // data.go.th. The exact count is pinned by open-data-snapshot.test.ts.
+    expect(data.totalDatasets).toBeGreaterThanOrEqual(500);
+    expect(data.datasets.length).toBeGreaterThanOrEqual(500);
   });
 
   it("each dataset has an id and a Thai title (or fallback to nameTh)", () => {

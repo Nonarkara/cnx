@@ -283,8 +283,10 @@ export interface OpenDataIndex {
   generatedAt: string;
   /** Datasets in the bake, which is a dated snapshot of ONE filtered
    *  Thai-language search ("เชียงใหม่") — 311 on 2026-09-15, 316 on
-   *  2026-10-01, out of 44,207 in the catalogue. Not a population count:
-   *  when the bake cannot be read this is 0, not the old snapshot size. */
+   *  2026-10-01, 682 on 2026-10-21, out of 44,207 in the catalogue. Not a
+   *  population count: when the bake cannot be read this is 0, not the old
+   *  snapshot size. The 682 figure is the FULL population of that search —
+   *  the earlier 316 was a partial enumeration published as if complete. */
   totalDatasets: number;
   fetched: number;
   failed: number;
