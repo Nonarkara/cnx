@@ -267,3 +267,54 @@ Evidence: `/Volumes/Data/CNX/audit-artifacts/2026-10-20/space/`, including
 `final-preview-1440-en-light.jpg`, `live-1440-th-dark.jpg`,
 `live-390-th-dark.jpg`, `live-390-en-light.jpg` and `live-768-en-light.jpg`.
 No relay restart or data-source/AI changes were required.
+
+## 21 October — directional smoke symbols and release runtime gate
+
+Released source `28b39dad3ca155a4027343a82fbe8da8158554c9` as Worker version
+`8afcd877-da21-4c02-a627-0dc23c8e2fc0`. Replaced continuous red modeled-smoke
+paths with fixed-size, sparse teal chevrons at model-leg midpoints. Street and
+satellite use contrasting halos. Marks retain original segment identity for
+picking; stationary, invalid and backward-time legs do not invent direction.
+The bilingual key distinguishes smoke transport from wind and visibly states
+that modeled movement is not measured wind or confirmed smoke arrival.
+No forecast physics, providers, alert thresholds or relay services changed.
+
+Actual browser checks covered 390, 768, 1024 and 1440px, Thai/English, dark/light,
+Street/Satellite and 3D switches. At 1440×900 the map remains 920×776px at y=87;
+the collapsed forecast remains 322×46px. Phone document width remained 390px.
+The light-theme key's sampled essential text exceeded 7:1 contrast. Independent
+review found no visual release blockers. Tooltip identity passed source/helper
+review; live hover picking was not verified by the available browser controls.
+
+Local direct FIRMS access timed out. Renderer QA therefore used an isolated
+loopback proxy serving an unchanged public smoke response generated at
+2026-10-21T13:26:47.854Z (80 segments, forecast-field); all other reads reached
+the actual built Worker. This was not a production data modification. The final
+public screenshot uses the public application directly, with its newer live
+response. Temporary preview processes and the local-only forecast lock were
+cleaned up. Evidence: `/Volumes/Data/CNX/audit-artifacts/2026-10-21/wind/`, notably
+`before-regional-1440.jpg`, `preview-regional-chevrons-1440.jpg`,
+`preview-satellite-3d-1440.jpg`, `preview-390-en-light-key.jpg`,
+`preview-768-en-light.jpg` and `live-regional-1440-th-dark.jpg`.
+
+The release build exposed an expired Next 15 support window. Upgraded to
+Next/eslint-config-next 16.4.2, retaining webpack for the MapLibre worker alias
+and the required Next TypeScript settings. A subsequent local runtime check
+caught HTTP 500 from the adapter's missing preview-props manifest handling;
+upgrading OpenNext Cloudflare to 1.20.12 resolved it. Added a CI gate that boots
+the built Worker, verifies its build SHA, and requires `/cnx` HTTP 200, so build
+success alone cannot mask this failure again. Existing security middleware was
+preserved; its Next 16 deprecation warning remains a maintenance follow-up.
+
+Pinned the inherited minifier glob to 10.5.0. `npm audit --omit=dev` reports zero
+vulnerabilities; the full development graph still reports the braces advisory
+GHSA-vfj7-8cjw-p6xm through lint tooling. This is not a whole-graph clean bill.
+CI run `39606775334` passed: 1,234 Node 22 tests; 1,233 Node 20 tests plus the
+intentional native-TypeScript skip; lint, types, bundle and Worker HTTP startup
+gate. Node 22 runs the current Wrangler build/runtime tools.
+
+Production verification passed all 51 routes, clean/pushed/deployed identity and
+unauthenticated ingest denial. Rain returned 358 current gauges (maximum 4.4mm)
+and river-level returned 45 timestamped gauges. Public map rendered the new
+symbols with no captured browser errors. These are release/feed checks, not a
+claim of flood safety, smoke arrival or camera accuracy.
