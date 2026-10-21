@@ -21,7 +21,7 @@ import { useLang } from "../../hooks/useLang";
  * covers every way the map actually marks things — a legend that silently
  * omits a layer is worse than no legend, because it implies absence.
  */
-export type LegendShape = "flame" | "droplet" | "arrow" | "streak" | "rainRamp" | "pmRamp" | "dot";
+export type LegendShape = "flame" | "droplet" | "arrow" | "streak" | "smoke" | "rainRamp" | "pmRamp" | "dot";
 
 export interface LegendRow {
   id: string;
@@ -39,6 +39,11 @@ const FIRE_COLORS = { critical: "rgb(255,60,30)", alert: "rgb(255,140,0)", base:
 const RAIN_COLORS = { heavy: "rgb(37,99,235)", moderate: "rgb(96,165,250)" } as const;
 
 export const LEGEND_ROWS: LegendRow[] = [
+  {
+    id: "smoke", shape: "smoke",
+    labelTh: "แนวพาควันจำลอง · 0–6 ชม.", labelEn: "Modeled smoke transport · 0–6 h",
+    originTh: "แบบจำลอง", originEn: "model", color: "var(--cool)",
+  },
   {
     id: "wind",
     shape: "arrow",
@@ -148,6 +153,7 @@ export function LegendSwatch({ shape, color }: { shape: LegendShape; color: stri
       />
     );
   }
+  if (shape === "smoke") return <svg aria-hidden="true" className="h-3.5 w-6 shrink-0" viewBox="0 0 24 14"><path d="M3 3 L8 7 L3 11 M14 3 L19 7 L14 11" fill="none" stroke={color ?? "currentColor"} strokeWidth="2" /></svg>;
   return <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-full align-middle" style={{ background: color ?? "currentColor" }} />;
 }
 
@@ -178,7 +184,7 @@ export default function CnxGlyphLegend() {
         className="flex min-h-9 shrink-0 items-center gap-2 px-2 text-[12px] font-semibold"
       >
         <span aria-hidden="true">{open ? "▾" : "▸"}</span>
-        {th ? "สัญลักษณ์ · ลูกศรคือลม" : "Symbols · arrows are wind"}
+        {th ? "สัญลักษณ์ · ลมและควัน" : "Symbols · wind & smoke"}
       </button>
       {open && (
         <ul className="min-h-0 max-h-[52vh] overflow-y-auto border-t border-[var(--line)] px-2 py-1.5 text-[12px]">
@@ -189,6 +195,7 @@ export default function CnxGlyphLegend() {
               <span className="shrink-0 text-[11px] text-[var(--dim)]">{th ? r.originTh : r.originEn}</span>
             </li>
           ))}
+          <li className="mt-1 border-t border-[var(--line)] pt-1 text-[12px] leading-snug text-[var(--dim)]">{th ? "ลูกศรพาควัน: คำนวณจากจุด VIIRS ไม่ใช่ลมที่ตรวจวัดหรือการยืนยันว่าควันมาถึง" : "Smoke arrows: modeled from VIIRS detections, not measured wind or observed smoke arrival."}</li>
           <li className="mt-1 border-t border-[var(--line)] pt-1 text-[11px] leading-snug text-[var(--dim)]">
             {th
               ? "คอลัมน์ขวาบอกที่มาของตัวเลข: วัดจริง = วัดจากพื้นดิน · แบบจำลอง = คำนวณล่วงหน้า ไม่ใช่ค่าที่เกิดขึ้นแล้ว"

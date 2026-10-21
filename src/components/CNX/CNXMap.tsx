@@ -35,6 +35,7 @@ import type { HazeLabel } from "../../lib/cnx/haze-vision-core";
 import type { CitizenReport } from "../../lib/cnx/citizen-core";
 import type { DustboyStation } from "../../lib/cnx/dustboy";
 import type { TrajectorySegment } from "../../lib/cnx/smoke-trajectory";
+import { smokeDirectionMarks, type SmokeDirectionMark } from "./smoke-path-render";
 import dynamic from "next/dynamic";
 import type { MapViewState } from "@deck.gl/core";
 import { IconLayer, PathLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
@@ -470,7 +471,7 @@ export default function CNXMap({
   rainAvailable = false,
   dustboyStations = NO_DUSTBOY,
   smokeSegments = NO_PLUMES,
-  smokeMethod = "straight-line",
+  smokeMethod,
   forecast = null,
   focus = null,
   shelters = NO_SHELTERS,
@@ -841,16 +842,24 @@ export default function CNXMap({
       pickable: true,
     });
 
-    const plumeLayer = new PathLayer<TrajectorySegment>({
+    // Open heads follow each model leg. Fixed visual size says direction only,
+    // never concentration, FRP, wind speed or a spreading plume footprint.
+    const smokeMarks = plumesOn ? smokeDirectionMarks(smokeSegments, viewState.zoom) : [];
+    const plumeHalo = new PathLayer<SmokeDirectionMark>({
+      id: "cnx-smoke-halo",
+      data: smokeMarks,
+      getPath: (mark) => mark.path,
+      getColor: basemap === "satellite" ? [13, 28, 36, 235] : [255, 255, 255, 235],
+      getWidth: 4.5,
+      widthUnits: "pixels",
+      pickable: false,
+    });
+    const plumeLayer = new PathLayer<SmokeDirectionMark>({
       id: "cnx-smoke",
-      data: plumesOn ? smokeSegments : [],
-      getPath: (d) => [
-        [d.origin.longitude, d.origin.latitude] as [number, number],
-        ...d.points.map((p) => [p.longitude, p.latitude] as [number, number]),
-      ],
-      getColor: (d) =>
-        d.nearCnx ? [220, 38, 38, 210] : d.hitsCnxBbox ? [234, 88, 12, 190] : [120, 113, 108, 80],
-      getWidth: (d) => 1.5 + d.weight * 2.5,
+      data: smokeMarks,
+      getPath: (mark) => mark.path,
+      getColor: basemap === "satellite" ? [116, 194, 200, 245] : [45, 104, 117, 240],
+      getWidth: 2,
       widthUnits: "pixels",
       pickable: true,
     });
@@ -1050,6 +1059,7 @@ export default function CNXMap({
       riverGaugeLayer,
       heritageLayer,
       airLayer,
+      plumeHalo,
       plumeLayer,
       dustboyLayer,
       fireLayer,
@@ -1063,7 +1073,7 @@ export default function CNXMap({
       ...(gridLayer ? [gridLayer] : []),
       ...cmuLayers,
     ];
-  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, riverGauges, hazeById, citizenReports, wetStations, rainOn, dustboyStations, smokeSegments, plumesOn, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
+  }, [flights, heritage, airStations, fireHotspots, floodGauges, cctv, floodCameras, riverGauges, hazeById, citizenReports, wetStations, rainOn, dustboyStations, smokeSegments, plumesOn, viewState.zoom, basemap, dustboyOn, wallLayer, waterwayLayer, gridLayer, cmuLayers]);
 
   // Bus routes — drawn as a single deck.gl PathLayer above the
   // basemap. One data entry per constituent OSM way (BusRoute.geometry
@@ -1427,7 +1437,7 @@ export default function CNXMap({
             return t(`${s.nameTh}\n${s.province} · PM2.5 ${s.pm25 ?? "—"} µg/m³ · อายุ ${s.readingAgeHours ?? "?"} ชม.\nเครื่องวัดภาคพื้น DustBoy มช.`, `${s.nameTh}\n${s.province} · PM2.5 ${s.pm25 ?? "—"} µg/m³ · ${s.readingAgeHours ?? "?"} h old\nCMU DustBoy ground sensor`);
           }
           if (layer.id === "cnx-smoke") {
-            const s = object as TrajectorySegment;
+            const s = (object as SmokeDirectionMark).segment;
             const where = s.nearCnx
               ? t("จุดตัวอย่างอยู่ภายใน 50 กม. จากตัวเมืองในช่วง 0–6 ชม.", "sampled within 50 km of the city during 0–6 h")
               : s.hitsCnxBbox
@@ -1435,8 +1445,10 @@ export default function CNXMap({
               : t("ไม่พบจุดตัวอย่างใกล้เมืองในช่วง 0–6 ชม. แต่ระหว่างจุดอาจผ่านได้", "no sampled near-city point during 0–6 h; crossings between samples can be missed");
             const method = smokeMethod === "forecast-field"
               ? t("ลมพยากรณ์ระดับ 850 hPa (~1.5 กม.) ที่เปลี่ยนตามเวลา", "hourly forecast 850 hPa wind (~1.5 km)")
-              : t("ลมผิวพื้นจุดเดียวแบบเส้นตรง (วิธีสำรอง)", "one surface-wind vector, straight-line fallback");
-            return t(`แนวควัน ${s.hotspotId}\n${where}\nเส้นกลางตาม${method} — ไม่รวมการแผ่กระจายหรือการตกสะสม`, `Plume ${s.hotspotId}\n${where}\nCentreline using ${method} — no spread or deposition`);
+              : smokeMethod === "straight-line"
+              ? t("ลมผิวพื้นจุดเดียวแบบเส้นตรง (วิธีสำรอง)", "one surface-wind vector, straight-line fallback")
+              : t("วิธีพาควันที่ยังไม่ยืนยัน", "unconfirmed transport method");
+            return t(`แนวควัน ${s.hotspotId}\n${where}\nแนวพาจำลองตาม${method} — ไม่รวมการแผ่กระจายหรือการตกสะสม\nจุด VIIRS ใน 24 ชม. ไม่ยืนยันว่าไฟยังไหม้หรือควันถึงจริง`, `Modeled smoke ${s.hotspotId}\n${where}\nTransport using ${method} — no spread or deposition\n24 h VIIRS detection: ongoing burning and smoke arrival unconfirmed`);
           }
           return null;
         }}
@@ -1597,9 +1609,9 @@ export default function CNXMap({
         <MapToggleButton
           pressed={plumesOn}
           onClick={() => setPlumesOn((v) => !v)}
-          activeClassName="border-[#c2410c] bg-[#c2410c] text-white"
+          activeClassName="border-[#2d6875] bg-[#2d6875] text-white"
           disabled={smokeSegments.length === 0}
-          title={t("แนวควันจำลองจากจุดไฟ VIIRS ในช่วง 0–6 ชม. ตรวจวิธีคำนวณลมที่แต่ละเส้น สีแดงคือจุดตัวอย่างใกล้เมือง ไม่ใช่การยืนยันว่าควันถึงจริง", "Modeled VIIRS smoke paths over 0–6 hours. Check each line for the wind method used. Red is a modeled near-city sample, not observed smoke arrival.")}
+          title={t("ลูกศรแสดงแนวพาควันจำลองจากจุดความร้อน VIIRS ไม่ใช่ลมที่ตรวจวัดหรือการยืนยันว่าควันมาถึง ขนาดและระยะห่างไม่แสดงความเร็วหรือความเข้มข้น", "Arrows show modeled transport from VIIRS detections, not measured wind or observed smoke arrival. Size and spacing do not encode speed or concentration.")}
         >
           {smokeSegments.length ? (plumesOn ? t(`แนวควัน: เปิด (${smokeSegments.length})`, `Plumes: on (${smokeSegments.length})`) : t("แนวควัน: ปิด", "Plumes: off")) : t("แนวควัน: ไม่มี", "Plumes: none")}
         </MapToggleButton>
