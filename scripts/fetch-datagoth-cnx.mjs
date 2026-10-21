@@ -8,10 +8,11 @@
 //   public/data/cnx/open-data/index.json   ← catalog summary
 //   public/data/cnx/open-data/all.json     ← single big file (panel single-fetch)
 //
-// data.go.th is a CKAN instance (CKAN 2.9+). The package_search
-// endpoint paginates by 1000; we walk every page, dedupe by id, and
-// download the resource metadata (and the bytes themselves if CSV/XLSX
-// is small enough — files > 25 MB are stored as URL-only).
+// data.go.th is a CKAN instance (CKAN 2.9+). package_search paginates,
+// but the upstream gateway times out on large pages, so we walk the result
+// set in small pages, dedupe by id, and download the resource metadata
+// (and the bytes themselves if CSV is small enough — files > 25 MB are
+// stored as URL-only).
 //
 // Run locally with:
 //   node scripts/fetch-datagoth-cnx.mjs            # default
@@ -25,54 +26,24 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { redactPersonalContactText, redactDatasetMetadata } from "./redact-personal-contacts.mjs";
+import {
+  USER_AGENT,
+  listAll,
+} from "./fetch-datagoth-core.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "public", "data", "cnx", "open-data");
 const INDEX_PATH = join(ROOT, "index.json");
 const ALL_PATH = join(ROOT, "all.json");
 
-const CKAN_BASE = "https://data.go.th/api/3/action";
 const QUERIES = ["เชียงใหม่", "Chiang Mai"];
-const PAGE_SIZE = 1000;
 const MAX_RESOURCE_BYTES = 25 * 1024 * 1024;
-const USER_AGENT = "cnx-dashboard/1.0 (https://cnx.nonarkara.org; nonarkara)";
+const RESOURCE_TIMEOUT_MS = 120_000;
 
 const dryRun = process.argv.includes("--dry-run");
 
 async function ensureDir() {
   if (!existsSync(ROOT)) await mkdir(ROOT, { recursive: true });
-}
-
-async function http(path, { method = "GET", body } = {}) {
-  const res = await fetch(`${CKAN_BASE}${path}`, {
-    method,
-    headers: {
-      "User-Agent": USER_AGENT,
-      Accept: "application/json",
-      "Content-Type": body ? "application/json" : undefined,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
-  return await res.json();
-}
-
-async function listAll(q) {
-  const out = new Map();
-  let start = 0;
-  while (true) {
-    const url = `/package_search?q=${encodeURIComponent(q)}&rows=${PAGE_SIZE}&start=${start}`;
-    const json = await http(url);
-    const result = json?.result;
-    if (!result) break;
-    const { results, count } = result;
-    for (const r of results) {
-      if (!out.has(r.id)) out.set(r.id, r);
-    }
-    start += results.length;
-    if (start >= count || results.length === 0) break;
-  }
-  return [...out.values()];
 }
 
 function normalise(pkg) {
@@ -102,7 +73,12 @@ function normalise(pkg) {
 
 async function tryDownloadResource(url) {
   try {
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    // Bounded so one dead mirror cannot stall the whole bake; the resource
+    // URL is published either way, so a timeout only costs us the mirror.
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(RESOURCE_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     const len = Number(res.headers.get("content-length")) || 0;
     if (len > MAX_RESOURCE_BYTES) return null;
@@ -118,9 +94,16 @@ async function run() {
   console.log("[fetch-datagoth-cnx] listing packages…");
   const all = new Map();
   for (const q of QUERIES) {
-    const pkgs = await listAll(q).catch((e) => {
-      console.warn(`[fetch-datagoth-cnx] search failed for "${q}":`, e.message);
-      return [];
+    // A failed search must NOT be swallowed. Returning [] here used to let the
+    // bake publish a catalog that silently omitted every dataset of that
+    // query while still looking complete — the board would show a shorter
+    // list with nothing saying anything was missing. That is the omission
+    // error this board treats as fatal, so the bake fails instead.
+    const pkgs = await listAll(q, {
+      onRetry: (err, attempt, attempts, wait) =>
+        console.warn(
+          `[fetch-datagoth-cnx] "${q}" page failed (${err.message}); retry ${attempt}/${attempts - 1} in ${wait} ms`,
+        ),
     });
     for (const p of pkgs) all.set(p.id || p.name, p);
   }
