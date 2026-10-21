@@ -30,7 +30,19 @@ import { fetchCnxOpenDataIndex } from "./open-data-th";
 import { fetchCnxAsmc } from "./asmc";
 import { fetchOfficialWarnings } from "./tmd-cap";
 
-const PROBE_TIMEOUT_MS = 8_000;
+export const DEFAULT_PROBE_TIMEOUT_MS = 8_000;
+/**
+ * Not every probe is a single request. The JAXA GCOM-C walk tries up to 11
+ * catalogue days in sequence before it gives up — measured at 1.9 s for the
+ * 8-day walk that resolves today, but a Worker on a slow egress can cross
+ * 8 s. When it did, the manifest reported the feed as "missing", which
+ * claims we hold no scene at all, when the truth was a scene 7 days old
+ * that is simply past its 3-day SLO. Absence is the one thing this board
+ * may not overstate, so the walk gets a budget that matches what it does.
+ */
+export const PROBE_TIMEOUTS: Record<string, number> = {
+  "jaxa-aot": 30_000,
+};
 const CHIANG_MAI_LON = 98.98;
 
 type Probe = () => Promise<LiveReading>;
@@ -154,10 +166,10 @@ const DIRECT: Record<string, Probe> = {
   },
 };
 
-function withTimeout(p: Promise<LiveReading>): Promise<LiveReading> {
+function withTimeout(p: Promise<LiveReading>, ms: number = DEFAULT_PROBE_TIMEOUT_MS): Promise<LiveReading> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<LiveReading>((resolve) => {
-    timer = setTimeout(() => resolve(none("timeout")), PROBE_TIMEOUT_MS);
+    timer = setTimeout(() => resolve(none("timeout")), ms);
   });
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
@@ -186,7 +198,7 @@ export async function probeAll(): Promise<Record<string, LiveReading>> {
   const settled = await Promise.all(
     jobs.map(async ([id, run]) => {
       try {
-        return [id, await withTimeout(run())] as const;
+        return [id, await withTimeout(run(), PROBE_TIMEOUTS[id] ?? DEFAULT_PROBE_TIMEOUT_MS)] as const;
       } catch {
         return [id, none("unavailable")] as const;
       }

@@ -1,11 +1,11 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 const aerosol = vi.hoisted(() => ({ fetch: vi.fn() }));
 vi.mock("./aerosol", () => ({ fetchCnxAerosol: aerosol.fetch }));
 vi.mock("./twin-manifest", async original => {
   const actual = await original<typeof import("./twin-manifest")>();
   return { ...actual, TWIN_ENTITIES: actual.TWIN_ENTITIES.filter(entity => entity.id === "cams-aod") };
 });
-import { probeAll } from "./twin-manifest-live";
+import { DEFAULT_PROBE_TIMEOUT_MS, DIRECT_PROBE_IDS, PROBE_TIMEOUTS, probeAll } from "./twin-manifest-live";
 afterEach(() => aerosol.fetch.mockReset());
 it("ages CAMS by model observation instead of the fresh response timestamp", async () => {
   aerosol.fetch.mockResolvedValue({ provenance: "model", generatedAt: "2026-10-20T14:00:00Z", observedAt: "2026-10-19T08:00:00Z" });
@@ -14,4 +14,23 @@ it("ages CAMS by model observation instead of the fresh response timestamp", asy
 it.each([null, undefined, "invalid"])("keeps a missing CAMS observation clock unknown (%s)", async observedAt => {
   aerosol.fetch.mockResolvedValue({ provenance: "model", generatedAt: "2026-10-20T14:00:00Z", observedAt });
   expect((await probeAll())["cams-aod"].lastObservedAt).toBeNull();
+});
+
+describe("probe budgets", () => {
+  it("gives the JAXA walk more than the single-request default", () => {
+    // The GCOM-C walk is up to 11 SEQUENTIAL catalogue requests, not one. On
+    // the default budget it was reported as "missing" — claiming we hold no
+    // scene at all — when a scene 7 days old was sitting there waiting. A
+    // number right and a sentence wrong is the split this board calls fatal,
+    // so the walk must clear the budget the default gives a single fetch.
+    expect(PROBE_TIMEOUTS["jaxa-aot"]).toBeGreaterThan(DEFAULT_PROBE_TIMEOUT_MS);
+  });
+
+  it("only names probes that exist", () => {
+    // A typo in the key would silently grant a budget to nothing, and the
+    // probe that needed it would keep timing out.
+    for (const id of Object.keys(PROBE_TIMEOUTS)) {
+      expect(DIRECT_PROBE_IDS, `budget names unknown probe ${id}`).toContain(id);
+    }
+  });
 });
