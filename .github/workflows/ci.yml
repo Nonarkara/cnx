@@ -80,3 +80,25 @@ jobs:
         run: |
           npm run build:cnx 2>&1 | tee /tmp/build.log
           test -f .open-next/worker.js && echo "build: OK worker.js exists"
+
+      - name: Start Worker and verify request handling
+        run: |
+          # Compilation missed a Next/OpenNext manifest incompatibility that
+          # crashed every request. Probe the built Worker without external feeds.
+          npx wrangler dev -c wrangler.cnx.jsonc --local --ip 127.0.0.1 --port 8789 > /tmp/worker-smoke.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in {1..45}; do
+            if curl -fsS --max-time 2 http://127.0.0.1:8789/api/cnx/build > /tmp/worker-build.json 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then cat /tmp/worker-smoke.log; exit 1; fi
+          node -e 'const build = JSON.parse(require("node:fs").readFileSync("/tmp/worker-build.json", "utf8")); if (build.commit !== process.env.GITHUB_SHA) throw new Error("Worker commit mismatch")'
+          if [ "$(curl -sS --max-time 15 -o /tmp/worker-page.html -w '%{http_code}' http://127.0.0.1:8789/cnx)" != 200 ]; then
+            cat /tmp/worker-smoke.log
+            exit 1
+          fi
