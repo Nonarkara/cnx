@@ -206,6 +206,13 @@ and healthy route probes. It must pass after a committed release is pushed,
 built and deployed: working tree clean, published `origin/main` equal to HEAD,
 deployed build equal to HEAD, complete route probes and live measured river data.
 
+After deploying, run the spatial gate as well:
+`node scripts/cnx-spatial-check.mjs --theme dark --lang th` and again with
+`--theme light --lang en`. It measures the live board at 390 × 844, 768 × 1024,
+1024 × 900, 1366 × 640 and 1440 × 900, in the resting state and with the
+evidence disclosure expanded, and exits 1 on a spatial defect. See the spatial
+repair section below for what it checks and for the proof that it fires.
+
 Use `npm test`, `npm run type-check`, `npm run lint`, `npm run test:relay`, and
 `npm run build:cnx`. Review and commit the candidate before deployment. Build from
 that clean commit, deploy the existing CNX Worker target, restart the launchd relay
@@ -304,3 +311,103 @@ test that broke the air-quality floor, watched a test fail, and restored the
 file. Verified byte-identical to `HEAD` by SHA-256. Recorded here because a
 future reader running `find -mmin` will see the same timestamp and start the
 same investigation.
+
+## Spatial repair — 22–23 October 2026 (MSH)
+
+The board's news rail had been reduced to a window onto its own headlines. The
+verdict strip was a tall column living in a 220 px rail, and the headline
+wrapped to seven lines at that width.
+
+Measured on production (commit `eec7c02`, 22 October 2026), headless Chrome over
+CDP, one screenshot and one box measurement per viewport so the picture and the
+numbers cannot disagree:
+
+| viewport | rail | verdict strip | fixed chrome | **news list** | articles |
+|---|---|---|---|---|---|
+| 1024 × 900 | 539 px | 273 px | 237 px | **30 px** (scrollHeight 2152) | 24 |
+| 1366 × 640 | 516 px | 273 px | 237 px | **7 px** | 24 |
+| 1440 × 900 | 776 px | 273 px | 237 px | **269 px** | 24 |
+| 390 × 844 | no rail; the verdict sat inside a *closed* `<details>`, so the situation statement needed a tap to read | | | | |
+
+The footer still counted 24 items. A 30 px window onto 2 152 px of headlines,
+next to a count of 24, is a number right and a sentence wrong — a defect by
+this board's own doctrine. At 640 px of window height the list was 7 px.
+
+Two repairs were built and **rejected by an independent reviewer**, and the
+rejections are recorded because they are the design:
+
+1. Moving the verdict out of the rail at tablet width — hid earned content,
+   added an unearned band, left the identical defect at ≥1280, and made the
+   rail a second news home.
+2. Floating the verdict as a card on the map — this reinstates the High
+   defect in the table above ("Desktop verdict overlay covered map controls"),
+   which this board has already paid for once. Measured, it covered ~15 % of
+   the map and collided with CNXMap's own layer control.
+
+What shipped (commits `63d4486`, `c8d73bf`, `e3abc3b`, `af9fa20`):
+
+- The province verdict is a **full-width band above the board**, not a column
+  and not an overlay: the level, the provenance and the headline are always
+  visible, and the headline is one or two lines wide instead of seven.
+- The **news rail carries only the news it is named for**, and its list keeps a
+  200 px floor, so the column cannot be squeezed back into a window.
+- The reasoning (observations, evidence gaps, next step, the province and the
+  DDPM/EMS line) is **one click away** in a panel that opens on screen and
+  covers none of the map's controls. The panel is anchored to the band, not to
+  the disclosure: at 390 px the summary wraps to a second line, and a panel
+  anchored to it opened at x = −180 — half of every line off-screen.
+
+An independent review of the first shipped version returned **DO NOT SHIP** with
+six named defects: D1 the panel half off-screen at 390 px; D2 the panel covering
+the map's own controls; D3 the 390 px band squeezing the headline into a
+75 × 125 px ribbon; D4 the new `<summary>` missing the app's focus ring;
+D5 a test that could no longer prove the reasoning was visible and asserted
+nothing about the band appearing once; D6 (accepted) the map losing 61 px at
+≥1280 px. D1–D5 were repaired against the reviewer's measurements, not against
+opinion.
+
+Measured on production after the repair (both themes, Thai and English):
+
+| viewport | band | headline | news list | evidence panel | panel on map controls |
+|---|---|---|---|---|---|
+| 390 × 844 | 390 × 142 @ (0,137) | 362 × 54 | rail not mounted | 358 × 189 @ (32,362) — fully on screen | 0 |
+| 768 × 1024 | 768 × 89 @ (0,86) | 270 × 72 | rail not mounted | 544 × 135 @ (224,258) — fully on screen | 0 |
+| 1024 × 900 | 1024 × 61 @ (0,86) | 526 × 36 | **303 px** (24 items) | 544 × 135 @ (480,230) — fully on screen | 0 |
+| 1366 × 640 | 1366 × 61 @ (0,86) | 868 × 36 | **219 px** (24 items) | 544 × 135 @ (822,230) — fully on screen | 0 |
+| 1440 × 900 | 1440 × 61 @ (0,86) | 942 × 36 | **479 px** (24 items) | 544 × 135 @ (896,230) — fully on screen | 0 |
+
+The band appears exactly once at every viewport. The map's loss is 61 px at
+≥1280 px and nothing below it: at 1024 px the map keeps its `60dvh` height
+either way.
+
+The panel's clearance from the map's control row is declared once, as
+`--cnx-map-control-clear` in `src/app/globals.css`, with its derivation: the
+map's flight badge sits at `top-2` (26 px) and the symbol key at `top-10`
+(38 px), so the control row ends 78 px below the map's top edge, and the panel
+keeps 16 px from it. The first version of this repair cleared the symbol key
+by 4 px — non-overlapping, but only by arithmetic; one taller key or one
+wrapped label would have put the panel back on top of a map control.
+
+### The gate
+
+`scripts/cnx-spatial-check.mjs` is the board's spatial gate. It loads the
+board once and resizes it, measures the resting board and the board with the
+evidence disclosure expanded, and fails on: the band appearing more than once
+or not above the board, the panel opening off-screen, the panel covering any
+map control (told apart from the map canvas by z-index), the news list losing
+its 200 px window, and text that exists but cannot be read.
+
+The gate ships with the proof that it fires:
+
+- `--inject-fault d1` re-creates the panel anchored to the summary. It opens at
+  x = −180 … 178 — exactly as it did — and the gate exits 1.
+- `--inject-fault d2` removes the clearance. The panel covers the flight badge
+  (78 × 26) and the symbol key (150 × 38), and the gate exits 1.
+
+Two false positives were withdrawn after being measured rather than assumed:
+screen-reader-only `.sr-only` spans, and the phone tab strip, which is itself
+a horizontal scroller and does scroll to its end. A gate that reports a defect
+that is not there is a gate nobody trusts.
+
+The gate is part of the release procedure below: run it after deploying and
+before calling a layout change done.
