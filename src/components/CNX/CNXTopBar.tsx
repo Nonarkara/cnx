@@ -259,8 +259,11 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
             control row (CNXMap's layer control on the left, the symbol key
             and the flight badge on the right), because an overlay that
             covers the map's controls is a defect this board already paid
-            for once — see docs/SHIP-AUDIT.md. */}
-        <div className="absolute right-0 top-full z-40 mt-[5.25rem] max-h-[calc(100dvh_-_11rem)] w-[min(34rem,calc(100vw_-_2rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[var(--ink)]">
+            for once — see docs/SHIP-AUDIT.md. The offset is
+            --cnx-map-control-clear (globals.css), which carries the
+            derivation: the map's control row ends 78 px below the map's top
+            edge and the panel keeps 16 px from it. */}
+        <div className="absolute right-0 top-full z-40 mt-[var(--cnx-map-control-clear)] max-h-[calc(100dvh_-_11rem)] w-[min(34rem,calc(100vw_-_2rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[var(--ink)]">
           <VerdictEvidence twin={twin} t={t} onOpenEmergency={onOpenEmergency} />
         </div>
       </details>

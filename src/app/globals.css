@@ -260,6 +260,24 @@ samp {
   background: var(--bg-raised);
   border: 1px solid var(--line);
 }
+
+/* How far the verdict band's evidence panel must sit below the band's own
+ * bottom edge so it can never cover one of the map's controls.
+ *
+ * The map owns the top corners: CNXMap puts the flight badge at top-2 (26 px
+ * tall) and CNXGlyphLegend puts the symbol key at top-10 (38 px tall), so the
+ * control row ends 78 px below the map's top edge. The band sits directly
+ * above the map, so this offset is also measured from the map's top edge.
+ *
+ * 78 px of row + 16 px of gap. The panel used to sit 4 px below the symbol
+ * key — non-overlapping, but only by arithmetic: one taller key, one wrapped
+ * label or one changed padding would have put the panel back on top of a map
+ * control, the defect class this board already paid for once
+ * (docs/SHIP-AUDIT.md, "Desktop verdict overlay covered map controls").
+ */
+[data-surface="cnx-verdict-band"] {
+  --cnx-map-control-clear: 94px;
+}
 .cnx-flag {
   background: var(--cool);
   color: var(--bg);
