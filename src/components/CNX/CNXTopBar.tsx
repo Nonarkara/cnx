@@ -5,7 +5,7 @@
 // Replaces the existing minimal CNXTopBar with a richer version that
 // shows live flood/air/fires/social counters in the masthead.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, BookOpen, Database, FileText, FlaskConical, Moon, PhoneCall, Sun, Wind, LayoutDashboard, Map as MapIcon } from "lucide-react";
 import { useDarkMode } from "../../hooks/useDarkMode";
 import { useLang } from "../../hooks/useLang";
@@ -27,6 +27,7 @@ import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { AsmcResponse } from "../../lib/cnx/asmc";
 import type { SmokeTrajectoryResponse } from "../../lib/cnx/smoke-trajectory";
 import { HOTLINES } from "../../lib/cnx/verdict";
+import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
 import type { AerosolResponse } from "../../lib/cnx/aerosol";
@@ -233,6 +234,15 @@ function VerdictEvidence({
  */
 export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; onOpenEmergency: () => void }) {
   const { lang, t } = useLang();
+  const panelRef = useRef<HTMLDetailsElement | null>(null);
+  // Another exclusive overlay opened: stand down.
+  useEffect(
+    () =>
+      onExclusiveOverlay("verdict-panel", () => {
+        if (panelRef.current) panelRef.current.open = false;
+      }),
+    [],
+  );
   const v = twin.verdict;
   const colour = verdictColour(v.level);
   const provenance = v.data_provenance === "live"
@@ -241,15 +251,26 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
     ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
     : t("หลักฐานปัจจุบันยังไม่ครบ", "Current evidence incomplete");
   return (
-    <div lang={lang} data-surface="cnx-verdict-band" className={`relative flex flex-col items-start gap-y-1 border-b border-l-4 ${colour} px-3 py-2 sm:flex-row sm:items-center sm:gap-x-4 sm:px-4`}>
+    <div lang={lang} data-surface="cnx-verdict-band" className={`relative flex flex-col items-start gap-y-1 border-b border-l-4 ${colour} px-3 py-2 lg:flex-row lg:items-center lg:gap-x-4 sm:px-4`}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
           {t(...CHIP_LABEL[v.level])}
         </span>
         <span className="shrink-0 text-[11px] leading-relaxed">{provenance}</span>
       </div>
-      <p className="w-full min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:w-auto">{t(v.head_th, v.head_en)}</p>
-      <details className="shrink-0">
+      <p className="w-full min-w-0 flex-1 text-[13px] font-semibold leading-snug lg:w-auto">{t(v.head_th, v.head_en)}</p>
+      <details
+        className="shrink-0"
+        ref={panelRef}
+        onToggle={(event) => {
+          // Opening this panel closes the map's Layers control, and the map
+          // closes this one: the panel is right-anchored and the Layers
+          // control opens over the map's left column, so at 390 px the
+          // panel covered 95% of the basemap <select>. One map control
+          // uncovered at a time — see src/lib/cnx/exclusive-overlay.ts.
+          if (event.currentTarget.open) claimExclusiveOverlay("verdict-panel");
+        }}
+      >
         <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-2 text-[12px] font-semibold hover:bg-[var(--bg-raised)]">
           {t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")}
         </summary>

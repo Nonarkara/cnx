@@ -30,6 +30,8 @@
  *
  *   node scripts/cnx-spatial-check.mjs --inject-fault d1   # panel off-screen
  *   node scripts/cnx-spatial-check.mjs --inject-fault d2   # panel on the key
+ *   node scripts/cnx-spatial-check.mjs --inject-fault f1   # panel over the
+ *                                                          # open Layers select
  *
  * Exit codes:
  *   0 = every check passed
@@ -136,16 +138,40 @@ const PROBE = `(() => {
   const overlaps = (a, b) => a && b && !(a.right <= b.x || a.x >= b.right || a.bottom <= b.y || a.y >= b.bottom);
   const panelHits = panelBox ? controls.filter(c => overlaps(panelBox, c)) : [];
 
+  // The map's Layers control is the one that opens over the map's left
+  // column, and the basemap <select> inside it is what a reader actually
+  // needs. They are found by content, not by position.
+  const layersDetails = [...document.querySelectorAll("details")].find(d => d.querySelector("#cnx-basemap"));
+  const layersSelect = document.querySelector("#cnx-basemap");
+  const layersBox = layersDetails ? box(layersDetails) : null;
+  const selectBox = layersSelect ? box(layersSelect) : null;
+  const panelHitsLayers = panelBox && layersBox ? overlaps(panelBox, layersBox) : false;
+  const selectCovered = panelBox && selectBox ? overlaps(panelBox, selectBox) : false;
+
+  // What the rail says it has, and what it actually holds.
+  const footer = railRoot ? railRoot.querySelector("footer") : null;
+  const statedCount = footer ? (txt(footer).match(/\d+/) || [null])[0] : null;
+  const pressedChip = railRoot ? [...railRoot.querySelectorAll('button[aria-pressed="true"]')].find(b => b.querySelector("span")) : null;
+  const pressedCount = pressedChip && pressedChip.querySelector("span") ? Number(txt(pressedChip.querySelector("span"))) : null;
+  const pressedLabel = pressedChip ? txt(pressedChip).slice(0, 12) : null;
+
+  // The headline's line count: the defect it guards against was a ribbon
+  // of seven wrapped lines squeezed into 75 px.
+  const headlineEl = band ? band.querySelector("p") : null;
+  const headlineLines = headlineEl ? Math.round(headlineEl.getBoundingClientRect().height / parseFloat(getComputedStyle(headlineEl).lineHeight)) : null;
+
   // Text that exists but cannot be read.
   //
-  // "scrollWidth > clientWidth on an element under an overflow-hidden
-  // ancestor" is NOT proof of clipping: the text can overflow its own box
-  // visibly and still sit inside the ancestor. That false positive called
-  // the map's attribution clipped when it is fully legible.
+  // Three things are NOT clipping, and each has to be judged on its own:
+  //   1. screen-reader-only text (.sr-only) — hidden on purpose.
+  //   2. a scroll container (overflow auto/scroll) — content outside it is
+  //      REACHABLE by scrolling. The feed-freshness list is one of these,
+  //      and treating it as a clipper reported 25 healthy rows as lost.
+  //   3. deliberate ellipsis truncation with a title attribute — the full
+  //      text is one hover away.
   //
-  // So compare the INK against the clipper: take the client rects of the
-  // element's text nodes and ask whether any of them escapes the clipping
-  // ancestor's box on an axis that ancestor actually clips.
+  // So the question is asked per text node: what is the nearest ancestor
+  // that actually hides overflow, and does the INK escape it?
   const textRects = (el) => {
     const out = [];
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -154,27 +180,57 @@ const PROBE = `(() => {
       if (!(node.textContent || "").trim()) continue;
       const range = document.createRange();
       range.selectNodeContents(node);
-      for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) out.push(r);
+      for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) out.push({ r, node });
     }
     return out;
   };
+  const nearestHider = (node) => {
+    let p = node.parentElement;
+    while (p) {
+      const s = getComputedStyle(p);
+      if (s.overflowX !== "visible" || s.overflowY !== "visible") return { el: p, cs: s };
+      p = p.parentElement;
+    }
+    return null;
+  };
+  const truncated = [];
   const clipped = [...document.querySelectorAll("body *")].filter(el => {
     if (el.closest(".sr-only") || el.classList.contains("sr-only")) return false;
     const own = getComputedStyle(el);
     if (["auto", "scroll"].includes(own.overflowX) || ["auto", "scroll"].includes(own.overflowY)) return false;
     if (el.clientWidth === 0 || el.clientHeight === 0) return false;
     if (!(el.textContent || "").trim()) return false;
-    let p = el.parentElement, clipper = null;
-    while (p) { const s = getComputedStyle(p); if (s.overflowX !== "visible" || s.overflowY !== "visible") { clipper = p; break; } p = p.parentElement; }
-    if (!clipper) return false;
-    const cs = getComputedStyle(clipper);
-    const cr = clipper.getBoundingClientRect();
-    if (cr.width === 0 || cr.height === 0) return false;
-    return textRects(el).some(r => {
-      const escapeX = cs.overflowX !== "visible" && (r.right > cr.right + 1 || r.left < cr.left - 1);
-      const escapeY = cs.overflowY !== "visible" && (r.bottom > cr.bottom + 1 || r.top < cr.top - 1);
-      return escapeX || escapeY;
-    });
+    let lost = false;
+    for (const { r, node } of textRects(el)) {
+      // Screen-reader-only text lives in a 1 px clip box of its own, so its
+      // ink always "escapes" that box. It is hidden on purpose, and its
+      // parent must not be reported as clipping because of it.
+      if (node.parentElement && node.parentElement.closest(".sr-only")) continue;
+      const hider = nearestHider(node);
+      if (!hider) continue;
+      const { cs } = hider;
+      const scrollsX = ["auto", "scroll"].includes(cs.overflowX);
+      const scrollsY = ["auto", "scroll"].includes(cs.overflowY);
+      const cr = hider.el.getBoundingClientRect();
+      const escapeX = !scrollsX && cs.overflowX !== "visible" && (r.right > cr.right + 1 || r.left < cr.left - 1);
+      const escapeY = !scrollsY && cs.overflowY !== "visible" && (r.bottom > cr.bottom + 1 || r.top < cr.top - 1);
+      if (!escapeX && !escapeY) continue;
+      const hiderStyle = getComputedStyle(hider.el);
+      if (hiderStyle.textOverflow === "ellipsis") {
+        // A deliberate ellipsis truncation: the markup asked for it, and the
+        // full string is still in the DOM. Counted and reported, but a
+        // designed truncate is not a layout accident.
+        truncated.push({
+          tag: hider.el.tagName.toLowerCase(),
+          text: (node.textContent || "").trim().slice(0, 44),
+          hasTitle: !!hider.el.getAttribute("title"),
+        });
+        continue;
+      }
+      lost = true;
+      break;
+    }
+    return lost;
   }).slice(0, 8).map(el => ({ tag: el.tagName.toLowerCase(), cls: String(el.className || "").slice(0, 40), text: (txt(el) || "").slice(0, 44) }));
 
   return {
@@ -192,10 +248,19 @@ const PROBE = `(() => {
     mapBox: box(mapSec),
     listBox: list ? box(list) : null,
     listArticles: articles.length,
+    statedCount,
+    pressedCount,
+    pressedLabel,
+    headlineLines,
+    layersBox,
+    selectBox,
+    panelHitsLayers,
+    selectCovered,
     listClientH: list ? list.clientHeight : null,
     listScrollH: list ? list.scrollHeight : null,
     railOverflowY: railRoot ? getComputedStyle(railRoot).overflowY : null,
     clipped,
+    truncated: truncated.slice(0, 6),
   };
 })()`;
 
@@ -227,6 +292,13 @@ const OPEN = `(() => {
     // controls — the defect this board already paid for once.
     const panel = [...details.children].find(c => c.tagName.toLowerCase() !== "summary");
     if (panel) { panel.style.marginTop = "0"; }
+  }
+  if (fault === "f1") {
+    // Disable the agreement between the panel and the map's Layers control,
+    // which is the state the defect was found in: both open, and the panel
+    // (right-anchored) sits on top of the basemap <select> (left column).
+    const orig = document.dispatchEvent.bind(document);
+    document.dispatchEvent = (ev) => (ev && ev.type === "cnx:exclusive-overlay") ? true : orig(ev);
   }
   if (!details.open) summary.click();
   return details.open ? "opened" : "click-failed";
@@ -314,6 +386,26 @@ for (const [w, h] of SIZES) {
   await sleep(700);
   const res = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
   const g = res.result?.value || {};
+
+  // ---- OPEN THE MAP'S LAYERS CONTROL AS WELL. ----
+  // The panel and the Layers control are exclusive overlays, so opening the
+  // Layers control must leave the map's controls reachable. The check that
+  // matters is not "does the panel overlap the closed control row" but
+  // "can the reader still reach the basemap <select> when both are asked
+  // for". A gate that only ever opens the panel cannot see this defect:
+  // that is exactly how the panel came to cover 95% of the <select>.
+  await send("Runtime.evaluate", {
+    expression: `(() => { const d = [...document.querySelectorAll("details")].find(x => x.querySelector("#cnx-basemap")); if (!d) return "no-layers"; if (!d.open) d.querySelector("summary").click(); return d.open ? "opened" : "click-failed"; })()`,
+    returnByValue: true,
+  });
+  await sleep(700);
+  const layersRes = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
+  const l = layersRes.result?.value || {};
+  await send("Runtime.evaluate", {
+    expression: `(() => { const d = [...document.querySelectorAll("details")].find(x => x.querySelector("#cnx-basemap")); if (d) d.open = false; return true; })()`,
+    returnByValue: true,
+  });
+  await sleep(400);
   const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 86 });
   const name = `spatial-${w}x${h}-${THEME}-${LANG}${INJECT !== "none" ? `-${INJECT}` : ""}`;
   await writeFile(join(OUT, `${name}.jpg`), Buffer.from(shot.data, "base64"));
@@ -329,19 +421,46 @@ for (const [w, h] of SIZES) {
   add("verdict-band-clears-map", closed.bandBeforeMap === true, "the band overlaps the map section");
   add("evidence-panel-onscreen", g.panelOnScreen === true, `panel ${JSON.stringify(g.panelBox)} is not fully inside ${JSON.stringify(g.viewport)}`);
   add("evidence-panel-clears-map-controls", (g.panelHits || []).length === 0, `panel covers ${JSON.stringify(g.panelHits)}`);
+  // A control list of zero would make the check above pass for the wrong
+  // reason. Say so instead of reporting a green that proves nothing.
+  add("map-controls-were-found", (g.controls || []).length > 0, "no map controls were found — the clearance check would pass vacuously");
+  // The panel and the map's Layers control are exclusive overlays: with the
+  // Layers control open, the basemap <select> must still be reachable.
+  add("layers-control-reachable", !l.selectCovered && !l.panelHitsLayers, `with Layers open the panel covers the control (${l.panelHitsLayers}) and the basemap select (${l.selectCovered})`);
   if (g.listArticles > 0) {
     add("news-list-window", (g.listClientH || 0) >= 200, `list window ${g.listClientH}px (floor is 200px) for ${g.listArticles} items`);
+    // What the rail claims and what it holds must agree. The footer said
+    // "24 items" while the list showed one of them; the list scrolls, so
+    // the count is honest only if the items are really there.
+    if (g.statedCount !== null && g.pressedCount !== null) {
+      add("news-count-matches", Number(g.statedCount) === Number(g.pressedCount), `the footer claims ${g.statedCount} items but the filter chip counts ${g.pressedCount}`);
+    }
+    if (g.statedCount !== null && g.pressedLabel !== null && /^(all|ทั้งหมด|TH|EN|issues|ประเด็น)/i.test(g.pressedLabel.trim())) {
+      add("news-items-present", Number(g.statedCount) === g.listArticles, `the footer claims ${g.statedCount} items and the list holds ${g.listArticles}`);
+    }
   } else if (w < 1024) {
     skip("news-list-window", "the news rail is not mounted below 1024 px");
   } else {
     skip("news-list-window", `no news items arrived (feed empty after 60 s) — ${g.listClientH}px window measured on an empty list`);
   }
   add("no-clipped-text", (g.clipped || []).length === 0, `clipped: ${JSON.stringify(g.clipped)}`);
+  // The headline must have real width: it was once squeezed into a 75 px
+  // ribbon at 390 px, which made the verdict unreadable in a phone.
+  if (g.bandHeadline && g.bandBox) {
+    // A ribbon: the headline was once squeezed into 75 px and wrapped to
+    // seven lines. Line count is the honest measure of that, not width.
+    add("verdict-headline-lines", (g.headlineLines || 0) <= 3, `the headline wraps to ${g.headlineLines} lines (floor is 3)`);
+  }
+  // The map is the hero. It must keep a real share of the window.
+  if (g.mapBox && g.viewport) {
+    const share = g.mapBox.h / g.viewport[1];
+    add("map-keeps-its-window", share >= 0.4, `the map is ${g.mapBox.h}px of a ${g.viewport[1]}px viewport (${Math.round(share * 100)}%, floor is 40%)`);
+  }
 
   console.log(`### ${name}`);
   console.log(`  band ${g.bandBox ? `${g.bandBox.w}x${g.bandBox.h}@${g.bandBox.x},${g.bandBox.y}` : "-"} headline ${g.bandHeadline ? `${g.bandHeadline.w}x${g.bandHeadline.h}` : "-"} count=${g.bandCount}`);
   console.log(`  panel ${g.panelBox ? `${g.panelBox.w}x${g.panelBox.h}@${g.panelBox.x},${g.panelBox.y}` : "-"} onScreen=${g.panelOnScreen} hits=${(g.panelHits || []).length}`);
-  console.log(`  list ${g.listClientH}px (scroll ${g.listScrollH}) items=${g.listArticles} clipped=${(g.clipped || []).length}`);
+  console.log(`  list ${g.listClientH}px (scroll ${g.listScrollH}) items=${g.listArticles} clipped=${(g.clipped || []).length} truncated=${(g.truncated || []).length}`);
   for (const c of checks) console.log(c.ok === null ? `  skip ${c.name} — ${c.skipped}` : `  ${c.ok ? "ok  " : "FAIL"} ${c.name}${c.ok ? "" : ` — ${c.detail}`}`);
   results.push({ name, checks, geometry: { closed, open: g } });
 }

@@ -240,13 +240,18 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-/* Mono for code, tracked labels, and the wordmark subtitle */
+/* Mono for code, tracked labels, and the wordmark subtitle.
+   IBM Plex Mono carries no Thai, so a Thai label in a mono slot fell
+   through to the platform fallback — Ayuthaya on macOS — which is neither
+   the board's typeface nor consistent with the rest of the label. Naming
+   IBM Plex Sans Thai next keeps Latin in Plex Mono and puts Thai in the
+   board's own Thai face. */
 .font-mono,
 code,
 pre,
 kbd,
 samp {
-  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+  font-family: "IBM Plex Mono", "IBM Plex Sans Thai", "SFMono-Regular", Menlo, monospace;
 }
 
 /* Sharper rendering on small Thai text. Nothing renders below 11px. */
@@ -274,9 +279,19 @@ samp {
  * label or one changed padding would have put the panel back on top of a map
  * control, the defect class this board already paid for once
  * (docs/SHIP-AUDIT.md, "Desktop verdict overlay covered map controls").
+ *
+ * The band sits directly above the map, so this offset is also measured
+ * from the map's top edge — less the two 1 px borders, which is why the
+ * measured gap is 16 px rather than 18.
+ *
+ * This is the CLOSED control row only, and it has to be: the Layers control
+ * opens to 264 px wide over the map's left column, and the panel is
+ * right-anchored, so at 390 px the two together left 95% of the basemap
+ * <select> under the panel. The two are now exclusive overlays — opening
+ * one closes the other (src/lib/cnx/exclusive-overlay.ts).
  */
 [data-surface="cnx-verdict-band"] {
-  --cnx-map-control-clear: 94px;
+  --cnx-map-control-clear: 96px;
 }
 .cnx-flag {
   background: var(--cool);

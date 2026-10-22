@@ -27,6 +27,7 @@ import { RAIN_BAND_TH, summariseRain, type RainBand, type RainStation } from "..
 import { GLYPH_ATLAS, GLYPH_MAPPING } from "../../lib/cnx/map-glyphs";
 import { useLang } from "../../hooks/useLang";
 import { clampView } from "../../lib/cnx/map-bounds";
+import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CameraHaze } from "../../lib/cnx/haze-vision";
@@ -632,7 +633,19 @@ export default function CNXMap({
     });
   };
   const mlMapRef = useRef<MaplibreMap | null>(null);
+  const layersRef = useRef<HTMLDetailsElement | null>(null);
   const [mapReady, setMapReady] = useState(false);
+
+  // The Layers control and the verdict band's evidence panel are exclusive
+  // overlays: one of them closes when the other opens, so neither can cover
+  // the other's controls. See src/lib/cnx/exclusive-overlay.ts.
+  useEffect(
+    () =>
+      onExclusiveOverlay("map-layers", () => {
+        if (layersRef.current) layersRef.current.open = false;
+      }),
+    [],
+  );
 
   // Expose the live MapLibre handle to the dev console for debugging.
   useEffect(() => {
@@ -1471,8 +1484,20 @@ export default function CNXMap({
 
       <CNXForecastLayer map={mlMapRef.current} mapReady={mapReady} styleKey={basemap} forecast={forecast} tone={basemap === "satellite" ? "light" : "dark"} />
 
-      {/* Native disclosure keeps controls available without obscuring the operational map. */}
-      <details className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]" onKeyDown={(event) => {
+      {/* Native disclosure keeps controls available without obscuring the operational map.
+          It is an exclusive overlay: opening it closes the verdict band's
+          evidence panel, and opening that closes this. The panel is
+          right-anchored and this control opens over the map's left column,
+          so with both open the panel covered 95% of the basemap <select> at
+          390 px — the defect class docs/SHIP-AUDIT.md records as already
+          paid for once. See src/lib/cnx/exclusive-overlay.ts. */}
+      <details
+        ref={layersRef}
+        className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
+        onToggle={(event) => {
+          if (event.currentTarget.open) claimExclusiveOverlay("map-layers");
+        }}
+        onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.currentTarget.open = false;
           event.currentTarget.querySelector("summary")?.focus();
