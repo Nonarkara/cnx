@@ -124,6 +124,30 @@ const PROBE = `(() => {
   const panel = details ? [...details.children].find(c => c.tagName.toLowerCase() !== "summary") : null;
   const panelBox = panel ? box(panel) : null;
 
+  // Is the panel actually PAINTED?
+  //
+  // A closed <details> hides its content through ::details-content with
+  // content-visibility: hidden, which implies paint containment: the panel
+  // still has a layout box, and while the disclosure is closed that box is
+  // laid out against the disclosure's own content box (x = -180 at 390 px),
+  // not against the band. None of it is painted.
+  //
+  // getBoundingClientRect() reports layout, not painting, so a box that
+  // nothing can see was being compared against a <select> that a reader can
+  // see, and the gate called that an overlap. Ask the compositor instead:
+  // hit-test the panel's own centre.
+  const disclosureOpen = details ? details.open : false;
+  const panelPainted = (() => {
+    if (!panel || !disclosureOpen) return false;
+    const b = panel.getBoundingClientRect();
+    if (b.width <= 0 || b.height <= 0) return false;
+    const x = b.x + b.width / 2;
+    const y = b.y + Math.min(24, b.height / 2);
+    if (x < 0 || x >= innerWidth || y < 0 || y >= innerHeight) return false;
+    const hit = document.elementFromPoint(x, y);
+    return !!(hit && (hit === panel || panel.contains(hit)));
+  })();
+
   // The map's own controls: absolutely positioned and above the map canvas.
   // MapLibre's canvas is absolute too, so a control is told apart by z-index.
   const controls = mapSec ? [...mapSec.querySelectorAll("*")].filter(el => {
@@ -136,7 +160,7 @@ const PROBE = `(() => {
   }).map(el => ({ ...box(el), text: (txt(el) || "").slice(0, 36) })) : [];
 
   const overlaps = (a, b) => a && b && !(a.right <= b.x || a.x >= b.right || a.bottom <= b.y || a.y >= b.bottom);
-  const panelHits = panelBox ? controls.filter(c => overlaps(panelBox, c)) : [];
+  const panelHits = (panelBox && panelPainted) ? controls.filter(c => overlaps(panelBox, c)) : [];
 
   // The map's Layers control is the one that opens over the map's left
   // column, and the basemap <select> inside it is what a reader actually
@@ -146,8 +170,8 @@ const PROBE = `(() => {
   const layersSelect = document.querySelector("#cnx-basemap");
   const layersBox = layersDetails ? box(layersDetails) : null;
   const selectBox = layersSelect ? box(layersSelect) : null;
-  const panelHitsLayers = panelBox && layersBox ? overlaps(panelBox, layersBox) : false;
-  const selectCovered = panelBox && selectBox ? overlaps(panelBox, selectBox) : false;
+  const panelHitsLayers = (panelBox && panelPainted && layersBox) ? overlaps(panelBox, layersBox) : false;
+  const selectCovered = (panelBox && panelPainted && selectBox) ? overlaps(panelBox, selectBox) : false;
 
   // What the rail says it has, and what it actually holds.
   const footer = railRoot ? railRoot.querySelector("footer") : null;
@@ -243,7 +267,9 @@ const PROBE = `(() => {
     bandHeadline: band && band.querySelector("p") ? box(band.querySelector("p")) : null,
     disclosurePresent: !!details,
     panelBox,
-    panelOnScreen: panelBox ? (panelBox.x >= 0 && panelBox.right <= innerWidth + 1 && panelBox.y >= 0 && panelBox.bottom <= innerHeight + 1) : null,
+    disclosureOpen,
+    panelPainted,
+    panelOnScreen: (panelBox && panelPainted) ? (panelBox.x >= 0 && panelBox.right <= innerWidth + 1 && panelBox.y >= 0 && panelBox.bottom <= innerHeight + 1) : null,
     panelHits,
     controls,
     mapBox: box(mapSec),
@@ -402,7 +428,7 @@ for (const [w, h] of SIZES) {
   await sleep(700);
   const layersRes = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
   const l = layersRes.result?.value || {};
-  const panelClosedUnderLayers = !l.panelBox || l.panelBox.w === 0 || l.panelBox.h === 0;
+  const panelClosedUnderLayers = l.disclosureOpen === false;
 
   // Order B: Layers is open, then the reader opens the panel.
   await send("Runtime.evaluate", { expression: LAYERS_CLOSE, returnByValue: true });
@@ -413,8 +439,7 @@ for (const [w, h] of SIZES) {
   await sleep(700);
   const layersRes2 = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
   const l2 = layersRes2.result?.value || {};
-  const layersClosedUnderPanel = !l2.layersBox || l2.layersBox.w === 0 || l2.layersBox.h === 0
-    || !l2.layersDetailsOpen;
+  const layersClosedUnderPanel = l2.layersDetailsOpen === false;
 
   await send("Runtime.evaluate", { expression: LAYERS_CLOSE, returnByValue: true });
   await sleep(400);

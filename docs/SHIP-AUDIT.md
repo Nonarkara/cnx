@@ -411,3 +411,67 @@ that is not there is a gate nobody trusts.
 
 The gate is part of the release procedure below: run it after deploying and
 before calling a layout change done.
+
+### Second review round — 23 October 2026
+
+An independent review of the shipped board returned **DO NOT SHIP**, with one
+blocking defect and four smaller ones. All five were repaired against the
+reviewer's measurements.
+
+**F1 (High) — the open evidence panel covered the map's Layers control.**
+The clearance token encoded the **closed** control row (78 px), but the
+map's Layers `<details>` opens to 264 px wide over the map's left column.
+With the panel open and Layers open, the panel covered **95.4 % of the
+basemap `<select>`** at 390 × 844 and 14.7 % at 768 × 1024 — the same defect
+class this board already paid for once, reached through a different door.
+
+The two are now **exclusive overlays**: opening one closes the other, so the
+map's controls are never under the panel whichever one the reader opens
+first. The agreement lives in `src/lib/cnx/exclusive-overlay.ts` and is made
+on the document, because the band's `<details>` and the dynamically loaded map
+are in different trees.
+
+**F2 (Medium) — the 768 px English headline was a ribbon.** 212 × 107 px,
+six lines, while the chip and provenance took 360 px of the band. The band
+now stacks below `lg` rather than below `sm`, so 640–1279 gets a full-width
+headline: 732 × 36 px at 768, one line.
+
+**F3 (Low) — the Thai level chip was set in a Latin-only face.** The chip is
+`font-mono`, and IBM Plex Mono carries no Thai, so the Thai level fell
+through to the platform fallback (Ayuthaya on macOS) instead of the board's
+IBM Plex Sans Thai. The mono stack now names the Thai face: Latin stays in
+Plex Mono, Thai moves to the board's own face.
+
+**F4 (Low) — the gate could not see F1.** It collected the map's controls but
+never opened the Layers control, and `panelHits.length === 0` would have
+passed on an empty control list. It now opens the Layers control in both
+orders, asserts the control list was non-empty, counts the headline's
+wrapped lines, and compares the count the rail states with the items it
+holds.
+
+**F5 (Info) — the clearance arithmetic was 2 px optimistic.** The band and the
+map each carry a 1 px border, so a 96 px offset measures as a 16 px gap.
+
+#### The measurement trap behind F4
+
+While proving the gate could see F1, the gate reported the overlap on a board
+that had already been fixed — and the numbers were exactly the old F1
+numbers, down to the pixel.
+
+The cause: **a closed `<details>` hides its content through
+`::details-content` with `content-visibility: hidden`, which implies paint
+containment.** The panel still has a layout box, and while the disclosure is
+closed that box is laid out against the disclosure's own content box — x =
+−180 at a 390 px viewport — not against the band. None of it is painted.
+
+`getBoundingClientRect()` reports **layout, not painting**. The gate was
+comparing a box nothing can see against a `<select>` a reader can see, and
+calling that an overlap. The gate now hit-tests the panel's centre with
+`elementFromPoint` and only counts an overlap against something that is
+actually painted.
+
+This is the same class as the withdrawn false positives earlier in this
+repair: the screen-reader-only spans, the phone tab strip that scrolls, the
+map attribution that is fully legible. **A defect class that has been
+"measured" is not a defect until the measurement is shown to be of the thing
+that was claimed.**
