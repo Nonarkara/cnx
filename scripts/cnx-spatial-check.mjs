@@ -31,7 +31,12 @@
  *   node scripts/cnx-spatial-check.mjs --inject-fault d1   # panel off-screen
  *   node scripts/cnx-spatial-check.mjs --inject-fault d2   # panel on the key
  *
- * Exit code 0 = every check passed. 1 = at least one failed.
+ * Exit codes:
+ *   0 = every check passed
+ *   1 = measured, and at least one spatial check failed
+ *   2 = could not measure (the board did not load, or the page refused to
+ *       resize). This is NOT a layout verdict and must not be reported as
+ *       one — an unmeasured gate is unverified, not passing.
  */
 import { spawn } from "node:child_process";
 import { mkdir, writeFile, rm } from "node:fs/promises";
@@ -50,7 +55,7 @@ const SIZES = arg("sizes", "390x844,768x1024,1024x900,1366x640,1440x900")
 const OUT = arg("out", "/tmp/cnx-spatial-check");
 const INJECT = arg("inject-fault", "none");
 const PORT = Number(arg("port", "9444"));
-const MAXWAIT = Number(arg("maxwait", "150000"));
+const MAXWAIT = Number(arg("maxwait", "300000"));
 
 await mkdir(OUT, { recursive: true });
 const PROFILE = `/tmp/cnx-spatial-profile-${PORT}`;
@@ -131,24 +136,45 @@ const PROBE = `(() => {
   const overlaps = (a, b) => a && b && !(a.right <= b.x || a.x >= b.right || a.bottom <= b.y || a.y >= b.bottom);
   const panelHits = panelBox ? controls.filter(c => overlaps(panelBox, c)) : [];
 
-  // Text that exists but cannot be read. Two classes are NOT defects and
-  // must not be reported: screen-reader-only text (.sr-only), and an element
-  // that is itself a horizontal scroller (its own overflow is the answer to
-  // "is the rest reachable?").
+  // Text that exists but cannot be read.
+  //
+  // "scrollWidth > clientWidth on an element under an overflow-hidden
+  // ancestor" is NOT proof of clipping: the text can overflow its own box
+  // visibly and still sit inside the ancestor. That false positive called
+  // the map's attribution clipped when it is fully legible.
+  //
+  // So compare the INK against the clipper: take the client rects of the
+  // element's text nodes and ask whether any of them escapes the clipping
+  // ancestor's box on an axis that ancestor actually clips.
+  const textRects = (el) => {
+    const out = [];
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!(node.textContent || "").trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) out.push(r);
+    }
+    return out;
+  };
   const clipped = [...document.querySelectorAll("body *")].filter(el => {
     if (el.closest(".sr-only") || el.classList.contains("sr-only")) return false;
     const own = getComputedStyle(el);
     if (["auto", "scroll"].includes(own.overflowX) || ["auto", "scroll"].includes(own.overflowY)) return false;
-    if (el.scrollWidth <= el.clientWidth + 1) return false;
     if (el.clientWidth === 0 || el.clientHeight === 0) return false;
     if (!(el.textContent || "").trim()) return false;
     let p = el.parentElement, clipper = null;
     while (p) { const s = getComputedStyle(p); if (s.overflowX !== "visible" || s.overflowY !== "visible") { clipper = p; break; } p = p.parentElement; }
     if (!clipper) return false;
     const cs = getComputedStyle(clipper);
-    if (["auto", "scroll"].includes(cs.overflowX) || ["auto", "scroll"].includes(cs.overflowY)) return false;
-    const b = el.getBoundingClientRect();
-    return b.width > 0 && b.height > 0 && b.top < innerHeight && b.bottom > 0;
+    const cr = clipper.getBoundingClientRect();
+    if (cr.width === 0 || cr.height === 0) return false;
+    return textRects(el).some(r => {
+      const escapeX = cs.overflowX !== "visible" && (r.right > cr.right + 1 || r.left < cr.left - 1);
+      const escapeY = cs.overflowY !== "visible" && (r.bottom > cr.bottom + 1 || r.top < cr.top - 1);
+      return escapeX || escapeY;
+    });
   }).slice(0, 8).map(el => ({ tag: el.tagName.toLowerCase(), cls: String(el.className || "").slice(0, 40), text: (txt(el) || "").slice(0, 44) }));
 
   return {
@@ -234,13 +260,32 @@ if (!twinReady) {
   console.log(`FAIL — the verdict band never rendered within ${Math.round(MAXWAIT / 1000)}s at ${SIZES[0][0]}x${SIZES[0][1]}.`);
   console.log("       The band is conditional on the twin feed; this is a feed/load problem, not a layout one.");
   console.log(`evidence: ${OUT}`);
-  process.exit(1);
+  process.exit(2);
 }
 console.log(`board ready in ${Math.round((Date.now() - loadStart) / 1000)}s — measuring ${SIZES.length} viewports\n`);
 
 for (const [w, h] of SIZES) {
-  await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
-  await sleep(1500); // let React and the map settle after the resize
+  // Set the viewport, then PROVE the page agrees with it. A resize that
+  // silently does not take leaves the page rendering at the previous width,
+  // and the probe then measures that width and reports it as the new one —
+  // a green check for a viewport that was never rendered. The gate must not
+  // be able to flatter itself that way.
+  let applied = false;
+  for (let attempt = 0; attempt < 5 && !applied; attempt++) {
+    await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
+    await sleep(600);
+    const chk = await send("Runtime.evaluate", { expression: `[innerWidth, innerHeight]`, returnByValue: true });
+    const got = chk.result?.value || [];
+    if (got[0] === w && got[1] === h) applied = true;
+  }
+  if (!applied) {
+    const chk = await send("Runtime.evaluate", { expression: `[innerWidth, innerHeight]`, returnByValue: true });
+    console.log(`FAIL — the page would not resize to ${w}x${h} (it is at ${JSON.stringify(chk.result?.value)}).`);
+    console.log("       This is a harness failure, not a layout verdict: nothing was measured.");
+    await writeFile(join(OUT, `spatial-${w}x${h}-${THEME}-${LANG}-unmeasurable.json`), JSON.stringify({ requested: [w, h], actual: chk.result?.value }, null, 2));
+    process.exit(2);
+  }
+  await sleep(900); // let React and the map settle after the resize
 
   // Where the news rail exists, wait for the feed: the list-window check
   // only means something once there are items in it. The feed can be
