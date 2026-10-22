@@ -301,8 +301,12 @@ samp {
   }
 }
 
-/* Keep keyboard position visible, including inputs with outline-none. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+/* Keep keyboard position visible, including inputs with outline-none.
+   `summary` is in the list: the board's disclosures (the verdict's
+   "Evidence and limits", the map's layer control, the feed status) are
+   summary elements, and a keyboard user must be able to see where they
+   are — the UA default ring is a 1px hairline. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--cool);
   outline-offset: 2px;
 }

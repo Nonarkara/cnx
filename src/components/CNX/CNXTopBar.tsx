@@ -241,17 +241,26 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
     ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
     : t("หลักฐานปัจจุบันยังไม่ครบ", "Current evidence incomplete");
   return (
-    <div lang={lang} data-surface="cnx-verdict-band" className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-l-4 ${colour} px-3 py-2 sm:px-4`}>
-      <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
-        {t(...CHIP_LABEL[v.level])}
-      </span>
-      <span className="shrink-0 text-[11px] leading-relaxed">{provenance}</span>
-      <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug">{t(v.head_th, v.head_en)}</p>
-      <details className="relative shrink-0">
+    <div lang={lang} data-surface="cnx-verdict-band" className={`relative flex flex-col items-start gap-y-1 border-b border-l-4 ${colour} px-3 py-2 sm:flex-row sm:items-center sm:gap-x-4 sm:px-4`}>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
+          {t(...CHIP_LABEL[v.level])}
+        </span>
+        <span className="shrink-0 text-[11px] leading-relaxed">{provenance}</span>
+      </div>
+      <p className="w-full min-w-0 flex-1 text-[13px] font-semibold leading-snug sm:w-auto">{t(v.head_th, v.head_en)}</p>
+      <details className="shrink-0">
         <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-2 text-[12px] font-semibold hover:bg-[var(--bg-raised)]">
           {t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")}
         </summary>
-        <div className="absolute right-0 top-full z-40 mt-1 max-h-[70dvh] w-[min(34rem,calc(100vw_-_2rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[var(--ink)]">
+        {/* Anchored to the BAND, not to the summary: at 390 the summary wraps
+            to a second line, and a panel anchored to it opened at x = -180 —
+            half of every line off-screen. It also clears the map's own
+            control row (CNXMap's layer control on the left, the symbol key
+            and the flight badge on the right), because an overlay that
+            covers the map's controls is a defect this board already paid
+            for once — see docs/SHIP-AUDIT.md. */}
+        <div className="absolute right-0 top-full z-40 mt-[5.25rem] max-h-[calc(100dvh_-_11rem)] w-[min(34rem,calc(100vw_-_2rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[var(--ink)]">
           <VerdictEvidence twin={twin} t={t} onOpenEmergency={onOpenEmergency} />
         </div>
       </details>
