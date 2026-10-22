@@ -241,6 +241,30 @@ console.log(`board ready in ${Math.round((Date.now() - loadStart) / 1000)}s — 
 for (const [w, h] of SIZES) {
   await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
   await sleep(1500); // let React and the map settle after the resize
+
+  // Where the news rail exists, wait for the feed: the list-window check
+  // only means something once there are items in it. The feed can be
+  // legitimately empty, so this wait is bounded and says so out loud.
+  let feedItems = 0;
+  if (w >= 1024) {
+    const feedStart = Date.now();
+    for (;;) {
+      const st = await send("Runtime.evaluate", {
+        expression: `document.querySelectorAll('[data-surface="cnx-news-rail"] article').length`,
+        returnByValue: true,
+      });
+      feedItems = st.result?.value || 0;
+      if (feedItems > 0) break;
+      if (Date.now() - feedStart > 60000) break;
+      await sleep(2000);
+    }
+  }
+
+  // ---- CLOSED: the resting board. The band must not sit on the map. ----
+  const closedRes = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
+  const closed = closedRes.result?.value || {};
+
+  // ---- OPEN: the evidence disclosure expanded. ----
   await send("Runtime.evaluate", { expression: OPEN, returnByValue: true });
   await sleep(700);
   const res = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
@@ -248,18 +272,24 @@ for (const [w, h] of SIZES) {
   const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 86 });
   const name = `spatial-${w}x${h}-${THEME}-${LANG}${INJECT !== "none" ? `-${INJECT}` : ""}`;
   await writeFile(join(OUT, `${name}.jpg`), Buffer.from(shot.data, "base64"));
-  await writeFile(join(OUT, `${name}.json`), JSON.stringify(g, null, 2));
+  await writeFile(join(OUT, `${name}.json`), JSON.stringify({ closed, open: g }, null, 2));
 
   const checks = [];
   const add = (name, ok, detail) => { checks.push({ name, ok, detail }); if (!ok) failures.push(`${w}x${h} ${THEME}/${LANG}: ${name} — ${detail}`); };
+  const skip = (name, why) => { checks.push({ name, ok: null, skipped: why }); };
 
   add("verdict-band-once", g.bandCount === 1, `found ${g.bandCount} bands (expected exactly 1)`);
   add("verdict-band-visible", g.bandVisible === true, "the band is not visible");
   add("verdict-band-above-board", g.bandBeforeMap === true, "the band is not above the map section");
+  add("verdict-band-clears-map", closed.bandBeforeMap === true, "the band overlaps the map section");
   add("evidence-panel-onscreen", g.panelOnScreen === true, `panel ${JSON.stringify(g.panelBox)} is not fully inside ${JSON.stringify(g.viewport)}`);
   add("evidence-panel-clears-map-controls", (g.panelHits || []).length === 0, `panel covers ${JSON.stringify(g.panelHits)}`);
   if (g.listArticles > 0) {
     add("news-list-window", (g.listClientH || 0) >= 200, `list window ${g.listClientH}px (floor is 200px) for ${g.listArticles} items`);
+  } else if (w < 1024) {
+    skip("news-list-window", "the news rail is not mounted below 1024 px");
+  } else {
+    skip("news-list-window", `no news items arrived (feed empty after 60 s) — ${g.listClientH}px window measured on an empty list`);
   }
   add("no-clipped-text", (g.clipped || []).length === 0, `clipped: ${JSON.stringify(g.clipped)}`);
 
@@ -267,8 +297,8 @@ for (const [w, h] of SIZES) {
   console.log(`  band ${g.bandBox ? `${g.bandBox.w}x${g.bandBox.h}@${g.bandBox.x},${g.bandBox.y}` : "-"} headline ${g.bandHeadline ? `${g.bandHeadline.w}x${g.bandHeadline.h}` : "-"} count=${g.bandCount}`);
   console.log(`  panel ${g.panelBox ? `${g.panelBox.w}x${g.panelBox.h}@${g.panelBox.x},${g.panelBox.y}` : "-"} onScreen=${g.panelOnScreen} hits=${(g.panelHits || []).length}`);
   console.log(`  list ${g.listClientH}px (scroll ${g.listScrollH}) items=${g.listArticles} clipped=${(g.clipped || []).length}`);
-  for (const c of checks) console.log(`  ${c.ok ? "ok  " : "FAIL"} ${c.name}${c.ok ? "" : ` — ${c.detail}`}`);
-  results.push({ name, checks, geometry: g });
+  for (const c of checks) console.log(c.ok === null ? `  skip ${c.name} — ${c.skipped}` : `  ${c.ok ? "ok  " : "FAIL"} ${c.name}${c.ok ? "" : ` — ${c.detail}`}`);
+  results.push({ name, checks, geometry: { closed, open: g } });
 }
 ws.close();
 chrome.kill();
