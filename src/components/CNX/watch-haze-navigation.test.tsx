@@ -7,7 +7,7 @@ import CnxApp from "./CNXApp";
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
 vi.mock("./CNXAboutModal", () => ({ default: () => null }));
-vi.mock("./CNXTopBar", () => ({ default: () => null, VerdictStrip: () => null }));
+vi.mock("./CNXTopBar", () => ({ default: () => null, VerdictBand: () => null }));
 vi.mock("../../lib/client-requests", () => ({ fetchJsonOrNull: async () => null, buildScenarioUrl: (url: string) => url }));
 vi.mock("./CNXHazeModal", () => ({ default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => isOpen ? <div role="dialog" aria-label="Haze evidence"><button onClick={onClose}>Close haze evidence</button></div> : null }));
 let container: HTMLDivElement;

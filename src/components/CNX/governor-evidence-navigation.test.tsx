@@ -8,7 +8,7 @@ import CnxApp from "./CNXApp";
 import CnxGovernorBrief from "./CNXGovernorBrief";
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
-vi.mock("./CNXTopBar", () => ({ default: ({ onOpenBrief }: { onOpenBrief: () => void }) => <button onClick={onOpenBrief}>Open governor brief</button>, VerdictStrip: () => null }));
+vi.mock("./CNXTopBar", () => ({ default: ({ onOpenBrief }: { onOpenBrief: () => void }) => <button onClick={onOpenBrief}>Open governor brief</button>, VerdictBand: () => null }));
 vi.mock("../../lib/client-requests", () => ({ fetchJsonOrNull: async () => null, buildScenarioUrl: (url: string) => url }));
 let container: HTMLDivElement;
 let root: Root;

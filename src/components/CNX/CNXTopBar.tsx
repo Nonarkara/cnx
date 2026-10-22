@@ -117,54 +117,58 @@ const BAND_LABEL: Record<CnxTwinResponse["verdict"]["band"], Pair> = {
 };
 
 /**
- * Province-level verdict strip — the unified risk surface.
- *
- * This is the FIRST thing the operator sees after the masthead.
- * Bilingual headline + top reason + checklist + hotlines so the
- * wall reads as a war-room board, not a dashboard. Mirrors the
- * FloodDash / AirDash /api/twin verdict surface — see the sibling
- * repos and docs/TWIN-API.md for the contract.
+ * The severity palette, shared by the strip and the band so the two can
+ * never drift apart. It matches the topbar pill palette so the strip reads
+ * as part of the same chrome, not a foreign block.
  */
-export function VerdictStrip({
+function verdictColour(level: CnxTwinResponse["verdict"]["level"]): string {
+  return level === "danger"
+    ? "border-[var(--sev-critical)] bg-[var(--bg)] text-[var(--sev-critical)]"
+    : level === "prepare"
+    ? "border-[var(--sev-alert)] bg-[var(--bg)] text-[var(--sev-alert)]"
+    : level === "watch"
+    ? "border-[var(--sev-watch)] bg-[var(--bg)] text-[var(--sev-watch)]"
+    : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
+}
+
+/**
+ * The reasoning behind the verdict: the observations, the evidence gaps, the
+ * next step, the official hotlines and the planning checklist.
+ *
+ * Split out of the strip so the board's band can open exactly this — and
+ * only this — in a panel over the map, without repeating the chip and the
+ * headline the band already shows. In flow it would push the board, and the
+ * map, out of shape; the band floats it for that reason.
+ */
+function VerdictEvidence({
   twin,
+  t,
   onOpenEmergency,
-  compact = false,
 }: {
   twin: CnxTwinResponse;
+  t: (th: string, en: string | null | undefined) => string;
   onOpenEmergency: () => void;
-  compact?: boolean;
 }) {
-  const { lang, t } = useLang();
   const v = twin.verdict;
-  const level = v.level;
-  // Match the existing topbar pill palette so the strip reads as
-  // part of the same chrome, not a foreign block.
-  const colour =
-    level === "danger"
-      ? "border-[var(--sev-critical)] bg-[var(--bg)] text-[var(--sev-critical)]"
-      : level === "prepare"
-      ? "border-[var(--sev-alert)] bg-[var(--bg)] text-[var(--sev-alert)]"
-      : level === "watch"
-      ? "border-[var(--sev-watch)] bg-[var(--bg)] text-[var(--sev-watch)]"
-      : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
-  const chipLabel = t(...CHIP_LABEL[level]);
   const topReason = v.reasons[0];
   const caveats = v.reasons.filter((r) => r.isCaveat);
-  const evidenceLabel = v.data_provenance === "live"
-    ? t("หลักฐานจากการวัด / แบบจำลองปัจจุบัน", "Current measured / modeled evidence")
-    : v.data_provenance === "mixed"
-    ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
-    : t("หลักฐานปัจจุบันยังไม่ครบ", "Current evidence incomplete");
-  const action: Pair = level === "danger"
+  const action: Pair = v.level === "danger"
     ? ["ปฏิบัติตามคำสั่งทางการในพื้นที่ทันที และตรวจสอบข้อมูลที่ขาดควบคู่กัน", "Follow official instructions for the affected area now. Verify the listed evidence gaps alongside response preparations."]
-    : level === "prepare"
+    : v.level === "prepare"
     ? ["ตรวจสอบประกาศในพื้นที่และเตรียมการรับมือ พร้อมยืนยันค่าที่ขาด", "Check official local instructions and prepare the relevant response; confirm any missing readings."]
     : caveats.length > 0
     ? ["ยืนยันค่าที่ขาดหรือเก่าและตรวจสอบประกาศทางการก่อนตัดสินใจ", "Verify missing or old readings and check local official notices before deciding."]
-    : level === "safe"
+    : v.level === "safe"
     ? ["ติดตามสถานีวัดและประกาศในพื้นที่ต่อไป — ยังไม่ใช่การยืนยันว่าปลอดภัย", "Continue monitoring local gauges and official notices; this board is not an all-clear."]
     : ["ติดตามความเสี่ยงที่รายงานและยืนยันสภาพจริงในพื้นที่", "Monitor the reported hazard and confirm conditions at the affected location."];
-  const evidence = <>
+  return (
+    <>
+      {/* Province and the emergency numbers travel with the reasoning: the
+          band above the board carries the level and the headline, so the
+          authority and the hotline must still be one read away. */}
+      <p className="font-mono text-[11px] uppercase tracking-[0.14em]">
+        {t(`${twin.province_th} · ปภ. ${HOTLINES.ddpm} · การแพทย์ฉุกเฉิน ${HOTLINES.ems}`, `${twin.province_en} · DDPM ${HOTLINES.ddpm} · EMS ${HOTLINES.ems}`)}
+      </p>
       {topReason && (
         <div className="flex flex-col gap-1 text-[12px] leading-relaxed">
           {[
@@ -208,33 +212,60 @@ export function VerdictStrip({
           {v.reasons.filter((r) => r.evidence).map((reason) => <p key={reason.evidence} className="mt-1 break-words font-mono text-[11px]">{t(...DOMAIN_LABEL[reason.domain])}: {reason.evidence}</p>)}
         </details>
       </div>
-  </>;
+    </>
+  );
+}
+
+/**
+ * The province verdict as a full-width band above the board.
+ *
+ * Why a band, and not the strip: the strip is a tall column — its headline
+ * wraps to seven lines in a 220 px column — and it used to sit in the news
+ * rail, where it took 273 px of a 539 px rail and left the news list a 30 px
+ * window onto 2 152 px of headlines while the footer still claimed 24 items.
+ * A band is wide, so the headline is one or two lines and the news rail
+ * gets its column back.
+ *
+ * Why not on the map: a verdict overlay covers the map's own layer control.
+ * That defect was already paid for once — see docs/SHIP-AUDIT.md, "Desktop
+ * verdict overlay covered map controls" — so the map's controls stay
+ * exposed here.
+ */
+export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; onOpenEmergency: () => void }) {
+  const { lang, t } = useLang();
+  const v = twin.verdict;
+  const colour = verdictColour(v.level);
+  const provenance = v.data_provenance === "live"
+    ? t("หลักฐานจากการวัด / แบบจำลองปัจจุบัน", "Current measured / modeled evidence")
+    : v.data_provenance === "mixed"
+    ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
+    : t("หลักฐานปัจจุบันยังไม่ครบ", "Current evidence incomplete");
   return (
-    <div lang={lang} className={`flex flex-col gap-1 border-l-4 px-3 py-2 ${colour}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
-          {compact && level === "safe" ? t("สถานการณ์", "CONTEXT") : chipLabel}
-        </span>
-        <span className="text-[11px] leading-relaxed">
-          {evidenceLabel}
-        </span>
-        <span className={`${compact ? "hidden" : ""} ml-auto font-mono text-[11px] uppercase tracking-[0.14em]`}>
-          {t(`${twin.province_th} · ปภ. ${HOTLINES.ddpm} · การแพทย์ฉุกเฉิน ${HOTLINES.ems}`, `${twin.province_en} · DDPM ${HOTLINES.ddpm} · EMS ${HOTLINES.ems}`)}
-        </span>
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="font-display text-[15px] font-bold leading-tight">{t(v.head_th, v.head_en)}</div>
-      </div>
-      {compact ? <details className="text-[12px]"><summary className="min-h-11 cursor-pointer py-3 font-semibold">{t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")}</summary>{evidence}</details> : evidence}
+    <div lang={lang} data-surface="cnx-verdict-band" className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-l-4 ${colour} px-3 py-2 sm:px-4`}>
+      <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
+        {t(...CHIP_LABEL[v.level])}
+      </span>
+      <span className="shrink-0 text-[11px] leading-relaxed">{provenance}</span>
+      <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug">{t(v.head_th, v.head_en)}</p>
+      <details className="relative shrink-0">
+        <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-2 text-[12px] font-semibold hover:bg-[var(--bg-raised)]">
+          {t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")}
+        </summary>
+        <div className="absolute right-0 top-full z-40 mt-1 max-h-[70dvh] w-[min(34rem,calc(100vw_-_2rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[var(--ink)]">
+          <VerdictEvidence twin={twin} t={t} onOpenEmergency={onOpenEmergency} />
+        </div>
+      </details>
     </div>
   );
 }
 
 /**
- * The bar's one-line verdict. The full reasoning moved onto the map as a
- * floating card (see CNXApp) so the map gets the height back, but the
- * province level must never leave the bar — it is the single number an
- * operator reads from across the room. Colour and word, nothing more.
+ * The bar's one-line verdict chip. The board's full reasoning lives in the
+ * band above the map (see VerdictBand) and the map's own controls stay
+ * exposed — a verdict overlay on the map was already paid for once, see
+ * docs/SHIP-AUDIT.md. But the province level must never leave the bar — it
+ * is the single number an operator reads from across the room. Colour and
+ * word, nothing more.
  */
 export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
   const { t } = useLang();

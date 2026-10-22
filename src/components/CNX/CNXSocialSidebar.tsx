@@ -91,7 +91,14 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
   const counts = { th: data?.items.filter(i => i.lang === "th").length ?? 0, en: data?.items.filter(i => i.lang === "en").length ?? 0 };
 
   return (
-    <div lang={lang} className="flex h-full flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--bg-raised)]">
+    // `overflow-y-auto`, not `overflow-hidden`. The rail's height is the
+    // viewport's, and the list below it is the elastic part: measured on the
+    // live board, the list's height is (viewport height - 615 px), because a
+    // 255 px verdict block and 237 px of fixed chrome sit above it. So at
+    // 1024x900 the list had 48 px and at 1366x640 it had 25 px — windows onto
+    // 2167 px of headlines, showing none of them while the footer still read
+    // "24 รายการ". Clipping hid the overflow; scrolling the rail exposes it.
+    <div lang={lang} data-surface="cnx-news-rail" className="flex h-full flex-col overflow-y-auto overflow-x-hidden border-r border-[var(--line)] bg-[var(--bg-raised)]">
       <header className="flex shrink-0 items-center justify-between border-b border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2">
         <div className="flex items-center gap-2">
           <Radio className="h-3.5 w-3.5 text-[var(--cool)]" />
@@ -136,7 +143,14 @@ export default function CnxSocialSidebar({ scenarioId, multilingualCountries = [
         </details>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* The floor is what stops the list from vanishing. `min-h-0` let it
+          shrink to nothing whenever the rail was short; a floor of 200 px
+          keeps it a usable scroll target (~2 headlines) and lets the rail
+          scroll the remainder, instead of showing a 25 px sliver. It applies
+          only when there ARE items: the empty states below carry their own
+          honest messages ("this rail is blind, not empty") and must not sit
+          in a box padded out to 200 px of nothing. */}
+      <div className={`flex-1 overflow-y-auto ${items.length > 0 ? "min-h-[200px]" : "min-h-0"}`}>
         {!data && refreshFailed ? (
           <p role="status" className="px-3 py-6 text-center text-[11px] text-[var(--dim)]">{t("ดึงข่าวไม่ได้ จะลองใหม่ในรอบถัดไป", "News feed unavailable. Retrying on the next refresh.")}</p>
         ) : !data ? (

@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { VerdictStrip } from "./CNXTopBar";
+import { VerdictBand } from "./CNXTopBar";
 import { computeVerdict } from "../../lib/cnx/verdict";
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
 import { __resetLangForTests } from "../../hooks/useLang";
@@ -16,19 +16,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Render in one language mode; the strip shows that language only. */
+/** Render in one language mode; the band shows that language only. */
 async function render(lang: Lang, over: Partial<CnxTwinResponse["verdict"]> = {}): Promise<string> {
   __resetLangForTests(lang);
   const twin = { province_th: "เชียงใหม่", province_en: "Chiang Mai", verdict: { ...computeVerdict(inputs), ...over } } as CnxTwinResponse;
   const container = document.createElement("div");
   const root = createRoot(container);
-  await act(async () => root.render(createElement(VerdictStrip, { twin, onOpenEmergency: () => {} })));
+  await act(async () => root.render(createElement(VerdictBand, { twin, onOpenEmergency: () => {} })));
   const text = container.textContent ?? "";
   await act(async () => root.unmount());
   return text;
 }
 
-describe("verdict action and evidence presentation", () => {
+describe("verdict band action and evidence presentation", () => {
   it("gives evidence gaps an actionable verification step and shows the actual checklist", async () => {
     const en = await render("en");
     expect(en).toContain("Evidence gap");

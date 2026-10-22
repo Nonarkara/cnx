@@ -43,7 +43,7 @@ import CnxVisitorPanel, { type VisitorAnalytics } from "./CNXVisitorPanel";
 import CnxAskChat from "./CNXAskChat";
 import CnxOpenData from "./CNXOpenData";
 import CnxCctvStrip from "./CNXCctvStrip";
-import CnxTopBar, { VerdictStrip } from "./CNXTopBar";
+import CnxTopBar, { VerdictBand } from "./CNXTopBar";
 import CnxFloodCamerasPanel from "./CNXFloodCamerasPanel";
 import CnxRiverLevelPanel from "./CNXRiverLevelPanel";
 import type { FloodCamera } from "../../lib/cnx/flood-cameras";
@@ -579,6 +579,16 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
 
 
+      {/* The province verdict, as a band above the board.
+          It used to sit in the 220 px news rail, where it took 273 px of a
+          539 px column — the headline wraps to seven lines at that width —
+          and left the news list a 30 px window onto 2 152 px of headlines
+          while the footer still claimed 24 items. A band is wide enough for
+          the headline in one or two lines, and it is not on the map: a
+          verdict overlay covers the map's own layer control, a defect this
+          board already paid for once (docs/SHIP-AUDIT.md). */}
+      {twin && <VerdictBand twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />}
+
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] lg:h-[60dvh] xl:h-auto xl:flex-1">
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
             from xl onwards on desktop with full width. */}
@@ -586,9 +596,13 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           aria-label={t("ข่าวและสื่อสังคม", "Social listening stream")}
           className="hidden min-h-0 w-[220px] shrink-0 overflow-y-auto border-r border-[var(--line)] lg:flex lg:flex-col"
         >
-          {twin && <div className="shrink-0 border-b border-[var(--line)] p-2">
-            <VerdictStrip compact twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />
-          </div>}
+          {/* The verdict used to sit here, above the news, in this 220 px
+              column. Measured on the live board it took 273 px of a 539 px
+              rail (the headline wraps to seven lines at this width), which
+              left the news list 30 px of window onto 2 152 px of headlines
+              while the footer still claimed "24 items" — and at a 640 px
+              tall window, 7 px. The verdict now rides the map, so this
+              column carries only the news it is named for. */}
           <div className="min-h-0 flex-1">
             <div className="h-full min-h-[240px]">
               <CnxSocialSidebar scenarioId={scenarioId} multilingualCountries={multilingualCountries} initialData={social} />
@@ -669,8 +683,6 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         </aside>}
 
       </section>
-
-      {twin && <details className="border-t border-[var(--line)] bg-[var(--bg-raised)] px-4 lg:hidden"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">{t("เหตุผลและข้อจำกัดของสถานการณ์", "Situation evidence")}</summary><VerdictStrip twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} /></details>}
 
       {/* Mobile / tablet panels stay available until the desktop desk appears. */}
       <section
