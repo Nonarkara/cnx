@@ -142,6 +142,7 @@ const PROBE = `(() => {
   // column, and the basemap <select> inside it is what a reader actually
   // needs. They are found by content, not by position.
   const layersDetails = [...document.querySelectorAll("details")].find(d => d.querySelector("#cnx-basemap"));
+  const layersDetailsOpen = layersDetails ? layersDetails.open : false;
   const layersSelect = document.querySelector("#cnx-basemap");
   const layersBox = layersDetails ? box(layersDetails) : null;
   const selectBox = layersSelect ? box(layersSelect) : null;
@@ -253,6 +254,7 @@ const PROBE = `(() => {
     pressedLabel,
     headlineLines,
     layersBox,
+    layersDetailsOpen,
     selectBox,
     panelHitsLayers,
     selectCovered,
@@ -387,24 +389,34 @@ for (const [w, h] of SIZES) {
   const res = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
   const g = res.result?.value || {};
 
-  // ---- OPEN THE MAP'S LAYERS CONTROL AS WELL. ----
-  // The panel and the Layers control are exclusive overlays, so opening the
-  // Layers control must leave the map's controls reachable. The check that
-  // matters is not "does the panel overlap the closed control row" but
-  // "can the reader still reach the basemap <select> when both are asked
-  // for". A gate that only ever opens the panel cannot see this defect:
+  // ---- THE MAP'S LAYERS CONTROL, IN BOTH ORDERS. ----
+  // The panel and the Layers control are exclusive overlays, so the reader
+  // must be able to reach the basemap <select> whichever one they open
+  // first. A gate that only ever opens the panel cannot see this defect:
   // that is exactly how the panel came to cover 95% of the <select>.
-  await send("Runtime.evaluate", {
-    expression: `(() => { const d = [...document.querySelectorAll("details")].find(x => x.querySelector("#cnx-basemap")); if (!d) return "no-layers"; if (!d.open) d.querySelector("summary").click(); return d.open ? "opened" : "click-failed"; })()`,
-    returnByValue: true,
-  });
+  const LAYERS = `(() => { const d = [...document.querySelectorAll("details")].find(x => x.querySelector("#cnx-basemap")); if (!d) return "no-layers"; if (!d.open) d.querySelector("summary").click(); return d.open ? "opened" : "click-failed"; })()`;
+  const LAYERS_CLOSE = `(() => { const d = [...document.querySelectorAll("details")].find(x => x.querySelector("#cnx-basemap")); if (d) d.open = false; return true; })()`;
+
+  // Order A: the panel is open, then the reader opens Layers.
+  await send("Runtime.evaluate", { expression: LAYERS, returnByValue: true });
   await sleep(700);
   const layersRes = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
   const l = layersRes.result?.value || {};
-  await send("Runtime.evaluate", {
-    expression: `(() => { const d = [...document.querySelectorAll("details")].find(x => x.querySelector("#cnx-basemap")); if (d) d.open = false; return true; })()`,
-    returnByValue: true,
-  });
+  const panelClosedUnderLayers = !l.panelBox || l.panelBox.w === 0 || l.panelBox.h === 0;
+
+  // Order B: Layers is open, then the reader opens the panel.
+  await send("Runtime.evaluate", { expression: LAYERS_CLOSE, returnByValue: true });
+  await sleep(400);
+  await send("Runtime.evaluate", { expression: LAYERS, returnByValue: true });
+  await sleep(400);
+  await send("Runtime.evaluate", { expression: OPEN, returnByValue: true });
+  await sleep(700);
+  const layersRes2 = await send("Runtime.evaluate", { expression: PROBE, returnByValue: true });
+  const l2 = layersRes2.result?.value || {};
+  const layersClosedUnderPanel = !l2.layersBox || l2.layersBox.w === 0 || l2.layersBox.h === 0
+    || !l2.layersDetailsOpen;
+
+  await send("Runtime.evaluate", { expression: LAYERS_CLOSE, returnByValue: true });
   await sleep(400);
   const shot = await send("Page.captureScreenshot", { format: "jpeg", quality: 86 });
   const name = `spatial-${w}x${h}-${THEME}-${LANG}${INJECT !== "none" ? `-${INJECT}` : ""}`;
@@ -425,8 +437,11 @@ for (const [w, h] of SIZES) {
   // reason. Say so instead of reporting a green that proves nothing.
   add("map-controls-were-found", (g.controls || []).length > 0, "no map controls were found — the clearance check would pass vacuously");
   // The panel and the map's Layers control are exclusive overlays: with the
-  // Layers control open, the basemap <select> must still be reachable.
+  // Layers control open, the basemap <select> must still be reachable —
+  // whichever one the reader opened first.
   add("layers-control-reachable", !l.selectCovered && !l.panelHitsLayers, `with Layers open the panel covers the control (${l.panelHitsLayers}) and the basemap select (${l.selectCovered})`);
+  add("layers-stand-down-for-the-panel", layersClosedUnderPanel || !l2.selectCovered, `the Layers control stayed open under the panel and the basemap select is covered (${l2.selectCovered})`);
+  add("panel-stands-down-for-layers", panelClosedUnderLayers || !l.selectCovered, `the panel stayed open over the Layers control and the basemap select is covered (${l.selectCovered})`);
   if (g.listArticles > 0) {
     add("news-list-window", (g.listClientH || 0) >= 200, `list window ${g.listClientH}px (floor is 200px) for ${g.listArticles} items`);
     // What the rail claims and what it holds must agree. The footer said

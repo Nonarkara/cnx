@@ -50,7 +50,7 @@ async function openDisclosure(disclosure: HTMLDetailsElement): Promise<void> {
 describe("the evidence panel is an exclusive overlay", () => {
   it("closes when the map's Layers control opens", async () => {
     const container = await render("en");
-    const disclosure = container.querySelector('[data-surface="cnx-verdict-band"] details')!;
+    const disclosure = container.querySelector<HTMLDetailsElement>('[data-surface="cnx-verdict-band"] details')!;
     await openDisclosure(disclosure);
     expect(disclosure.open).toBe(true);
 
@@ -63,7 +63,7 @@ describe("the evidence panel is an exclusive overlay", () => {
 
   it("does not close itself when it claims the overlay slot", async () => {
     const container = await render("en");
-    const disclosure = container.querySelector('[data-surface="cnx-verdict-band"] details')!;
+    const disclosure = container.querySelector<HTMLDetailsElement>('[data-surface="cnx-verdict-band"] details')!;
     await openDisclosure(disclosure);
     await act(async () => {
       claimExclusiveOverlay("verdict-panel");
@@ -73,7 +73,7 @@ describe("the evidence panel is an exclusive overlay", () => {
 
   it("leaves the panel closed when another overlay opens and it was never opened", async () => {
     const container = await render("en");
-    const disclosure = container.querySelector('[data-surface="cnx-verdict-band"] details')!;
+    const disclosure = container.querySelector<HTMLDetailsElement>('[data-surface="cnx-verdict-band"] details')!;
     await act(async () => {
       claimExclusiveOverlay("map-layers");
     });
@@ -93,5 +93,13 @@ describe("the exclusive overlay agreement", () => {
     // after unsubscribing, a claim reaches nobody
     claimExclusiveOverlay("map-layers");
     expect(closed).toEqual(["verdict-panel"]);
+  });
+
+  it("works in the other direction too: the map stands down for the panel", () => {
+    const closed: string[] = [];
+    const off = onExclusiveOverlay("map-layers", () => closed.push("map-layers"));
+    claimExclusiveOverlay("verdict-panel");
+    expect(closed).toEqual(["map-layers"]);
+    off();
   });
 });
