@@ -175,10 +175,29 @@ const PROBE = `(() => {
 
   // What the rail says it has, and what it actually holds.
   const footer = railRoot ? railRoot.querySelector("footer") : null;
-  const statedCount = footer ? (txt(footer).match(/\d+/) || [null])[0] : null;
+  const statedCount = footer ? (txt(footer).match(/\\d+/) || [null])[0] : null;
   const pressedChip = railRoot ? [...railRoot.querySelectorAll('button[aria-pressed="true"]')].find(b => b.querySelector("span")) : null;
   const pressedCount = pressedChip && pressedChip.querySelector("span") ? Number(txt(pressedChip.querySelector("span"))) : null;
   const pressedLabel = pressedChip ? txt(pressedChip).slice(0, 12) : null;
+
+  // The level chip is set in a mono slot. IBM Plex Mono carries no Thai, so
+  // a Thai level fell through to the platform fallback (Ayuthaya on macOS)
+  // instead of the board's own Thai face. Ask the browser which face it
+  // actually used.
+  const chip = band ? band.querySelector("span") : null;
+  const chipHasThai = chip ? /[\u0E00-\u0E7F]/.test(chip.textContent || "") : false;
+  const chipFontFamily = chip ? getComputedStyle(chip).fontFamily : null;
+  const chipFonts = (() => {
+    if (!chip || typeof CSS === "undefined" || !CSS.getPlatformFontsForNode) return [];
+    try { return CSS.getPlatformFontsForNode(chip).map((f) => f.familyName); } catch { return []; }
+  })();
+  // The platform-font API returns nothing in headless Chrome, so the check
+  // cannot rest on it: the face is settled by the STACK and by whether the
+  // Thai face in it is actually loaded.
+  const chipThaiFaceLoaded = (() => {
+    if (!chip || !document.fonts || !document.fonts.check) return false;
+    try { return document.fonts.check("700 12px 'IBM Plex Sans Thai'"); } catch { return false; }
+  })();
 
   // The headline's line count: the defect it guards against was a ribbon
   // of seven wrapped lines squeezed into 75 px.
@@ -288,6 +307,10 @@ const PROBE = `(() => {
     listScrollH: list ? list.scrollHeight : null,
     railOverflowY: railRoot ? getComputedStyle(railRoot).overflowY : null,
     clipped,
+    chipHasThai,
+    chipFonts,
+    chipFontFamily,
+    chipThaiFaceLoaded,
     truncated: truncated.slice(0, 6),
   };
 })()`;
@@ -487,9 +510,25 @@ for (const [w, h] of SIZES) {
   // The headline must have real width: it was once squeezed into a 75 px
   // ribbon at 390 px, which made the verdict unreadable in a phone.
   if (g.bandHeadline && g.bandBox) {
-    // A ribbon: the headline was once squeezed into 75 px and wrapped to
-    // seven lines. Line count is the honest measure of that, not width.
-    add("verdict-headline-lines", (g.headlineLines || 0) <= 3, `the headline wraps to ${g.headlineLines} lines (floor is 3)`);
+    // A ribbon is a NARROW column, whatever its height: the headline was
+    // once squeezed into 75 px of a 390 px band. 200 px is the floor for a
+    // sentence a reader can follow; the band was 19% of the phone screen.
+    add("verdict-headline-width", g.bandHeadline.w >= 200, `the headline is ${g.bandHeadline.w}px wide (floor is 200px)`);
+  }
+  // A Thai label must not be set in a Latin-only face or a platform
+  // fallback: the chip is a mono slot and IBM Plex Mono has no Thai.
+  if (g.chipHasThai) {
+    const fallback = (g.chipFonts || []).filter((f) => /Ayuthaya|Thonburi|Sukhumvit|Kailasa|Malayalam/i.test(f));
+    add("thai-label-uses-the-board-face",
+      fallback.length === 0 && /IBM Plex Sans Thai/.test(g.chipFontFamily || "") && g.chipThaiFaceLoaded === true,
+      `the Thai level chip's stack is ${g.chipFontFamily}; IBM Plex Sans Thai loaded=${g.chipThaiFaceLoaded}; platform faces=${JSON.stringify(g.chipFonts)}`);
+  }
+  if (g.bandBox && g.viewport) {
+    // The band is the board's verdict, not a drawer. It may not take more
+    // than a fifth of the screen: the version that squeezed the headline
+    // into a ribbon took 22.5% of a phone and 190 px of height.
+    const share = g.bandBox.h / g.viewport[1];
+    add("verdict-band-share", share <= 0.2, `the band is ${g.bandBox.h}px of a ${g.viewport[1]}px viewport (${Math.round(share * 100)}%, ceiling is 20%)`);
   }
   // The map is the hero. It must keep a real share of the window.
   if (g.mapBox && g.viewport) {
@@ -514,5 +553,5 @@ if (failures.length) {
   console.log(`\nevidence: ${OUT}`);
   process.exit(1);
 }
-console.log(`\nPASS — ${results.length} viewports, ${SIZES.length * 7} checks`);
+console.log(`\nPASS — ${results.length} viewports, ${results.reduce((n, r) => n + r.checks.length, 0)} checks`);
 console.log(`evidence: ${OUT}`);
