@@ -74,6 +74,86 @@ describe("temples.geojson", () => {
   });
 });
 
+describe("temple-compounds.geojson", () => {
+  const data = loadGeoJson("temple-compounds.geojson");
+  const temples = loadGeoJson("temples.geojson");
+
+  it("is a valid FeatureCollection of compound parts", () => {
+    expect(data.type).toBe("FeatureCollection");
+    expect(data.features.length).toBeGreaterThan(1000);
+  });
+
+  it("never emits a coordinate that is not a number", () => {
+    // The first bake closed each ring AFTER converting it to lon/lat,
+    // where the closing helper expected vectors — so 4,198 of 4,380
+    // rings ended with a point of `{}`. A malformed polygon is one a
+    // GeoJSON consumer must reject, and the map would silently drop
+    // the layer. Every coordinate has to be a real number.
+    for (const f of data.features) {
+      const rings = (f.geometry.coordinates as number[][][]) ?? [];
+      for (const ring of rings) {
+        for (const point of ring) {
+          expect(Array.isArray(point)).toBe(true);
+          expect(point).toHaveLength(2);
+          expect(Number.isFinite(point[0])).toBe(true);
+          expect(Number.isFinite(point[1])).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("closes every ring", () => {
+    for (const f of data.features) {
+      const rings = (f.geometry.coordinates as number[][][]) ?? [];
+      for (const ring of rings) {
+        expect(ring[0][0]).toBe(ring[ring.length - 1][0]);
+        expect(ring[0][1]).toBe(ring[ring.length - 1][1]);
+      }
+    }
+  });
+
+  it("uses `[lon, lat]` ordering (RFC 7946), not `[lat, lon]`", () => {
+    const sample = data.features[0];
+    const ring = (sample.geometry.coordinates as number[][][])[0];
+    const [first] = ring;
+    const [a, b] = first as number[];
+    expect(Math.abs(a)).toBeGreaterThan(90);
+    expect(Math.abs(b)).toBeLessThan(20);
+  });
+
+  it("declares what every part is and where it came from", () => {
+    // A part with no provenance is a part the operator cannot trust.
+    for (const f of data.features) {
+      const p = f.properties;
+      expect(typeof p.part).toBe("string");
+      expect(["measured", "model"]).toContain(p.origin);
+      expect(["osm", "fallback", "grammar"]).toContain(p.height_source);
+      expect(["osm-footprints", "osm-boundary-only", "single-footprint"]).toContain(p.evidence);
+      expect(Number.isFinite(Number(p.height))).toBe(true);
+    }
+  });
+
+  it("gives every wall a hole, so it is a band and not a slab", () => {
+    const walls = data.features.filter((f) => f.properties.part === "wall");
+    expect(walls.length).toBeGreaterThan(100);
+    for (const w of walls) {
+      expect((w.geometry.coordinates as number[][][]).length).toBe(2);
+    }
+  });
+
+  it("carries every mapped temple — none is silently dropped", () => {
+    // A temple that vanishes from the layer reads on the map as "there
+    // is no wat here", which is the absence-is-not-evidence failure
+    // this board treats as fatal. Every mapped place of worship must
+    // still be present, as a compound or as a single building.
+    const inCompound = new Set(data.features.map((f) => String(f.properties.compound_id)));
+    for (const t of temples.features) {
+      const id = String(t.properties.id);
+      expect(inCompound.has(id)).toBe(true);
+    }
+  });
+});
+
 describe("walls.geojson", () => {
   const data = loadGeoJson("walls.geojson");
 

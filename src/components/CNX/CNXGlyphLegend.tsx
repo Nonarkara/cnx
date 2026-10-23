@@ -21,7 +21,7 @@ import { useLang } from "../../hooks/useLang";
  * covers every way the map actually marks things — a legend that silently
  * omits a layer is worse than no legend, because it implies absence.
  */
-export type LegendShape = "flame" | "droplet" | "arrow" | "streak" | "smoke" | "rainRamp" | "pmRamp" | "dot";
+export type LegendShape = "flame" | "droplet" | "arrow" | "streak" | "smoke" | "rainRamp" | "pmRamp" | "dot" | "compound";
 
 export interface LegendRow {
   id: string;
@@ -113,6 +113,20 @@ export const LEGEND_ROWS: LegendRow[] = [
     color: "rgb(147,51,234)",
   },
   {
+    // The temple compounds are the one layer on this map that mixes a
+    // survey with a model in the SAME picture, so the key has to show
+    // both at once: the saturated square is a mapped footprint, the
+    // faded one is the compound grammar's. A single swatch would let a
+    // modelled chedi be read as a surveyed one.
+    id: "temple-compound",
+    shape: "compound",
+    labelTh: "อาณาจักรวัด (กำแพง ประตู ลาน โบสถ์ เจดีย์)",
+    labelEn: "Temple compounds (wall, gate, court, halls, chedi)",
+    originTh: "ผังจริง + แบบจำลอง",
+    originEn: "mapped + model",
+    color: "rgb(245,158,11)",
+  },
+  {
     id: "gauge",
     shape: "dot",
     labelTh: "สถานีวัดระดับน้ำ",
@@ -151,6 +165,14 @@ export function LegendSwatch({ shape, color }: { shape: LegendShape; color: stri
         className="inline-block h-2 w-6 align-middle"
         style={{ background: `linear-gradient(90deg, ${stops.join(", ")})` }}
       />
+    );
+  }
+  if (shape === "compound") {
+    return (
+      <span aria-hidden="true" className="inline-flex shrink-0 items-center gap-[2px]">
+        <span className="inline-block h-2.5 w-2.5" style={{ background: "rgb(245,158,11)" }} />
+        <span className="inline-block h-2.5 w-2.5" style={{ background: "rgb(232,165,60)", opacity: 0.5 }} />
+      </span>
     );
   }
   if (shape === "smoke") return <svg aria-hidden="true" className="h-3.5 w-6 shrink-0" viewBox="0 0 24 14"><path d="M3 3 L8 7 L3 11 M14 3 L19 7 L14 11" fill="none" stroke={color ?? "currentColor"} strokeWidth="2" /></svg>;

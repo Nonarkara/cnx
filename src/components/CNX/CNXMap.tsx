@@ -100,8 +100,142 @@ const BUILDINGS_CORE_SOURCE = "cnx-buildings-core";
 const BUILDINGS_CORE_LAYER = "cnx-buildings-core-fill";
 const BUILDINGS_WIDE_SOURCE = "cnx-buildings-wide";
 const BUILDINGS_WIDE_LAYER = "cnx-buildings-wide-fill";
-const TEMPLES_SOURCE = "cnx-temples";
-const TEMPLES_LAYER = "cnx-temples-fill";
+const TEMPLES_SOURCE = "cnx-temple-compounds";
+const TEMPLES_LAYER = "cnx-temple-compounds-fill";
+const TEMPLE_COURT_LAYER = "cnx-temple-courts";
+
+interface CompoundShade {
+  measured: string;
+  model: string;
+}
+
+/**
+ * The temple-compound palette.
+ *
+ * The board's rule is that shape and colour must not lie. So each part
+ * of a compound gets its own colour AND each part's colour carries
+ * whether its geometry is mapped or modelled: a measured building is
+ * the saturated colour, a modelled one is the same hue a few shades
+ * back. An operator who knows the rule can see, without opening a
+ * panel, which parts of a wat are survey and which are grammar.
+ *
+ *   wall       warm stone      — the mapped boundary, given thickness
+ *   gate       deeper saffron  — the belfry / mountain gate
+ *   hall       saffron gold    — the ordination and scripture halls
+ *   side_hall  deeper gold     — the flanking halls
+ *   chedi      whitewash cream — the stupa, the compound's tower
+ *   court      muted sand      — the courtyard floor (a ground fill)
+ *
+ * Roofs are darker than the wall they cap, because a roof is a roof.
+ */
+const COMPOUND_PART_COLOURS: Record<string, { body: CompoundShade; roof: CompoundShade }> = {
+  wall: {
+    body: { measured: "rgba(176, 166, 146, 0.95)", model: "rgba(176, 166, 146, 0.78)" },
+    roof: { measured: "rgba(176, 166, 146, 0.95)", model: "rgba(176, 166, 146, 0.78)" },
+  },
+  gate: {
+    body: { measured: "rgba(217, 119, 6, 0.98)", model: "rgba(217, 119, 6, 0.84)" },
+    roof: { measured: "rgba(146, 64, 14, 0.98)", model: "rgba(146, 64, 14, 0.84)" },
+  },
+  hall: {
+    body: { measured: "rgba(245, 158, 11, 0.98)", model: "rgba(232, 165, 60, 0.86)" },
+    roof: { measured: "rgba(154, 52, 18, 0.98)", model: "rgba(154, 52, 18, 0.84)" },
+  },
+  side_hall: {
+    body: { measured: "rgba(217, 119, 6, 0.98)", model: "rgba(217, 119, 6, 0.84)" },
+    roof: { measured: "rgba(120, 53, 15, 0.98)", model: "rgba(120, 53, 15, 0.84)" },
+  },
+  chedi: {
+    body: { measured: "rgba(250, 240, 210, 0.98)", model: "rgba(226, 209, 168, 0.90)" },
+    roof: { measured: "rgba(201, 162, 39, 0.98)", model: "rgba(201, 162, 39, 0.88)" },
+  },
+  court: {
+    body: { measured: "rgba(150, 140, 118, 0.42)", model: "rgba(150, 140, 118, 0.42)" },
+    roof: { measured: "rgba(150, 140, 118, 0.42)", model: "rgba(150, 140, 118, 0.42)" },
+  },
+};
+
+/**
+ * A Christian church or a mosque is not saffron. The religion decides
+ * the hue; the part decides the shade; the origin decides whether it
+ * is saturated. All three have to be carried at once, or a compound
+ * ends up in a colour it does not belong to.
+ */
+function religionTable(
+  bodyMeasured: string,
+  bodyModel: string,
+  roofMeasured: string,
+  roofModel: string,
+): Record<string, { body: CompoundShade; roof: CompoundShade }> {
+  const table: Record<string, { body: CompoundShade; roof: CompoundShade }> = {};
+  for (const part of Object.keys(COMPOUND_PART_COLOURS)) {
+    table[part] = {
+      body: { measured: bodyMeasured, model: bodyModel },
+      roof: { measured: roofMeasured, model: roofModel },
+    };
+  }
+  return table;
+}
+
+const COMPOUND_RELIGION_COLOURS: Record<string, Record<string, { body: CompoundShade; roof: CompoundShade }>> = {
+  christian: religionTable(
+    "rgba(168, 85, 247, 0.96)", "rgba(168, 85, 247, 0.80)",
+    "rgba(126, 34, 206, 0.96)", "rgba(126, 34, 206, 0.80)",
+  ),
+  muslim: religionTable(
+    "rgba(16, 185, 129, 0.96)", "rgba(16, 185, 129, 0.80)",
+    "rgba(4, 120, 87, 0.96)", "rgba(4, 120, 87, 0.80)",
+  ),
+};
+
+/** The branches that pick a part's colour out of one palette table. */
+function compoundCases(table: Record<string, { body: CompoundShade; roof: CompoundShade }>): unknown[] {
+  const branches: unknown[] = [];
+  for (const [part, shades] of Object.entries(table)) {
+    for (const tier of ["body", "roof"] as const) {
+      branches.push(
+        ["all", ["==", ["get", "part"], part], ["==", ["get", "tier"], tier], ["==", ["get", "origin"], "measured"]],
+        shades[tier].measured,
+      );
+      branches.push(
+        ["all", ["==", ["get", "part"], part], ["==", ["get", "tier"], tier], ["==", ["get", "origin"], "model"]],
+        shades[tier].model,
+      );
+    }
+  }
+  return branches;
+}
+
+/**
+ * The compound's colour, as a MapLibre expression.
+ *
+ * Built from the tables above rather than written out by hand, because a
+ * hand-written case with forty branches is a place where the modelled
+ * branch silently goes missing — and a missing modelled branch is
+ * exactly the failure the board treats as fatal: a modelled wall
+ * rendering in the colour of a surveyed one.
+ */
+function compoundColourExpr(): DataDrivenPropertyValueSpecification<string> {
+  const expr: unknown[] = ["case"];
+  for (const [religion, table] of Object.entries(COMPOUND_RELIGION_COLOURS)) {
+    expr.push(["==", ["get", "religion"], religion], ["case", ...compoundCases(table), "rgba(150, 140, 118, 0.9)"]);
+  }
+  expr.push(...compoundCases(COMPOUND_PART_COLOURS));
+  // A part the table does not know about is shown in the city beige,
+  // never in a temple gold it has not earned.
+  expr.push("rgba(180, 175, 165, 0.9)");
+  return expr as DataDrivenPropertyValueSpecification<string>;
+}
+
+/** What each part of a compound is, in the operator's words. */
+const COMPOUND_PART_LABEL: Record<string, { th: string; en: string }> = {
+  wall: { th: "กำแพงอาราม", en: "Compound wall" },
+  court: { th: "ลานวัด", en: "Courtyard" },
+  gate: { th: "ประตู / เปรียญ", en: "Gate / belfry" },
+  hall: { th: "โบสถ์ / วิหาร", en: "Ordination / scripture hall" },
+  side_hall: { th: "วิหารเคียง", en: "Flanking hall" },
+  chedi: { th: "เจดีย์", en: "Chedi (stupa)" },
+};
 
 // Arnis-inspired palette:
 //   Doi Suthep gold (temples)  → #f99d1b / #d97706 (saffron / chedi gilding)
@@ -141,18 +275,10 @@ function buildingColorExpr(): DataDrivenPropertyValueSpecification<string> {
   ];
 }
 
-function templeColorExpr(): DataDrivenPropertyValueSpecification<string> {
-  return [
-    "case",
-    ["==", ["get", "kind_value"], "buddhist"],
-    "rgba(245, 158, 11, 0.98)",     // saffron-leaning (Buddhist wats / chedi)
-    ["==", ["get", "kind_value"], "christian"],
-    "rgba(168, 85, 247, 0.95)",
-    ["==", ["get", "kind_value"], "muslim"],
-    "rgba(16, 185, 129, 0.95)",
-    "rgba(218, 165, 32, 0.98)",     // generic Doi Suthep gold
-  ];
-}
+/* The old `templeColorExpr` — one gold block per temple — is gone. The
+ * compound palette above replaced it: it carries the religion AND the
+ * part AND whether the geometry is mapped, which the old expression
+ * could not. */
 
 /** Small uppercase heading between toggle groups in the left-hand
  *  layer bar (3D City / Transit / Weather & Air / Range Rings). */
@@ -530,6 +656,17 @@ export default function CNXMap({
     levels?: number | null;
     address?: string | null;
     coordinates?: [number, number];
+    /** Set when the clicked feature is a part of a temple compound. */
+    templePart?: {
+      part: string;
+      tier: string;
+      origin: "measured" | "model";
+      heightSource: "osm" | "fallback" | "grammar";
+      evidence: string | null;
+      areaM2: number;
+      /** The OSM way id of the compound — what "View on OSM" must link to. */
+      compoundId: string;
+    } | null;
   } | null>(null);
 
   const [viewState, setViewState] = useState<MapViewState>({
@@ -1202,12 +1339,30 @@ export default function CNXMap({
         if (map.getLayer(BUILDINGS_CORE_LAYER)) map.setLayoutProperty(BUILDINGS_CORE_LAYER, "visibility", buildingsOn && !wideBuildings ? "visible" : "none");
         if (map.getLayer(BUILDINGS_WIDE_LAYER)) map.setLayoutProperty(BUILDINGS_WIDE_LAYER, "visibility", buildingsOn && wideBuildings ? "visible" : "none");
 
-        // ─── temples (place_of_worship) ───────────────────────────
+        // ─── temple compounds (place_of_worship boundaries + interiors)
+        //
+        // Two layers off one source. The courtyard is a GROUND fill, not
+        // an extrusion: a courtyard is paving, and extruding it would
+        // make the compound a solid slab with buildings on top — the
+        // same slab this layer exists to replace. The wall, gate,
+        // halls and chedi are extrusions.
         if (!map.getSource(TEMPLES_SOURCE)) {
           map.addSource(TEMPLES_SOURCE, {
             type: "geojson",
-            data: "/data/cnx/temples.geojson",
+            data: "/data/cnx/temple-compounds.geojson",
             promoteId: "id",
+          });
+        }
+        if (!map.getLayer(TEMPLE_COURT_LAYER)) {
+          map.addLayer({
+            id: TEMPLE_COURT_LAYER,
+            type: "fill",
+            source: TEMPLES_SOURCE,
+            filter: ["==", ["get", "part"], "court"],
+            paint: {
+              "fill-color": COMPOUND_PART_COLOURS.court.body.measured,
+              "fill-opacity": 1,
+            },
           });
         }
         if (!map.getLayer(TEMPLES_LAYER)) {
@@ -1216,15 +1371,21 @@ export default function CNXMap({
             type: "fill-extrusion",
             source: TEMPLES_SOURCE,
             minzoom: 11,
+            filter: ["!=", ["get", "part"], "court"],
             paint: {
-              "fill-extrusion-color": templeColorExpr(),
+              "fill-extrusion-color": compoundColourExpr(),
               "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
-              "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
-              "fill-extrusion-opacity": 0.95,
+              // The compound is lifted a hand's breadth off the ground so
+              // that where a mapped building is also in the generic city
+              // block layer, the two faces are not coplanar. The lift is
+              // the same on every part, so a chedi's tiers still stack.
+              "fill-extrusion-base": ["+", ["get", "base_height"], 0.3] as DataDrivenPropertyValueSpecification<number>,
+              "fill-extrusion-opacity": 0.97,
               "fill-extrusion-vertical-gradient": false,
             },
           });
         }
+        map.setLayoutProperty(TEMPLE_COURT_LAYER, "visibility", templesOn ? "visible" : "none");
         map.setLayoutProperty(TEMPLES_LAYER, "visibility", templesOn ? "visible" : "none");
 
         // Interactive building inspection (Atlas / atlas.nonarkara.org pattern)
@@ -1233,17 +1394,31 @@ export default function CNXMap({
           if (!feat) return;
           const props = feat.properties ?? {};
           const bHeight = Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
+          const isCompound = props.part != null;
           setSelectedBuilding({
             id: feat.id ?? props.id ?? "Unknown",
             name: props.name_th || props.name_en || props.name || "",
             nameTh: props.name_th,
             nameEn: props.name_en,
-            kind: props.kind || (feat.layer?.id === TEMPLES_LAYER ? "temple" : "building"),
+            kind: props.kind || (isCompound ? "temple" : "building"),
             kindValue: props.kind_value,
             height: bHeight,
             levels: props.levels ? Number(props.levels) : Math.round(bHeight / 3),
             address: props.addr || null,
             coordinates: [e.lngLat.lng, e.lngLat.lat],
+            // The compound's own provenance, so the card can say which
+            // parts of a wat are survey and which are the grammar's.
+            templePart: isCompound
+              ? {
+                  part: String(props.part),
+                  tier: props.tier ? String(props.tier) : "body",
+                  origin: props.origin === "model" ? "model" : "measured",
+                  heightSource: props.height_source === "osm" || props.height_source === "fallback" ? props.height_source : "grammar",
+                  evidence: props.evidence ? String(props.evidence) : null,
+                  areaM2: Number(props.compound_area_m2) || 0,
+                  compoundId: props.compound_id != null ? String(props.compound_id) : "",
+                }
+              : null,
           });
         };
 
@@ -1521,8 +1696,12 @@ export default function CNXMap({
           pressed={templesOn}
           onClick={() => setTemplesOn((v) => !v)}
           activeClassName="border-[#856000] bg-[#856000] text-white"
+          title={t(
+            "อาณาจักรวัด: กำแพง ประตู ลาน โบสถ์ และเจดีย์ ตามขอบเขตที่ OpenStreetMap ทำแผนที่ไว้ — ส่วนที่ไม่มีผังจริงเป็นแบบจำลองตามแบบอาณาจักรวัด",
+            "Temple compounds: wall, gate, courtyard, halls and chedi, from the boundary OpenStreetMap maps — where no real plan exists, the compound grammar supplies one",
+          )}
         >
-          {templesOn ? t("วัด: สีทอง", "Temples: gold") : t("วัด: ปิด", "Temples: off")}
+          {templesOn ? t("วัด: อาณาจักร", "Temples: compounds") : t("วัด: ปิด", "Temples: off")}
         </MapToggleButton>
         <MapToggleButton
           pressed={wallsOn}
@@ -1742,6 +1921,62 @@ export default function CNXMap({
             </div>
           </div>
 
+          {selectedBuilding.templePart && (
+            <div className="mt-2 border border-[var(--line)] bg-[var(--bg)] p-2 font-mono text-[11px]">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="bg-[var(--cool)] px-1.5 py-0.5 font-bold uppercase tracking-[0.14em] text-[var(--bg)]">
+                  {(() => {
+                    const label = COMPOUND_PART_LABEL[selectedBuilding.templePart.part];
+                    return label ? t(label.th, label.en) : selectedBuilding.templePart.part;
+                  })()}
+                </span>
+                <span
+                  className={
+                    selectedBuilding.templePart.origin === "measured"
+                      ? "border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                      : "border border-amber-600 bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                  }
+                >
+                  {selectedBuilding.templePart.origin === "measured"
+                    ? t("วัดจริง", "Measured")
+                    : t("แบบจำลอง", "Modelled")}
+                </span>
+                {selectedBuilding.templePart.tier === "roof" && (
+                  <span className="border border-[var(--line)] px-1.5 py-0.5 text-[var(--dim)]">
+                    {t("เชิงหลังคา", "Roof")}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 leading-snug text-[var(--dim)]">
+                {selectedBuilding.templePart.origin === "measured"
+                  ? t("รูปทรงนี้มาจากผังอาคารที่ OpenStreetMap ทำแผนที่ไว้", "This shape comes from an OpenStreetMap building footprint.")
+                  : t("รูปทรงนี้มาจากแบบจำลองอาณาจักรวัด ไม่ใช่ผังที่สำรวจมา", "This shape comes from the temple-compound grammar, not from a survey.")}
+              </p>
+              <p className="mt-1 leading-snug text-[var(--dim)]">
+                {selectedBuilding.templePart.heightSource === "osm"
+                  ? t("ความสูงมาจากข้อมูล OSM", "Height from the mapped OSM tag")
+                  : selectedBuilding.templePart.heightSource === "fallback"
+                    ? t("ความสูงเป็นค่าประมาณ (9 ม. ค่าเริ่มต้นของชุดข้อมูล ไม่ใช่ค่าที่วัดมา)", "Height is an estimate — the extract's 9 m default, not a measured height")
+                    : t("ความสูงเป็นค่าของแบบจำลอง", "Height is the grammar's own figure")}
+              </p>
+              {selectedBuilding.templePart.evidence === "osm-footprints" && (
+                <p className="mt-1 leading-snug text-[var(--dim)]">
+                  {t("OSM ทำแผนที่อาคารภายในอารามนี้ไว้จริง", "OSM maps buildings inside this compound.")}
+                </p>
+              )}
+              {selectedBuilding.templePart.evidence === "osm-boundary-only" && (
+                <p className="mt-1 leading-snug text-[var(--dim)]">
+                  {t("OSM ทำแผนที่ไว้เฉพาะขอบเขตอาราม ส่วนที่อยู่ภายในเป็นแบบจำลอง", "OSM maps only this compound's boundary. The interior is modelled.")}
+                </p>
+              )}
+              {selectedBuilding.templePart.evidence === "single-footprint" && (
+                <p className="mt-1 leading-snug text-[var(--dim)]">
+                  {t("ที่นี่เป็นอาคารเดียว ไม่ใช่อาราม", "This is a single building, not a compound.")}
+                </p>
+              )}
+            </div>
+          )}
+
           {selectedBuilding.address && (
             <div className="mt-2 border-t border-[var(--line)] pt-1.5 font-mono text-[11px] text-[var(--dim)]">
               📍 {selectedBuilding.address}
@@ -1749,9 +1984,9 @@ export default function CNXMap({
           )}
 
           <div className="mt-2 flex items-center justify-between border-t border-[var(--line)] pt-2 font-mono text-[11px] text-[var(--dim)]">
-            <span>OSM ID: {selectedBuilding.id}</span>
+            <span>OSM ID: {selectedBuilding.templePart?.compoundId ?? selectedBuilding.id}</span>
             <a
-              href={`https://www.openstreetmap.org/way/${selectedBuilding.id}`}
+              href={`https://www.openstreetmap.org/way/${selectedBuilding.templePart?.compoundId ?? selectedBuilding.id}`}
               target="_blank"
               rel="noreferrer"
               className="text-[var(--cool)] hover:underline"

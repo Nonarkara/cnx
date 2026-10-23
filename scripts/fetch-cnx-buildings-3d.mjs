@@ -17,6 +17,14 @@
  *
  * Usage:
  *   node scripts/fetch-cnx-buildings-3d.mjs
+ *   node scripts/build-cnx-temple-compounds.mjs   ← run this AFTER
+ *
+ * The second step composes `temples.geojson` and the building footprints
+ * into `temple-compounds.geojson`, which is what the map's temple layer
+ * actually renders: a walled compound with a gate, a courtyard, halls
+ * and a stupa, instead of one gold block per place of worship. Run the
+ * fetch and the bake together, or the map will render a compound layer
+ * from a stale boundary set.
  *
  * Bbox (urban):
  *   south 18.65  → south of Hang Dong, north of Lamphun border
