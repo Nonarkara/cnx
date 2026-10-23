@@ -186,6 +186,47 @@ topographic map, and they were the one thing it did not show.
 
 ---
 
+## 3c. The temple compounds — a model that says so
+
+The 3D city layer draws every mapped place of worship as a **compound**, not
+as a block. A walled enclosure on the mapped boundary, a gate on the axis, a
+courtyard, the main hall at the far end, flanking side halls, and a tower in
+the court.
+
+The order is the one a Lanna wat and a **northern Chinese** Buddhist temple
+share — which is why the Chinese form is a usable reference for a Thai one.
+It is a model of how a temple compound is arranged, and the board's rule
+applies to it without exception:
+
+| what | provenance |
+|---|---|
+| the boundary, and any building OSM maps inside it | **measured** — an OpenStreetMap footprint |
+| the wall's thickness, the gate, the roof overhangs, a tower where OSM maps none | **model** — the grammar's own |
+| a mapped footprint's height | **osm** if the tag exists, otherwise the extract's 9 m default, declared as a **fallback** |
+
+Only **12 of 1,866** measured parts carry a mapped height: OSM tags a
+footprint and rarely its height. That limit is declared on every part rather
+than smoothed over, and the map styles modelled parts a few shades back from
+measured ones so the difference is visible without opening a panel.
+
+Three rules the grammar obeys that are worth stating:
+
+- **A stupa only goes where a stupa belongs.** The tower is a Buddhist form
+  (a pagoda in the Chinese case, which is the same religion's architecture).
+  A church or a mosque gets its mapped buildings and no tower.
+- **An absent tag is not an absent religion.** An untagged site still gets
+  its tower; only an explicitly non-Buddhist one does not.
+- **No temple may vanish.** All 474 mapped places of worship are in the
+  layer, as a compound or as the single building it is. A wat that
+  disappeared would read as "there is no wat here", and absence is not
+  evidence.
+
+The grammar is `src/lib/cnx/temple-compound.ts`; the baked output is
+`public/data/cnx/temple-compounds.geojson`; the renderer that can see it
+without booting the board is `scripts/preview-temple-compounds.mjs`.
+
+---
+
 ## 4. The flight desk
 
 Flight availability and quota depend on the selected upstream and its

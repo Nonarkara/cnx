@@ -1429,7 +1429,10 @@ export default function CNXMap({
           map.getCanvas().style.cursor = "";
         };
 
-        const interactiveLayers = [BUILDINGS_CORE_LAYER, BUILDINGS_WIDE_LAYER, TEMPLES_LAYER].filter((id) => map.getLayer(id));
+        // The courtyard is in the list too: it is the largest part of a
+        // compound and the most likely thing an operator clicks, and it
+        // must answer with the compound it belongs to.
+        const interactiveLayers = [BUILDINGS_CORE_LAYER, BUILDINGS_WIDE_LAYER, TEMPLES_LAYER, TEMPLE_COURT_LAYER].filter((id) => map.getLayer(id));
         interactiveLayers.forEach((lid) => {
           map.on("click", lid, onLayerClick);
           map.on("mouseenter", lid, onMouseEnter);
