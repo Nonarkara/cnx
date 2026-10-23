@@ -29,7 +29,7 @@ import { useLang } from "../../hooks/useLang";
 import { clampView } from "../../lib/cnx/map-bounds";
 import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CameraHaze } from "../../lib/cnx/haze-vision";
 import { isAssessedHazeCamera } from "../../lib/cnx/haze-watch-state";
 import type { HazeLabel } from "../../lib/cnx/haze-vision-core";
@@ -645,6 +645,8 @@ export default function CNXMap({
   const aerosolLayerOn = imageOverlay === "aerosol";
   const burnScarOn = imageOverlay === "burnscar";
   const [gridRadii, setGridRadii] = useState<Set<number>>(new Set());
+  /** The map's root element — the surface a map click happens on. */
+  const mapRootRef = useRef<HTMLDivElement | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<{
     id: string | number;
     name: string;
@@ -1268,6 +1270,106 @@ export default function CNXMap({
     ];
   }, [busRoutes, busesOn]);
 
+  // ─── Selecting a 3D feature ──────────────────────────────────
+  //
+  // One place that turns a map feature into the building card, so the
+  // card cannot say one thing when picked by one route and another by
+  // the other.
+  const selectFeature = useCallback(
+    (
+      feat: { id?: string | number; properties?: Record<string, unknown> } | undefined,
+      lngLat: { lng: number; lat: number },
+    ) => {
+      if (!feat) return;
+      const props = feat.properties ?? {};
+      // The properties come from a GeoJSON source, so their type is
+      // "whatever the file said". Read them through one accessor
+      // rather than casting the whole bag to `any`.
+      const str = (v: unknown): string | undefined =>
+        typeof v === "string" && v.length > 0 ? v : undefined;
+      const bHeight = Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
+      const isCompound = props.part != null;
+      const rawId = props.id;
+      const id: string | number =
+        typeof rawId === "number"
+          ? rawId
+          : str(rawId) ?? feat.id ?? "Unknown";
+      setSelectedBuilding({
+        id,
+        name: str(props.name_th) ?? str(props.name_en) ?? str(props.name) ?? "",
+        nameTh: str(props.name_th),
+        nameEn: str(props.name_en),
+        kind: str(props.kind) ?? (isCompound ? "temple" : "building"),
+        kindValue: str(props.kind_value),
+        height: bHeight,
+        levels: props.levels ? Number(props.levels) : Math.round(bHeight / 3),
+        address: str(props.addr) ?? null,
+        coordinates: [lngLat.lng, lngLat.lat],
+        // The compound's own provenance, so the card can say which
+        // parts of a wat are survey and which are the grammar's.
+        templePart: isCompound
+          ? {
+              part: String(props.part),
+              tier: props.tier ? String(props.tier) : "body",
+              origin: props.origin === "model" ? "model" : "measured",
+              heightSource:
+                props.height_source === "osm" || props.height_source === "fallback"
+                  ? props.height_source
+                  : "grammar",
+              evidence: props.evidence ? String(props.evidence) : null,
+              areaM2: Number(props.compound_area_m2) || 0,
+              compoundId: props.compound_id != null ? String(props.compound_id) : "",
+            }
+          : null,
+      });
+    },
+    [],
+  );
+
+  // ─── Picking, without depending on WHICH canvas got the click ──
+  //
+  // deck.gl's event-root div sits ON TOP of the MapLibre canvas, so a
+  // click lands on deck.gl, which handles its own picking and stops
+  // there. `map.on("click", layerId, …)` therefore never fires: the
+  // building card this board has carried for months was unreachable.
+  // Measured, not assumed — the card did not open on any click, on any
+  // layer, at any point of the map.
+  //
+  // A geometry query does not care which element received the event, so
+  // the pick is done here, in the map's own canvas coordinates. The
+  // layer-scoped handler stays in place for the case where the map
+  // does receive the click; both routes set the same card.
+  useEffect(() => {
+    const root = mapRootRef.current;
+    const map = mlMapRef.current;
+    if (!root || !map) return;
+    const onPick = (ev: MouseEvent) => {
+      const target = ev.target as HTMLElement | null;
+      // Only a click on a canvas is a map click. The layer panel, the
+      // symbol key and the card are all DOM sitting over the map.
+      if (!target || target.tagName !== "CANVAS") return;
+      const rect = map.getCanvas().getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const point: [number, number] = [ev.clientX - rect.left, ev.clientY - rect.top];
+      const present = (id: string): string[] => (map.getLayer(id) ? [id] : []);
+      const compound = map.queryRenderedFeatures(point, {
+        layers: [...present(TEMPLES_LAYER), ...present(TEMPLE_COURT_LAYER)],
+      });
+      const generic = map.queryRenderedFeatures(point, {
+        layers: [...present(BUILDINGS_CORE_LAYER), ...present(BUILDINGS_WIDE_LAYER)],
+      });
+      // What the operator sees in front wins: a compound part is drawn
+      // over the generic city block, and a building stands in front of
+      // the flat courtyard.
+      const feat = compound[0] ?? generic[0];
+      if (!feat) return;
+      const lngLat = map.unproject(point);
+      selectFeature(feat, { lng: lngLat.lng, lat: lngLat.lat });
+    };
+    root.addEventListener("click", onPick);
+    return () => root.removeEventListener("click", onPick);
+  }, [mapReady, buildingsOn, templesOn, selectFeature]);
+
   // Install the 3D layers — buildings (core + wide), temples.
   // Core replaces wide above zoom 13; wide covers the urban fringe
   // below. Temples render on top with bright saffron / gold.
@@ -1388,38 +1490,8 @@ export default function CNXMap({
         map.setLayoutProperty(TEMPLE_COURT_LAYER, "visibility", templesOn ? "visible" : "none");
         map.setLayoutProperty(TEMPLES_LAYER, "visibility", templesOn ? "visible" : "none");
 
-        // Interactive building inspection (Atlas / atlas.nonarkara.org pattern)
         const onLayerClick = (e: MapLayerMouseEvent) => {
-          const feat = e.features?.[0];
-          if (!feat) return;
-          const props = feat.properties ?? {};
-          const bHeight = Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
-          const isCompound = props.part != null;
-          setSelectedBuilding({
-            id: feat.id ?? props.id ?? "Unknown",
-            name: props.name_th || props.name_en || props.name || "",
-            nameTh: props.name_th,
-            nameEn: props.name_en,
-            kind: props.kind || (isCompound ? "temple" : "building"),
-            kindValue: props.kind_value,
-            height: bHeight,
-            levels: props.levels ? Number(props.levels) : Math.round(bHeight / 3),
-            address: props.addr || null,
-            coordinates: [e.lngLat.lng, e.lngLat.lat],
-            // The compound's own provenance, so the card can say which
-            // parts of a wat are survey and which are the grammar's.
-            templePart: isCompound
-              ? {
-                  part: String(props.part),
-                  tier: props.tier ? String(props.tier) : "body",
-                  origin: props.origin === "model" ? "model" : "measured",
-                  heightSource: props.height_source === "osm" || props.height_source === "fallback" ? props.height_source : "grammar",
-                  evidence: props.evidence ? String(props.evidence) : null,
-                  areaM2: Number(props.compound_area_m2) || 0,
-                  compoundId: props.compound_id != null ? String(props.compound_id) : "",
-                }
-              : null,
-          });
+          selectFeature(e.features?.[0], { lng: e.lngLat.lng, lat: e.lngLat.lat });
         };
 
         const onMouseEnter = () => {
@@ -1455,7 +1527,7 @@ export default function CNXMap({
       cancelled = true;
       removeListeners();
     };
-  }, [basemap, buildingsOn, templesOn, wideBuildings, mapReady]);
+  }, [basemap, buildingsOn, templesOn, wideBuildings, mapReady, selectFeature]);
 
   // Weather overlays — rain radar, Himawari infrared, MODIS aerosol.
   // Tile URL templates come from /api/cnx/weather-layers (server-side
@@ -1514,7 +1586,10 @@ export default function CNXMap({
   }, [basemap, weatherLayers, rainRadarOn, himawariOn, aerosolLayerOn, burnScarOn, mapReady]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden [&_.maplibregl-ctrl-attrib]:text-[#111] [&_.maplibregl-ctrl-attrib_a]:text-[#111]">
+    <div
+      ref={mapRootRef}
+      className="relative h-full w-full overflow-hidden [&_.maplibregl-ctrl-attrib]:text-[#111] [&_.maplibregl-ctrl-attrib_a]:text-[#111]"
+    >
       <DeckGL
         viewState={viewState}
         controller={true}

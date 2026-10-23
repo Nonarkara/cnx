@@ -600,6 +600,29 @@ geometry: it would need GLB conversion, instancing, and a texture budget the
 current renderer has no place for. The grammar is the cheaper path to the
 same reading, and it is honest about which parts are survey.
 
+### A defect the temple compounds exposed: the map card was never reachable
+
+The compound's provenance is only useful if an operator can open it, and
+the card would not open — no card, on any layer, at any point of the map.
+
+The cause is structural. deck.gl's event-root `<div>` sits **on top of** the
+MapLibre canvas, so a click lands on deck.gl, which does its own picking and
+stops there. MapLibre's `map.on("click", layerId, …)` never fires. The
+measured evidence: `document.elementFromPoint` over the map returns
+`DIV#view-default-view`, and a click on any of three points on the map left
+the DOM with exactly two `aside[aria-label]` elements — the news rail and the
+operations desk — and no building card.
+
+This is **pre-existing**, and it is not specific to the compounds: the
+"3D building details" card the board has carried for months was unreachable
+too. It was found only because the compound layer made the card load-bearing.
+
+The fix does not depend on which element received the click. The pick is
+done with `map.queryRenderedFeatures` at the cursor's position in the map's
+own canvas coordinates, on the map's root element, with a guard that ignores
+clicks that did not land on a canvas. A geometry query is indifferent to the
+event target, so the card opens whichever layer the click fell on.
+
 ### What was verified, and what was not
 
 Verified: the grammar by unit test; the baked file by fixture test (no
