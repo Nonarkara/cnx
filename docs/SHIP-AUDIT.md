@@ -475,3 +475,138 @@ repair: the screen-reader-only spans, the phone tab strip that scrolls, the
 map attribution that is fully legible. **A defect class that has been
 "measured" is not a defect until the measurement is shown to be of the thing
 that was claimed.**
+
+---
+
+## Temple compounds — 23 October 2026
+
+### What was wrong
+
+The 3D city layer extruded every `amenity=place_of_worship` polygon as one
+gold block. For a shrine that is right. For Wat Chedi Luang it was not: the
+mapped boundary is **49,525 m²** and OSM maps **41 separate buildings**
+inside it — the stupa (3,354 m²), the Pra Wihan Luang (1,446 m²), the
+monastic cells, the school. One slab crushed all of that into a rectangle.
+
+The block said nothing. A block has no wall, no gate, no courtyard, no tower,
+no order. It asserted a mass of gold where a compound stands, and the
+operator was asked to read a wat from it.
+
+### What the data actually holds
+
+Measured across all **474** mapped places of worship in the urban bbox:
+
+| | count |
+|---|---|
+| Compound-scale boundaries (≥ 1,200 m²) | 292 |
+| …of those, with real OSM building footprints inside | 175 |
+| Single buildings (a shrine, not a compound) | 182 |
+| Mapped buildings inside compounds, in total | 1,000+ |
+
+So most compounds *do* have real interiors. The defect was that the layer
+never used them.
+
+### The grammar
+
+A walled temple compound is not a set of buildings, it is an order — and the
+order a Lanna wat and a **northern Chinese** Buddhist temple share is the
+same one, which is why the Chinese form is a usable reference for a Thai
+one:
+
+- a walled enclosure, with one gate on the central axis;
+- the gate on the **south** end, so the compound faces its approach;
+- a **courtyard** on the axis between gate and hall;
+- the **main hall** at the north end of that axis — the widest, tallest thing
+  in the compound;
+- **flanking side halls** either side of it;
+- a **tower** — a pagoda in the Chinese case, a chedi in the Lanna case —
+  standing in the courtyard where the gate sees it.
+
+That is the grammar in `src/lib/cnx/temple-compound.ts`, and the baked output
+is `public/data/cnx/temple-compounds.geojson` (5,529 parts: 1,866 measured,
+3,663 modelled).
+
+Two places the grammar had to be given a judgement call, both recorded as
+choices rather than facts:
+
+- **Which end is the gate.** South, as both traditions agree — except on an
+  east–west compound, where "south" is not an end of the axis at all and the
+  axis direction's north component is noise. There the tie is broken by the
+  city: the gate goes at the end nearest town.
+- **Which tower.** A stupa goes only where a stupa belongs. A church or a
+  mosque gets its mapped buildings and no tower, because the grammar must not
+  assert a faith the site does not have. An **untagged** site does get one:
+  an absent tag is not an absent religion.
+
+### What is measured and what is modelled
+
+Every part carries its own provenance, and the map styles the two apart so
+the difference is visible without opening a panel:
+
+| field | values | meaning |
+|---|---|---|
+| `origin` | `measured` / `model` | is the SHAPE an OSM footprint, or the grammar's placement? |
+| `height_source` | `osm` / `fallback` / `grammar` | where did the HEIGHT come from? |
+| `evidence` | `osm-footprints` / `osm-boundary-only` / `single-footprint` | how much of this compound is real? |
+
+The third is the one that surprised the bake. Only **12** of 1,866 measured
+parts carry a mapped height; the rest take the extract's 9 m default, because
+OSM tags a footprint but rarely its height. That is a real limit of the data,
+so it is declared rather than smoothed over.
+
+A mapped stupa has its own trap: OSM often tags the **plinth** height
+(Wat Chedi Luang's stupa carries `height=3` for a tower that stands sixty).
+So a mapped chedi's footprint is measured and the mass above it is the
+grammar's — the base is one colour, the tiers above it another.
+
+### The four defects that only rendering could find
+
+The grammar was unit-tested before it was drawn, and the unit tests passed.
+Four defects were found only by rendering the compounds and **looking** at
+them:
+
+1. **Every temple became a compound.** The mean latitude was read as `p[1]`
+   off an `{x, y}` object, so it was `NaN`, so the area was `NaN` — and
+   `NaN < threshold` is **false**. All 474 temples passed the area test,
+   including the 182 shrines that are single buildings. The fix is a
+   `Number.isFinite` guard on the area: a measurement that is not a number is
+   not a small measurement, it is no measurement.
+2. **4,198 of 4,380 rings were malformed.** `closeRing` was handed lon/lat
+   tuples where it expected `{x, y}` vectors, so every ring's last point
+   serialised as `{}`. GeoJSON consumers must reject that, and the map would
+   have silently dropped the layer.
+3. **The wall was a slab.** It filled the very courtyard it was supposed to
+   enclose. It is now a band — one polygon with a hole.
+4. **The mapped interiors were dropped.** The grammar kept the hall and the
+   two flanks and threw away the rest, so Wat Chedi Luang's 41 buildings
+   became three gold boxes on a cream rectangle — the same spatial
+   hallucination as the slab, smaller.
+
+Each of the first three now has a test. The fourth is pinned by a test that
+counts the mapped buildings the grammar must keep.
+
+### Assets and licences
+
+Nothing was downloaded. The compound is generated from OpenStreetMap
+footprints under ODbL by code in this repository, so it carries no
+third-party asset licence, no attribution obligation beyond the ODbL notice
+the board already shows, and — the reason this route was taken rather than a
+CC0 kit or a photogrammetry scan — no exposure to CC BY-NC or NoAI terms
+that a commercial deployment could not accept.
+
+A CC0 modular temple kit was the obvious alternative and remains the right
+call if the layer ever moves from MapLibre's fill-extrusion to real 3D
+geometry: it would need GLB conversion, instancing, and a texture budget the
+current renderer has no place for. The grammar is the cheaper path to the
+same reading, and it is honest about which parts are survey.
+
+### What was verified, and what was not
+
+Verified: the grammar by unit test; the baked file by fixture test (no
+non-finite coordinate, every ring closed, every ring `[lon, lat]`, every one
+of the 474 mapped temples present, every part declaring its provenance); the
+compound geometry by rendering it in plan and isometric and looking at it.
+
+**Not yet verified at the time of writing:** the layer's appearance on the
+live board at city zoom, and the interaction between the compound layer and
+the generic city-block layer where a mapped building exists in both.
