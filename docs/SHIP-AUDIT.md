@@ -625,11 +625,32 @@ event target, so the card opens whichever layer the click fell on.
 
 ### What was verified, and what was not
 
-Verified: the grammar by unit test; the baked file by fixture test (no
-non-finite coordinate, every ring closed, every ring `[lon, lat]`, every one
-of the 474 mapped temples present, every part declaring its provenance); the
-compound geometry by rendering it in plan and isometric and looking at it.
+**Verified.**
 
-**Not yet verified at the time of writing:** the layer's appearance on the
-live board at city zoom, and the interaction between the compound layer and
-the generic city-block layer where a mapped building exists in both.
+- the grammar by unit test (14 cases) and the baked file by fixture test (no
+  non-finite coordinate, every ring closed, every ring `[lon, lat]`, every
+  one of the 474 mapped temples present, every part declaring its provenance);
+- the compound geometry by rendering it in plan and isometric and **looking**
+  at it — which is how all four grammar defects were found;
+- the layer on the **live board**: the compounds render as gold halls with
+  dark roof caps inside a pale courtyard, bounded by the wall, and they are
+  distinguishable from the grey city at city zoom (screenshots taken from
+  the deployed worker);
+- the board's own gates on the deployed board: the spatial gate passes at
+  **5 viewports / 86 checks** (dark, Thai) and **5 viewports / 81 checks**
+  (light, English), and the release gate passes at **51 routes** with the
+  release identity verified;
+- the full suite (129 files / 1,278 tests), the type check, and the lint.
+
+**Not verified.**
+
+- the provenance card's appearance on the live board, at the moment of
+  writing — the picking fix that makes it reachable had just been built;
+- a real touch device, and the card's behaviour under a long-press;
+- the seam where a mapped building exists in BOTH the compound layer and the
+  generic city-block layer. The compound is lifted 0.3 m and drawn at 0.97
+  opacity so the two faces are not coplanar, and the compound wins the
+  depth test — but the bleed-through has not been measured at pixel level;
+- the compound layer's read at every zoom between the city scale and the
+  street scale. It has been looked at at city zoom and at the zoom where a
+  single compound fills the frame, and at nothing in between.
