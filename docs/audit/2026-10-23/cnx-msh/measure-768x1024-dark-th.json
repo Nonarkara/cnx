@@ -1,0 +1,300 @@
+{
+  "closed": {
+    "viewport": [
+      768,
+      1024
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 86,
+      "w": 768,
+      "h": 106,
+      "bottom": 192,
+      "right": 768
+    },
+    "bandHeadline": {
+      "x": 20,
+      "y": 117,
+      "w": 732,
+      "h": 18,
+      "bottom": 135,
+      "right": 752
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 224,
+      "y": 287,
+      "w": 544,
+      "h": 197,
+      "bottom": 484,
+      "right": 768
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 223,
+        "y": 729,
+        "w": 322,
+        "h": 46,
+        "bottom": 775,
+        "right": 545,
+        "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 8,
+        "y": 201,
+        "w": 91,
+        "h": 47,
+        "bottom": 248,
+        "right": 99,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 682,
+        "y": 201,
+        "w": 78,
+        "h": 26,
+        "bottom": 227,
+        "right": 760,
+        "text": "9 เที่ยวบิน"
+      },
+      {
+        "x": 610,
+        "y": 233,
+        "w": 150,
+        "h": 38,
+        "bottom": 271,
+        "right": 760,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 193,
+      "w": 768,
+      "h": 614,
+      "bottom": 807,
+      "right": 768
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 1,
+    "layersBox": {
+      "x": 8,
+      "y": 201,
+      "w": 91,
+      "h": 47,
+      "bottom": 248,
+      "right": 99
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 316,
+      "w": 65,
+      "h": 44,
+      "bottom": 360,
+      "right": 86
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+        "hasTitle": true
+      }
+    ]
+  },
+  "open": {
+    "viewport": [
+      768,
+      1024
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 86,
+      "w": 768,
+      "h": 106,
+      "bottom": 192,
+      "right": 768
+    },
+    "bandHeadline": {
+      "x": 20,
+      "y": 117,
+      "w": 732,
+      "h": 18,
+      "bottom": 135,
+      "right": 752
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 224,
+      "y": 287,
+      "w": 544,
+      "h": 197,
+      "bottom": 484,
+      "right": 768
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 223,
+        "y": 729,
+        "w": 322,
+        "h": 46,
+        "bottom": 775,
+        "right": 545,
+        "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 8,
+        "y": 201,
+        "w": 91,
+        "h": 47,
+        "bottom": 248,
+        "right": 99,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 682,
+        "y": 201,
+        "w": 78,
+        "h": 26,
+        "bottom": 227,
+        "right": 760,
+        "text": "9 เที่ยวบิน"
+      },
+      {
+        "x": 610,
+        "y": 233,
+        "w": 150,
+        "h": 38,
+        "bottom": 271,
+        "right": 760,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 193,
+      "w": 768,
+      "h": 614,
+      "bottom": 807,
+      "right": 768
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 1,
+    "layersBox": {
+      "x": 8,
+      "y": 201,
+      "w": 91,
+      "h": 47,
+      "bottom": 248,
+      "right": 99
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 316,
+      "w": 65,
+      "h": 44,
+      "bottom": 360,
+      "right": 86
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+        "hasTitle": true
+      }
+    ]
+  }
+}

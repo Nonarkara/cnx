@@ -1,0 +1,300 @@
+{
+  "closed": {
+    "viewport": [
+      390,
+      844
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 137,
+      "w": 390,
+      "h": 142,
+      "bottom": 279,
+      "right": 390
+    },
+    "bandHeadline": {
+      "x": 16,
+      "y": 168,
+      "w": 362,
+      "h": 54,
+      "bottom": 222,
+      "right": 378
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": -195,
+      "y": 366,
+      "w": 358,
+      "h": 189,
+      "bottom": 554,
+      "right": 163
+    },
+    "disclosureOpen": false,
+    "panelPainted": false,
+    "panelOnScreen": null,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 34,
+        "y": 666,
+        "w": 322,
+        "h": 46,
+        "bottom": 712,
+        "right": 356,
+        "text": "▶23 Oct, 16:00Model · Wind 10 m⋯Now "
+      },
+      {
+        "x": 8,
+        "y": 288,
+        "w": 83,
+        "h": 47,
+        "bottom": 335,
+        "right": 91,
+        "text": "LayersBase mapTerrainSatelliteStreet"
+      },
+      {
+        "x": 309,
+        "y": 288,
+        "w": 73,
+        "h": 26,
+        "bottom": 314,
+        "right": 382,
+        "text": "4 flights"
+      },
+      {
+        "x": 214,
+        "y": 320,
+        "w": 168,
+        "h": 38,
+        "bottom": 358,
+        "right": 382,
+        "text": "▸Symbols · wind & smoke"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 280,
+      "w": 390,
+      "h": 464,
+      "bottom": 744,
+      "right": 390
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 3,
+    "layersBox": {
+      "x": 8,
+      "y": 288,
+      "w": 83,
+      "h": 47,
+      "bottom": 335,
+      "right": 91
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 403,
+      "w": 57,
+      "h": 44,
+      "bottom": 447,
+      "right": 78
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": false,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "JAXA GCOM-C aerosol optical thickness",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "PCD air stations (Air4Thai)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "DustBoy sensors (CMU CCDC)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "Column aerosol (CAMS model)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "AERONET photometer, Chiang Mai",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "Per-district PM2.5 (GISTDA)",
+        "hasTitle": true
+      }
+    ]
+  },
+  "open": {
+    "viewport": [
+      390,
+      844
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 137,
+      "w": 390,
+      "h": 142,
+      "bottom": 279,
+      "right": 390
+    },
+    "bandHeadline": {
+      "x": 16,
+      "y": 168,
+      "w": 362,
+      "h": 54,
+      "bottom": 222,
+      "right": 378
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 32,
+      "y": 374,
+      "w": 358,
+      "h": 189,
+      "bottom": 562,
+      "right": 390
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 34,
+        "y": 666,
+        "w": 322,
+        "h": 46,
+        "bottom": 712,
+        "right": 356,
+        "text": "▶23 Oct, 16:00Model · Wind 10 m⋯Now "
+      },
+      {
+        "x": 8,
+        "y": 288,
+        "w": 83,
+        "h": 47,
+        "bottom": 335,
+        "right": 91,
+        "text": "LayersBase mapTerrainSatelliteStreet"
+      },
+      {
+        "x": 309,
+        "y": 288,
+        "w": 73,
+        "h": 26,
+        "bottom": 314,
+        "right": 382,
+        "text": "4 flights"
+      },
+      {
+        "x": 214,
+        "y": 320,
+        "w": 168,
+        "h": 38,
+        "bottom": 358,
+        "right": 382,
+        "text": "▸Symbols · wind & smoke"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 280,
+      "w": 390,
+      "h": 464,
+      "bottom": 744,
+      "right": 390
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 3,
+    "layersBox": {
+      "x": 8,
+      "y": 288,
+      "w": 83,
+      "h": 47,
+      "bottom": 335,
+      "right": 91
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 403,
+      "w": 57,
+      "h": 44,
+      "bottom": 447,
+      "right": 78
+    },
+    "panelHitsLayers": false,
+    "selectCovered": true,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": false,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "JAXA GCOM-C aerosol optical thickness",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "PCD air stations (Air4Thai)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "DustBoy sensors (CMU CCDC)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "Column aerosol (CAMS model)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "AERONET photometer, Chiang Mai",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "Per-district PM2.5 (GISTDA)",
+        "hasTitle": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,300 @@
+{
+  "closed": {
+    "viewport": [
+      390,
+      844
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 137,
+      "w": 390,
+      "h": 106,
+      "bottom": 243,
+      "right": 390
+    },
+    "bandHeadline": {
+      "x": 16,
+      "y": 168,
+      "w": 362,
+      "h": 18,
+      "bottom": 186,
+      "right": 378
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": -180,
+      "y": 330,
+      "w": 358,
+      "h": 252,
+      "bottom": 582,
+      "right": 178
+    },
+    "disclosureOpen": false,
+    "panelPainted": false,
+    "panelOnScreen": null,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 34,
+        "y": 630,
+        "w": 322,
+        "h": 46,
+        "bottom": 676,
+        "right": 356,
+        "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 8,
+        "y": 252,
+        "w": 91,
+        "h": 47,
+        "bottom": 299,
+        "right": 99,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 304,
+        "y": 252,
+        "w": 78,
+        "h": 26,
+        "bottom": 278,
+        "right": 382,
+        "text": "9 เที่ยวบิน"
+      },
+      {
+        "x": 232,
+        "y": 284,
+        "w": 150,
+        "h": 38,
+        "bottom": 322,
+        "right": 382,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 244,
+      "w": 390,
+      "h": 464,
+      "bottom": 708,
+      "right": 390
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 1,
+    "layersBox": {
+      "x": 8,
+      "y": 252,
+      "w": 91,
+      "h": 47,
+      "bottom": 299,
+      "right": 99
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 367,
+      "w": 65,
+      "h": 44,
+      "bottom": 411,
+      "right": 86
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ประเมินหมอกควันจากภาพกล้อง",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ความลึกเชิงแสงฝุ่น JAXA GCOM-C",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "กล้องสาธารณะ",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เรดาร์ฝนและภาพดาวเทียม",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "สถานีคุณภาพอากาศ คพ. (Air4Thai)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เซนเซอร์ DustBoy (มช.)",
+        "hasTitle": true
+      }
+    ]
+  },
+  "open": {
+    "viewport": [
+      390,
+      844
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 137,
+      "w": 390,
+      "h": 106,
+      "bottom": 243,
+      "right": 390
+    },
+    "bandHeadline": {
+      "x": 16,
+      "y": 168,
+      "w": 362,
+      "h": 18,
+      "bottom": 186,
+      "right": 378
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 32,
+      "y": 338,
+      "w": 358,
+      "h": 252,
+      "bottom": 590,
+      "right": 390
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 34,
+        "y": 630,
+        "w": 322,
+        "h": 46,
+        "bottom": 676,
+        "right": 356,
+        "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 8,
+        "y": 252,
+        "w": 91,
+        "h": 47,
+        "bottom": 299,
+        "right": 99,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 304,
+        "y": 252,
+        "w": 78,
+        "h": 26,
+        "bottom": 278,
+        "right": 382,
+        "text": "9 เที่ยวบิน"
+      },
+      {
+        "x": 232,
+        "y": 284,
+        "w": 150,
+        "h": 38,
+        "bottom": 322,
+        "right": 382,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 244,
+      "w": 390,
+      "h": 464,
+      "bottom": 708,
+      "right": 390
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 1,
+    "layersBox": {
+      "x": 8,
+      "y": 252,
+      "w": 91,
+      "h": 47,
+      "bottom": 299,
+      "right": 99
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 367,
+      "w": 65,
+      "h": 44,
+      "bottom": 411,
+      "right": 86
+    },
+    "panelHitsLayers": false,
+    "selectCovered": true,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ประเมินหมอกควันจากภาพกล้อง",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ความลึกเชิงแสงฝุ่น JAXA GCOM-C",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "กล้องสาธารณะ",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เรดาร์ฝนและภาพดาวเทียม",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "สถานีคุณภาพอากาศ คพ. (Air4Thai)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เซนเซอร์ DustBoy (มช.)",
+        "hasTitle": true
+      }
+    ]
+  }
+}

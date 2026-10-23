@@ -1,0 +1,300 @@
+{
+  "closed": {
+    "viewport": [
+      390,
+      844
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 137,
+      "w": 390,
+      "h": 142,
+      "bottom": 279,
+      "right": 390
+    },
+    "bandHeadline": {
+      "x": 16,
+      "y": 168,
+      "w": 362,
+      "h": 54,
+      "bottom": 222,
+      "right": 378
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": -180,
+      "y": 366,
+      "w": 358,
+      "h": 170,
+      "bottom": 536,
+      "right": 178
+    },
+    "disclosureOpen": false,
+    "panelPainted": false,
+    "panelOnScreen": null,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 34,
+        "y": 666,
+        "w": 322,
+        "h": 46,
+        "bottom": 712,
+        "right": 356,
+        "text": "▶23 ต.ค. 16:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 8,
+        "y": 288,
+        "w": 91,
+        "h": 47,
+        "bottom": 335,
+        "right": 99,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 304,
+        "y": 288,
+        "w": 78,
+        "h": 26,
+        "bottom": 314,
+        "right": 382,
+        "text": "2 เที่ยวบิน"
+      },
+      {
+        "x": 232,
+        "y": 320,
+        "w": 150,
+        "h": 38,
+        "bottom": 358,
+        "right": 382,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 280,
+      "w": 390,
+      "h": 464,
+      "bottom": 744,
+      "right": 390
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 3,
+    "layersBox": {
+      "x": 8,
+      "y": 288,
+      "w": 91,
+      "h": 47,
+      "bottom": 335,
+      "right": 99
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 403,
+      "w": 65,
+      "h": 44,
+      "bottom": 447,
+      "right": 86
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ความลึกเชิงแสงฝุ่น JAXA GCOM-C",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "สถานีคุณภาพอากาศ คพ. (Air4Thai)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เซนเซอร์ DustBoy (มช.)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ฝุ่นละอองทั้งคอลัมน์ (แบบจำลอง CAMS)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "โฟโตมิเตอร์ AERONET เชียงใหม่",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "PM2.5 รายอำเภอ (GISTDA)",
+        "hasTitle": true
+      }
+    ]
+  },
+  "open": {
+    "viewport": [
+      390,
+      844
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 137,
+      "w": 390,
+      "h": 142,
+      "bottom": 279,
+      "right": 390
+    },
+    "bandHeadline": {
+      "x": 16,
+      "y": 168,
+      "w": 362,
+      "h": 54,
+      "bottom": 222,
+      "right": 378
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": -180,
+      "y": 226,
+      "w": 358,
+      "h": 170,
+      "bottom": 396,
+      "right": 178
+    },
+    "disclosureOpen": true,
+    "panelPainted": false,
+    "panelOnScreen": null,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 34,
+        "y": 666,
+        "w": 322,
+        "h": 46,
+        "bottom": 712,
+        "right": 356,
+        "text": "▶23 ต.ค. 16:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 8,
+        "y": 288,
+        "w": 91,
+        "h": 47,
+        "bottom": 335,
+        "right": 99,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 304,
+        "y": 288,
+        "w": 78,
+        "h": 26,
+        "bottom": 314,
+        "right": 382,
+        "text": "2 เที่ยวบิน"
+      },
+      {
+        "x": 232,
+        "y": 320,
+        "w": 150,
+        "h": 38,
+        "bottom": 358,
+        "right": 382,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 0,
+      "y": 280,
+      "w": 390,
+      "h": 464,
+      "bottom": 744,
+      "right": 390
+    },
+    "listBox": null,
+    "listArticles": 0,
+    "statedCount": null,
+    "pressedCount": null,
+    "pressedLabel": null,
+    "headlineLines": 3,
+    "layersBox": {
+      "x": 8,
+      "y": 288,
+      "w": 91,
+      "h": 47,
+      "bottom": 335,
+      "right": 99
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 21,
+      "y": 403,
+      "w": 65,
+      "h": 44,
+      "bottom": 447,
+      "right": 86
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": null,
+    "listScrollH": null,
+    "railOverflowY": null,
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ความลึกเชิงแสงฝุ่น JAXA GCOM-C",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "สถานีคุณภาพอากาศ คพ. (Air4Thai)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เซนเซอร์ DustBoy (มช.)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ฝุ่นละอองทั้งคอลัมน์ (แบบจำลอง CAMS)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "โฟโตมิเตอร์ AERONET เชียงใหม่",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "PM2.5 รายอำเภอ (GISTDA)",
+        "hasTitle": true
+      }
+    ]
+  }
+}

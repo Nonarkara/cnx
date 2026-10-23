@@ -1,0 +1,314 @@
+{
+  "closed": {
+    "viewport": [
+      1366,
+      640
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 86,
+      "w": 1366,
+      "h": 61,
+      "bottom": 147,
+      "right": 1366
+    },
+    "bandHeadline": {
+      "x": 311,
+      "y": 107,
+      "w": 861,
+      "h": 18,
+      "bottom": 125,
+      "right": 1172
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 822,
+      "y": 242,
+      "w": 544,
+      "h": 197,
+      "bottom": 439,
+      "right": 1366
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 482,
+        "y": 525,
+        "w": 322,
+        "h": 46,
+        "bottom": 571,
+        "right": 804,
+        "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 228,
+        "y": 156,
+        "w": 91,
+        "h": 47,
+        "bottom": 203,
+        "right": 319,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 980,
+        "y": 156,
+        "w": 78,
+        "h": 26,
+        "bottom": 182,
+        "right": 1058,
+        "text": "9 เที่ยวบิน"
+      },
+      {
+        "x": 908,
+        "y": 188,
+        "w": 150,
+        "h": 38,
+        "bottom": 226,
+        "right": 1058,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 220,
+      "y": 148,
+      "w": 846,
+      "h": 455,
+      "bottom": 603,
+      "right": 1066
+    },
+    "listBox": {
+      "x": 0,
+      "y": 338,
+      "w": 218,
+      "h": 219,
+      "bottom": 557,
+      "right": 218
+    },
+    "listArticles": 24,
+    "statedCount": "24",
+    "pressedCount": 24,
+    "pressedLabel": "ทั้งหมด24",
+    "headlineLines": 1,
+    "layersBox": {
+      "x": 228,
+      "y": 156,
+      "w": 91,
+      "h": 47,
+      "bottom": 203,
+      "right": 319
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 241,
+      "y": 271,
+      "w": 65,
+      "h": 44,
+      "bottom": 315,
+      "right": 306
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": 219,
+    "listScrollH": 1963,
+    "railOverflowY": "auto",
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+        "hasTitle": false
+      },
+      {
+        "tag": "time",
+        "text": "23 ต.ค. 15:00",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "แบบจำลอง",
+        "hasTitle": true
+      }
+    ]
+  },
+  "open": {
+    "viewport": [
+      1366,
+      640
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 86,
+      "w": 1366,
+      "h": 61,
+      "bottom": 147,
+      "right": 1366
+    },
+    "bandHeadline": {
+      "x": 311,
+      "y": 107,
+      "w": 861,
+      "h": 18,
+      "bottom": 125,
+      "right": 1172
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 822,
+      "y": 242,
+      "w": 544,
+      "h": 197,
+      "bottom": 439,
+      "right": 1366
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 482,
+        "y": 525,
+        "w": 322,
+        "h": 46,
+        "bottom": 571,
+        "right": 804,
+        "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+      },
+      {
+        "x": 228,
+        "y": 156,
+        "w": 91,
+        "h": 47,
+        "bottom": 203,
+        "right": 319,
+        "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+      },
+      {
+        "x": 980,
+        "y": 156,
+        "w": 78,
+        "h": 26,
+        "bottom": 182,
+        "right": 1058,
+        "text": "9 เที่ยวบิน"
+      },
+      {
+        "x": 908,
+        "y": 188,
+        "w": 150,
+        "h": 38,
+        "bottom": 226,
+        "right": 1058,
+        "text": "▸สัญลักษณ์ · ลมและควัน"
+      }
+    ],
+    "mapBox": {
+      "x": 220,
+      "y": 148,
+      "w": 846,
+      "h": 455,
+      "bottom": 603,
+      "right": 1066
+    },
+    "listBox": {
+      "x": 0,
+      "y": 338,
+      "w": 218,
+      "h": 219,
+      "bottom": 557,
+      "right": 218
+    },
+    "listArticles": 24,
+    "statedCount": "24",
+    "pressedCount": 24,
+    "pressedLabel": "ทั้งหมด24",
+    "headlineLines": 1,
+    "layersBox": {
+      "x": 228,
+      "y": 156,
+      "w": 91,
+      "h": 47,
+      "bottom": 203,
+      "right": 319
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 241,
+      "y": 271,
+      "w": 65,
+      "h": 44,
+      "bottom": 315,
+      "right": 306
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": 219,
+    "listScrollH": 1963,
+    "railOverflowY": "auto",
+    "clipped": [],
+    "chipHasThai": true,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+        "hasTitle": false
+      },
+      {
+        "tag": "time",
+        "text": "23 ต.ค. 15:00",
+        "hasTitle": true
+      },
+      {
+        "tag": "span",
+        "text": "แบบจำลอง",
+        "hasTitle": true
+      }
+    ]
+  }
+}

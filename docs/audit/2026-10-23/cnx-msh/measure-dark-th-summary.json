@@ -1,0 +1,1999 @@
+[
+  {
+    "name": "spatial-390x844-dark-th",
+    "checks": [
+      {
+        "name": "verdict-band-once",
+        "ok": true,
+        "detail": "found 1 bands (expected exactly 1)"
+      },
+      {
+        "name": "verdict-band-visible",
+        "ok": true,
+        "detail": "the band is not visible"
+      },
+      {
+        "name": "verdict-band-above-board",
+        "ok": true,
+        "detail": "the band is not above the map section"
+      },
+      {
+        "name": "verdict-band-clears-map",
+        "ok": true,
+        "detail": "the band overlaps the map section"
+      },
+      {
+        "name": "evidence-panel-onscreen",
+        "ok": true,
+        "detail": "panel {\"x\":32,\"y\":338,\"w\":358,\"h\":252,\"bottom\":590,\"right\":390} is not fully inside [390,844]"
+      },
+      {
+        "name": "evidence-panel-clears-map-controls",
+        "ok": true,
+        "detail": "panel covers []"
+      },
+      {
+        "name": "map-controls-were-found",
+        "ok": true,
+        "detail": "no map controls were found — the clearance check would pass vacuously"
+      },
+      {
+        "name": "layers-control-reachable",
+        "ok": true,
+        "detail": "with Layers open the panel covers the control (false) and the basemap select (false)"
+      },
+      {
+        "name": "layers-stand-down-for-the-panel",
+        "ok": true,
+        "detail": "the Layers control stayed open under the panel and the basemap select is covered (true)"
+      },
+      {
+        "name": "panel-stands-down-for-layers",
+        "ok": true,
+        "detail": "the panel stayed open over the Layers control and the basemap select is covered (false)"
+      },
+      {
+        "name": "news-list-window",
+        "ok": null,
+        "skipped": "the news rail is not mounted below 1024 px"
+      },
+      {
+        "name": "no-clipped-text",
+        "ok": true,
+        "detail": "clipped: []"
+      },
+      {
+        "name": "verdict-headline-width",
+        "ok": true,
+        "detail": "the headline is 362px wide (floor is 200px)"
+      },
+      {
+        "name": "thai-label-uses-the-board-face",
+        "ok": true,
+        "detail": "the Thai level chip's stack is \"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace; IBM Plex Sans Thai loaded=true; platform faces=[]"
+      },
+      {
+        "name": "verdict-band-share",
+        "ok": true,
+        "detail": "the band is 106px of a 844px viewport (13%, ceiling is 20%)"
+      },
+      {
+        "name": "map-keeps-its-window",
+        "ok": true,
+        "detail": "the map is 464px of a 844px viewport (55%, floor is 40%)"
+      }
+    ],
+    "geometry": {
+      "closed": {
+        "viewport": [
+          390,
+          844
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 137,
+          "w": 390,
+          "h": 106,
+          "bottom": 243,
+          "right": 390
+        },
+        "bandHeadline": {
+          "x": 16,
+          "y": 168,
+          "w": 362,
+          "h": 18,
+          "bottom": 186,
+          "right": 378
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": -180,
+          "y": 330,
+          "w": 358,
+          "h": 252,
+          "bottom": 582,
+          "right": 178
+        },
+        "disclosureOpen": false,
+        "panelPainted": false,
+        "panelOnScreen": null,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 34,
+            "y": 630,
+            "w": 322,
+            "h": 46,
+            "bottom": 676,
+            "right": 356,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 8,
+            "y": 252,
+            "w": 91,
+            "h": 47,
+            "bottom": 299,
+            "right": 99,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 304,
+            "y": 252,
+            "w": 78,
+            "h": 26,
+            "bottom": 278,
+            "right": 382,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 232,
+            "y": 284,
+            "w": 150,
+            "h": 38,
+            "bottom": 322,
+            "right": 382,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 0,
+          "y": 244,
+          "w": 390,
+          "h": 464,
+          "bottom": 708,
+          "right": 390
+        },
+        "listBox": null,
+        "listArticles": 0,
+        "statedCount": null,
+        "pressedCount": null,
+        "pressedLabel": null,
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 8,
+          "y": 252,
+          "w": 91,
+          "h": 47,
+          "bottom": 299,
+          "right": 99
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 21,
+          "y": 367,
+          "w": 65,
+          "h": 44,
+          "bottom": 411,
+          "right": 86
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": null,
+        "listScrollH": null,
+        "railOverflowY": null,
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ประเมินหมอกควันจากภาพกล้อง",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ความลึกเชิงแสงฝุ่น JAXA GCOM-C",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "กล้องสาธารณะ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เรดาร์ฝนและภาพดาวเทียม",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "สถานีคุณภาพอากาศ คพ. (Air4Thai)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เซนเซอร์ DustBoy (มช.)",
+            "hasTitle": true
+          }
+        ]
+      },
+      "open": {
+        "viewport": [
+          390,
+          844
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 137,
+          "w": 390,
+          "h": 106,
+          "bottom": 243,
+          "right": 390
+        },
+        "bandHeadline": {
+          "x": 16,
+          "y": 168,
+          "w": 362,
+          "h": 18,
+          "bottom": 186,
+          "right": 378
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 32,
+          "y": 338,
+          "w": 358,
+          "h": 252,
+          "bottom": 590,
+          "right": 390
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 34,
+            "y": 630,
+            "w": 322,
+            "h": 46,
+            "bottom": 676,
+            "right": 356,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 8,
+            "y": 252,
+            "w": 91,
+            "h": 47,
+            "bottom": 299,
+            "right": 99,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 304,
+            "y": 252,
+            "w": 78,
+            "h": 26,
+            "bottom": 278,
+            "right": 382,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 232,
+            "y": 284,
+            "w": 150,
+            "h": 38,
+            "bottom": 322,
+            "right": 382,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 0,
+          "y": 244,
+          "w": 390,
+          "h": 464,
+          "bottom": 708,
+          "right": 390
+        },
+        "listBox": null,
+        "listArticles": 0,
+        "statedCount": null,
+        "pressedCount": null,
+        "pressedLabel": null,
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 8,
+          "y": 252,
+          "w": 91,
+          "h": 47,
+          "bottom": 299,
+          "right": 99
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 21,
+          "y": 367,
+          "w": 65,
+          "h": 44,
+          "bottom": 411,
+          "right": 86
+        },
+        "panelHitsLayers": false,
+        "selectCovered": true,
+        "listClientH": null,
+        "listScrollH": null,
+        "railOverflowY": null,
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ประเมินหมอกควันจากภาพกล้อง",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ความลึกเชิงแสงฝุ่น JAXA GCOM-C",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "กล้องสาธารณะ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เรดาร์ฝนและภาพดาวเทียม",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "สถานีคุณภาพอากาศ คพ. (Air4Thai)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เซนเซอร์ DustBoy (มช.)",
+            "hasTitle": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "spatial-768x1024-dark-th",
+    "checks": [
+      {
+        "name": "verdict-band-once",
+        "ok": true,
+        "detail": "found 1 bands (expected exactly 1)"
+      },
+      {
+        "name": "verdict-band-visible",
+        "ok": true,
+        "detail": "the band is not visible"
+      },
+      {
+        "name": "verdict-band-above-board",
+        "ok": true,
+        "detail": "the band is not above the map section"
+      },
+      {
+        "name": "verdict-band-clears-map",
+        "ok": true,
+        "detail": "the band overlaps the map section"
+      },
+      {
+        "name": "evidence-panel-onscreen",
+        "ok": true,
+        "detail": "panel {\"x\":224,\"y\":287,\"w\":544,\"h\":197,\"bottom\":484,\"right\":768} is not fully inside [768,1024]"
+      },
+      {
+        "name": "evidence-panel-clears-map-controls",
+        "ok": true,
+        "detail": "panel covers []"
+      },
+      {
+        "name": "map-controls-were-found",
+        "ok": true,
+        "detail": "no map controls were found — the clearance check would pass vacuously"
+      },
+      {
+        "name": "layers-control-reachable",
+        "ok": true,
+        "detail": "with Layers open the panel covers the control (false) and the basemap select (false)"
+      },
+      {
+        "name": "layers-stand-down-for-the-panel",
+        "ok": true,
+        "detail": "the Layers control stayed open under the panel and the basemap select is covered (false)"
+      },
+      {
+        "name": "panel-stands-down-for-layers",
+        "ok": true,
+        "detail": "the panel stayed open over the Layers control and the basemap select is covered (false)"
+      },
+      {
+        "name": "news-list-window",
+        "ok": null,
+        "skipped": "the news rail is not mounted below 1024 px"
+      },
+      {
+        "name": "no-clipped-text",
+        "ok": true,
+        "detail": "clipped: []"
+      },
+      {
+        "name": "verdict-headline-width",
+        "ok": true,
+        "detail": "the headline is 732px wide (floor is 200px)"
+      },
+      {
+        "name": "thai-label-uses-the-board-face",
+        "ok": true,
+        "detail": "the Thai level chip's stack is \"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace; IBM Plex Sans Thai loaded=true; platform faces=[]"
+      },
+      {
+        "name": "verdict-band-share",
+        "ok": true,
+        "detail": "the band is 106px of a 1024px viewport (10%, ceiling is 20%)"
+      },
+      {
+        "name": "map-keeps-its-window",
+        "ok": true,
+        "detail": "the map is 614px of a 1024px viewport (60%, floor is 40%)"
+      }
+    ],
+    "geometry": {
+      "closed": {
+        "viewport": [
+          768,
+          1024
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 768,
+          "h": 106,
+          "bottom": 192,
+          "right": 768
+        },
+        "bandHeadline": {
+          "x": 20,
+          "y": 117,
+          "w": 732,
+          "h": 18,
+          "bottom": 135,
+          "right": 752
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 224,
+          "y": 287,
+          "w": 544,
+          "h": 197,
+          "bottom": 484,
+          "right": 768
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 223,
+            "y": 729,
+            "w": 322,
+            "h": 46,
+            "bottom": 775,
+            "right": 545,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 8,
+            "y": 201,
+            "w": 91,
+            "h": 47,
+            "bottom": 248,
+            "right": 99,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 682,
+            "y": 201,
+            "w": 78,
+            "h": 26,
+            "bottom": 227,
+            "right": 760,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 610,
+            "y": 233,
+            "w": 150,
+            "h": 38,
+            "bottom": 271,
+            "right": 760,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 0,
+          "y": 193,
+          "w": 768,
+          "h": 614,
+          "bottom": 807,
+          "right": 768
+        },
+        "listBox": null,
+        "listArticles": 0,
+        "statedCount": null,
+        "pressedCount": null,
+        "pressedLabel": null,
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 8,
+          "y": 201,
+          "w": 91,
+          "h": 47,
+          "bottom": 248,
+          "right": 99
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 21,
+          "y": 316,
+          "w": 65,
+          "h": 44,
+          "bottom": 360,
+          "right": 86
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": null,
+        "listScrollH": null,
+        "railOverflowY": null,
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          }
+        ]
+      },
+      "open": {
+        "viewport": [
+          768,
+          1024
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 768,
+          "h": 106,
+          "bottom": 192,
+          "right": 768
+        },
+        "bandHeadline": {
+          "x": 20,
+          "y": 117,
+          "w": 732,
+          "h": 18,
+          "bottom": 135,
+          "right": 752
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 224,
+          "y": 287,
+          "w": 544,
+          "h": 197,
+          "bottom": 484,
+          "right": 768
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 223,
+            "y": 729,
+            "w": 322,
+            "h": 46,
+            "bottom": 775,
+            "right": 545,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 8,
+            "y": 201,
+            "w": 91,
+            "h": 47,
+            "bottom": 248,
+            "right": 99,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 682,
+            "y": 201,
+            "w": 78,
+            "h": 26,
+            "bottom": 227,
+            "right": 760,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 610,
+            "y": 233,
+            "w": 150,
+            "h": 38,
+            "bottom": 271,
+            "right": 760,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 0,
+          "y": 193,
+          "w": 768,
+          "h": 614,
+          "bottom": 807,
+          "right": 768
+        },
+        "listBox": null,
+        "listArticles": 0,
+        "statedCount": null,
+        "pressedCount": null,
+        "pressedLabel": null,
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 8,
+          "y": 201,
+          "w": 91,
+          "h": 47,
+          "bottom": 248,
+          "right": 99
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 21,
+          "y": 316,
+          "w": 65,
+          "h": 44,
+          "bottom": 360,
+          "right": 86
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": null,
+        "listScrollH": null,
+        "railOverflowY": null,
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "spatial-1024x900-dark-th",
+    "checks": [
+      {
+        "name": "verdict-band-once",
+        "ok": true,
+        "detail": "found 1 bands (expected exactly 1)"
+      },
+      {
+        "name": "verdict-band-visible",
+        "ok": true,
+        "detail": "the band is not visible"
+      },
+      {
+        "name": "verdict-band-above-board",
+        "ok": true,
+        "detail": "the band is not above the map section"
+      },
+      {
+        "name": "verdict-band-clears-map",
+        "ok": true,
+        "detail": "the band overlaps the map section"
+      },
+      {
+        "name": "evidence-panel-onscreen",
+        "ok": true,
+        "detail": "panel {\"x\":480,\"y\":242,\"w\":544,\"h\":197,\"bottom\":439,\"right\":1024} is not fully inside [1024,900]"
+      },
+      {
+        "name": "evidence-panel-clears-map-controls",
+        "ok": true,
+        "detail": "panel covers []"
+      },
+      {
+        "name": "map-controls-were-found",
+        "ok": true,
+        "detail": "no map controls were found — the clearance check would pass vacuously"
+      },
+      {
+        "name": "layers-control-reachable",
+        "ok": true,
+        "detail": "with Layers open the panel covers the control (false) and the basemap select (false)"
+      },
+      {
+        "name": "layers-stand-down-for-the-panel",
+        "ok": true,
+        "detail": "the Layers control stayed open under the panel and the basemap select is covered (false)"
+      },
+      {
+        "name": "panel-stands-down-for-layers",
+        "ok": true,
+        "detail": "the panel stayed open over the Layers control and the basemap select is covered (false)"
+      },
+      {
+        "name": "news-list-window",
+        "ok": true,
+        "detail": "list window 303px (floor is 200px) for 24 items"
+      },
+      {
+        "name": "news-count-matches",
+        "ok": true,
+        "detail": "the footer claims 24 items but the filter chip counts 24"
+      },
+      {
+        "name": "news-items-present",
+        "ok": true,
+        "detail": "the footer claims 24 items and the list holds 24"
+      },
+      {
+        "name": "no-clipped-text",
+        "ok": true,
+        "detail": "clipped: []"
+      },
+      {
+        "name": "verdict-headline-width",
+        "ok": true,
+        "detail": "the headline is 519px wide (floor is 200px)"
+      },
+      {
+        "name": "thai-label-uses-the-board-face",
+        "ok": true,
+        "detail": "the Thai level chip's stack is \"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace; IBM Plex Sans Thai loaded=true; platform faces=[]"
+      },
+      {
+        "name": "verdict-band-share",
+        "ok": true,
+        "detail": "the band is 61px of a 900px viewport (7%, ceiling is 20%)"
+      },
+      {
+        "name": "map-keeps-its-window",
+        "ok": true,
+        "detail": "the map is 540px of a 900px viewport (60%, floor is 40%)"
+      }
+    ],
+    "geometry": {
+      "closed": {
+        "viewport": [
+          1024,
+          900
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 1024,
+          "h": 61,
+          "bottom": 147,
+          "right": 1024
+        },
+        "bandHeadline": {
+          "x": 311,
+          "y": 107,
+          "w": 519,
+          "h": 18,
+          "bottom": 125,
+          "right": 830
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 480,
+          "y": 242,
+          "w": 544,
+          "h": 197,
+          "bottom": 439,
+          "right": 1024
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 461,
+            "y": 610,
+            "w": 322,
+            "h": 46,
+            "bottom": 656,
+            "right": 783,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 228,
+            "y": 156,
+            "w": 91,
+            "h": 47,
+            "bottom": 203,
+            "right": 319,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 938,
+            "y": 156,
+            "w": 78,
+            "h": 26,
+            "bottom": 182,
+            "right": 1016,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 866,
+            "y": 188,
+            "w": 150,
+            "h": 38,
+            "bottom": 226,
+            "right": 1016,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 220,
+          "y": 148,
+          "w": 804,
+          "h": 540,
+          "bottom": 688,
+          "right": 1024
+        },
+        "listBox": {
+          "x": 0,
+          "y": 338,
+          "w": 218,
+          "h": 303,
+          "bottom": 641,
+          "right": 218
+        },
+        "listArticles": 24,
+        "statedCount": "24",
+        "pressedCount": 24,
+        "pressedLabel": "ทั้งหมด24",
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 228,
+          "y": 156,
+          "w": 91,
+          "h": 47,
+          "bottom": 203,
+          "right": 319
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 241,
+          "y": 271,
+          "w": 65,
+          "h": 44,
+          "bottom": 315,
+          "right": 306
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": 303,
+        "listScrollH": 1963,
+        "railOverflowY": "auto",
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          }
+        ]
+      },
+      "open": {
+        "viewport": [
+          1024,
+          900
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 1024,
+          "h": 61,
+          "bottom": 147,
+          "right": 1024
+        },
+        "bandHeadline": {
+          "x": 311,
+          "y": 107,
+          "w": 519,
+          "h": 18,
+          "bottom": 125,
+          "right": 830
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 480,
+          "y": 242,
+          "w": 544,
+          "h": 197,
+          "bottom": 439,
+          "right": 1024
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 461,
+            "y": 610,
+            "w": 322,
+            "h": 46,
+            "bottom": 656,
+            "right": 783,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 228,
+            "y": 156,
+            "w": 91,
+            "h": 47,
+            "bottom": 203,
+            "right": 319,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 938,
+            "y": 156,
+            "w": 78,
+            "h": 26,
+            "bottom": 182,
+            "right": 1016,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 866,
+            "y": 188,
+            "w": 150,
+            "h": 38,
+            "bottom": 226,
+            "right": 1016,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 220,
+          "y": 148,
+          "w": 804,
+          "h": 540,
+          "bottom": 688,
+          "right": 1024
+        },
+        "listBox": {
+          "x": 0,
+          "y": 338,
+          "w": 218,
+          "h": 303,
+          "bottom": 641,
+          "right": 218
+        },
+        "listArticles": 24,
+        "statedCount": "24",
+        "pressedCount": 24,
+        "pressedLabel": "ทั้งหมด24",
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 228,
+          "y": 156,
+          "w": 91,
+          "h": 47,
+          "bottom": 203,
+          "right": 319
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 241,
+          "y": 271,
+          "w": 65,
+          "h": 44,
+          "bottom": 315,
+          "right": 306
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": 303,
+        "listScrollH": 1963,
+        "railOverflowY": "auto",
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "spatial-1366x640-dark-th",
+    "checks": [
+      {
+        "name": "verdict-band-once",
+        "ok": true,
+        "detail": "found 1 bands (expected exactly 1)"
+      },
+      {
+        "name": "verdict-band-visible",
+        "ok": true,
+        "detail": "the band is not visible"
+      },
+      {
+        "name": "verdict-band-above-board",
+        "ok": true,
+        "detail": "the band is not above the map section"
+      },
+      {
+        "name": "verdict-band-clears-map",
+        "ok": true,
+        "detail": "the band overlaps the map section"
+      },
+      {
+        "name": "evidence-panel-onscreen",
+        "ok": true,
+        "detail": "panel {\"x\":822,\"y\":242,\"w\":544,\"h\":197,\"bottom\":439,\"right\":1366} is not fully inside [1366,640]"
+      },
+      {
+        "name": "evidence-panel-clears-map-controls",
+        "ok": true,
+        "detail": "panel covers []"
+      },
+      {
+        "name": "map-controls-were-found",
+        "ok": true,
+        "detail": "no map controls were found — the clearance check would pass vacuously"
+      },
+      {
+        "name": "layers-control-reachable",
+        "ok": true,
+        "detail": "with Layers open the panel covers the control (false) and the basemap select (false)"
+      },
+      {
+        "name": "layers-stand-down-for-the-panel",
+        "ok": true,
+        "detail": "the Layers control stayed open under the panel and the basemap select is covered (false)"
+      },
+      {
+        "name": "panel-stands-down-for-layers",
+        "ok": true,
+        "detail": "the panel stayed open over the Layers control and the basemap select is covered (false)"
+      },
+      {
+        "name": "news-list-window",
+        "ok": true,
+        "detail": "list window 219px (floor is 200px) for 24 items"
+      },
+      {
+        "name": "news-count-matches",
+        "ok": true,
+        "detail": "the footer claims 24 items but the filter chip counts 24"
+      },
+      {
+        "name": "news-items-present",
+        "ok": true,
+        "detail": "the footer claims 24 items and the list holds 24"
+      },
+      {
+        "name": "no-clipped-text",
+        "ok": true,
+        "detail": "clipped: []"
+      },
+      {
+        "name": "verdict-headline-width",
+        "ok": true,
+        "detail": "the headline is 861px wide (floor is 200px)"
+      },
+      {
+        "name": "thai-label-uses-the-board-face",
+        "ok": true,
+        "detail": "the Thai level chip's stack is \"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace; IBM Plex Sans Thai loaded=true; platform faces=[]"
+      },
+      {
+        "name": "verdict-band-share",
+        "ok": true,
+        "detail": "the band is 61px of a 640px viewport (10%, ceiling is 20%)"
+      },
+      {
+        "name": "map-keeps-its-window",
+        "ok": true,
+        "detail": "the map is 455px of a 640px viewport (71%, floor is 40%)"
+      }
+    ],
+    "geometry": {
+      "closed": {
+        "viewport": [
+          1366,
+          640
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 1366,
+          "h": 61,
+          "bottom": 147,
+          "right": 1366
+        },
+        "bandHeadline": {
+          "x": 311,
+          "y": 107,
+          "w": 861,
+          "h": 18,
+          "bottom": 125,
+          "right": 1172
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 822,
+          "y": 242,
+          "w": 544,
+          "h": 197,
+          "bottom": 439,
+          "right": 1366
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 482,
+            "y": 525,
+            "w": 322,
+            "h": 46,
+            "bottom": 571,
+            "right": 804,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 228,
+            "y": 156,
+            "w": 91,
+            "h": 47,
+            "bottom": 203,
+            "right": 319,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 980,
+            "y": 156,
+            "w": 78,
+            "h": 26,
+            "bottom": 182,
+            "right": 1058,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 908,
+            "y": 188,
+            "w": 150,
+            "h": 38,
+            "bottom": 226,
+            "right": 1058,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 220,
+          "y": 148,
+          "w": 846,
+          "h": 455,
+          "bottom": 603,
+          "right": 1066
+        },
+        "listBox": {
+          "x": 0,
+          "y": 338,
+          "w": 218,
+          "h": 219,
+          "bottom": 557,
+          "right": 218
+        },
+        "listArticles": 24,
+        "statedCount": "24",
+        "pressedCount": 24,
+        "pressedLabel": "ทั้งหมด24",
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 228,
+          "y": 156,
+          "w": 91,
+          "h": 47,
+          "bottom": 203,
+          "right": 319
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 241,
+          "y": 271,
+          "w": 65,
+          "h": 44,
+          "bottom": 315,
+          "right": 306
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": 219,
+        "listScrollH": 1963,
+        "railOverflowY": "auto",
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "time",
+            "text": "23 ต.ค. 15:00",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "แบบจำลอง",
+            "hasTitle": true
+          }
+        ]
+      },
+      "open": {
+        "viewport": [
+          1366,
+          640
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 1366,
+          "h": 61,
+          "bottom": 147,
+          "right": 1366
+        },
+        "bandHeadline": {
+          "x": 311,
+          "y": 107,
+          "w": 861,
+          "h": 18,
+          "bottom": 125,
+          "right": 1172
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 822,
+          "y": 242,
+          "w": 544,
+          "h": 197,
+          "bottom": 439,
+          "right": 1366
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 482,
+            "y": 525,
+            "w": 322,
+            "h": 46,
+            "bottom": 571,
+            "right": 804,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 228,
+            "y": 156,
+            "w": 91,
+            "h": 47,
+            "bottom": 203,
+            "right": 319,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 980,
+            "y": 156,
+            "w": 78,
+            "h": 26,
+            "bottom": 182,
+            "right": 1058,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 908,
+            "y": 188,
+            "w": 150,
+            "h": 38,
+            "bottom": 226,
+            "right": 1058,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 220,
+          "y": 148,
+          "w": 846,
+          "h": 455,
+          "bottom": 603,
+          "right": 1066
+        },
+        "listBox": {
+          "x": 0,
+          "y": 338,
+          "w": 218,
+          "h": 219,
+          "bottom": 557,
+          "right": 218
+        },
+        "listArticles": 24,
+        "statedCount": "24",
+        "pressedCount": 24,
+        "pressedLabel": "ทั้งหมด24",
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 228,
+          "y": 156,
+          "w": 91,
+          "h": 47,
+          "bottom": 203,
+          "right": 319
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 241,
+          "y": 271,
+          "w": 65,
+          "h": 44,
+          "bottom": 315,
+          "right": 306
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": 219,
+        "listScrollH": 1963,
+        "railOverflowY": "auto",
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "time",
+            "text": "23 ต.ค. 15:00",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "แบบจำลอง",
+            "hasTitle": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "spatial-1440x900-dark-th",
+    "checks": [
+      {
+        "name": "verdict-band-once",
+        "ok": true,
+        "detail": "found 1 bands (expected exactly 1)"
+      },
+      {
+        "name": "verdict-band-visible",
+        "ok": true,
+        "detail": "the band is not visible"
+      },
+      {
+        "name": "verdict-band-above-board",
+        "ok": true,
+        "detail": "the band is not above the map section"
+      },
+      {
+        "name": "verdict-band-clears-map",
+        "ok": true,
+        "detail": "the band overlaps the map section"
+      },
+      {
+        "name": "evidence-panel-onscreen",
+        "ok": true,
+        "detail": "panel {\"x\":896,\"y\":242,\"w\":544,\"h\":197,\"bottom\":439,\"right\":1440} is not fully inside [1440,900]"
+      },
+      {
+        "name": "evidence-panel-clears-map-controls",
+        "ok": true,
+        "detail": "panel covers []"
+      },
+      {
+        "name": "map-controls-were-found",
+        "ok": true,
+        "detail": "no map controls were found — the clearance check would pass vacuously"
+      },
+      {
+        "name": "layers-control-reachable",
+        "ok": true,
+        "detail": "with Layers open the panel covers the control (false) and the basemap select (false)"
+      },
+      {
+        "name": "layers-stand-down-for-the-panel",
+        "ok": true,
+        "detail": "the Layers control stayed open under the panel and the basemap select is covered (false)"
+      },
+      {
+        "name": "panel-stands-down-for-layers",
+        "ok": true,
+        "detail": "the panel stayed open over the Layers control and the basemap select is covered (false)"
+      },
+      {
+        "name": "news-list-window",
+        "ok": true,
+        "detail": "list window 479px (floor is 200px) for 24 items"
+      },
+      {
+        "name": "news-count-matches",
+        "ok": true,
+        "detail": "the footer claims 24 items but the filter chip counts 24"
+      },
+      {
+        "name": "news-items-present",
+        "ok": true,
+        "detail": "the footer claims 24 items and the list holds 24"
+      },
+      {
+        "name": "no-clipped-text",
+        "ok": true,
+        "detail": "clipped: []"
+      },
+      {
+        "name": "verdict-headline-width",
+        "ok": true,
+        "detail": "the headline is 935px wide (floor is 200px)"
+      },
+      {
+        "name": "thai-label-uses-the-board-face",
+        "ok": true,
+        "detail": "the Thai level chip's stack is \"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace; IBM Plex Sans Thai loaded=true; platform faces=[]"
+      },
+      {
+        "name": "verdict-band-share",
+        "ok": true,
+        "detail": "the band is 61px of a 900px viewport (7%, ceiling is 20%)"
+      },
+      {
+        "name": "map-keeps-its-window",
+        "ok": true,
+        "detail": "the map is 715px of a 900px viewport (79%, floor is 40%)"
+      }
+    ],
+    "geometry": {
+      "closed": {
+        "viewport": [
+          1440,
+          900
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 1440,
+          "h": 61,
+          "bottom": 147,
+          "right": 1440
+        },
+        "bandHeadline": {
+          "x": 311,
+          "y": 107,
+          "w": 935,
+          "h": 18,
+          "bottom": 125,
+          "right": 1246
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 896,
+          "y": 242,
+          "w": 544,
+          "h": 197,
+          "bottom": 439,
+          "right": 1440
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 519,
+            "y": 785,
+            "w": 322,
+            "h": 46,
+            "bottom": 831,
+            "right": 841,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 228,
+            "y": 156,
+            "w": 91,
+            "h": 47,
+            "bottom": 203,
+            "right": 319,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 1054,
+            "y": 156,
+            "w": 78,
+            "h": 26,
+            "bottom": 182,
+            "right": 1132,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 982,
+            "y": 188,
+            "w": 150,
+            "h": 38,
+            "bottom": 226,
+            "right": 1132,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 220,
+          "y": 148,
+          "w": 920,
+          "h": 715,
+          "bottom": 863,
+          "right": 1140
+        },
+        "listBox": {
+          "x": 0,
+          "y": 338,
+          "w": 218,
+          "h": 479,
+          "bottom": 817,
+          "right": 218
+        },
+        "listArticles": 24,
+        "statedCount": "24",
+        "pressedCount": 24,
+        "pressedLabel": "ทั้งหมด24",
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 228,
+          "y": 156,
+          "w": 91,
+          "h": 47,
+          "bottom": 203,
+          "right": 319
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 241,
+          "y": 271,
+          "w": 65,
+          "h": 44,
+          "bottom": 315,
+          "right": 306
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": 479,
+        "listScrollH": 1963,
+        "railOverflowY": "auto",
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "time",
+            "text": "23 ต.ค. 15:00",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "แบบจำลอง",
+            "hasTitle": true
+          }
+        ]
+      },
+      "open": {
+        "viewport": [
+          1440,
+          900
+        ],
+        "bandCount": 1,
+        "bandVisible": true,
+        "bandBeforeMap": true,
+        "bandBox": {
+          "x": 0,
+          "y": 86,
+          "w": 1440,
+          "h": 61,
+          "bottom": 147,
+          "right": 1440
+        },
+        "bandHeadline": {
+          "x": 311,
+          "y": 107,
+          "w": 935,
+          "h": 18,
+          "bottom": 125,
+          "right": 1246
+        },
+        "disclosurePresent": true,
+        "panelBox": {
+          "x": 896,
+          "y": 242,
+          "w": 544,
+          "h": 197,
+          "bottom": 439,
+          "right": 1440
+        },
+        "disclosureOpen": true,
+        "panelPainted": true,
+        "panelOnScreen": true,
+        "panelHits": [],
+        "controls": [
+          {
+            "x": 519,
+            "y": 785,
+            "w": 322,
+            "h": 46,
+            "bottom": 831,
+            "right": 841,
+            "text": "▶23 ต.ค. 15:00แบบจำลอง · ลม 10 ม.⋯ตอ"
+          },
+          {
+            "x": 228,
+            "y": 156,
+            "w": 91,
+            "h": 47,
+            "bottom": 203,
+            "right": 319,
+            "text": "ชั้นข้อมูลแผนที่พื้นฐานภูมิประเทศดาว"
+          },
+          {
+            "x": 1054,
+            "y": 156,
+            "w": 78,
+            "h": 26,
+            "bottom": 182,
+            "right": 1132,
+            "text": "9 เที่ยวบิน"
+          },
+          {
+            "x": 982,
+            "y": 188,
+            "w": 150,
+            "h": 38,
+            "bottom": 226,
+            "right": 1132,
+            "text": "▸สัญลักษณ์ · ลมและควัน"
+          }
+        ],
+        "mapBox": {
+          "x": 220,
+          "y": 148,
+          "w": 920,
+          "h": 715,
+          "bottom": 863,
+          "right": 1140
+        },
+        "listBox": {
+          "x": 0,
+          "y": 338,
+          "w": 218,
+          "h": 479,
+          "bottom": 817,
+          "right": 218
+        },
+        "listArticles": 24,
+        "statedCount": "24",
+        "pressedCount": 24,
+        "pressedLabel": "ทั้งหมด24",
+        "headlineLines": 1,
+        "layersBox": {
+          "x": 228,
+          "y": 156,
+          "w": 91,
+          "h": 47,
+          "bottom": 203,
+          "right": 319
+        },
+        "layersDetailsOpen": false,
+        "selectBox": {
+          "x": 241,
+          "y": 271,
+          "w": 65,
+          "h": 44,
+          "bottom": 315,
+          "right": 306
+        },
+        "panelHitsLayers": false,
+        "selectCovered": false,
+        "listClientH": 479,
+        "listScrollH": 1963,
+        "railOverflowY": "auto",
+        "clipped": [],
+        "chipHasThai": true,
+        "chipFonts": [],
+        "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+        "chipThaiFaceLoaded": true,
+        "truncated": [
+          {
+            "tag": "span",
+            "text": "ปริมาณน้ำในเขื่อน (รายงานกรมชลประทาน)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "ประกาศเตือนภัยทางการ (กรมอุตุนิยมวิทยา)",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "เที่ยวบินขาเข้าและนักท่องเที่ยวโดยประมาณ",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "DustBoy เชียงใหม่เฉลี่ย 26 µg/m³ (เซ็นเซอร์พ",
+            "hasTitle": false
+          },
+          {
+            "tag": "time",
+            "text": "23 ต.ค. 15:00",
+            "hasTitle": true
+          },
+          {
+            "tag": "span",
+            "text": "แบบจำลอง",
+            "hasTitle": true
+          }
+        ]
+      }
+    }
+  }
+]

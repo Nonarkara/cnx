@@ -1,0 +1,314 @@
+{
+  "closed": {
+    "viewport": [
+      1024,
+      900
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 86,
+      "w": 1024,
+      "h": 71,
+      "bottom": 157,
+      "right": 1024
+    },
+    "bandHeadline": {
+      "x": 377,
+      "y": 94,
+      "w": 468,
+      "h": 54,
+      "bottom": 148,
+      "right": 845
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 480,
+      "y": 252,
+      "w": 544,
+      "h": 135,
+      "bottom": 386,
+      "right": 1024
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 461,
+        "y": 620,
+        "w": 322,
+        "h": 46,
+        "bottom": 666,
+        "right": 783,
+        "text": "▶23 Oct, 16:00Model · Wind 10 m⋯Now "
+      },
+      {
+        "x": 228,
+        "y": 166,
+        "w": 83,
+        "h": 47,
+        "bottom": 213,
+        "right": 311,
+        "text": "LayersBase mapTerrainSatelliteStreet"
+      },
+      {
+        "x": 943,
+        "y": 166,
+        "w": 73,
+        "h": 26,
+        "bottom": 192,
+        "right": 1016,
+        "text": "4 flights"
+      },
+      {
+        "x": 848,
+        "y": 198,
+        "w": 168,
+        "h": 38,
+        "bottom": 236,
+        "right": 1016,
+        "text": "▸Symbols · wind & smoke"
+      }
+    ],
+    "mapBox": {
+      "x": 220,
+      "y": 158,
+      "w": 804,
+      "h": 540,
+      "bottom": 698,
+      "right": 1024
+    },
+    "listBox": {
+      "x": 0,
+      "y": 358,
+      "w": 218,
+      "h": 293,
+      "bottom": 651,
+      "right": 218
+    },
+    "listArticles": 24,
+    "statedCount": "24",
+    "pressedCount": 24,
+    "pressedLabel": "All24",
+    "headlineLines": 3,
+    "layersBox": {
+      "x": 228,
+      "y": 166,
+      "w": 83,
+      "h": 47,
+      "bottom": 213,
+      "right": 311
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 241,
+      "y": 281,
+      "w": 57,
+      "h": 44,
+      "bottom": 325,
+      "right": 298
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": 293,
+    "listScrollH": 2039,
+    "railOverflowY": "auto",
+    "clipped": [],
+    "chipHasThai": false,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      }
+    ]
+  },
+  "open": {
+    "viewport": [
+      1024,
+      900
+    ],
+    "bandCount": 1,
+    "bandVisible": true,
+    "bandBeforeMap": true,
+    "bandBox": {
+      "x": 0,
+      "y": 86,
+      "w": 1024,
+      "h": 71,
+      "bottom": 157,
+      "right": 1024
+    },
+    "bandHeadline": {
+      "x": 377,
+      "y": 94,
+      "w": 468,
+      "h": 54,
+      "bottom": 148,
+      "right": 845
+    },
+    "disclosurePresent": true,
+    "panelBox": {
+      "x": 480,
+      "y": 252,
+      "w": 544,
+      "h": 135,
+      "bottom": 386,
+      "right": 1024
+    },
+    "disclosureOpen": true,
+    "panelPainted": true,
+    "panelOnScreen": true,
+    "panelHits": [],
+    "controls": [
+      {
+        "x": 461,
+        "y": 620,
+        "w": 322,
+        "h": 46,
+        "bottom": 666,
+        "right": 783,
+        "text": "▶23 Oct, 16:00Model · Wind 10 m⋯Now "
+      },
+      {
+        "x": 228,
+        "y": 166,
+        "w": 83,
+        "h": 47,
+        "bottom": 213,
+        "right": 311,
+        "text": "LayersBase mapTerrainSatelliteStreet"
+      },
+      {
+        "x": 943,
+        "y": 166,
+        "w": 73,
+        "h": 26,
+        "bottom": 192,
+        "right": 1016,
+        "text": "4 flights"
+      },
+      {
+        "x": 848,
+        "y": 198,
+        "w": 168,
+        "h": 38,
+        "bottom": 236,
+        "right": 1016,
+        "text": "▸Symbols · wind & smoke"
+      }
+    ],
+    "mapBox": {
+      "x": 220,
+      "y": 158,
+      "w": 804,
+      "h": 540,
+      "bottom": 698,
+      "right": 1024
+    },
+    "listBox": {
+      "x": 0,
+      "y": 358,
+      "w": 218,
+      "h": 293,
+      "bottom": 651,
+      "right": 218
+    },
+    "listArticles": 24,
+    "statedCount": "24",
+    "pressedCount": 24,
+    "pressedLabel": "All24",
+    "headlineLines": 3,
+    "layersBox": {
+      "x": 228,
+      "y": 166,
+      "w": 83,
+      "h": 47,
+      "bottom": 213,
+      "right": 311
+    },
+    "layersDetailsOpen": false,
+    "selectBox": {
+      "x": 241,
+      "y": 281,
+      "w": 57,
+      "h": 44,
+      "bottom": 325,
+      "right": 298
+    },
+    "panelHitsLayers": false,
+    "selectCovered": false,
+    "listClientH": 293,
+    "listScrollH": 2039,
+    "railOverflowY": "auto",
+    "clipped": [],
+    "chipHasThai": false,
+    "chipFonts": [],
+    "chipFontFamily": "\"IBM Plex Mono\", \"IBM Plex Sans Thai\", SFMono-Regular, Menlo, monospace",
+    "chipThaiFaceLoaded": true,
+    "truncated": [
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      },
+      {
+        "tag": "span",
+        "text": "1 modeled paths with sampled positions over ",
+        "hasTitle": false
+      }
+    ]
+  }
+}
