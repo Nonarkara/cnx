@@ -226,7 +226,7 @@ export default function CnxGlyphLegend() {
     <section
       aria-label={th ? "กุญแจสัญลักษณ์บนแผนที่" : "Map symbol key"}
       data-cnx-map-ui
-      className={`pointer-events-auto absolute right-2 top-10 z-10 flex max-h-[calc(100%_-_3rem)] flex-col ${open ? "w-[min(20rem,calc(100%_-_1rem))]" : "max-w-[calc(100%_-_1rem)]"} border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]`}
+      className={`pointer-events-auto absolute right-2 top-10 z-10 flex max-h-[calc(100%_-_8.5rem)] flex-col ${open ? "w-[min(20rem,calc(100%_-_1rem))]" : "max-w-[calc(100%_-_1rem)]"} border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]`}
     >
       <button
         type="button"

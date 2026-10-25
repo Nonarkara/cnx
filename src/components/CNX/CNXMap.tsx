@@ -2095,16 +2095,13 @@ export default function CNXMap({
         <aside
           aria-label={t("รายละเอียดอาคาร 3 มิติ", "3D building details")}
           data-cnx-map-ui
-          className="absolute bottom-12 left-3 z-40 max-h-[calc(100%-6rem)] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3"
+          className="absolute bottom-24 left-3 z-40 max-h-[calc(100%-12rem)] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3"
         >
           <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] pb-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block bg-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--bg)]">
                   {KIND_LABEL[selectedBuilding.kind] ? t(KIND_LABEL[selectedBuilding.kind].th, KIND_LABEL[selectedBuilding.kind].en) : selectedBuilding.kind.toUpperCase()}
-                </span>
-                <span className="inline-block border border-emerald-600 bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  {t("พร้อมรับข้อมูล", "Atlas ready")}
                 </span>
               </div>
               <h3 className="mt-1 break-words font-mono text-[13px] font-bold text-[var(--ink)]">

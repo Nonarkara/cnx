@@ -48,12 +48,12 @@ export default function CnxOperationalPulse({ onOpenMetric, children, ...input }
       const state = metric.state === "stale" ? t("ข้อมูลเก่า", "Stale data") : metric.state === "unavailable" ? t("ยังไม่มีข้อมูล", "No data yet") : metric.level === "critical" ? t("วิกฤต", "Critical") : metric.level === "alert" ? t("ตรวจสอบเร่งด่วน", "Check urgently") : metric.level === "watch" ? t("เฝ้าระวัง", "Watch") : metric.level === "unknown" ? t("ยังประเมินไม่ได้", "Cannot assess yet") : t("ติดตามต่อเนื่อง", "Keep monitoring");
       const summary = t(metric.summaryTh, metric.summaryEn);
       const at = Number.isFinite(observed) ? `${TIME[lang].format(observed)}${lang === "th" ? " น." : ""}` : null;
-      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${summary} · ${metric.source}${at ? ` · ${at}` : ""}`} className="flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0 px-3 py-1 text-left transition-colors hover:bg-[var(--bg-surface)] md:px-0">
+      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${summary} · ${metric.source}${at ? ` · ${at}` : ""}`} className={`flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0 px-3 py-1 text-left transition-colors hover:bg-[var(--bg-surface)] md:px-0 ${metric.contextTh ? "md:max-lg:max-w-[15rem]" : ""}`}>
         <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 self-center ${concern ? LEVEL_TEXT[metric.level] : "text-[var(--cool)]"}`} />
         <span className="text-[12px] text-[var(--dim)]">{t(metric.titleTh, metric.titleEn)}</span>
         <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metricUnit(metric.unit, lang)}</span>
         <span className={metric.state === "current" && metric.level === "good" ? "sr-only" : `text-[11px] ${concern ? `font-semibold ${LEVEL_TEXT[metric.level]}` : "text-[var(--dim)]"}`}>{state}</span>
-        {metric.contextTh && <span className="text-[11px] text-[var(--dim)]">{t(metric.contextTh, metric.contextEn ?? metric.contextTh)}{at && <> · <time dateTime={metric.observedAt!}>{at}</time></>}</span>}
+        {metric.contextTh && <span className="text-[11px] text-[var(--dim)] md:max-lg:basis-full">{t(metric.contextTh, metric.contextEn ?? metric.contextTh)}{at && <> · <time dateTime={metric.observedAt!}>{at}</time></>}</span>}
         <span className="sr-only">{summary} · {metric.source}{at && <> · <time dateTime={metric.observedAt!}>{at}</time></>}</span>
       </button>;
     })}

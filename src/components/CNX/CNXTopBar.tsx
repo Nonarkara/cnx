@@ -348,7 +348,7 @@ export default function CnxTopBar(props: TopBarProps) {
 
   return (
     // Keep chrome content-sized: the map owns the vertical budget.
-    <header lang={lang} className={`relative z-30 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-3 py-1 sm:px-4`}>
+    <header lang={lang} className={`relative z-50 flex shrink-0 flex-col border-b border-[var(--line)] bg-[var(--bg-raised)] ${compact ? "cnx-executive-header" : "cnx-operation-header"} px-3 py-1 sm:px-4`}>
       <div className="flex items-center gap-1 lg:gap-3">
         <div className="flex shrink-0 items-center gap-2">
           <a href="/cnx" aria-label={t("หน้าแรก CNX ศูนย์ปฏิบัติการ", "CNX War Room home")} className="cnx-brand-plate flex h-8 w-11 sm:w-[52px] xl:w-[72px] shrink-0 items-center justify-center px-1.5">
