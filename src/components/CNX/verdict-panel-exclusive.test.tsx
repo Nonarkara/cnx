@@ -11,6 +11,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VerdictBand } from "./CNXTopBar";
+import CnxGlyphLegend from "./CNXGlyphLegend";
 import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import { computeVerdict } from "../../lib/cnx/verdict";
 import type { CnxTwinResponse } from "../../lib/cnx/twin";
@@ -82,6 +83,25 @@ describe("the evidence panel is an exclusive overlay", () => {
 });
 
 describe("the exclusive overlay agreement", () => {
+  it("keeps the symbol key and expanded forecast mutually reachable", async () => {
+    __resetLangForTests("en");
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root!.render(createElement(CnxGlyphLegend)));
+    const key = container.querySelector("button")!;
+    await act(async () => key.click());
+    expect(key.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => claimExclusiveOverlay("forecast-panel"));
+    expect(key.getAttribute("aria-expanded")).toBe("false");
+
+    const closeForecast = vi.fn();
+    const off = onExclusiveOverlay("forecast-panel", closeForecast);
+    await act(async () => key.click());
+    expect(key.getAttribute("aria-expanded")).toBe("true");
+    expect(closeForecast).toHaveBeenCalledOnce();
+    off();
+  });
   it("closes only the overlays that are not the one claiming", () => {
     const closed: string[] = [];
     const offA = onExclusiveOverlay("verdict-panel", () => closed.push("verdict-panel"));

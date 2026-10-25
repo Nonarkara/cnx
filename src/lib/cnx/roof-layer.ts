@@ -431,6 +431,12 @@ export class RoofLayer implements CustomLayerInterface {
   }
   render(gl: WebGL2RenderingContext, args: CustomRenderMethodInput): void {
     if (!this.buffers || (!this.gableCount && !this.flatCount) || this.failed) return;
+    // Native extrusions follow DEM altitude; these schematic meshes currently
+    // carry AGL heights only. Refuse to draw them below loaded terrain.
+    if (this.map?.getTerrain?.()) {
+      this.setError("Schematic roofs are unavailable on terrain basemaps; native building totals remain available.");
+      return;
+    }
     if (args.shaderData.define.includes("GLOBE")) {
       this.setError("Roof geometry supports Mercator basemaps only.");
       return;

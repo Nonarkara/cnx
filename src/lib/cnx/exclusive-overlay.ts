@@ -1,7 +1,7 @@
 /**
- * Two overlays on this board can sit over the map's own controls, so only
- * one of them may be open at a time: the verdict band's evidence panel and
- * the map's Layers control.
+ * Map inspectors share one slot: evidence, Layers, the symbol key, expanded
+ * forecast and building details. The compact forecast always remains usable.
+ * Opening another inspector closes the previous one instead of covering it.
  *
  * Why this has to be enforced: the panel is right-anchored to the band and
  * is 358 px wide at a 390 px viewport, while the Layers control opens over
@@ -16,7 +16,7 @@
  */
 
 /** Every exclusive overlay on the board has an id. */
-export type ExclusiveOverlayId = "verdict-panel" | "map-layers";
+export type ExclusiveOverlayId = "verdict-panel" | "map-layers" | "map-key" | "forecast-panel" | "building-card";
 
 export const EXCLUSIVE_OVERLAY_EVENT = "cnx:exclusive-overlay";
 

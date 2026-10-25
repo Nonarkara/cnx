@@ -76,6 +76,12 @@ review, CI and release identity will be recorded after completion.
 
 ## Remaining operational limits
 
+The real style-switch check exposed a DEM mismatch: native terrain buildings
+follow ground elevation while the custom roof meshes only carried height above
+ground. Schematic roofs are therefore supported on Street only. Satellite and
+Terrain retain full-height native buildings, with the limitation in Layers and
+the key. No unsurveyed ground offsets were invented to make the picture fit.
+
 Restore or replace stale camera sources through their operators; do not relax
 capture-age checks or turn empty nighttime vision into an all-clear. Current
 Longdo index coverage had no cameras inside this application's corridor. A

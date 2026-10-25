@@ -12,9 +12,10 @@
 // hour. Two blue things meaning different things is how a number/label split
 // happens, so every row carries its origin.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { glyphMarkup, type GlyphName } from "../../lib/cnx/map-glyphs";
 import { useLang } from "../../hooks/useLang";
+import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 
 /**
  * How a mark is drawn on the map. Exported so a test can assert the legend
@@ -133,8 +134,8 @@ export const LEGEND_ROWS: LegendRow[] = [
     // a stated rule, not read off the map. The key has to say so.
     id: "roofs",
     shape: "roof",
-    labelTh: "หลังคาอาคาร (จั่ว / แบน)",
-    labelEn: "Building roofs (schematic gable / flat)",
+    labelTh: "หลังคาจำลอง จั่ว / แบน (แผนที่ถนน)",
+    labelEn: "Model roofs: gable / flat (Street only)",
     originTh: "แบบจำลอง",
     originEn: "model",
     color: "rgb(168,78,46)",
@@ -210,6 +211,7 @@ export function LegendSwatch({ shape, color }: { shape: LegendShape; color: stri
 export default function CnxGlyphLegend() {
   const { lang } = useLang();
   const [open, setOpen] = useState(false);
+  useEffect(() => onExclusiveOverlay("map-key", () => setOpen(false)), []);
   const th = lang === "th";
 
   return (
@@ -230,7 +232,10 @@ export default function CnxGlyphLegend() {
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          if (!open) claimExclusiveOverlay("map-key");
+          setOpen(!open);
+        }}
         aria-expanded={open}
         className="flex min-h-9 shrink-0 items-center gap-2 px-2 text-[12px] font-semibold"
       >

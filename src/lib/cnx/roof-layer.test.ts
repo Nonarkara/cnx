@@ -54,3 +54,16 @@ it("cleans linked-program failure and rejects malformed coordinates rather than 
   const table = { version: 1, columns: ["lon", "lat", "length", "width", "rotation", "eaves", "rise", "kind", "group", "category"], kinds: ["gable"], groups: ["core"], categories: ["city-gable"], rows: [[NaN, 18, 10, 5, 0, 5, 2, 0, 0, 0], [99, 18, 10, 5, Infinity, 5, 2, 0, 0, 0], [99, 18, 10, 5, 0, 5, 2, 8, 0, 0]] };
   expect(parseRoofTable(table)).toEqual([]);
 });
+
+it("does not draw AGL-only roofs under active DEM terrain and recovers after terrain is disabled", () => {
+  const { gl, mock } = context(), notify = vi.fn(), layer = new RoofLayer(notify);
+  const terrainMap = { triggerRepaint: vi.fn(), getTerrain: vi.fn<() => { source: string } | null>(() => ({ source: "terrain-dem" })) };
+  layer.setRows([row]); layer.setGroups(["core"]); layer.onAdd(terrainMap as unknown as MaplibreMap, gl);
+  layer.render(gl, args);
+  expect(mock.drawArraysInstanced).not.toHaveBeenCalled();
+  expect(notify.mock.calls.at(-1)?.[0]).toContain("terrain");
+  terrainMap.getTerrain.mockReturnValue(null);
+  layer.render(gl, args);
+  expect(mock.drawArraysInstanced).toHaveBeenCalledTimes(1);
+  expect(notify).toHaveBeenLastCalledWith(null);
+});

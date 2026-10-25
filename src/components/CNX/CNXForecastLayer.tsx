@@ -15,6 +15,7 @@
 //   - Everything here is a model forecast and says so on the bar.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import type { Map as MaplibreMap, ImageSource } from "maplibre-gl";
 import type { ForecastFieldResponse } from "../../lib/cnx/wind-field";
 import type { WindLevel } from "../../lib/cnx/wind-field-core";
@@ -134,6 +135,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
   const [hour, setHour] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  useEffect(() => onExclusiveOverlay("forecast-panel", () => setDetailsOpen(false)), []);
   const reducedMotion = usePrefersReducedMotion();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const basisRef = useRef<ScreenBasis | null>(null);
@@ -448,7 +450,10 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
                 aria-valuetext={`${timeFmt[lang].format(new Date(t * 1000))}, ${tr(`อีก ${hour} ชั่วโมง`, `in ${hour} ${hour === 1 ? "hour" : "hours"}`)}`}
                 className="h-11 w-16 shrink-0 cursor-pointer accent-[var(--cool)] focus-visible:outline-2 focus-visible:outline-[var(--cool)]"
               />
-              <button type="button" aria-expanded={detailsOpen} aria-controls="cnx-forecast-details" onClick={() => setDetailsOpen(open => !open)}
+              <button type="button" aria-expanded={detailsOpen} aria-controls="cnx-forecast-details" onClick={() => {
+                if (!detailsOpen) claimExclusiveOverlay("forecast-panel");
+                setDetailsOpen(!detailsOpen);
+              }}
                 aria-label={tr("รายละเอียดและชั้นพยากรณ์", "Forecast layers and details")}
                 className="flex h-11 w-11 shrink-0 items-center justify-center text-[16px] focus-visible:outline-2 focus-visible:outline-[var(--cool)]">
                 <span aria-hidden="true">{detailsOpen ? "⌃" : "⋯"}</span>
