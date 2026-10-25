@@ -40,7 +40,7 @@ export default function CnxOperationalPulse({ onOpenMetric, children, ...input }
   }, []);
   const { lang, t } = useLang();
   const brief = buildExecutiveBrief({ ...input, now });
-  return <section lang={lang} aria-label={t("สภาพที่วัดได้ในพื้นที่", "Measured operational conditions")} className="relative z-40 grid shrink-0 grid-cols-2 border-b border-[var(--line)] bg-[var(--bg-raised)] md:flex md:flex-wrap md:items-center md:gap-x-3 md:px-3">
+  return <section lang={lang} aria-label={t("สภาพที่วัดได้ในพื้นที่", "Measured operational conditions")} className="relative z-40 grid shrink-0 grid-cols-2 border-b border-[var(--line)] bg-[var(--bg-raised)] md:grid-cols-4 md:px-3 lg:flex lg:flex-wrap lg:items-center lg:gap-x-3">
     {brief.metrics.map((metric) => {
       const Icon = icons[metric.id];
       const concern = ["watch", "alert", "critical"].includes(metric.level);
@@ -48,7 +48,7 @@ export default function CnxOperationalPulse({ onOpenMetric, children, ...input }
       const state = metric.state === "stale" ? t("ข้อมูลเก่า", "Stale data") : metric.state === "unavailable" ? t("ยังไม่มีข้อมูล", "No data yet") : metric.level === "critical" ? t("วิกฤต", "Critical") : metric.level === "alert" ? t("ตรวจสอบเร่งด่วน", "Check urgently") : metric.level === "watch" ? t("เฝ้าระวัง", "Watch") : metric.level === "unknown" ? t("ยังประเมินไม่ได้", "Cannot assess yet") : t("ติดตามต่อเนื่อง", "Keep monitoring");
       const summary = t(metric.summaryTh, metric.summaryEn);
       const at = Number.isFinite(observed) ? `${TIME[lang].format(observed)}${lang === "th" ? " น." : ""}` : null;
-      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${summary} · ${metric.source}${at ? ` · ${at}` : ""}`} className={`flex min-h-11 min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0 px-3 py-1 text-left transition-colors hover:bg-[var(--bg-surface)] md:px-0 ${metric.contextTh ? "md:max-lg:max-w-[15rem]" : ""}`}>
+      return <button key={metric.id} type="button" onClick={() => onOpenMetric(metric.id)} title={`${summary} · ${metric.source}${at ? ` · ${at}` : ""}`} className="flex min-h-11 min-w-0 flex-wrap content-center items-baseline gap-x-1.5 gap-y-0 px-3 py-1 text-left transition-colors hover:bg-[var(--bg-surface)] md:px-0 md:max-lg:pr-3">
         <Icon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 self-center ${concern ? LEVEL_TEXT[metric.level] : "text-[var(--cool)]"}`} />
         <span className="text-[12px] text-[var(--dim)]">{t(metric.titleTh, metric.titleEn)}</span>
         <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metricUnit(metric.unit, lang)}</span>
