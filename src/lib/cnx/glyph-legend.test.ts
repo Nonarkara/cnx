@@ -21,7 +21,7 @@ describe("the symbol key is complete", () => {
     const ids = LEGEND_ROWS.map((r) => r.id);
     // Anything the operator could confuse must be present. A missing row is
     // not a neutral omission: it reads as "nothing of this kind is here".
-    for (const required of ["wind", "rain-gauge", "rain-forecast", "fire", "pm25", "citizen", "temple-compound"]) {
+    for (const required of ["wind", "rain-gauge", "rain-forecast", "fire", "pm25", "citizen", "temple-compound", "roofs"]) {
       expect(ids).toContain(required);
     }
   });

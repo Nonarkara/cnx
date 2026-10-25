@@ -12,6 +12,9 @@ export interface ExecutiveMetric {
   id: "water" | "air" | "fire" | "mobility";
   titleTh: string;
   titleEn: string;
+  /** Visible scope of the primary number; never a province-wide clearance. */
+  contextTh?: string;
+  contextEn?: string;
   value: string;
   unit: string;
   summaryTh: string;
@@ -152,6 +155,15 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
     const headroom = g ? gaugeMargins(g).headroom : fallback!.headroom_m;
     const name = g ? `${g.code ?? g.nameTh}` : fallback!.station_code ?? fallback!.station_name_th;
     water.state = "current";
+    water.contextTh = g ? `${name} · ${g.nameTh}` : name;
+    water.contextEn = g ? `${name} · ${g.nameEn || g.nameTh}` : name;
+    const cityGauge = ping.find(station => station.code === "P.1");
+    const cityNotCurrent = name !== "P.1" && cityGauge && !current(cityGauge.observedAt);
+    const cityStale = cityNotCurrent && validPast(cityGauge.observedAt);
+    if (cityNotCurrent) {
+      water.contextTh += cityStale ? " · P.1 ข้อมูลเก่า" : " · P.1 เวลาไม่ยืนยัน";
+      water.contextEn += cityStale ? " · P.1 stale" : " · P.1 time unverified";
+    }
     if (finite(bank)) {
       water.value = Math.abs(bank).toFixed(2);
       water.unit = bank < 0 ? "ม. เหนือตลิ่ง" : bank === 0 ? "ม. ถึงตลิ่ง" : "ม. ต่ำกว่าตลิ่ง";
@@ -178,6 +190,10 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
       : g && finite(g.criticalLevelMsl) ? `; critical reference ${g.criticalLevelMsl.toFixed(2)} m MSL` : "";
     water.summaryTh = `${name}: ${relationTh}${criticalTh} · ระดับน้ำ ${level.toFixed(2)} ม. รทก.${referenceTh} · ไม่ครอบคลุมทั้งจังหวัด`;
     water.summaryEn = `${name}: ${relationEn}${criticalEn}; measured level ${level.toFixed(2)} m MSL${referenceEn}; does not establish province-wide conditions`;
+    if (cityNotCurrent) {
+      water.summaryTh += " · ค่า P.1 เก่าหรือเวลาไม่ถูกต้อง ยังยืนยันสภาพแม่น้ำในเมืองไม่ได้";
+      water.summaryEn += `; P.1 reading is ${cityStale ? "stale" : "undated or future-dated"}; city river conditions remain unverified`;
+    }
     water.actionTh = water.level === "critical" || water.level === "alert" ? "ตรวจสอบพื้นที่รอบสถานีและประกาศทางการ พร้อมยืนยันผู้รับผิดชอบ" : "ติดตามสถานีและประกาศทางการ พร้อมตรวจสอบพื้นที่ที่ไม่มีข้อมูล";
     water.actionEn = water.level === "critical" || water.level === "alert" ? "Check locations around the gauge and official notices; confirm the duty contact" : "Monitor the gauge and official notices; check unmeasured areas";
   } else stale(water, [...ping.map(g => g.observedAt), ...(measured?.provenance === "live" ? [measured.observed_at] : [])]);
@@ -210,6 +226,7 @@ export function buildExecutiveBrief(input: ExecutiveBriefInput): ExecutiveBrief 
     }
     if (rainLeads) {
       water.titleTh = "ฝน/น้ำ"; water.titleEn = "Rain / Water";
+      water.contextTh = wet.th; water.contextEn = wet.en;
       water.value = String(wet.max); water.unit = "มม. / 24 ชม. (สูงสุด)";
       water.observedAt = rain.wettest?.observedAt ?? null;
       water.source = "ThaiWater rain gauges";

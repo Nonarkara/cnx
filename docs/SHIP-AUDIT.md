@@ -654,3 +654,126 @@ event target, so the card opens whichever layer the click fell on.
 - the compound layer's read at every zoom between the city scale and the
   street scale. It has been looked at at city zoom and at the zoom where a
   single compound fills the frame, and at nothing in between.
+
+## Roofs — 24–25 October 2026
+
+### What was wrong
+
+The 3D city was a field of boxes. MapLibre's `fill-extrusion` extrudes a
+plan shape straight up, so every building in Chiang Mai was a rectangular
+prism with a flat top — and from the air that reads exactly like the
+satellite image the footprints came from. A box says "there is a building
+of this size here" and nothing else. The temple compounds had the same
+problem one level down: their halls were gold boxes with a thin slab on
+top, not the steep gable of a Lanna ubosot.
+
+### What the data actually holds
+
+Measured over the Old City sample (18.78–18.80 N, 98.97–99.00 E) with
+Overpass on 24 October 2026:
+
+| tag | buildings | share |
+|---|---|---|
+| any building | 8,914 | — |
+| `roof:shape` | 9 | 0.10 % |
+| `roof:height` | 0 | 0 % |
+| `roof:colour` | 5 | 0.06 % |
+| `roof:material` | 1 | 0.01 % |
+| any roof tag | 23 | 0.26 % |
+
+So the roof **form** cannot be read off the map. It has to be modelled, and
+the board says so wherever the roofs are drawn.
+
+### The rule, and where it came from
+
+The rule is borrowed from the QGIS **3D OSM Model** plugin, which moved
+away from "a pyramid roof on every block" for exactly this reason —
+house-like types get a pitched gable, everything else a flat roof, "which
+reads far more like a real city". The rule here:
+
+| the building is | its roof |
+|---|---|
+| house-like (`house`, `detached`, `terrace`, `dormitory`, `hut`, …) | gable |
+| plainly not a house (`apartments`, `commercial`, `industrial`, `hotel`, …) | flat |
+| untagged, small and low | gable |
+| untagged, over 500 m² | flat |
+| any type, more than 3 storeys | flat |
+
+The result over the whole city: **61,257 roofs — 81.4 % gable, 18.6 %
+flat.** The city is a tiled town with a few concrete blocks in it, which is
+what Chiang Mai is.
+
+### The height is not invented
+
+OSM's `height` is the total, roof included. So the roof is carved **out**
+of it: the wall is `height − roof_rise` and the roof's top lands back on
+`height`. The number the board reports is the number the data gave. The
+bake writes `roof_rise` onto each building feature and the map's
+fill-extrusion subtracts it; nothing is added to a building's height that
+the data did not say.
+
+For the temple compounds the same rule applies to the mapped halls: a hall
+whose OSM height is 9 m gets a 9 m building, wall and roof together.
+
+### How it is drawn, and why a custom layer
+
+A gable is a slope, and MapLibre's `fill-extrusion` cannot make a slope.
+deck.gl can, but the board's deck.gl runs in its own canvas over the map:
+its roofs would never depth-interleave with MapLibre's own extrusions, and
+a roof behind a building would draw on top of it.
+
+So the roofs are a **MapLibre custom layer** (`src/lib/cnx/roof-layer.ts`),
+which draws into the map's own WebGL context and therefore shares its
+depth buffer. The roof sits on the wall, and a wall in front of a roof
+hides it. The layer instances two meshes — a gable prism (two slopes, two
+gable ends) and a flat cap slab — over the whole city in two draw calls.
+
+**No third-party asset is used.** The geometry is generated in-repo from
+OpenStreetMap footprints (ODbL), so there is no asset licence to carry
+and no CC BY-NC or NoAI exposure. The only borrowed thing is the *rule*
+above, which is an idea, not a file.
+
+### The shapes
+
+Each roof is built on the **minimum-area rectangle** that contains the
+footprint — the tightest rectangle that still covers it, which carries
+both the ridge direction and the span in one pass. The ridge runs along
+the long side, the way an ubosot's does. Measured over the Old City:
+the median ratio of rectangle area to footprint area is **1.00**; 4 % of
+buildings exceed 1.5× and 0.7 % exceed 2×. Those are the ones whose roof
+visibly overhangs its walls, and they are the price of a rectangle.
+
+Temple roofs are the grammar's: a steep gable over the hall, a shallower
+one over each side hall, a small one over the gate, and for a hall with
+no mapped footprint a second, receding tier — the stepped roof a Lanna
+hall actually has.
+
+### What was verified, and what was not
+
+**Verified.**
+
+- the roof grammar by unit test (18 cases: the rectangle, the bearings,
+  the rule, the carving, and the refusals);
+- the baked tables by fixture test (every row finite, every roof sized
+  and placed, a roof for every building and every compound, both kinds
+  present, the gable share between 70 % and 95 %);
+- the renderer by **rendering it and looking at it** — in an isolated
+  harness with the real data, at city scale and at close range, which is
+  how the first three attempts were caught (a metres↔mercator scale that
+  was out by 2π, a height that was not converted into mercator units, and
+  derivative-based face normals that were numerically noise);
+- the temple grammar by unit test (15 cases) and the baked compounds by
+  fixture test.
+
+**Not verified.**
+
+- the roofs on the **live** board at the moment of writing — the layer is
+  built and wired, and the first live capture was still to come;
+- how the roofs read against the board's own dark and light themes; the
+  roof palette is currently fixed rather than themed;
+- performance with all 59,344 city roofs instanced at once. The city
+  roofs are drawn in the same group split as the city blocks (core above
+  zoom 13, fringe below), so at most one of the two is in the buffer at a
+  time, but the worst case has not been measured on the software renderer
+  the gates use;
+- a real touch device, and the roofs under a long-press.

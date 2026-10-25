@@ -120,13 +120,40 @@ describe("composeCompound", () => {
     const modelled = result.parts.filter((p) => p.origin === "model");
     expect(measured.length).toBeGreaterThan(0);
     expect(modelled.length).toBeGreaterThan(0);
-    // A measured building keeps the height it was given.
+    // A measured building keeps the height it was given — but the roof
+    // is carved out of it, so the wall is what is left and the ridge
+    // lands back on the mapped total.
     const viharn = measured.find((p) => p.kind === "hall");
-    expect(viharn?.height).toBe(7);
     expect(viharn?.heightSource).toBe("osm");
-    // The roof over it is the grammar's, and says so.
-    const roof = modelled.find((p) => p.kind === "hall" && p.tier === "roof");
-    expect(roof?.heightSource).toBe("grammar");
+    expect(viharn!.height).toBeLessThan(7);
+    // The roof that caps that wall — the modelled hall has a roof too,
+    // and it is not this one.
+    const roof = result.roofs.find(
+      (r) => r.category === "hall" && Math.abs(r.eaves - viharn!.height) < 0.001,
+    );
+    expect(roof).toBeDefined();
+    expect(roof!.eaves + roof!.rise).toBeCloseTo(7, 6);
+    expect(roof!.eaves).toBeCloseTo(viharn!.height, 6);
+  });
+
+  it("gives every roof-capable part a pitched roof, not a slab", () => {
+    const interiors = [
+      { ring: rectRing(98.975, 18.7933, 20, 14), height: 7, heightSource: "osm" as const, name: "viharn" },
+    ];
+    const result = composeCompound({ boundary: OLD_CITY_COMPOUND, interiors });
+    expect(result.roofs.length).toBeGreaterThan(0);
+    for (const roof of result.roofs) {
+      expect(roof.kind).toBe("gable");
+      expect(roof.rise).toBeGreaterThan(0);
+      expect(roof.length).toBeGreaterThan(0);
+      expect(roof.width).toBeGreaterThan(0);
+      expect(Number.isFinite(roof.rotation)).toBe(true);
+      expect(Number.isFinite(roof.eaves)).toBe(true);
+      expect(Number.isFinite(roof.centre[0])).toBe(true);
+      expect(Number.isFinite(roof.centre[1])).toBe(true);
+    }
+    // The gate always has a roof: it is the part the approach sees.
+    expect(result.roofs.some((r) => r.category === "gate")).toBe(true);
   });
 
   it("never emits a coordinate that is not a number", () => {
@@ -263,3 +290,32 @@ function centroid(ring: Ring): [number, number] {
   }
   return [x / pts.length, y / pts.length];
 }
+
+
+describe("mapped temple height conservation", () => {
+  it("keeps small outbuildings at their supplied height when no roof is drawn", () => {
+    const result = composeCompound({ boundary: OLD_CITY_COMPOUND, interiors: [
+      { ring: rectRing(98.975, 18.7933, 20, 14), height: 8, heightSource: "osm", name: "viharn" },
+      { ring: rectRing(98.97525, 18.7928, 5, 4), height: 3, heightSource: "osm", name: "cell" },
+    ] });
+    const cell = result.parts.find(part => part.origin === "measured" && part.height === 3);
+    expect(cell).toBeDefined();
+  });
+  it("subtracts roof rise from measured side halls rather than adding storeys", () => {
+    const inputs = [
+      { ring: rectRing(98.975, 18.793, 28, 18), height: 8, heightSource: "osm" as const, name: "viharn" },
+      { ring: rectRing(98.97465, 18.793, 20, 12), height: 10, heightSource: "osm" as const, name: "school" },
+      { ring: rectRing(98.97535, 18.793, 20, 12), height: 12, heightSource: "osm" as const, name: "school" },
+      { ring: rectRing(98.975, 18.79335, 20, 12), height: 14, heightSource: "osm" as const, name: "school" },
+      { ring: rectRing(98.975, 18.79265, 20, 12), height: 16, heightSource: "osm" as const, name: "school" },
+    ];
+    const result = composeCompound({ boundary: OLD_CITY_COMPOUND, interiors: inputs });
+    const sides = result.parts.filter(part => part.origin === "measured" && part.kind === "side_hall");
+    expect(sides.length).toBeGreaterThan(0);
+    for (const side of sides) {
+      const roof = result.roofs.find(candidate => candidate.category === "side_hall" && Math.abs(candidate.eaves - side.height) < 0.001);
+      expect(roof).toBeDefined();
+      expect(inputs.some(input => Math.abs(input.height - roof!.eaves - roof!.rise) < 0.001)).toBe(true);
+    }
+  });
+});

@@ -251,16 +251,16 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
     ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
     : t("หลักฐานปัจจุบันยังไม่ครบ", "Current evidence incomplete");
   return (
-    <div lang={lang} data-surface="cnx-verdict-band" className={`relative flex flex-col items-start gap-y-1 border-b border-l-4 ${colour} px-3 py-2 lg:flex-row lg:items-center lg:gap-x-4 sm:px-4`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <div lang={lang} data-surface="cnx-verdict-band" className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-l-4 ${colour} px-3 py-1 lg:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-4`}>
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
           {t(...CHIP_LABEL[v.level])}
         </span>
-        <span className="shrink-0 text-[11px] leading-relaxed">{provenance}</span>
+        <span className="text-[11px] leading-relaxed">{provenance}</span>
       </div>
-      <p className="w-full min-w-0 flex-1 text-[13px] font-semibold leading-snug lg:w-auto">{t(v.head_th, v.head_en)}</p>
+      <p className="col-span-2 row-start-2 min-w-0 text-[13px] font-semibold leading-snug lg:col-span-1 lg:col-start-2 lg:row-start-1">{t(v.head_th, v.head_en)}</p>
       <details
-        className="shrink-0"
+        className="col-start-2 row-start-1 lg:col-start-3"
         ref={panelRef}
         onToggle={(event) => {
           // Opening this panel closes the map's Layers control, and the map
@@ -271,8 +271,8 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
           if (event.currentTarget.open) claimExclusiveOverlay("verdict-panel");
         }}
       >
-        <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-2 text-[12px] font-semibold hover:bg-[var(--bg-raised)]">
-          {t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")}
+        <summary aria-label={t("ตรวจเหตุผลและข้อจำกัด", "Evidence and limits")} className="flex min-h-11 cursor-pointer items-center gap-1 border border-[var(--line)] px-2 py-1 text-[12px] font-semibold hover:bg-[var(--bg-raised)]">
+          <span aria-hidden="true">▸</span>{t("หลักฐาน", "Evidence")}
         </summary>
         {/* Anchored to the BAND, not to the summary: at 390 the summary wraps
             to a second line, and a panel anchored to it opened at x = -180 —

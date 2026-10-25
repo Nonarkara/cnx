@@ -53,6 +53,7 @@ export default function CnxOperationalPulse({ onOpenMetric, children, ...input }
         <span className="text-[12px] text-[var(--dim)]">{t(metric.titleTh, metric.titleEn)}</span>
         <span className="font-mono text-[18px] leading-tight tabular-nums text-[var(--ink)]">{metric.value}</span><span className="text-[11px] text-[var(--dim)]">{metricUnit(metric.unit, lang)}</span>
         <span className={metric.state === "current" && metric.level === "good" ? "sr-only" : `text-[11px] ${concern ? `font-semibold ${LEVEL_TEXT[metric.level]}` : "text-[var(--dim)]"}`}>{state}</span>
+        {metric.contextTh && <span className="text-[11px] text-[var(--dim)]">{t(metric.contextTh, metric.contextEn ?? metric.contextTh)}{at && <> · <time dateTime={metric.observedAt!}>{at}</time></>}</span>}
         <span className="sr-only">{summary} · {metric.source}{at && <> · <time dateTime={metric.observedAt!}>{at}</time></>}</span>
       </button>;
     })}

@@ -18,13 +18,20 @@
  * Usage:
  *   node scripts/fetch-cnx-buildings-3d.mjs
  *   node scripts/build-cnx-temple-compounds.mjs   ← run this AFTER
+ *   node scripts/build-cnx-roofs.mjs              ← and THIS after that
  *
  * The second step composes `temples.geojson` and the building footprints
  * into `temple-compounds.geojson`, which is what the map's temple layer
  * actually renders: a walled compound with a gate, a courtyard, halls
- * and a stupa, instead of one gold block per place of worship. Run the
- * fetch and the bake together, or the map will render a compound layer
- * from a stale boundary set.
+ * and a stupa, instead of one gold block per place of worship.
+ *
+ * The third step gives every building a roof and writes the roof tables
+ * the map's roof layer draws. It also rewrites the two building files
+ * in place to carry `roof_rise`, because OSM's height is the TOTAL —
+ * roof included — and the wall has to stop where the roof starts.
+ *
+ * Run all three, or the map will render a compound layer from a stale
+ * boundary set and a city with no roofs.
  *
  * Bbox (urban):
  *   south 18.65  → south of Hang Dong, north of Lamphun border
@@ -110,6 +117,7 @@ function buildFeature(osm, geomType) {
     properties: {
       id: osm.id,
       height,
+      height_source: parseFloatOrNull(tags.height) > 0 ? "osm-height" : parseFloatOrNull(tags["building:levels"]) > 0 ? "levels-estimate" : "fallback",
       base_height: base,
       name_th: tags["name:th"] ?? null,
       name_en: tags["name:en"] ?? null,

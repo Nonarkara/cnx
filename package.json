@@ -51,7 +51,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.18.0",
     "eslint-config-next": "16.4.2",
-    "happy-dom": "^20.14.5",
+    "happy-dom": "^21.0.4",
     "postcss": "^8.5.30",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",
@@ -65,6 +65,9 @@
     "sharp": "$sharp",
     "@node-minify/core": {
       "glob": "10.5.0"
+    },
+    "miniflare@5.20261019.1-beta": {
+      "undici": "7.30.1"
     }
   }
 }

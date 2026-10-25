@@ -45,7 +45,10 @@ import { fileURLToPath } from "node:url";
 import {
   composeCompound,
   COMPOUND_MIN_AREA_M2,
+  HALL_ROOF_RISE,
+  ROOF_OVERHANG,
 } from "../src/lib/cnx/temple-compound.ts";
+import { minAreaRect } from "../src/lib/cnx/roof.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = resolve(ROOT, "public/data/cnx");
@@ -113,6 +116,7 @@ const cellKey = (x, y) => `${Math.floor(x / CELL)}:${Math.floor(y / CELL)}`;
  * because it under-credits the data rather than over-claiming it.
  */
 function heightSourceOf(props) {
+  if (props?.height_source) return props.height_source === "osm-height" || props.height_source === "levels-estimate" ? "osm" : "fallback";
   if (props?.levels != null) return "osm";
   if (props?.height != null && Number(props.height) !== 9) return "osm";
   return "fallback";
@@ -173,6 +177,13 @@ function isBoundaryDuplicate(buildingRing, boundaryRing) {
 }
 
 const features = [];
+/**
+ * Category indices, shared with the roof table's `categories` array:
+ * city-gable, city-flat, hall, side_hall, gate.
+ */
+const CATEGORY_INDEX = { "city-gable": 0, "city-flat": 1, hall: 2, side_hall: 3, gate: 4 };
+/** The compound's pitched roofs, in the roof table's column order. */
+const roofRows = [];
 const stats = {
   temples: temples.length,
   compounds: 0,
@@ -182,6 +193,7 @@ const stats = {
   measuredParts: 0,
   modelParts: 0,
   partsByKind: {},
+  roofsByCategory: {},
 };
 
 temples.forEach((t, index) => {
@@ -203,10 +215,11 @@ temples.forEach((t, index) => {
 
   let parts = result.parts;
   let evidence = result.evidence;
+  let roofs = result.roofs ?? [];
 
   if (parts.length === 0) {
     // The polygon is a building, not a compound. Render it as the
-    // mapped building it is — measured — with a modelled roof cap.
+    // mapped building it is — measured — with a modelled roof.
     evidence = "single-footprint";
     stats.singleFootprints += 1;
     const height = Number(props.height) || 9;
@@ -221,10 +234,51 @@ temples.forEach((t, index) => {
         heightSource: heightSourceOf(props),
       },
     ];
+    // A shrine is still a building with a roof. The rise is carved out
+    // of the mapped height, so the shrine keeps the height OSM gave.
+    const candidateRise = Math.min(HALL_ROOF_RISE, Math.max(0, height * 0.45));
+    const fit = minAreaRect(boundaryRing);
+    const rise = fit && candidateRise >= 0.5 ? candidateRise : 0;
+    const body = height - rise;
+    parts[0].height = body;
+    if (fit && rise >= 0.5) {
+      roofs = [
+        {
+          centre: fit.centre,
+          length: fit.length + ROOF_OVERHANG * 2,
+          width: fit.width + ROOF_OVERHANG * 2,
+          rotation: fit.rotation,
+          eaves: body,
+          rise,
+          kind: "gable",
+          category: "hall",
+          total: body + rise,
+        },
+      ];
+    }
   } else {
     stats.compounds += 1;
     if (evidence === "osm-footprints") stats.withFootprints += 1;
     else stats.boundaryOnly += 1;
+  }
+
+  // The compound's pitched roofs, carried across to the roof table.
+  // Column order matches public/data/cnx/roofs-temple.json: lon, lat, length,
+  // width, rotation, eaves, rise, kind, group, category.
+  for (const roof of roofs) {
+    roofRows.push([
+      Number(roof.centre[0].toFixed(6)),
+      Number(roof.centre[1].toFixed(6)),
+      Number(roof.length.toFixed(2)),
+      Number(roof.width.toFixed(2)),
+      Number(roof.rotation.toFixed(4)),
+      Number(roof.eaves.toFixed(2)),
+      Number(roof.rise.toFixed(2)),
+      roof.kind === "gable" ? 0 : 1,
+      2,
+      CATEGORY_INDEX[roof.category] ?? 2,
+    ]);
+    stats.roofsByCategory[roof.category] = (stats.roofsByCategory[roof.category] ?? 0) + 1;
   }
 
   parts.forEach((part, partIndex) => {
@@ -234,6 +288,14 @@ temples.forEach((t, index) => {
     if (part.origin === "measured") stats.measuredParts += 1;
     else stats.modelParts += 1;
 
+    // Native extrusion heights are absolute above ground, while the grammar
+    // stores each tier's height above its own base. Persist the full roof top
+    // as well so a missing custom roof renderer can restore an honest solid.
+    const wallTop = part.base_height + part.height;
+    const fit = ["hall", "side_hall", "gate"].includes(part.kind) ? minAreaRect(ring) : null;
+    const totalHeight = fit ? roofs.filter(roof => roof.category === part.kind &&
+      Math.abs(roof.centre[0] - fit.centre[0]) < 1e-7 && Math.abs(roof.centre[1] - fit.centre[1]) < 1e-7)
+      .reduce((highest, roof) => Math.max(highest, roof.total), wallTop) : wallTop;
     features.push({
       type: "Feature",
       id: `${compoundId}-${part.kind}-${partIndex}`,
@@ -248,7 +310,9 @@ temples.forEach((t, index) => {
         name_th: nameTh,
         name_en: nameEn,
         name: props.name ?? null,
-        height: part.height,
+        height: wallTop,
+        roof_rise: totalHeight - wallTop,
+        total_height: totalHeight,
         base_height: part.base_height,
         height_source: part.heightSource ?? "grammar",
         compound_area_m2: Math.round(areaM2),
@@ -275,8 +339,17 @@ const collection = {
       "Compound parts are composed from the mapped boundary using a walled-axial grammar " +
       "(gate on the south end of the axis, courtyard, main hall at the north end, flanking " +
       "side halls, a tower on the axis). Parts marked origin=measured are OpenStreetMap " +
-      "footprints; parts marked origin=model are the grammar's placement and dimensions.",
+      "footprints; parts marked origin=model are the grammar's placement and dimensions. " +
+      "The roofs in meta.roofs are the compound's pitched gables — the hall, the side " +
+      "halls and the gate — and every one of them is the grammar's, not a survey's.",
     stats,
+    roofs: {
+      note:
+        "Pitched roofs for the temple compounds, in the column order of " +
+        "public/data/cnx/roofs-temple.json: lon, lat, length, width, rotation, eaves, rise, " +
+        "kind, group, category. kind and category are indices; group 2 is temple.",
+      rows: roofRows,
+    },
   },
   features,
 };

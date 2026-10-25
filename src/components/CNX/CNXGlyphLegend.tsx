@@ -21,7 +21,7 @@ import { useLang } from "../../hooks/useLang";
  * covers every way the map actually marks things — a legend that silently
  * omits a layer is worse than no legend, because it implies absence.
  */
-export type LegendShape = "flame" | "droplet" | "arrow" | "streak" | "smoke" | "rainRamp" | "pmRamp" | "dot" | "compound";
+export type LegendShape = "flame" | "droplet" | "arrow" | "streak" | "smoke" | "rainRamp" | "pmRamp" | "dot" | "compound" | "roof";
 
 export interface LegendRow {
   id: string;
@@ -127,6 +127,19 @@ export const LEGEND_ROWS: LegendRow[] = [
     color: "rgb(245,158,11)",
   },
   {
+    // The roofs are the one thing on this board whose FORM is entirely
+    // the model's: OpenStreetMap carries roof tags for 0.26% of the
+    // Old City's buildings, so which roof a building gets is decided by
+    // a stated rule, not read off the map. The key has to say so.
+    id: "roofs",
+    shape: "roof",
+    labelTh: "หลังคาอาคาร (จั่ว / แบน)",
+    labelEn: "Building roofs (schematic gable / flat)",
+    originTh: "แบบจำลอง",
+    originEn: "model",
+    color: "rgb(168,78,46)",
+  },
+  {
     id: "gauge",
     shape: "dot",
     labelTh: "สถานีวัดระดับน้ำ",
@@ -167,6 +180,21 @@ export function LegendSwatch({ shape, color }: { shape: LegendShape; color: stri
       />
     );
   }
+  if (shape === "roof") {
+    // The two roof kinds, as the map draws them: a tiled gable and a
+    // flat concrete cap. The key has to show BOTH, because the whole
+    // point of the roof layer is that an operator can tell them apart.
+    return (
+      <span aria-hidden="true" className="inline-flex shrink-0 items-center gap-[3px]">
+        <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+          <path d="M1 11 L7 2 L13 11 Z" fill={color ?? "rgb(168,78,46)"} />
+        </svg>
+        <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+          <rect x="1" y="7" width="12" height="3" fill="rgb(126,130,134)" />
+        </svg>
+      </span>
+    );
+  }
   if (shape === "compound") {
     return (
       <span aria-hidden="true" className="inline-flex shrink-0 items-center gap-[2px]">
@@ -197,6 +225,7 @@ export default function CnxGlyphLegend() {
     // so a column of map stays visible on the left, and the list scrolls.
     <section
       aria-label={th ? "กุญแจสัญลักษณ์บนแผนที่" : "Map symbol key"}
+      data-cnx-map-ui
       className={`pointer-events-auto absolute right-2 top-10 z-10 flex max-h-[calc(100%_-_3rem)] flex-col ${open ? "w-[min(20rem,calc(100%_-_1rem))]" : "max-w-[calc(100%_-_1rem)]"} border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]`}
     >
       <button

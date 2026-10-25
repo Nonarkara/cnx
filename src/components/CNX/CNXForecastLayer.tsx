@@ -410,6 +410,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
     <>
       <canvas ref={canvasRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5] h-full w-full" />
       <section
+        data-cnx-map-ui
         aria-label={tr("พยากรณ์ลม ฝน และฝุ่น 48 ชั่วโมง", "48-hour wind, rain and PM2.5 forecast")}
         className="absolute bottom-8 left-1/2 z-10 w-fit max-w-[calc(100%-1rem)] -translate-x-1/2 border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
       >

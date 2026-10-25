@@ -21,6 +21,28 @@ const gauge = (changes: Partial<RiverGauge> = {}): RiverGauge => ({
 });
 
 describe("executive evidence overview", () => {
+  it("identifies the fresh upstream measurement without presenting stale city P.1 as current", () => {
+    const result = metric({ riverGauges: [
+      gauge({ observedAt: "2026-10-03T23:00:00Z", belowBankM: 2.41 }),
+      gauge({ id: "upstream", code: "CHM004", nameTh: "เชียงดาว", nameEn: "Chiang Dao", bankLevelMsl: 302.72, criticalLevelMsl: null }),
+    ] }, "water");
+    expect(result.state).toBe("current");
+    expect(result.value).toBe("2.72");
+    expect(result.observedAt).toBe(stamp);
+    expect(result.contextEn).toBe("CHM004 · Chiang Dao · P.1 stale");
+    expect(result.contextTh).toContain("P.1 ข้อมูลเก่า");
+    expect(result.summaryEn).toContain("P.1 reading is stale");
+    expect(result.summaryEn).toContain("city river conditions remain unverified");
+  });
+
+  it("re-ages the upstream fallback to unknown rather than keeping its below-bank number", () => {
+    const result = metric({ now: new Date("2026-10-04T08:30:01Z"), riverGauges: [gauge({ code: "CHM004" })] }, "water");
+    expect(result.state).toBe("stale");
+    expect(result.level).toBe("unknown");
+    expect(result.value).toBe("—");
+    expect(result.contextEn).toBeUndefined();
+  });
+
   it("keeps absent domains unknown and does not give an all-clear", () => {
     const brief = buildExecutiveBrief(base);
     expect(brief.unknownCount).toBe(4);

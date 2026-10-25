@@ -56,6 +56,14 @@
 /** A closed ring of `[lon, lat]` pairs. */
 export type Ring = [number, number][];
 
+// ─── Imports ───────────────────────────────────────────────────────────
+//
+// The roof grammar lives in its own file so that the two grammars do
+// not import each other; the shared metric helpers live in ./geo.
+
+import { EARTH_LAT_M, metresPerDegreeLon } from "./geo.ts";
+import { minAreaRect, type RoofCategory, type RoofInstance } from "./roof.ts";
+
 /** What a part of a compound is. */
 export type CompoundPartKind =
   | "wall"
@@ -136,6 +144,17 @@ export interface InteriorBuilding {
 /** The result of composing one compound. */
 export interface CompoundResult {
   parts: CompoundPart[];
+  /**
+   * The pitched roofs that cap the compound's halls, side halls and
+   * gate.
+   *
+   * A roof is not a thinner box. A Lanna hall is a steep gable, and a
+   * viharn is a shallower one; drawing them as slabs is what made the
+   * compound read as a set of crates. These are drawn as real roofs by
+   * the map's roof layer, and they carry the same rule as everything
+   * else in this file: the FORM is the grammar's, always.
+   */
+  roofs: RoofInstance[];
   evidence: CompoundEvidence;
   /** The compound's area in m². */
   areaM2: number;
@@ -167,7 +186,8 @@ export const COURT_HEIGHT = 0.3;
 export const GATE_WIDTH = 6.5;
 export const GATE_DEPTH = 4;
 export const GATE_BODY_HEIGHT = 5.5;
-export const GATE_ROOF_HEIGHT = 2;
+/** Rise of the gate's gable, eaves to ridge. */
+export const GATE_ROOF_RISE = 2;
 
 /** A modelled main hall: width across the axis. */
 export const HALL_WIDTH = 13;
@@ -175,18 +195,27 @@ export const HALL_WIDTH = 13;
 export const HALL_DEPTH = 8;
 /** Height of a modelled hall's body, excluding the roof. */
 export const HALL_BODY_HEIGHT = 6.5;
-/** Height of the roof slab on a hall. */
-export const HALL_ROOF_HEIGHT = 2.4;
-/** Height of the second, receding roof tier on the main hall. */
-export const HALL_TIER_HEIGHT = 1.6;
+/** Rise of a hall's gable, eaves to ridge. */
+export const HALL_ROOF_RISE = 2.4;
+/** Rise of the second, receding roof tier on the main hall. */
+export const HALL_TIER_RISE = 1.6;
+/**
+ * How much of the hall the second, receding roof tier covers.
+ *
+ * A Lanna hall's roof steps inward as it rises, and a tier that is
+ * barely smaller than the one below reads as two stacked slabs rather
+ * than a stepped roof. 0.78 is the point where the step reads.
+ */
+export const HALL_TIER_SCALE = 0.78;
 
 /** A modelled side hall. */
 export const SIDE_HALL_WIDTH = 7;
 export const SIDE_HALL_DEPTH = 6;
 export const SIDE_HALL_BODY_HEIGHT = 5;
-export const SIDE_HALL_ROOF_HEIGHT = 1.8;
+/** Rise of a side hall's gable, eaves to ridge. */
+export const SIDE_HALL_ROOF_RISE = 1.8;
 
-/** How far the roof overhangs the wall it sits on, as a fraction. */
+/** Metres of roof overhang beyond each side of its fitted rectangle. */
 export const ROOF_OVERHANG = 0.1;
 
 /** A compound needs a short side this wide before it gets a chedi. */
@@ -203,13 +232,8 @@ export const SIDE_HALL_MIN_SHORT_SIDE = 24;
 
 type Vec = { x: number; y: number };
 
-const EARTH_LAT_M = 110574;
-const EARTH_LON_M = 111320;
-
 /** Metres per degree of longitude at the given latitude. */
-export function metresPerDegreeLon(latitude: number): number {
-  return EARTH_LON_M * Math.cos((latitude * Math.PI) / 180);
-}
+export { metresPerDegreeLon } from "./geo.ts";
 
 function ringToLocal(ring: Ring, origin: [number, number], mPerLon: number, mPerLat: number): Vec[] {
   return ring.map((p) => ({ x: (p[0] - origin[0]) * mPerLon, y: (p[1] - origin[1]) * mPerLat }));
@@ -500,6 +524,7 @@ export function composeCompound(input: ComposeInput): CompoundResult {
   if (!Number.isFinite(areaM2) || pts.length < 3 || areaM2 < COMPOUND_MIN_AREA_M2) {
     return {
       parts: [],
+      roofs: [],
       evidence: "single-footprint",
       areaM2: Number.isFinite(areaM2) ? areaM2 : 0,
       shortSideM: 0,
@@ -539,6 +564,44 @@ export function composeCompound(input: ComposeInput): CompoundResult {
     // a malformed polygon that GeoJSON consumers must reject.
     const ring = localToRing(closeRing(ringPts), origin, mPerLon, mPerLat);
     parts.push({ kind, origin: originKind, tier, ring, height, base_height: baseHeight, heightSource });
+  };
+
+  // ─── The roofs ────────────────────────────────────────────────────────
+  //
+  // A roof is drawn as a real gable — two slopes and two gable ends —
+  // not as a thinner box. The ridge runs along the part's long side,
+  // which for a hall is across the compound's axis, the way an ubosot
+  // is actually built: you read the facade, not the side.
+  //
+  // The rise is the grammar's, always, and it is carved out of the
+  // part's own height where that height is mapped: a hall whose OSM
+  // height is 9 m gets a 9 m building, wall and roof together.
+  const roofs: RoofInstance[] = [];
+  const addRoof = (
+    ring: Ring,
+    eaves: number,
+    wanted: number,
+    category: RoofCategory,
+    scale = 1,
+  ): void => {
+    if (!Number.isFinite(eaves) || eaves <= 0) return;
+    if (!Number.isFinite(wanted) || wanted <= 0) return;
+    // A roof may not eat more than half the building it caps.
+    const rise = Math.min(wanted, eaves * 1.1);
+    if (rise < 0.5) return;
+    const fit = minAreaRect(ring);
+    if (!fit) return;
+    roofs.push({
+      centre: fit.centre,
+      length: fit.length * scale + ROOF_OVERHANG * 2,
+      width: fit.width * scale + ROOF_OVERHANG * 2,
+      rotation: fit.rotation,
+      eaves,
+      rise,
+      kind: "gable",
+      category,
+      total: eaves + rise,
+    });
   };
 
   // ── The wall: the mapped boundary, given thickness and height.
@@ -588,7 +651,7 @@ export function composeCompound(input: ComposeInput): CompoundResult {
   const gateCentre = approachEnd;
   const gateRing = rect(gateCentre, axis.dir, GATE_WIDTH, GATE_DEPTH);
   push("gate", "model", gateRing, GATE_BODY_HEIGHT, "grammar");
-  push("gate", "model", scaleRing(gateRing, 1 + ROOF_OVERHANG), GATE_ROOF_HEIGHT, "grammar", GATE_BODY_HEIGHT, "roof");
+  addRoof(localToRing(closeRing(gateRing), origin, mPerLon, mPerLat), GATE_BODY_HEIGHT, GATE_ROOF_RISE, "gate");
 
   // ── The interior buildings, in local metres.
   const interiorLocals = input.interiors
@@ -633,9 +696,19 @@ export function composeCompound(input: ComposeInput): CompoundResult {
     hallCentre = measuredHall.centre;
     hallWidth = HALL_WIDTH;
     hallDepth = HALL_DEPTH;
-    hallBodyHeight = measuredHall.height;
+    // A mapped height is the total, roof included, so the gable is
+    // carved out of it and the hall keeps the height OSM gave it.
+    const mappedHeight = measuredHall.height;
+    const candidateRise = Math.min(HALL_ROOF_RISE, Math.max(0, mappedHeight * 0.45));
+    const rise = candidateRise >= 0.5 ? candidateRise : 0;
+    hallBodyHeight = mappedHeight - rise;
     push("hall", "measured", measuredHall.pts, hallBodyHeight, measuredHall.heightSource);
-    push("hall", "model", scaleRing(measuredHall.pts, 1 + ROOF_OVERHANG), HALL_ROOF_HEIGHT, "grammar", hallBodyHeight, "roof");
+    addRoof(
+      localToRing(closeRing(measuredHall.pts), origin, mPerLon, mPerLat),
+      hallBodyHeight,
+      rise,
+      "hall",
+    );
   } else {
     // No mapped hall: the grammar puts one at the north end of the
     // axis, set back from the wall by its own depth.
@@ -649,9 +722,18 @@ export function composeCompound(input: ComposeInput): CompoundResult {
     };
     const hallRing = rect(hallCentre, axis.dir, hallWidth, hallDepth);
     push("hall", "model", hallRing, hallBodyHeight, "grammar");
-    push("hall", "model", scaleRing(hallRing, 1 + ROOF_OVERHANG), HALL_ROOF_HEIGHT, "grammar", hallBodyHeight, "roof");
+    addRoof(localToRing(closeRing(hallRing), origin, mPerLon, mPerLat), hallBodyHeight, HALL_ROOF_RISE, "hall");
     // A second, receding tier — the stepped roof a Lanna hall has.
-    push("hall", "model", scaleRing(hallRing, 1 + ROOF_OVERHANG * 0.35), HALL_TIER_HEIGHT, "grammar", hallBodyHeight + HALL_ROOF_HEIGHT, "roof");
+    // It sits partway up the first gable, which is where a real
+    // stepping roof's eave line is, so it reads as a step and not as
+    // a slab floating over the ridge.
+    addRoof(
+      localToRing(closeRing(hallRing), origin, mPerLon, mPerLat),
+      hallBodyHeight + HALL_ROOF_RISE * 0.42,
+      HALL_TIER_RISE,
+      "hall",
+      HALL_TIER_SCALE,
+    );
   }
 
   // ── Flanking side halls, one each side of the axis.
@@ -681,21 +763,47 @@ export function composeCompound(input: ComposeInput): CompoundResult {
       );
     if (left) {
       left.used = true;
-      push("side_hall", "measured", left.pts, left.height, left.heightSource);
-      push("side_hall", "model", scaleRing(left.pts, 1 + ROOF_OVERHANG), SIDE_HALL_ROOF_HEIGHT, "grammar", left.height, "roof");
+      const candidateRise = Math.min(SIDE_HALL_ROOF_RISE, left.height * 0.45);
+      const rise = candidateRise >= 0.5 ? candidateRise : 0;
+      const body = left.height - rise;
+      push("side_hall", "measured", left.pts, body, left.heightSource);
+      addRoof(
+        localToRing(closeRing(left.pts), origin, mPerLon, mPerLat),
+        body,
+        rise,
+        "side_hall",
+      );
     } else {
       const r = sideRing(-1);
       push("side_hall", "model", r, SIDE_HALL_BODY_HEIGHT, "grammar");
-      push("side_hall", "model", scaleRing(r, 1 + ROOF_OVERHANG), SIDE_HALL_ROOF_HEIGHT, "grammar", SIDE_HALL_BODY_HEIGHT, "roof");
+      addRoof(
+        localToRing(closeRing(r), origin, mPerLon, mPerLat),
+        SIDE_HALL_BODY_HEIGHT,
+        SIDE_HALL_ROOF_RISE,
+        "side_hall",
+      );
     }
     if (right) {
       right.used = true;
-      push("side_hall", "measured", right.pts, right.height, right.heightSource);
-      push("side_hall", "model", scaleRing(right.pts, 1 + ROOF_OVERHANG), SIDE_HALL_ROOF_HEIGHT, "grammar", right.height, "roof");
+      const candidateRise = Math.min(SIDE_HALL_ROOF_RISE, right.height * 0.45);
+      const rise = candidateRise >= 0.5 ? candidateRise : 0;
+      const body = right.height - rise;
+      push("side_hall", "measured", right.pts, body, right.heightSource);
+      addRoof(
+        localToRing(closeRing(right.pts), origin, mPerLon, mPerLat),
+        body,
+        rise,
+        "side_hall",
+      );
     } else {
       const r = sideRing(1);
       push("side_hall", "model", r, SIDE_HALL_BODY_HEIGHT, "grammar");
-      push("side_hall", "model", scaleRing(r, 1 + ROOF_OVERHANG), SIDE_HALL_ROOF_HEIGHT, "grammar", SIDE_HALL_BODY_HEIGHT, "roof");
+      addRoof(
+        localToRing(closeRing(r), origin, mPerLon, mPerLat),
+        SIDE_HALL_BODY_HEIGHT,
+        SIDE_HALL_ROOF_RISE,
+        "side_hall",
+      );
     }
   }
 
@@ -775,16 +883,22 @@ export function composeCompound(input: ComposeInput): CompoundResult {
   const leftovers = interiorLocals.filter((b) => !b.used);
   for (const b of leftovers) {
     b.used = true;
-    push("hall", "measured", b.pts, b.height, b.heightSource);
+    // A mapped outbuilding's height is its total, roof included, so the
+    // gable comes out of it rather than on top of it.
+    const candidateRise = Math.min(HALL_ROOF_RISE, Math.max(0, b.height * 0.45));
+    const rise = b.area >= 90 && candidateRise >= 0.5 ? candidateRise : 0;
+    const body = b.height - rise;
+    push("hall", "measured", b.pts, body, b.heightSource);
     // A roof cap on the substantial ones only: a monastic cell's eave
     // is invisible at city zoom and the part count is not free.
     if (b.area >= 90) {
-      push("hall", "model", scaleRing(b.pts, 1 + ROOF_OVERHANG), HALL_ROOF_HEIGHT, "grammar", b.height, "roof");
+      addRoof(localToRing(closeRing(b.pts), origin, mPerLon, mPerLat), body, rise, "hall");
     }
   }
 
   return {
     parts,
+    roofs,
     evidence: hasFootprints ? "osm-footprints" : "osm-boundary-only",
     areaM2,
     shortSideM,

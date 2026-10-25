@@ -32,7 +32,6 @@ function loadGeoJson(filename: string): {
 
 describe("buildings-core.geojson", () => {
   const data = loadGeoJson("buildings-core.geojson");
-
   it("is a valid FeatureCollection", () => {
     expect(data.type).toBe("FeatureCollection");
     expect(Array.isArray(data.features)).toBe(true);
@@ -229,6 +228,136 @@ describe("open-data/index.json", () => {
     for (const d of data.datasets.slice(0, 50)) {
       expect(typeof d.id).toBe("string");
       expect((d.titleTh ?? d.nameTh ?? "").length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("the roof tables", () => {
+  function loadRoofs(filename: string): {
+    version: number;
+    note: string;
+    columns: string[];
+    kinds: string[];
+    groups: string[];
+    categories: string[];
+    rows: number[][];
+  } {
+    const path = resolve(DATA_DIR, filename);
+    if (!existsSync(path)) {
+      throw new Error(`fixture missing: ${path} — run scripts/build-cnx-roofs.mjs`);
+    }
+    return JSON.parse(readFileSync(path, "utf8"));
+  }
+
+  const city = loadRoofs("roofs-city.json");
+  const temple = loadRoofs("roofs-temple.json");
+
+  it("declares its columns, and every row has one value per column", () => {
+    for (const table of [city, temple]) {
+      expect(table.version).toBe(1);
+      expect(table.columns).toEqual([
+        "lon",
+        "lat",
+        "length",
+        "width",
+        "rotation",
+        "eaves",
+        "rise",
+        "kind",
+        "group",
+        "category",
+      ]);
+      for (const row of table.rows) expect(row).toHaveLength(table.columns.length);
+    }
+  });
+
+  it("says where the roof form came from", () => {
+    // The form is a model; the note has to say so, because a reader
+    // of the file has no other way to know.
+    for (const table of [city, temple]) {
+      expect(table.note.length).toBeGreaterThan(100);
+      expect(table.note).toContain("model");
+      expect(table.note).toContain("OSM");
+    }
+  });
+
+  it("never emits a number that is not a number", () => {
+    for (const table of [city, temple]) {
+      for (const row of table.rows) {
+        for (const value of row) expect(Number.isFinite(value)).toBe(true);
+      }
+    }
+  });
+
+  it("gives every roof a size and a place", () => {
+    for (const table of [city, temple]) {
+      for (const row of table.rows) {
+        expect(row[2]).toBeGreaterThan(0); // length
+        expect(row[3]).toBeGreaterThan(0); // width
+        expect(row[5]).toBeGreaterThan(0); // eaves
+        expect(row[6]).toBeGreaterThan(0); // rise
+        expect(Math.abs(row[0])).toBeGreaterThan(90); // lon
+        expect(Math.abs(row[1])).toBeLessThan(20); // lat
+      }
+    }
+  });
+
+  it("carries a roof for every building in the city", () => {
+    const buildings = loadGeoJson("buildings-core.geojson");
+    const wide = loadGeoJson("buildings-wide.geojson");
+    expect(city.rows.length).toBe(buildings.features.length + wide.features.length);
+  });
+
+  it("carries a roof for every temple compound", () => {
+    const compounds = loadGeoJson("temple-compounds.geojson");
+    const meta = (compounds as unknown as { meta?: { roofs?: { rows?: number[][] } } }).meta;
+    expect(meta?.roofs?.rows?.length ?? 0).toBe(temple.rows.length);
+    expect(temple.rows.length).toBeGreaterThan(1000);
+  });
+
+  it("draws the temple roofs in the temple group and the city roofs in theirs", () => {
+    for (const row of temple.rows) expect(temple.groups[row[8]]).toBe("temple");
+    for (const row of city.rows) expect(city.groups[row[8]]).not.toBe("temple");
+  });
+
+  it("has both roof kinds, and says which is which", () => {
+    for (const table of [city, temple]) {
+      expect(table.kinds).toEqual(["gable", "flat"]);
+      const kinds = new Set(table.rows.map((r) => table.kinds[r[7]]));
+      expect(kinds.has("gable")).toBe(true);
+    }
+    // The city is mostly gabled and a minority flat, which is the rule
+    // the board states.
+    const gables = city.rows.filter((r) => city.kinds[r[7]] === "gable").length;
+    expect(gables / city.rows.length).toBeGreaterThan(0.7);
+    expect(gables / city.rows.length).toBeLessThan(0.95);
+  });
+});
+
+describe("temple roof failure fallback", () => {
+  const compounds = loadGeoJson("temple-compounds.geojson");
+  it("persists full top heights and removable roof rises for every native part", () => {
+    for (const feature of compounds.features) {
+      const part = feature.properties;
+      expect(typeof part.total_height).toBe("number");
+      expect(typeof part.roof_rise).toBe("number");
+      expect(Number(part.height)).toBeGreaterThan(Number(part.base_height));
+      expect(Number(part.total_height)).toBeCloseTo(Number(part.height) + Number(part.roof_rise), 6);
+    }
+    expect(compounds.features.some(feature => Number(feature.properties.roof_rise) > 0)).toBe(true);
+  });
+  it("can restore every standalone and stepped roof ridge from the native fallback", () => {
+    const table = JSON.parse(readFileSync(resolve(DATA_DIR, "roofs-temple.json"), "utf8"));
+    for (const row of table.rows as number[][]) {
+      const [lon, lat, , , , eaves, rise] = row;
+      const category = table.categories[row[9]];
+      const candidates = compounds.features.filter(feature => {
+        if (feature.properties.part !== category) return false;
+        const ring = (feature.geometry.coordinates as number[][][])[0];
+        return lon >= Math.min(...ring.map(point => point[0])) - 1e-6 && lon <= Math.max(...ring.map(point => point[0])) + 1e-6 &&
+          lat >= Math.min(...ring.map(point => point[1])) - 1e-6 && lat <= Math.max(...ring.map(point => point[1])) + 1e-6;
+      });
+      expect(candidates.some(feature => Number(feature.properties.total_height) >= eaves + rise - 0.02)).toBe(true);
     }
   });
 });

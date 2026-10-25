@@ -46,6 +46,11 @@ import type { Map as MaplibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import type { DataDrivenPropertyValueSpecification } from "@maplibre/maplibre-gl-style-spec";
 
 import { basemapStyle, BASEMAP_OPTIONS, type BasemapId } from "../../services/basemap-styles";
+import {
+  RoofLayer,
+  parseRoofTable,
+  type RoofRow,
+} from "../../lib/cnx/roof-layer";
 import type { FlightState } from "../../lib/cnx/opensky";
 import type { CnxHeritageSite, AirStation, FireHotspot, CnxFloodGauge, CctvSlot } from "../../types/cnx";
 import type { Waterway } from "../../lib/cnx/waterways";
@@ -103,6 +108,8 @@ const BUILDINGS_WIDE_LAYER = "cnx-buildings-wide-fill";
 const TEMPLES_SOURCE = "cnx-temple-compounds";
 const TEMPLES_LAYER = "cnx-temple-compounds-fill";
 const TEMPLE_COURT_LAYER = "cnx-temple-courts";
+/** The roof layer — a custom layer, so it shares the map's depth buffer. */
+const ROOF_LAYER_ID = "cnx-roofs";
 
 interface CompoundShade {
   measured: string;
@@ -656,6 +663,8 @@ export default function CNXMap({
     kindValue?: string;
     height: number;
     levels?: number | null;
+    /** "gable" | "flat" — the roof the layer draws, or null if none. */
+    roofKind?: "gable" | "flat" | null;
     address?: string | null;
     coordinates?: [number, number];
     /** Set when the clicked feature is a part of a temple compound. */
@@ -774,6 +783,98 @@ export default function CNXMap({
   const mlMapRef = useRef<MaplibreMap | null>(null);
   const layersRef = useRef<HTMLDetailsElement | null>(null);
   const [mapReady, setMapReady] = useState(false);
+
+  // ─── The roofs ────────────────────────────────────────────────────────
+  //
+  // The 3D city used to be a field of boxes. A box says "there is a
+  // building of this size here" and nothing else, so the board read as
+  // the satellite image it came from. The roof layer draws schematic roofs:
+  // a tiled gable over a shophouse, a flat concrete cap on a warehouse,
+  // a stepped Lanna gable on a wat.
+  //
+  // The roof FORM is a model — OpenStreetMap carries roof tags for
+  // 0.26% of the Old City's buildings — and the board says so where the
+  // roofs are drawn. Each roof reuses the existing building total:
+  // an explicit OSM height, levels × 3m, or a 9m fallback. It adds no
+  // measured-height claim.
+  //
+  // Two tables, fetched at different times: the temple roofs come with
+  // the compound layer, which is on by default, and the city roofs come
+  // with the 3D city, which is not.
+  const roofLayerRef = useRef<RoofLayer | null>(null);
+  const templeRoofRowsRef = useRef<RoofRow[]>([]);
+  const cityRoofRowsRef = useRef<RoofRow[]>([]);
+  const [roofTablesLoaded, setRoofTablesLoaded] = useState(0);
+  const templeRoofsInView = viewState.zoom >= 11;
+  const [roofTableFailures, setRoofTableFailures] = useState<string[]>([]);
+  const [roofError, setRoofError] = useState<string | null>(null);
+  const [roofRendererReady, setRoofRendererReady] = useState(false);
+  const onRoofState = useCallback((error: string | null) => {
+    setRoofError(error);
+    setRoofRendererReady(error === null);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = (url: string, into: "temple" | "city"): void => {
+      fetch(url)
+        .then((r) => {
+          if (!r.ok) throw new Error("Roof table unavailable");
+          return r.json();
+        })
+        .then((table) => {
+          if (cancelled || !table) return;
+          const rows = parseRoofTable(table);
+          if (rows.length === 0) throw new Error("No renderable roofs in table");
+          if (into === "temple") templeRoofRowsRef.current = rows;
+          else cityRoofRowsRef.current = rows;
+          setRoofTableFailures((failed) => failed.filter((group) => group !== into));
+          setRoofTablesLoaded((n) => n + 1);
+        })
+        .catch(() => {
+          if (!cancelled) setRoofTableFailures((failed) => failed.includes(into) ? failed : [...failed, into]);
+        });
+    };
+    if (templesOn && templeRoofRowsRef.current.length === 0) {
+      load("/data/cnx/roofs-temple.json", "temple");
+    }
+    if (buildingsOn && cityRoofRowsRef.current.length === 0) {
+      load("/data/cnx/roofs-city.json", "city");
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [templesOn, buildingsOn]);
+
+  // Put the roofs on the map, and tell them which city they are in.
+  //
+  // The city roofs follow the same zoom split as the city blocks: the
+  // dense core above zoom 13, the sparse fringe below it. The temple
+  // roofs follow the compound layer.
+  useEffect(() => {
+    const map = mlMapRef.current;
+    if (!map || !mapReady) return;
+    const layer = roofLayerRef.current ?? new RoofLayer(onRoofState);
+    roofLayerRef.current = layer;
+
+    const groups: string[] = [];
+    if (templesOn && templeRoofsInView) groups.push("temple");
+    if (buildingsOn) groups.push(wideBuildings ? "wide" : "core");
+    layer.setRows([...templeRoofRowsRef.current, ...cityRoofRowsRef.current]);
+    layer.setGroups(groups);
+    if (groups.length === 0) return;
+
+    if (!map.getLayer(ROOF_LAYER_ID)) {
+      if (!map.isStyleLoaded()) return;
+      try {
+        map.addLayer(layer);
+      } catch (e) {
+        // A style that is mid-replacement cannot take a custom layer.
+        // The next effect run puts it back.
+        console.warn(`[roofs] layer not added: ${(e as Error).message}`);
+      }
+    }
+  }, [mapReady, templesOn, buildingsOn, wideBuildings, roofTablesLoaded, templeRoofsInView, onRoofState]);
 
   // The Layers control and the verdict band's evidence panel are exclusive
   // overlays: one of them closes when the other opens, so neither can cover
@@ -1287,7 +1388,7 @@ export default function CNXMap({
       // rather than casting the whole bag to `any`.
       const str = (v: unknown): string | undefined =>
         typeof v === "string" && v.length > 0 ? v : undefined;
-      const bHeight = Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
+      const bHeight = Number(props.total_height) || Number(props.height) || (props.levels ? Number(props.levels) * 3 : 9);
       const isCompound = props.part != null;
       const rawId = props.id;
       const id: string | number =
@@ -1302,7 +1403,10 @@ export default function CNXMap({
         kind: str(props.kind) ?? (isCompound ? "temple" : "building"),
         kindValue: str(props.kind_value),
         height: bHeight,
-        levels: props.levels ? Number(props.levels) : Math.round(bHeight / 3),
+        levels: props.levels ? Number(props.levels) : null,
+        // Which roof the roof layer will put on it. The form is a
+        // model, and the card says so.
+        roofKind: props.roof_kind === 1 ? "gable" : props.roof_kind === 0 ? "flat" : null,
         address: str(props.addr) ?? null,
         coordinates: [lngLat.lng, lngLat.lat],
         // The compound's own provenance, so the card can say which
@@ -1345,9 +1449,11 @@ export default function CNXMap({
     if (!root || !map) return;
     const onPick = (ev: MouseEvent) => {
       const target = ev.target as HTMLElement | null;
-      // Only a click on a canvas is a map click. The layer panel, the
-      // symbol key and the card are all DOM sitting over the map.
-      if (!target || target.tagName !== "CANVAS") return;
+      // A click that lands on one of the board's own panels is not a
+      // map click. The panels are marked rather than inferred: the
+      // event's target is deck.gl's event-root DIV, not a canvas, so
+      // "is it a canvas?" rejects every real click on the map.
+      if (target?.closest?.("[data-cnx-map-ui], .maplibregl-control")) return;
       const rect = map.getCanvas().getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) return;
       const point: [number, number] = [ev.clientX - rect.left, ev.clientY - rect.top];
@@ -1405,7 +1511,15 @@ export default function CNXMap({
               minzoom: 13,
               paint: {
                 "fill-extrusion-color": buildingColorExpr(),
-                "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+                // The wall stops where the roof starts. OSM's height is
+                // the total, roof included, and the roof layer draws
+                // the roof back up to it — so the building keeps the
+                // height the data gave it.
+                "fill-extrusion-height": [
+                  "-",
+                  ["get", "height"],
+                  ["coalesce", ["get", "roof_rise"], 0],
+                ] as DataDrivenPropertyValueSpecification<number>,
                 "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
                 "fill-extrusion-opacity": 0.85,
                 "fill-extrusion-vertical-gradient": false,
@@ -1430,7 +1544,15 @@ export default function CNXMap({
               maxzoom: 13,
               paint: {
                 "fill-extrusion-color": buildingColorExpr(),
-                "fill-extrusion-height": ["get", "height"] as DataDrivenPropertyValueSpecification<number>,
+                // The wall stops where the roof starts. OSM's height is
+                // the total, roof included, and the roof layer draws
+                // the roof back up to it — so the building keeps the
+                // height the data gave it.
+                "fill-extrusion-height": [
+                  "-",
+                  ["get", "height"],
+                  ["coalesce", ["get", "roof_rise"], 0],
+                ] as DataDrivenPropertyValueSpecification<number>,
                 "fill-extrusion-base": ["get", "base_height"] as DataDrivenPropertyValueSpecification<number>,
                 "fill-extrusion-opacity": 0.7,
                 "fill-extrusion-vertical-gradient": false,
@@ -1440,6 +1562,14 @@ export default function CNXMap({
         }
         if (map.getLayer(BUILDINGS_CORE_LAYER)) map.setLayoutProperty(BUILDINGS_CORE_LAYER, "visibility", buildingsOn && !wideBuildings ? "visible" : "none");
         if (map.getLayer(BUILDINGS_WIDE_LAYER)) map.setLayoutProperty(BUILDINGS_WIDE_LAYER, "visibility", buildingsOn && wideBuildings ? "visible" : "none");
+        // Missing tables or a failed GPU layer keep the original full
+        // building totals; never silently leave shortened, roofless walls.
+        for (const id of [BUILDINGS_CORE_LAYER, BUILDINGS_WIDE_LAYER]) {
+          if (map.getLayer(id)) map.setPaintProperty(id, "fill-extrusion-height",
+            roofRendererReady && cityRoofRowsRef.current.length > 0
+              ? ["-", ["get", "height"], ["coalesce", ["get", "roof_rise"], 0]]
+              : ["get", "height"]);
+        }
 
         // ─── temple compounds (place_of_worship boundaries + interiors)
         //
@@ -1489,6 +1619,22 @@ export default function CNXMap({
         }
         map.setLayoutProperty(TEMPLE_COURT_LAYER, "visibility", templesOn ? "visible" : "none");
         map.setLayoutProperty(TEMPLES_LAYER, "visibility", templesOn ? "visible" : "none");
+        map.setPaintProperty(TEMPLES_LAYER, "fill-extrusion-height",
+          roofRendererReady && templeRoofRowsRef.current.length > 0
+            ? ["get", "height"]
+            : ["+", ["get", "height"], ["coalesce", ["get", "roof_rise"], 0]]);
+
+        // The roofs go on after the walls they cap. A style change
+        // wipes custom layers, so this runs again with the rest.
+        const roofLayer = roofLayerRef.current ?? new RoofLayer(onRoofState);
+        roofLayerRef.current = roofLayer;
+        if (!map.getLayer(ROOF_LAYER_ID)) {
+          try {
+            map.addLayer(roofLayer);
+          } catch (e) {
+            console.warn(`[roofs] layer not added: ${(e as Error).message}`);
+          }
+        }
 
         const onLayerClick = (e: MapLayerMouseEvent) => {
           selectFeature(e.features?.[0], { lng: e.lngLat.lng, lat: e.lngLat.lat });
@@ -1527,7 +1673,7 @@ export default function CNXMap({
       cancelled = true;
       removeListeners();
     };
-  }, [basemap, buildingsOn, templesOn, wideBuildings, mapReady, selectFeature]);
+  }, [basemap, buildingsOn, templesOn, wideBuildings, mapReady, selectFeature, roofRendererReady, roofTablesLoaded, onRoofState]);
 
   // Weather overlays — rain radar, Himawari infrared, MODIS aerosol.
   // Tile URL templates come from /api/cnx/weather-layers (server-side
@@ -1746,6 +1892,7 @@ export default function CNXMap({
           paid for once. See src/lib/cnx/exclusive-overlay.ts. */}
       <details
         ref={layersRef}
+        data-cnx-map-ui
         className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
         onToggle={(event) => {
           if (event.currentTarget.open) claimExclusiveOverlay("map-layers");
@@ -1939,10 +2086,16 @@ export default function CNXMap({
       </div>
 
       {/* Atlas-compatible Building Information Card */}
+      {(roofError || (templesOn && roofTableFailures.includes("temple")) || (buildingsOn && roofTableFailures.includes("city"))) && (templesOn || buildingsOn) && (
+        <p data-cnx-map-ui role="status" className="absolute bottom-24 left-2 z-10 max-w-[calc(100%-1rem)] border border-[var(--line)] bg-[var(--bg-raised)] px-2 py-1 text-[12px] text-[var(--ink)]">
+          {t("หลังคา 3 มิติไม่พร้อมใช้ · แสดงอาคารเต็มความสูงแทน", "3D roofs unavailable · showing full-height buildings")}
+        </p>
+      )}
       {selectedBuilding && (
         <aside
           aria-label={t("รายละเอียดอาคาร 3 มิติ", "3D building details")}
-          className="absolute bottom-12 left-3 z-40 max-w-[340px] border border-[var(--line)] bg-[var(--bg-raised)] p-3"
+          data-cnx-map-ui
+          className="absolute bottom-12 left-3 z-40 max-h-[calc(100%-6rem)] w-[min(340px,calc(100%-1.5rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3"
         >
           <div className="flex items-start justify-between gap-2 border-b border-[var(--line)] pb-2">
             <div className="min-w-0 flex-1">
@@ -1954,14 +2107,14 @@ export default function CNXMap({
                   {t("พร้อมรับข้อมูล", "Atlas ready")}
                 </span>
               </div>
-              <h3 className="mt-1 truncate font-mono text-[13px] font-bold text-[var(--ink)]">
+              <h3 className="mt-1 break-words font-mono text-[13px] font-bold text-[var(--ink)]">
                 {(lang === "en" ? selectedBuilding.nameEn || selectedBuilding.name : selectedBuilding.name) || t(`อาคาร #${selectedBuilding.id}`, `Building #${selectedBuilding.id}`)}
               </h3>
             </div>
             <button
               type="button"
               onClick={() => setSelectedBuilding(null)}
-              className="flex h-5 w-5 items-center justify-center text-[12px] font-bold text-[var(--dim)] hover:bg-[var(--line)] hover:text-[var(--ink)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center text-[16px] font-bold text-[var(--dim)] hover:bg-[var(--line)] hover:text-[var(--ink)]"
               aria-label={t("ปิด", "Close")}
             >
               ✕
@@ -1981,22 +2134,24 @@ export default function CNXMap({
                 {KIND_LABEL[selectedBuilding.kind] ? t(KIND_LABEL[selectedBuilding.kind].th, KIND_LABEL[selectedBuilding.kind].en) : selectedBuilding.kind}
               </span>
             </div>
-            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">👥 {t("ประชากร (คน)", "Population")}</span>
-              <span className="italic text-[var(--dim)]">{t("รอเชื่อมโยงข้อมูล", "Not yet linked")}</span>
-            </div>
-            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">⚡ {t("ไฟฟ้าสูงสุด", "Peak electricity")}</span>
-              <span className="italic text-[var(--dim)]">{t("รอเชื่อม กฟภ.", "PEA not yet linked")}</span>
-            </div>
-            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">💧 {t("การใช้น้ำประปา", "Water use")}</span>
-              <span className="italic text-[var(--dim)]">{t("รอเชื่อม กปภ.", "PWA not yet linked")}</span>
-            </div>
-            <div className="border border-[var(--line)] bg-[var(--bg)] p-1.5">
-              <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">📋 {t("สำรวจล่าสุด", "Last survey")}</span>
-              <span className="italic text-[var(--dim)]">{t("รอลงพื้นที่สำรวจ", "Awaiting field survey")}</span>
-            </div>
+            {selectedBuilding.roofKind && (
+              <div className="col-span-2 border border-[var(--line)] bg-[var(--bg)] p-1.5">
+                <span className="block text-[11px] uppercase tracking-wider text-[var(--dim)]">
+                  {t("หลังคา", "Roof")}
+                </span>
+                <span className="font-bold text-[var(--ink)]">
+                  {selectedBuilding.roofKind === "gable"
+                    ? t("หลังคาจั่ว (แบบจำลอง)", "Gable (schematic)")
+                    : t("หลังคาแบน (แบบจำลอง)", "Flat (schematic)")}
+                </span>
+                <span className="block italic text-[var(--dim)]">
+                  {t(
+                    "รูปทรงเป็นแบบจำลอง ไม่ใช่การสำรวจวัสดุหลังคา · ความสูงอาจมาจาก OSM จำนวนชั้น × 3 ม. หรือค่าเริ่มต้น 9 ม.",
+                    "Schematic form, not a roof-material survey. Heights may use OSM tags, floors × 3m, or a 9m default.",
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           {selectedBuilding.templePart && (
@@ -2016,7 +2171,7 @@ export default function CNXMap({
                   }
                 >
                   {selectedBuilding.templePart.origin === "measured"
-                    ? t("วัดจริง", "Measured")
+                    ? t("ผัง OSM", "OSM footprint")
                     : t("แบบจำลอง", "Modelled")}
                 </span>
                 {selectedBuilding.templePart.tier === "roof" && (
