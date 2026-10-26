@@ -7,7 +7,7 @@
 // fresh one.
 
 import { describe, it, expect } from "vitest";
-import { computeVerdict, isCurrentGaugeReading, type VerdictInputs, type PingMeasured } from "./verdict";
+import { bandForScore, computeVerdict, isCurrentGaugeReading, type VerdictInputs, type PingMeasured } from "./verdict";
 
 /** A real P.1 reading as observed on 2026-10-02: 2.42 m of headroom. */
 function measured(over: Partial<PingMeasured> = {}): PingMeasured {
@@ -54,6 +54,24 @@ describe("a measured gauge unblinds the flood axis", () => {
     const v = computeVerdict({ ...silent, pm25_now: 10, ping_measured: measured() });
     expect(v.score).toBe(0);
     expect(v.level).toBe("safe");
+  });
+
+  it("requires watch for the 53 mm Doi Tao reading even beside a calm P.1 gauge and low current air", () => {
+    const v = computeVerdict({
+      ...silent,
+      pm25_now: 16.5,
+      fire_count: 5,
+      wind_kmh: 10,
+      ping_measured: measured({ headroomM: 2.33, belowBankM: null, levelMsl: 301.87, reportingCount: 45 }),
+      rain_measured: { maxMm: 53, districtTh: "ดอยเต่า", districtEn: "Doi Tao", heavyGauges: 1, observedAt: new Date(Date.now() - 90 * 60_000).toISOString() },
+    });
+    expect(v.score).toBe(10);
+    expect(bandForScore(v.score)).toBe("normal");
+    expect(v.band).toBe("watch");
+    expect(v.level).toBe("watch");
+    expect(v.head_en).toMatch(/^Heavy rain 53 mm in 24 h at Doi Tao/);
+    expect(v.reasons[0].evidence).toMatch(/^rain_gauge_max=53;/);
+    expect(v.reasons.some(reason => reason.isCaveat && reason.domain === "flood")).toBe(false);
   });
 
   it("a quiet river cannot certify safe when current air is missing", () => {

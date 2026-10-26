@@ -122,25 +122,13 @@ export default function CNXDataLibrary() {
         </p>
       </header>
 
-      {/* ─── Stats ────────────────────────────────────────────── */}
-      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-y border-[var(--line)] py-3">
-        <Stat value={String(s.datasets)} label={t("ชุดข้อมูลทั้งหมด", "Datasets")} sub={t(`ไฟล์และลิงก์ ${s.resources.toLocaleString()} รายการ`, `${s.resources.toLocaleString()} files & links`)} />
-        <Stat value={String(s.readyDatasets)} label={t("ชุดที่เป็นตารางพร้อมใช้", "Ready as tables")} sub={t(`อ่านแล้ว ${s.tables} ตาราง`, `${s.tables} tables parsed`)} />
-        <Stat value={compactCount(s.rows)} label={t("แถวข้อมูลรวม", "Total rows")} sub={t("รวมทุกตาราง", "across all tables")} />
-        <Stat value={String(s.spatial)} label={t("มีข้อมูลเชิงพื้นที่", "Spatial")} sub={t("มีพิกัดหรือรูปแปลง", "with coordinates / shapes")} />
-        <Stat value={String(s.timeIndexed)} label={t("มีอนุกรมเวลา", "Time series")} sub={t("วัน / เดือน / ปี", "date / month / year")} />
-        <Stat value={String(s.numeric)} label={t("วิเคราะห์ตัวเลขได้", "Numeric")} sub={t("พบคอลัมน์ตัวเลข", "numeric fields detected")} />
-        <Stat value={String(s.filesOnly)} label={t("เป็นไฟล์เอกสาร/ภาพ", "Documents & images")} sub={t("PDF · ภาพ · shapefile", "PDF · images · shapefiles")} />
-        <Stat value={String(s.linkOnly + s.unreadableResources)} label={t("อ่านไม่ได้ — แสดงไว้ตรวจสอบ", "Unreadable — listed")} sub={t("ลิงก์และไฟล์ที่อ่านไม่ได้", "links & unreadable files")} />
-      </div>
-
       {/* ─── List ─────────────────────────────────────────────── */}
       <section className="mt-4" aria-label={t("ค้นหาและกรองชุดข้อมูล", "Search and filter datasets")}>
         <div className="flex flex-wrap gap-2">
           {(
             [
-              ["ready", t(`ตารางที่เตรียมแล้ว · ${s.readyDatasets}`, `Prepared tables · ${s.readyDatasets}`)],
-              ["all", t(`แหล่งข้อมูลทั้งหมด · ${s.datasets}`, `All sources · ${s.datasets}`)],
+              ["ready", t(`ตารางพร้อมใช้ · ${s.readyDatasets}`, `Prepared · ${s.readyDatasets}`)],
+              ["all", t(`ทุกแหล่ง · ${s.datasets}`, `All sources · ${s.datasets}`)],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -205,6 +193,16 @@ export default function CNXDataLibrary() {
 
         <details className="mt-3 text-[13px]">
           <summary className="min-h-11 cursor-pointer py-3 font-semibold text-[var(--cool)]">{t("ขอบเขตและวิธีเตรียมข้อมูล", "Coverage and preparation")}</summary>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-y border-[var(--line)] py-3">
+        <Stat value={String(s.datasets)} label={t("ชุดข้อมูลทั้งหมด", "Datasets")} sub={t(`ไฟล์และลิงก์ ${s.resources.toLocaleString()} รายการ`, `${s.resources.toLocaleString()} files & links`)} />
+        <Stat value={String(s.readyDatasets)} label={t("ชุดที่เป็นตารางพร้อมใช้", "Ready as tables")} sub={t(`อ่านแล้ว ${s.tables} ตาราง`, `${s.tables} tables parsed`)} />
+        <Stat value={compactCount(s.rows)} label={t("แถวข้อมูลรวม", "Total rows")} sub={t("รวมทุกตาราง", "across all tables")} />
+        <Stat value={String(s.spatial)} label={t("มีข้อมูลเชิงพื้นที่", "Spatial")} sub={t("มีพิกัดหรือรูปแปลง", "with coordinates / shapes")} />
+        <Stat value={String(s.timeIndexed)} label={t("มีอนุกรมเวลา", "Time series")} sub={t("วัน / เดือน / ปี", "date / month / year")} />
+        <Stat value={String(s.numeric)} label={t("วิเคราะห์ตัวเลขได้", "Numeric")} sub={t("พบคอลัมน์ตัวเลข", "numeric fields detected")} />
+        <Stat value={String(s.filesOnly)} label={t("เป็นไฟล์เอกสาร/ภาพ", "Documents & images")} sub={t("PDF · ภาพ · shapefile", "PDF · images · shapefiles")} />
+        <Stat value={String(s.linkOnly + s.unreadableResources)} label={t("อ่านไม่ได้ — แสดงไว้ตรวจสอบ", "Unreadable — listed")} sub={t("ลิงก์และไฟล์ที่อ่านไม่ได้", "links & unreadable files")} />
+      </div>
           <div className="max-w-[65ch] space-y-3 pb-3 text-[14px] leading-relaxed">
             <p>{t(
               "ระบบกวาดแค็ตตาล็อก data.go.th ทั้งหมดที่ค้นด้วยคำว่า “เชียงใหม่” ดาวน์โหลดไฟล์ตารางทุกไฟล์ อ่านเป็นตารางมาตรฐาน ตรวจคอลัมน์เชิงพื้นที่ เวลา และตัวเลข แล้วเก็บไฟล์ต้นทางไว้ทุกชุด ข้อมูลที่อ่านไม่ได้ยังแสดงในบัญชีตรวจสอบ ไม่ถูกซ่อน",

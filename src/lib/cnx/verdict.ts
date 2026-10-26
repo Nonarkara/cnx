@@ -510,7 +510,8 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
 
   // ─── Measured rain (gauges) ─────────────────────────────────
   // TMD classes: heavy 35.1–90, very heavy ≥ 90.1 mm / 24 h. Very heavy
-  // rain alone reaches "watch" (25); heavy rain is a stated reason.
+  // rain alone reaches the composite "watch" band (25); heavy rain is
+  // still a scored hazard and requires human attention below that band.
   const rainMeasured = input.rain_measured ?? null;
   const rainAge = rainMeasured ? Date.now() - Date.parse(rainMeasured.observedAt) : NaN;
   if (rainMeasured && Number.isFinite(rainAge) && rainAge >= -5 * 60_000 && rainAge <= 6 * 3_600_000 && Number.isFinite(rainMeasured.maxMm) && rainMeasured.maxMm >= 35.1 && rainMeasured.maxMm <= 500) {
@@ -642,9 +643,14 @@ export function computeVerdict(input: VerdictInputs): VerdictCard {
   // flood axis may never certify safe, and may only certify as far as
   // "watch" on its own (guaranteed by floodScore = 0 for scenario flood).
   const airBlind = input.pm25_now === null && typeof input.dustboy_pm25 !== "number";
-  const level = (floodBlind || airBlind) && scoredLevel === "safe" ? "watch" : scoredLevel;
-  // Keep score/band/level coherent: never publish `score 0 · band normal ·
-  // level watch`, which reads as a contradiction rather than a caveat.
+  const blindWatch = (floodBlind || airBlind) && scoredLevel === "safe";
+  // A low composite is not absence of a hazard: 53 mm measured rain
+  // scores 10 and must not sit beside a "no elevated signal" human label.
+  // Keep the numeric thresholds intact; the operator level describes the
+  // attention required, even when one domain alone is below 25 points.
+  const level = scoredLevel === "safe" && (blindWatch || score > 0) ? "watch" : scoredLevel;
+  // Preserve display coherence for both attention and availability floors:
+  // a watch instruction must not carry a conflicting normal display band.
   const band = level === scoredLevel ? scoredBand : bandForLevel(level);
 
   if (airBlind) {

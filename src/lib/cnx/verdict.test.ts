@@ -533,10 +533,26 @@ describe("computeVerdict — measured rain at gauges", () => {
     expect(v.reasons[0].domain).toBe("flood");
   });
 
-  it("heavy rain is a stated reason without forcing watch by itself", () => {
+  it("heavy rain requires watch while preserving the numeric score and threshold table", () => {
     const v = computeVerdict({ ...calm, rain_measured: { maxMm: 60, districtTh: "แม่แตง", districtEn: "Mae Taeng", heavyGauges: 2, observedAt: new Date().toISOString() } });
     expect(v.reasons.some((r) => /Heavy rain 60 mm/.test(r.en))).toBe(true);
-    expect(v.score).toBeLessThan(25);
+    expect(v.score).toBe(10);
+    expect(bandForScore(v.score)).toBe("normal");
+    expect(v.band).toBe("watch");
+    expect(v.level).toBe("watch");
+  });
+
+  it.each([
+    { domain: "air", patch: { pm25_now: 25 }, score: 10 },
+    { domain: "fire", patch: { fire_count: 10 }, score: 6 },
+    { domain: "river", patch: { ping_capacity_ratio: 0.65 }, score: 15 },
+    { domain: "dam release", patch: { reservoir_surge: true }, score: 15 },
+  ])("a positive $domain contribution cannot produce a safe human label below 25 points", ({ patch, score }) => {
+    const v = computeVerdict({ ...calm, ...patch });
+    expect(v.score).toBe(score);
+    expect(bandForScore(v.score)).toBe("normal");
+    expect(v.band).toBe("watch");
+    expect(v.level).toBe("watch");
   });
 
   it("moderate rain adds nothing", () => {
