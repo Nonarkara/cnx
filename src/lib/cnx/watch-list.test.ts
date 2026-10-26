@@ -546,3 +546,83 @@ describe("RFD seven-day query freshness", () => {
     }
   });
 });
+
+describe("watch inventory re-ages retained observations", () => {
+  const now = new Date("2026-10-09T03:00:00Z");
+  const riverRow = (observedAt: string[]) => buildWatchList({
+    ...baseInput(), now,
+    riverGauges: observedAt.map((stamp, i) => ({ id: String(i), observedAt: stamp }) as never),
+  }).systems.find(item => item.id === "river-gauges")!;
+
+  it("does not describe old river gauges as currently reporting", () => {
+    const row = riverRow(["2026-10-08T23:00:00Z", "2026-10-08T22:00:00Z"]);
+    expect(row.level).toBe("unknown");
+    expect(row.valueEn).toContain("0/2");
+    expect(row.evidenceEn).toContain("historical");
+    expect(row.observedAt).toBe("2026-10-08T23:00:00Z");
+  });
+
+  it("counts current river observations rather than every retained row", () => {
+    const row = riverRow(["2026-10-09T00:00:00Z", "2026-10-08T23:59:59Z", "2026-10-09T03:06:00Z", "invalid"]);
+    expect(row.level).toBe("good");
+    expect(row.valueEn).toContain("1/4");
+    expect(row.observedAt).toBe("2026-10-09T00:00:00Z");
+  });
+
+  const gistda = (amphoe: Array<{ pm25: number; dt: string; severity: "good" | "critical" }>) => ({
+    provenance: "live", generatedAt: now.toISOString(), observedAt: now.toISOString(),
+    amphoe: amphoe.map((a, i) => ({ ...a, ap_tn: `อำเภอ${i}`, ap_en: `District${i}` })),
+    worstAmphoe: { ...amphoe[0], ap_tn: "เก่า", ap_en: "Old" }, provinceAveragePm25: 200, severity: "critical",
+  } as NonNullable<WatchListInput["gistda"]>);
+
+  it.each(["2026-10-08T23:59:59Z", "2026-10-09T03:06:00Z", "invalid", "2026-10-09 09:55"])("does not refresh an old or unverifiable district with a new JSON envelope (%s)", dt => {
+    const row = buildWatchList({ ...baseInput(), now, gistda: gistda([{ pm25: 200, dt, severity: "critical" }]) }).systems.find(item => item.id === "air-gistda")!;
+    expect(row.level).toBe("unknown");
+    expect(row.actionEn).toBeNull();
+    expect(row.evidenceEn).toContain("not an all-clear");
+  });
+
+  it("recomputes district severity and mean from current district rows only", () => {
+    const row = buildWatchList({ ...baseInput(), now, gistda: gistda([
+      { pm25: 200, dt: "2026-10-08T23:00:00Z", severity: "critical" },
+      { pm25: 20, dt: "2026-10-09T02:55:00Z", severity: "good" },
+    ]) }).systems.find(item => item.id === "air-gistda")!;
+    expect(row.level).toBe("good");
+    expect(row.valueEn).toContain("District1 20");
+    expect(row.valueEn).toContain("current-district avg 20");
+    expect(row.evidenceEn).toContain("1/2");
+    expect(row.observedAt).toBe("2026-10-09T02:55:00Z");
+  });
+
+  const outlook = (fetchedAt: string, hazardous = false): NonNullable<WatchListInput["outlook"]> => {
+    const district = {
+      nameTh: "ฝาง", nameEn: "Fang", rain6h: hazardous ? 12 : 0.2,
+      rain24h: hazardous ? 50 : 1, rain48h: hazardous ? 65 : 2,
+      peakRainMmH: hazardous ? 5 : 0.1, peakRainAt: now.getTime() / 1000 + 3600,
+      pm25Peak: 10, pm25PeakAt: now.getTime() / 1000 + 3 * 3600,
+    };
+    return {
+      available: true, fetchedAt,
+      rain: hazardous ? [{ level: "watch", district, measured24h: null, shelters: [], shelterCapacity: 0, point: { lat: 19.92, lon: 99.21 } }] : [],
+      air: [], wettest: district, dirtiest: district, hasPm25: true,
+    };
+  };
+
+  it.each(["2026-10-08T20:59:59Z", "2026-10-09T03:06:00Z", "invalid"])("does not keep an expired retained forecast calm or hazardous (%s)", fetchedAt => {
+    for (const hazardous of [false, true]) {
+      const board = buildWatchList({ ...baseInput(), now, outlook: outlook(fetchedAt, hazardous) });
+      for (const id of ["forecast-rain", "forecast-pm25"]) {
+        expect(board.systems.find(item => item.id === id)?.level).toBe("unknown");
+        expect(board.watch.some(item => item.id === id)).toBe(false);
+        expect(board.systems.find(item => item.id === id)?.evidenceEn).toContain("6-hour limit");
+        expect(board.systems.find(item => item.id === id)?.observedAt).toBe(fetchedAt);
+      }
+    }
+  });
+
+  it("retains valid forecast attention through its declared six-hour boundary", () => {
+    const board = buildWatchList({ ...baseInput(), now, outlook: outlook("2026-10-08T21:00:00Z", true) });
+    expect(board.systems.find(item => item.id === "forecast-rain")?.level).toBe("watch");
+    expect(board.watch.some(item => item.id === "forecast-rain")).toBe(true);
+  });
+});

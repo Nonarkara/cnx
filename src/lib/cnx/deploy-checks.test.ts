@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { discoverRoutes, checkRiverPayload, checkRainPayload, checkPublishedHead } from "../../../scripts/deploy-checks.mjs";
+import { discoverRoutes, checkRiverPayload, checkRainPayload, checkPublishedHead, checkBrowserCachePolicy } from "../../../scripts/deploy-checks.mjs";
+
+describe("live feed browser cache contract", () => {
+  it("rejects the observed four-hour cache policy as well as missing browser protection", () => {
+    expect(checkBrowserCachePolicy("public, max-age=14400")).toContain("browser caching");
+    expect(checkBrowserCachePolicy("s-maxage=600")).toContain("browser caching");
+    expect(checkBrowserCachePolicy(null)).toContain("missing");
+    expect(checkBrowserCachePolicy("private, no-store")).toBeNull();
+  });
+});
 
 describe("published release identity", () => {
   it("accepts a HEAD recoverable from origin/main", () => {

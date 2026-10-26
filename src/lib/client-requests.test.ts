@@ -3,6 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildReleaseUrl, fetchJsonOrNull } from './client-requests';
 afterEach(() => vi.unstubAllGlobals());
 describe('client request cancellation', () => {
+  it('escapes old browser API entries while leaving static asset caching alone', async () => {
+    const fetcher = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ ok: true }));
+    vi.stubGlobal('fetch', fetcher);
+    await fetchJsonOrNull('/api/cnx/river-level');
+    expect(fetcher.mock.calls[0]?.[1]).toMatchObject({ cache: 'no-store' });
+    await fetchJsonOrNull('/data/cnx/walls.geojson');
+    expect(fetcher.mock.calls[1]?.[1]).not.toHaveProperty('cache');
+  });
   it('forwards caller abort to an in-flight fetch', async () => {
     let actualSignal: AbortSignal | undefined;
     vi.stubGlobal('fetch', vi.fn((_url, init: RequestInit) => new Promise((_resolve, reject) => {

@@ -15,7 +15,7 @@ describe("GET /api/cnx/manifest.json", () => {
     vi.stubEnv("NEXT_PUBLIC_GIT_SHA", "35a611a");
     const res = await GET(new Request("https://cnx.nonarkara.org/api/cnx/manifest.json"));
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     const body = (await res.json()) as TwinManifest;
     expect(body).toMatchObject({ schema: "cnx-twin-manifest/1", version: "1.9.0", commit: "35a611a" });
     expect(Number.isFinite(Date.parse(body.generatedAt))).toBe(true);

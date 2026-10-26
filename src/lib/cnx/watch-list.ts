@@ -33,6 +33,7 @@ import { outlookWatchItems, type ProvinceOutlook } from "./outlook";
 import type { OfficialWarningsResponse } from "./tmd-cap-core";
 import { officialWatchItems } from "./official-watch";
 import { getTwinEntity } from "./twin-manifest";
+import { isCurrentGaugeReading } from "./verdict";
 
 /** "official" = a government warning (TMD CAP); it leads the board. */
 export type WatchKind = "official" | "measured" | "satellite" | "model" | "vision" | "imagery";
@@ -164,7 +165,7 @@ function aodBand(aod: number): WatchLevel {
   return "critical";
 }
 
-function gistdaItem(gistda: GistdaPm25Response | null): WatchItem {
+function gistdaItem(gistda: GistdaPm25Response | null, now: Date): WatchItem {
   const base = {
     id: "air-gistda",
     domain: "air" as const,
@@ -177,33 +178,36 @@ function gistdaItem(gistda: GistdaPm25Response | null): WatchItem {
     observedAt: null as string | null,
     openMetric: "air" as const,
   };
-  if (!gistda || gistda.provenance !== "live") {
+  // Age every district observation. A newly generated envelope or a
+  // current city reading cannot refresh the other district estimates.
+  const districts = gistda?.provenance === "live" ? gistda.amphoe.filter(a =>
+    finite(a.pm25) && a.pm25 >= 0 && /(?:Z|[+-]\d{2}:?\d{2})$/i.test(a.dt)
+    && currentEvidence("gistda-pm25", a.dt, now)) : [];
+  if (!gistda || gistda.provenance !== "live" || districts.length === 0) {
     return {
       ...base,
       level: "unknown",
-      valueTh: "ไม่มีข้อมูลอำเภอ",
-      valueEn: "No district readings",
-      evidenceTh: gistda?.provenanceNote ?? "อ่านค่ารายอำเภอจาก GISTDA ไม่ได้ในขณะนี้ · ไม่มีข้อมูลไม่ใช่อากาศสะอาด",
-      evidenceEn: "GISTDA district readings are unavailable; missing readings are not an all-clear",
+      valueTh: "ไม่มีข้อมูลอำเภอปัจจุบัน",
+      valueEn: "No current district readings",
+      evidenceTh: gistda?.provenanceNote ?? "ข้อมูลอำเภอขาดหาย เก่าเกิน 3 ชม. หรือยืนยันเวลาไม่ได้ · ไม่มีข้อมูลไม่ใช่อากาศสะอาด",
+      evidenceEn: "District readings are missing, older than 3 hours or their timestamps cannot be verified; not an all-clear",
       actionTh: null,
       actionEn: null,
+      observedAt: newestStamp((gistda?.amphoe ?? []) as unknown as Array<Record<string, unknown>>, "dt"),
     };
   }
-  const worst = gistda.worstAmphoe;
-  const over50 = gistda.amphoe.filter((a) => finite(a.pm25) && a.pm25 >= 50).length;
-  const level = worst?.severity ?? gistda.severity ?? "unknown";
+  const worst = [...districts].sort((a, b) => b.pm25 - a.pm25)[0];
+  const over50 = districts.filter(a => a.pm25 >= 50).length;
+  const average = Math.round(districts.reduce((sum, a) => sum + a.pm25, 0) / districts.length * 10) / 10;
+  const level = worst.severity;
   return {
     ...base,
     level,
-    valueTh: worst
-      ? `สูงสุด ${worst.ap_tn} ${worst.pm25} µg/m³ · เฉลี่ยจังหวัด ${gistda.provinceAveragePm25 ?? "—"}${over50 ? ` · ${over50} อำเภอ ≥50` : ""}`
-      : `เฉลี่ยจังหวัด ${gistda.provinceAveragePm25 ?? "—"} µg/m³`,
-    valueEn: worst
-      ? `Highest ${worst.ap_en} ${worst.pm25} µg/m³; province avg ${gistda.provinceAveragePm25 ?? "—"}${over50 ? `; ${over50} districts ≥50` : ""}`
-      : `Province avg ${gistda.provinceAveragePm25 ?? "—"} µg/m³`,
-    evidenceTh: "อ่านจากดาวเทียม/โมเดลต่ออำเภอ · อำเภอที่อ่านไม่ได้เป็นค่าว่าง ไม่ใช่อากาศสะอาด",
-    evidenceEn: "Satellite/model estimate per district; unreadable districts are null, not clean air",
-    observedAt: newestStamp(gistda.amphoe as unknown as Array<Record<string, unknown>>, "dt"),
+    valueTh: `สูงสุด ${worst.ap_tn} ${worst.pm25} µg/m³ · เฉลี่ยอำเภอที่ใช้ได้ ${average}${over50 ? ` · ${over50} อำเภอ ≥50` : ""}`,
+    valueEn: `Highest ${worst.ap_en} ${worst.pm25} µg/m³; current-district avg ${average}${over50 ? `; ${over50} districts ≥50` : ""}`,
+    evidenceTh: `ใช้ ${districts.length}/${gistda.amphoe.length} อำเภอใน 3 ชม. · อ่านจากดาวเทียม/โมเดล · อำเภอที่เก่าหรืออ่านไม่ได้ไม่นับ ไม่ใช่อากาศสะอาด`,
+    evidenceEn: `${districts.length}/${gistda.amphoe.length} districts within 3 hours; satellite/model estimates; old or unreadable districts are excluded, not clean air`,
+    observedAt: newestStamp(districts as unknown as Array<Record<string, unknown>>, "dt"),
   };
 }
 
@@ -576,8 +580,9 @@ function imageryItem(
   };
 }
 
-function riverItem(gauges: RiverGauge[]): WatchItem {
-  const observedAt = newestStamp(gauges as unknown as Array<Record<string, unknown>>, "observedAt");
+function riverItem(gauges: RiverGauge[], now: Date): WatchItem {
+  const current = gauges.filter(g => isCurrentGaugeReading(g.observedAt, now.getTime()));
+  const observedAt = newestStamp((current.length ? current : gauges) as unknown as Array<Record<string, unknown>>, "observedAt");
   return {
     id: "river-gauges",
     domain: "water",
@@ -587,11 +592,11 @@ function riverItem(gauges: RiverGauge[]): WatchItem {
     source: "ThaiWater · ผ่านเรลาย์ 10 นาที",
     // Availability, not risk: the verdict on the water axis lives in the
     // water metric row fed by these gauges.
-    level: observedAt ? "good" : "unknown",
-    valueTh: `${gauges.length} สถานีรายงาน`,
-    valueEn: `${gauges.length} gauges reporting`,
-    evidenceTh: "การวัดต่อเนื่องที่ป้อนแถวน้ำและเครื่องชี้ขาดจังหวัดด้านบน · สถานีที่รายงานล้มเหลวจะหายไปเฉย ๆ ไม่ใช่กลายเป็นระดับ 0",
-    evidenceEn: "Continuous collection feeding the water row above; a failed gauge disappears rather than reading zero",
+    level: current.length ? "good" : "unknown",
+    valueTh: `${current.length}/${gauges.length} สถานีใน 3 ชม.`,
+    valueEn: `${current.length}/${gauges.length} gauges within 3 hours`,
+    evidenceTh: "นับเฉพาะค่าวัดใน 3 ชม. เหมือนแถวน้ำด้านบน · สถานีเก่าหรือยืนยันเวลาไม่ได้เป็นประวัติ ไม่ใช่หลักฐานว่าน้ำปัจจุบันปลอดภัย",
+    evidenceEn: "Only observations within 3 hours feed the water row above; old or unverifiable readings are historical, not evidence that current river conditions are safe",
     actionTh: null,
     actionEn: null,
     observedAt,
@@ -632,15 +637,23 @@ function rainItem(rainSummary: ReturnType<typeof currentRainSummary>): WatchItem
 export function buildWatchList(input: WatchListInput): WatchBoardModel {
   const now = input.now ?? new Date();
   const rainSummary = currentRainSummary(input.rain, now.getTime());
+  const outlook = input.outlook && !currentEvidence("forecast-field", input.outlook.fetchedAt, now)
+    ? { ...input.outlook, available: false }
+    : input.outlook;
 
   const systems: WatchItem[] = [
     // Official warnings first: the government's statement leads the board.
     ...officialWatchItems(input.officialWarnings, now),
     ...metricItems(input.metrics),
-    riverItem(input.riverGauges),
+    riverItem(input.riverGauges, now),
     rainItem(rainSummary),
-    ...(input.outlook ? outlookWatchItems(input.outlook) : []),
-    gistdaItem(input.gistda),
+    ...(outlook ? outlookWatchItems(outlook).map(item => input.outlook?.available && !outlook.available ? {
+      ...item,
+      observedAt: input.outlook.fetchedAt,
+      evidenceTh: "แบบจำลองเกินอายุที่กำหนด 6 ชม. หรือยืนยันเวลาไม่ได้ · ยืนยันพยากรณ์ปัจจุบันไม่ได้ ไม่ใช่การยืนยันว่าไม่มีฝนหรือฝุ่น",
+      evidenceEn: "Forecast is older than the declared 6-hour limit or its timestamp cannot be verified; current rain and air outlook are unknown, not an all-clear",
+    } : item) : []),
+    gistdaItem(input.gistda, now),
     dustboyItem(input.dustboy, now),
     aerosolItem(input.aerosol, now),
     aeronetItem(input.aeronet, now),

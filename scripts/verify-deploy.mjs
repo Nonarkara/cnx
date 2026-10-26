@@ -3,7 +3,7 @@
 // proof of a release: every working-tree change fails the identity gate.
 // Usage: node scripts/verify-deploy.mjs --expect river-level
 import { execFileSync } from "node:child_process";
-import { discoverRoutes, checkRiverPayload, checkRainPayload, checkPublishedHead, PROJECT_ROOT } from "./deploy-checks.mjs";
+import { discoverRoutes, checkRiverPayload, checkRainPayload, checkPublishedHead, checkBrowserCachePolicy, PROJECT_ROOT } from "./deploy-checks.mjs";
 
 const ORIGIN = process.env.CNX_ORIGIN ?? "https://cnx.nonarkara.org";
 const args = process.argv.slice(2);
@@ -27,7 +27,7 @@ async function get(path, options) {
       const res = await fetch(`${ORIGIN}${path}`, { ...options, signal: AbortSignal.timeout(25_000), headers: { accept: "application/json", ...options?.headers } });
       const text = await res.text();
       if (res.status >= 500 && attempt < 2) continue;
-      return { status: res.status, text };
+      return { status: res.status, text, cacheControl: res.headers.get("cache-control") };
     } catch (error) {
       if (attempt === 2) return { status: 0, text: error.message };
     }
@@ -76,11 +76,17 @@ else {
 
 console.log("\n=== complete route inventory ===");
 const routes = discoverRoutes();
+const freshnessCritical = new Set(["river-level", "rain", "air-quality", "fires", "twin", "forecast-field", "haze-vision", "water-vision"]);
 // Four concurrent probes keep the audit bounded and avoid a serialized
 // multi-minute gate. No authenticated production writes are performed.
 for (let i = 0; i < routes.length; i += 4) {
   const batch = await Promise.all(routes.slice(i, i + 4).map(async (entry) => ({ ...entry, res: await get(`/api/cnx/${entry.route}`) })));
   for (const { route, status, res, post } of batch) {
+    if (res.status === 200 && freshnessCritical.has(route)) {
+      const problem = checkBrowserCachePolicy(res.cacheControl);
+      if (problem) fail(`${route}: ${problem}`);
+      else ok(`${route} cannot freeze in browser cache`);
+    }
     if (res.status !== status) fail(`${route} → ${res.status}, expected ${status}`);
     else if (status === 200 && /\.(xml|atom)$/.test(route)) {
       // CAP 1.2 and Atom are XML by standard: well-formed root, not JSON.

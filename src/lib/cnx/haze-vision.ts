@@ -150,7 +150,17 @@ export const HAZE_TESTABLE_SPREAD = 20;
 
 export async function fetchCnxHazeVision(): Promise<HazeVisionResponse> {
   const data = await readRelayJson(HAZE_VISION_KV_KEY, STALE_MS, isHazeVisionPayload);
-  if (data) return { ...data, provenance: "live", methodology: HAZE_METHODOLOGY, note: null };
+  if (data) {
+    const now = Date.now();
+    const assessed = data.cameras.some(camera => {
+      const age = now - Date.parse(camera.observedAt);
+      return age >= -5 * 60_000 && age <= STALE_MS && isAssessedHazeCamera(camera);
+    });
+    return {
+      ...data, provenance: "live", methodology: HAZE_METHODOLOGY,
+      note: assessed ? null : "The relay is current, but no current camera frame supports a haze assessment (missing, stale, dark, low-detail or calibrating). Camera haze conditions are unknown, not clear.",
+    };
+  }
   return {
     generatedAt: new Date().toISOString(),
     cameras: [],

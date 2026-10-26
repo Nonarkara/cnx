@@ -21,11 +21,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Must satisfy vite's engines (^20.19.0 || >=22.12.0). The previous
-        # 20.18.1 / 22.11.0 pair sat just under both floors, so vitest died
-        # at startup with ERR_REQUIRE_ESM loading vitest.config.ts. Pin to
-        # the oldest versions that actually work, not round numbers.
-        node: ["20.19.0", "22.12.0"]
+        # Vitest 5 requires Node >=22.12; Wrangler also requires Node 22.
+        # Exercise the supported floor, matching .nvmrc and package engines.
+        node: ["22.12.0"]
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +48,6 @@ jobs:
         run: npm test
 
       - name: Plain Node relay imports
-        if: matrix.node == '22.12.0'
         run: npm run test:relay
 
   build:
@@ -66,7 +63,7 @@ jobs:
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          # Same floor as the test matrix — vite 7 requires >=22.12.0.
+          # Same supported floor as the test matrix and local runtime pin.
           node-version: "22.12.0"
           cache: npm
 

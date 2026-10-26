@@ -23,8 +23,19 @@ export function cacheKey(request: Request, keyParams: readonly string[] = []): R
     const v = url.searchParams.get(name);
     if (v !== null) kept.set(name, v.slice(0, 200));
   }
+  // The server build owns contract isolation. Accepting a caller's release
+  // parameter would let arbitrary requests bypass the quota-saving cache.
+  const release = process.env.NEXT_PUBLIC_GIT_SHA;
+  if (release && /^[a-f0-9]{7,40}$/.test(release)) kept.set("__cnx_build", release);
   const qs = kept.toString();
   return new Request(`${url.origin}${url.pathname}${qs ? `?${qs}` : ""}`, { method: "GET" });
+}
+
+/** Cache API storage is shared; browser storage must never freeze live feeds. */
+function forBrowser(response: Response): Response {
+  const res = new Response(response.body, response);
+  res.headers.set("Cache-Control", "private, no-store");
+  return res;
 }
 
 export function sMaxAge(res: Response): number {
@@ -45,13 +56,13 @@ async function waitUntil(p: Promise<unknown>): Promise<void> {
 /** Serve from the edge cache, or run `produce` and store its response for its s-maxage. */
 export async function edgeCached(request: Request, produce: () => Promise<Response>, keyParams: readonly string[] = []): Promise<Response> {
   const store = edgeCache();
-  if (!store || request.method !== "GET") return produce();
+  if (!store || request.method !== "GET") return forBrowser(await produce());
   const key = cacheKey(request, keyParams);
   const hit = await store.match(key).catch(() => undefined);
   if (hit) {
     const res = new Response(hit.body, hit);
     res.headers.set("x-cnx-cache", "HIT");
-    return res;
+    return forBrowser(res);
   }
   const res = await produce();
   const ttl = sMaxAge(res);
@@ -62,5 +73,5 @@ export async function edgeCached(request: Request, produce: () => Promise<Respon
     await waitUntil(store.put(key, stored));
   }
   res.headers.set("x-cnx-cache", "MISS");
-  return res;
+  return forBrowser(res);
 }

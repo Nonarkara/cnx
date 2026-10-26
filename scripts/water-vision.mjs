@@ -43,19 +43,31 @@ async function collectAndPush({ baseUrl, secret }) {
   const cameras = [];
   for (const camera of WATER_CAMERAS) {
     const collectedAt = new Date().toISOString();
+    let failureReason = "Source image request failed.";
     try {
       const path = new URL(camera.snapshotUrl).pathname + new URL(camera.snapshotUrl).search;
       const response = await fetch(`http://127.0.0.1:8340${path}`, { redirect: "error", signal: AbortSignal.timeout(15_000), headers: { Accept: "image/jpeg,image/png,image/webp", "User-Agent": "CNX water-view relay (15-minute samples)" } });
-      if (!response.ok || !/^image\/(jpeg|png|webp)(;|$)/i.test(response.headers.get("content-type") ?? "")) { await response.body?.cancel(); throw new Error("source image unavailable"); }
+      if (!response.ok) {
+        failureReason = `Source image returned HTTP ${response.status}.`;
+        await response.body?.cancel(); throw new Error("source image unavailable");
+      }
+      if (!/^image\/(jpeg|png|webp)(;|$)/i.test(response.headers.get("content-type") ?? "")) {
+        failureReason = "Source response was not a supported image.";
+        await response.body?.cancel(); throw new Error("source image unavailable");
+      }
       const header = response.headers.get("x-taken-at");
       const parsed = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(header ?? "") ? Date.parse(header) : NaN;
       const normalized = header?.includes(".") ? header : header?.replace(/Z$/, ".000Z");
       const sourceAt = Number.isFinite(parsed) && new Date(parsed).toISOString() === normalized && parsed <= Date.now() + WATER_CLOCK_SKEW_MS ? new Date(parsed).toISOString() : null;
-      const { data, info } = await sharp(await readBytes(response), { limitInputPixels: 24_000_000 }).resize({ width: 320, withoutEnlargement: true }).toColourspace("srgb").removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      failureReason = "Source image body could not be read within size limits.";
+      const bytes = await readBytes(response);
+      failureReason = "Source image could not be decoded within pixel limits.";
+      const { data, info } = await sharp(bytes, { limitInputPixels: 24_000_000 }).resize({ width: 320, withoutEnlargement: true }).toColourspace("srgb").removeAlpha().raw().toBuffer({ resolveWithObject: true });
       const raw = computeFrameMetrics(data, info.width, info.height, info.channels);
       const metrics = { meanLuminance: raw.meanLuminance, contrast: raw.contrast, luminanceRange: raw.luminanceRange };
       // DWR burns its clock/title into the top band. Exclude that band from scene identity.
       const fingerprint = createHash("sha256").update(`${info.width}:${info.height}:${info.channels}:`).update(data.subarray(Math.floor(info.height * 0.2) * info.width * info.channels)).digest("hex");
+      failureReason = "Decoded image history could not be processed.";
       const past = state[camera.cameraId] ?? { lastFingerprint: null, frames: [] };
       const frames = past.frames.filter(f => Number.isFinite(f.firstSeenAt) && f.firstSeenAt >= now - 30 * 86_400_000 && f.firstSeenAt <= now);
       const previous = frames.find(f => f.fingerprint === fingerprint);
@@ -65,8 +77,12 @@ async function collectAndPush({ baseUrl, secret }) {
       const frameChanged = past.lastFingerprint === null ? null : past.lastFingerprint !== fingerprint;
       state[camera.cameraId] = { lastFingerprint: fingerprint, frames: frames.slice(-3000) };
       cameras.push({ ...camera, collectedAt, observedAt, status: waterImageStatus(metrics, observedAt, Date.now()), metrics, frameChanged, note: "Image readability and scene change only; not a water, flood, depth or safe-road finding." });
-    } catch {
-      cameras.push({ ...camera, collectedAt, observedAt: null, status: "unavailable", metrics: null, frameChanged: null, note: "Could not obtain a bounded decoded source image; no water assessment is available." });
+    } catch (error) {
+      // Never forward raw errors: fetch/decode messages may contain URLs or credentials.
+      const reason = error?.name === "TimeoutError" || error?.name === "AbortError"
+        ? "Source image timed out after 15 seconds." : failureReason;
+      console.warn(`[water] ${camera.cameraId}: ${reason}`);
+      cameras.push({ ...camera, collectedAt, observedAt: null, status: "unavailable", metrics: null, frameChanged: null, note: `${reason} No water assessment is available.` });
     }
   }
   saveState(state);

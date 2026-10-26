@@ -43,6 +43,9 @@ export async function fetchJsonOrNull<T>(
   try {
     const res = await fetch(buildReleaseUrl(url), {
       ...rest,
+      // Previously returned Cache API hits could acquire a four-hour browser
+      // TTL. Escape those entries too; Worker-side caching still saves quotas.
+      ...(url.startsWith("/api/cnx/") ? { cache: "no-store" as const } : {}),
       signal: controller.signal,
       headers,
     });

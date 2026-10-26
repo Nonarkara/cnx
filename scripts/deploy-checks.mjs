@@ -5,6 +5,13 @@ import { fileURLToPath } from "node:url";
 export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REQUIRED_QUERY = new Set(["ask", "burnscar"]);
 
+/** Live JSON may use the Worker's cache, never an hours-long browser copy. */
+export function checkBrowserCachePolicy(value) {
+  const directives = (value ?? "").toLowerCase().split(",").map(v => v.trim());
+  return directives.includes("private") && directives.includes("no-store")
+    ? null : `live API permits browser caching (${value || "missing Cache-Control"})`;
+}
+
 /** A release must be recoverable from the published branch, not only local Git. */
 export function checkPublishedHead(head, publishedHead) {
   if (!publishedHead) return "origin/main is missing — release is not recoverable from the published branch";

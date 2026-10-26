@@ -82,6 +82,25 @@ it("keeps an initially unknown capture clock unknown for identical pixels", asyn
   vi.setSystemTime(NOW + 15 * 60_000); takenAt = new Date(NOW + 15 * 60_000).toISOString(); fetcher.mockClear();
   await run(); expect(pushed().cameras[0]).toMatchObject({ observedAt: null, status: "capture-time-unknown", frameChanged: false });
 });
+it.each([
+  { mode: "timeout", reason: "Source image timed out after 15 seconds." },
+  { mode: "http", reason: "Source image returned HTTP 503." },
+  { mode: "decode", reason: "Source image could not be decoded within pixel limits." },
+])("reports bounded $mode diagnostics without exposing raw errors or claiming a water finding", async ({ mode, reason }) => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  fetcher.mockImplementation(async (_url: string, init?: RequestInit) => {
+    if (init?.method === "POST") return Response.json({ ok: true });
+    if (mode === "timeout") throw new DOMException("https://private.invalid/test-secret", "TimeoutError");
+    if (mode === "http") return new Response("private body", { status: 503 });
+    return new Response("not a decoded image", { headers: { "content-type": "image/jpeg" } });
+  });
+  await run();
+  const camera = pushed().cameras[0];
+  expect(camera).toMatchObject({ status: "unavailable", observedAt: null, metrics: null, note: `${reason} No water assessment is available.` });
+  expect(warn).toHaveBeenCalledWith(`[water] ${WATER_CAMERAS[0].cameraId}: ${reason}`);
+  expect(warn.mock.calls.flat().join(" ")).not.toMatch(/test-secret|private\.invalid|private body/);
+  expect(isWaterVisionPayload(pushed())).toBe(true);
+});
 it("contains failed secret-bearing pushes so the existing relay keeps running", async () => {
   fetcher.mockImplementation(async (_url: string, init?: RequestInit) => {
     if (init?.method === "POST") throw new Error("redirect rejected");

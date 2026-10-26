@@ -31,8 +31,8 @@ Hua Lin, Chaeng Katam) traced in gold.
 ## 1. Prerequisites
 
 - macOS 14+ (Apple Silicon or Intel) or Linux x86_64
-- **Node 20.19+ or Node 22.12+ within 22.x** (`nvm use` reads `.nvmrc` — Node 26 hangs on
-  the opennextjs bundler; Node 22 is the supported default)
+- **Node 22.12+ within 22.x** (`nvm use` reads `.nvmrc` — Vitest and Wrangler
+  require Node 22; Node 26 hangs on the opennextjs bundler)
 - A Cloudflare account with the `cnx.nonarkara.org` zone on it
 - 8 GB RAM minimum (16 GB recommended for `next build` parallelism)
 
