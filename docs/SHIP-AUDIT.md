@@ -655,7 +655,7 @@ event target, so the card opens whichever layer the click fell on.
   street scale. It has been looked at at city zoom and at the zoom where a
   single compound fills the frame, and at nothing in between.
 
-## Roofs — 24–25 October 2026
+## Roofs — 24–26 October 2026
 
 ### What was wrong
 
@@ -699,9 +699,18 @@ reads far more like a real city". The rule here:
 | untagged, over 500 m² | flat |
 | any type, more than 3 storeys | flat |
 
-The result over the whole city: **61,257 roofs — 81.4 % gable, 18.6 %
+The result over the whole city: **61,257 roofs — 84.6 % gable, 15.4 %
 flat.** The city is a tiled town with a few concrete blocks in it, which is
 what Chiang Mai is.
+
+The split is **59,344 city roofs** (49,891 gable, 9,453 flat) plus **1,913
+temple roofs**, every one of them a gable: 1,039 halls, 582 side halls and
+292 gates. A temple roof is never flat.
+
+> The figure this section carried when it was first written — 81.4 % gable,
+> 18.6 % flat — came from the 24 October bake and no longer matches the
+> shipped tables. The recovery release rebaked the city under a corrected
+> grammar, and the numbers above are the ones that ship.
 
 ### The height is not invented
 
@@ -738,9 +747,11 @@ above, which is an idea, not a file.
 Each roof is built on the **minimum-area rectangle** that contains the
 footprint — the tightest rectangle that still covers it, which carries
 both the ridge direction and the span in one pass. The ridge runs along
-the long side, the way an ubosot's does. Measured over the Old City:
-the median ratio of rectangle area to footprint area is **1.00**; 4 % of
-buildings exceed 1.5× and 0.7 % exceed 2×. Those are the ones whose roof
+the long side, the way an ubosot's does. Measured over the Old City
+sample on 26 October 2026 — 8,793 buildings in 98.97–99.00 E,
+18.78–18.80 N, recomputed from the shipped grammar — the median ratio of
+rectangle area to footprint area is **1.002**; **2.5 %** of buildings
+exceed 1.5× and **0.4 %** exceed 2×. Those are the ones whose roof
 visibly overhangs its walls, and they are the price of a rectangle.
 
 Temple roofs are the grammar's: a steep gable over the hall, a shallower
@@ -763,12 +774,31 @@ hall actually has.
   was out by 2π, a height that was not converted into mercator units, and
   derivative-based face normals that were numerically noise);
 - the temple grammar by unit test (15 cases) and the baked compounds by
-  fixture test.
+  fixture test;
+- **the shipped tables against the shipped grammar** — every one of the
+  59,344 city roofs recomputed from `roof.ts` and compared row for row
+  with `roofs-city.json`: **0 mismatches**. The numbers this section
+  quotes are read off the shipped tables, not off a build log;
+- **the roofs on the live board**, in the deployed release `679fd44`,
+  captured from `cnx.nonarkara.org/cnx` on 26 October 2026 — the roof
+  layer is present as a MapLibre custom layer, and at street zoom the
+  city reads as gabled prisms with visible ridges beside flat caps;
+- **a temple hall's roof on the live board**, pitched at 26° and looked
+  at closely: two sloped faces meeting at a ridge, the eaves overhanging
+  the wall. Beside it, the same compound's **chedi** reads as four
+  receding tiers — a stepped square tower, modelled as mass rather than
+  as a roof cap, which is what a Lanna mondop is;
+- **the compound provenance card on the live board** — clicking a temple
+  part opens the card, which names the part, badges its provenance
+  (ผัง OSM for an OSM footprint), states that the height is a model
+  value, and carries the OSM id. The earlier guard rejected every real
+  click, because deck.gl's event target is the map root element rather
+  than a canvas; it now rejects only the panels marked
+  `data-cnx-map-ui`, and a click on a compound opens the card on the
+  deployed board.
 
 **Not verified.**
 
-- the roofs on the **live** board at the moment of writing — the layer is
-  built and wired, and the first live capture was still to come;
 - how the roofs read against the board's own dark and light themes; the
   roof palette is currently fixed rather than themed;
 - performance with all 59,344 city roofs instanced at once. The city
@@ -776,4 +806,10 @@ hall actually has.
   zoom 13, fringe below), so at most one of the two is in the buffer at a
   time, but the worst case has not been measured on the software renderer
   the gates use;
-- a real touch device, and the roofs under a long-press.
+- a real touch device, and the roofs under a long-press;
+- **the roofs on a terrain basemap.** They are refused there by design:
+  a DEM displaces the ground and the roofs carry above-ground-level
+  heights only, so the board shows full-height native buildings under a
+  "3D roofs unavailable" banner rather than floating roofs. This is a
+  coverage limit of the feature, not a defect — but it does mean the
+  roofs are unavailable on two of the board's basemaps.

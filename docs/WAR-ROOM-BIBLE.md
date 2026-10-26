@@ -227,6 +227,119 @@ without booting the board is `scripts/preview-temple-compounds.mjs`.
 
 ---
 
+## 3d. The roofs — a model that says so
+
+A roof is the one thing a footprint cannot tell you. Measured over the
+Old City sample (18.78–18.80 N, 98.97–99.00 E) with Overpass on
+24 October 2026:
+
+| tag | buildings | share |
+|---|---|---|
+| any building | 8,914 | — |
+| `roof:shape` | 9 | 0.10 % |
+| `roof:height` | 0 | 0 % |
+| `roof:colour` | 5 | 0.06 % |
+| `roof:material` | 1 | 0.01 % |
+| **any roof tag** | **23** | **0.26 %** |
+
+So the board does not read roof geometry off the map, because the map does
+not hold it. It **models** the roof, and it says so in three places: the
+click card, the symbol key, and the roof table's own `note` field. A roof
+drawn here is an assertion about a form, not a measurement of one.
+
+### The rule
+
+The rule is borrowed from the QGIS **3D OSM Model** plugin, which moved
+away from "a pyramid on every block" for exactly this reason — house-like
+buildings get a pitched gable, everything else a flat roof, and the result
+"reads far more like a real city".
+
+| the building is | its roof |
+|---|---|
+| house-like (`house`, `detached`, `terrace`, `dormitory`, `hut`, …) | gable |
+| plainly not a house (`apartments`, `commercial`, `industrial`, `hotel`, …) | flat |
+| untagged, small and low | gable |
+| untagged, over 500 m² | flat |
+| any type, more than 3 storeys | flat |
+
+Over the whole city that is **61,257 roofs — 84.6 % gable, 15.4 % flat**:
+59,344 city roofs (49,891 gable, 9,453 flat) and 1,913 temple roofs,
+every one of them a gable — 1,039 halls, 582 side halls, 292 gates. **A
+temple roof is never flat.**
+
+### The height is never inflated
+
+OSM's `height` is the total, roof included. So the roof is carved **out**
+of it: the wall is `height − roof_rise`, and the ridge lands back on
+`height`. Nothing is added to a building that the data did not say. If the
+roof table or the renderer fails, the board falls back to the full height
+and says so in a banner, rather than drawing a building taller than the
+record.
+
+### The shapes
+
+Each roof sits on the **minimum-area rectangle** that contains the
+footprint — the tightest rectangle that still covers it, which yields the
+ridge direction and the span in one pass. The ridge runs along the long
+side, the way an ubosot's does. Measured over 8,793 Old City buildings,
+the median rectangle-to-footprint area ratio is **1.002**; 2.5 % of
+buildings exceed 1.5× and 0.4 % exceed 2×, and those are the ones whose
+roof visibly overhangs its walls.
+
+A temple's roof is the grammar's own: a steep gable over the hall, a
+shallower one over each side hall, a small one over the gate, and for a
+hall with no mapped footprint a second, receding tier — the stepped roof
+a Lanna hall actually has. The **tower is not a roof**: a chedi is a
+stepped square monument, four receding tiers, and it is modelled as mass,
+not as a cap. A stupa only goes where a stupa belongs.
+
+### How it is drawn
+
+MapLibre's `fill-extrusion` extrudes a plan straight up, so it cannot
+make a slope; and deck.gl's canvas sits over the map and would never
+depth-interleave with MapLibre's own extrusions. So the roofs are a
+**MapLibre custom layer** (`src/lib/cnx/roof-layer.ts`) that draws into the
+map's own WebGL context and therefore shares its depth buffer. The roof
+sits on the wall and a wall in front of a roof hides it. Two instanced
+meshes — a gable prism and a flat cap — cover the city in two draw calls.
+
+**No third-party asset is used.** The geometry is generated in-repo from
+OpenStreetMap footprints (ODbL), so there is no asset licence to carry.
+The only borrowed thing is the *rule* above, which is an idea, not a file.
+
+### Two tables, fetched when they are needed
+
+`roofs-temple.json` (98 KB) comes with the compound layer, which is on by
+default. `roofs-city.json` (3.17 MB) comes with the 3D city, which is
+not. The city roofs are split into the same groups as the city blocks —
+core above zoom 13, fringe below — so at most one of the two is ever in
+the buffer.
+
+### Where the roofs are refused
+
+On a **terrain** basemap the roofs are refused, and the board says so. A
+DEM displaces the ground; the roofs carry above-ground-level heights only.
+Inventing ground offsets to make them line up would be a guess, so the
+board shows full-height native buildings under a "3D roofs unavailable"
+banner instead. This is a coverage limit, and it is a limit on two of the
+board's basemaps — the satellite and the topography.
+
+### The files
+
+| what | where |
+|---|---|
+| the grammar | `src/lib/cnx/roof.ts` |
+| the renderer | `src/lib/cnx/roof-layer.ts` |
+| the shared metric helpers | `src/lib/cnx/geo.ts` |
+| the city bake | `scripts/build-cnx-roofs.mjs` |
+| the compound bake | `scripts/build-cnx-temple-compounds.mjs` |
+| the baked tables | `public/data/cnx/roofs-city.json`, `public/data/cnx/roofs-temple.json` |
+
+The bake order is **fetch → compound bake → roof bake**. The roof bake
+reads the compound bake's output, so it must run last.
+
+---
+
 ## 4. The flight desk
 
 Flight availability and quota depend on the selected upstream and its
