@@ -511,16 +511,6 @@ export default function CNXAboutContent() {
   const version = process.env.NEXT_PUBLIC_APP_VERSION;
   return (
     <div className="mx-auto max-w-[880px] px-5 py-8">
-      <div className="cnx-brand-plate mb-6 w-fit max-w-full p-4 sm:p-6">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logos/cnx-lockup.png"
-          alt={t("ห้องปฏิบัติการเชียงใหม่", "CNX War Room · Chiang Mai Operations War Room")}
-          width={1000}
-          height={500}
-          className="block h-auto w-[360px] max-w-full object-contain"
-        />
-      </div>
       {/* Title block */}
       <div className={KICKER}>{t("เอกสารอธิบายระบบ", "How the system works")}</div>
       <h1 className="mt-1 text-[34px] font-bold leading-[1.15] tracking-[-0.02em]">

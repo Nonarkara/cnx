@@ -79,8 +79,11 @@ async function collectAndPush({ baseUrl, secret }) {
       cameras.push({ ...camera, collectedAt, observedAt, status: waterImageStatus(metrics, observedAt, Date.now()), metrics, frameChanged, note: "Image readability and scene change only; not a water, flood, depth or safe-road finding." });
     } catch (error) {
       // Never forward raw errors: fetch/decode messages may contain URLs or credentials.
+      const code = error?.cause?.code ?? error?.code;
+      const networkCode = ["ECONNREFUSED", "ECONNRESET", "ECONNABORTED", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "EPIPE", "EACCES", "EPERM", "EMFILE", "ENFILE", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT", "UND_ERR_CLOSED", "UND_ERR_DESTROYED", "UND_ERR_ABORTED"].includes(code) ? code : null;
       const reason = error?.name === "TimeoutError" || error?.name === "AbortError"
-        ? "Source image timed out after 15 seconds." : failureReason;
+        ? "Source image timed out after 15 seconds."
+        : failureReason === "Source image request failed." && networkCode ? `Source image request failed (${networkCode}).` : failureReason;
       console.warn(`[water] ${camera.cameraId}: ${reason}`);
       cameras.push({ ...camera, collectedAt, observedAt: null, status: "unavailable", metrics: null, frameChanged: null, note: `${reason} No water assessment is available.` });
     }

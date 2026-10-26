@@ -84,6 +84,8 @@ it("keeps an initially unknown capture clock unknown for identical pixels", asyn
 });
 it.each([
   { mode: "timeout", reason: "Source image timed out after 15 seconds." },
+  { mode: "network", reason: "Source image request failed (ECONNRESET)." },
+  { mode: "redacted", reason: "Source image request failed." },
   { mode: "http", reason: "Source image returned HTTP 503." },
   { mode: "decode", reason: "Source image could not be decoded within pixel limits." },
 ])("reports bounded $mode diagnostics without exposing raw errors or claiming a water finding", async ({ mode, reason }) => {
@@ -91,6 +93,7 @@ it.each([
   fetcher.mockImplementation(async (_url: string, init?: RequestInit) => {
     if (init?.method === "POST") return Response.json({ ok: true });
     if (mode === "timeout") throw new DOMException("https://private.invalid/test-secret", "TimeoutError");
+    if (mode === "network" || mode === "redacted") throw new TypeError("https://private.invalid/test-secret", { cause: { code: mode === "network" ? "ECONNRESET" : "test-secret" } });
     if (mode === "http") return new Response("private body", { status: 503 });
     return new Response("not a decoded image", { headers: { "content-type": "image/jpeg" } });
   });
