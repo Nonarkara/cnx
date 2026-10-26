@@ -1,13 +1,35 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { API_CSP, SECURITY_HEADERS, buildCsp, rateLimitClass } from "./security-policy";
 
 describe("content security policy", () => {
+  afterEach(() => vi.unstubAllEnvs());
   const csp = buildCsp("abc123");
   const directive = (name: string) => csp.split("; ").find((d) => d.startsWith(`${name} `)) ?? "";
 
   it("runs scripts only with the request nonce — no unsafe-inline or eval", () => {
     expect(directive("script-src")).toBe("script-src 'self' 'nonce-abc123' 'strict-dynamic'");
     expect(csp).not.toMatch(/script-src[^;]*unsafe-(inline|eval)/);
+  });
+
+  it("allows Next development eval only on exact loopback hosts without changing other directives", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    for (const host of ["localhost", "127.0.0.1", "[::1]", "::1"]) {
+      const local = buildCsp("abc123", host);
+      expect(local).toContain("script-src 'self' 'nonce-abc123' 'strict-dynamic' 'unsafe-eval'");
+      expect(local.replace(" 'unsafe-eval'", "")).toBe(csp);
+    }
+    for (const host of [undefined, "cnx.nonarkara.org", "localhost.example.com", "127.0.0.1.example.com", "192.168.1.2"]) {
+      expect(buildCsp("abc123", host)).toBe(csp);
+    }
+  });
+
+  it("never permits eval in production or test, including loopback requests", () => {
+    for (const env of ["production", "test"]) {
+      vi.stubEnv("NODE_ENV", env);
+      for (const host of [undefined, "localhost", "127.0.0.1", "[::1]", "cnx.nonarkara.org"]) {
+        expect(buildCsp("abc123", host)).toBe(csp);
+      }
+    }
   });
 
   it("refuses plugins, framing, base hijack and plain http", () => {

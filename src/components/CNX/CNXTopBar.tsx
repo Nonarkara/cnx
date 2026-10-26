@@ -27,6 +27,7 @@ import type { DustboyResponse } from "../../lib/cnx/dustboy";
 import type { AsmcResponse } from "../../lib/cnx/asmc";
 import type { SmokeTrajectoryResponse } from "../../lib/cnx/smoke-trajectory";
 import { HOTLINES } from "../../lib/cnx/verdict";
+import { isVerdictCurrent } from "../../lib/cnx/verdict-age";
 import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import type { RfdFiresResponse } from "../../lib/cnx/fire-rfd";
@@ -145,10 +146,12 @@ function VerdictEvidence({
   twin,
   t,
   onOpenEmergency,
+  outdated = false,
 }: {
   twin: CnxTwinResponse;
   t: (th: string, en: string | null | undefined) => string;
   onOpenEmergency: () => void;
+  outdated?: boolean;
 }) {
   const v = twin.verdict;
   const topReason = v.reasons[0];
@@ -170,6 +173,10 @@ function VerdictEvidence({
       <p className="font-mono text-[11px] uppercase tracking-[0.14em]">
         {t(`${twin.province_th} · ปภ. ${HOTLINES.ddpm} · การแพทย์ฉุกเฉิน ${HOTLINES.ems}`, `${twin.province_en} · DDPM ${HOTLINES.ddpm} · EMS ${HOTLINES.ems}`)}
       </p>
+      {outdated && <p className="text-[12px] leading-relaxed">
+        {t("ผลประเมินก่อนหน้า ไม่ใช่สถานะปัจจุบัน: ", "Previous assessment, not current conditions: ")}{t(v.head_th, v.head_en)}
+        {" · "}<time dateTime={v.computedAt}>{v.computedAt || t("ไม่ทราบเวลา", "unknown time")}</time>
+      </p>}
       {topReason && (
         <div className="flex flex-col gap-1 text-[12px] leading-relaxed">
           {[
@@ -232,7 +239,7 @@ function VerdictEvidence({
  * verdict overlay covered map controls" — so the map's controls stay
  * exposed here.
  */
-export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; onOpenEmergency: () => void }) {
+export function VerdictBand({ twin, onOpenEmergency, now = Date.now() }: { twin: CnxTwinResponse; onOpenEmergency: () => void; now?: number }) {
   const { lang, t } = useLang();
   const panelRef = useRef<HTMLDetailsElement | null>(null);
   // Another exclusive overlay opened: stand down.
@@ -244,8 +251,9 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
     [],
   );
   const v = twin.verdict;
-  const colour = verdictColour(v.level);
-  const provenance = v.data_provenance === "live"
+  const current = isVerdictCurrent(v.computedAt, now);
+  const colour = verdictColour(!current && v.level === "safe" ? "watch" : v.level);
+  const provenance = !current ? t("ผลประเมินก่อนหน้า — ไม่ใช่สถานะปัจจุบัน", "Previous assessment — not current conditions") : v.data_provenance === "live"
     ? t("หลักฐานจากการวัด / แบบจำลองปัจจุบัน", "Current measured / modeled evidence")
     : v.data_provenance === "mixed"
     ? t("หลักฐานผสม — ตรวจข้อจำกัด", "Mixed evidence — check limitations")
@@ -254,11 +262,11 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
     <div lang={lang} data-surface="cnx-verdict-band" className={`relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-l-4 ${colour} px-3 py-1 lg:grid-cols-[auto_minmax(0,1fr)_auto] sm:px-4`}>
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.18em]">
-          {t(...CHIP_LABEL[v.level])}
+          {current ? t(...CHIP_LABEL[v.level]) : v.level === "safe" ? t("ยืนยันหลักฐานใหม่", "VERIFY CURRENT EVIDENCE") : t(`ผลเดิม · ${CHIP_LABEL[v.level][0]}`, `PREVIOUS · ${CHIP_LABEL[v.level][1]}`)}
         </span>
         <span className="text-[11px] leading-relaxed">{provenance}</span>
       </div>
-      <p className="col-span-2 row-start-2 min-w-0 text-[13px] font-semibold leading-snug lg:col-span-1 lg:col-start-2 lg:row-start-1">{t(v.head_th, v.head_en)}</p>
+      <p className="col-span-2 row-start-2 min-w-0 text-[13px] font-semibold leading-snug lg:col-span-1 lg:col-start-2 lg:row-start-1">{current ? t(v.head_th, v.head_en) : t("ผลประเมินเก่าแล้ว — ตรวจค่าปัจจุบันและประกาศทางการก่อนตัดสินใจ", "Assessment expired — verify current readings and official notices before deciding")}</p>
       <details
         className="col-start-2 row-start-1 lg:col-start-3"
         ref={panelRef}
@@ -285,7 +293,7 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
             derivation: the map's control row ends 78 px below the map's top
             edge and the panel keeps 16 px from it. */}
         <div className="absolute right-0 top-full z-40 mt-[var(--cnx-map-control-clear)] max-h-[calc(100dvh_-_11rem)] w-[min(34rem,calc(100vw_-_2rem))] overflow-y-auto border border-[var(--line)] bg-[var(--bg-raised)] p-3 text-[var(--ink)]">
-          <VerdictEvidence twin={twin} t={t} onOpenEmergency={onOpenEmergency} />
+          <VerdictEvidence twin={twin} t={t} onOpenEmergency={onOpenEmergency} outdated={!current} />
         </div>
       </details>
     </div>
@@ -303,7 +311,8 @@ export function VerdictBand({ twin, onOpenEmergency }: { twin: CnxTwinResponse; 
 export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
   const { t } = useLang();
   const v = twin.verdict;
-  const level = v.level;
+  const current = isVerdictCurrent(v.computedAt);
+  const level = !current && v.level === "safe" ? "watch" : v.level;
   const colour =
     level === "danger"
       ? "sev-fill-critical border-[var(--sev-critical)]"
@@ -312,8 +321,8 @@ export function VerdictChip({ twin }: { twin: CnxTwinResponse }) {
       : level === "watch"
       ? "sev-fill-watch border-[var(--sev-watch)]"
       : "border-[var(--line)] bg-[var(--bg)] text-[var(--ink)]";
-  const chipLabel = t(...CHIP_LABEL[level]);
-  const head = t(v.head_th, v.head_en);
+  const chipLabel = current ? t(...CHIP_LABEL[level]) : t("ยืนยันหลักฐานใหม่", "VERIFY CURRENT EVIDENCE");
+  const head = current ? t(v.head_th, v.head_en) : t("ผลประเมินก่อนหน้า ไม่ใช่สถานะปัจจุบัน", "Previous assessment, not current conditions");
   return (
     <div
       className={`flex h-7 shrink-0 items-center gap-1.5 border px-2 ${colour}`}

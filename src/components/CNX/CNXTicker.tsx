@@ -8,8 +8,6 @@
 import { useMemo } from "react";
 import { Activity } from "lucide-react";
 import type {
-  CnxFloodResponse,
-  AirQualityResponse,
   CnxFiresResponse,
   CctvFeedResponse,
   CnxStoryResponse,
@@ -17,10 +15,11 @@ import type {
 } from "../../types/cnx";
 import type { FetchResult } from "../../lib/cnx/opensky";
 import { useLang } from "../../hooks/useLang";
+import type { ExecutiveMetric } from "../../lib/cnx/executive-brief";
+import { metricUnit } from "./CNXMetricEvidence";
 
 interface TickerProps {
-  flood: CnxFloodResponse | null;
-  air: AirQualityResponse | null;
+  metrics: ExecutiveMetric[];
   fires: CnxFiresResponse | null;
   cctv: CctvFeedResponse | null;
   social: SocialListeningResponse | null;
@@ -29,31 +28,30 @@ interface TickerProps {
 }
 
 export default function CnxTicker({
-  flood, air, fires, cctv, social, story, flights,
+  metrics, fires, cctv, social, story, flights,
 }: TickerProps) {
   const { lang, t } = useLang();
   const segments = useMemo(() => {
     const out: { key: string; label: string; value: string; level?: string }[] = [];
-    if (air?.provinceAvgPm25 != null) {
+    const air = metrics.find(m => m.id === "air");
+    const water = metrics.find(m => m.id === "water");
+    const fire = metrics.find(m => m.id === "fire");
+    if (air) {
       out.push({
         key: "pm25",
 
         label: "PM2.5",
-        value: `${air.provinceAvgPm25} µg/m³`,
-        level: air.provinceAvgAqiLevel,
+        value: air.state === "current" ? `${air.value} µg/m³` : t("ยังไม่มีค่าวัดปัจจุบัน", "No current reading"),
+        level: air.state === "current" ? air.level : undefined,
       });
     }
-    // Same rule as the FIRMS segment below: a scenario fill is not a
-    // reading, and a ticker is read at a glance by someone deciding
-    // whether to worry. "46% bank-full" with a 🌊 is a river level we
-    // did not measure. Naming the absence costs one word.
-    if (flood && flood.provenance === "live" && typeof flood.pingCapacityFraction === "number") {
+    if (water?.state === "current") {
       out.push({
         key: "ping",
 
-        label: t("แม่น้ำปิง", "Ping"),
-        value: t(`${(flood.pingCapacityFraction * 100).toFixed(0)}% ของระดับตลิ่ง`, `${(flood.pingCapacityFraction * 100).toFixed(0)}% bank-full`),
-        level: flood.pingCapacityFraction > 0.85 ? "critical" : flood.pingCapacityFraction > 0.7 ? "alert" : undefined,
+        label: t("น้ำ", "Water"),
+        value: `${water.value} ${metricUnit(water.unit, lang)}${water.contextTh ? ` · ${t(water.contextTh, water.contextEn)}` : ""}`,
+        level: water.level,
       });
     }
     if (fires) {
@@ -65,10 +63,10 @@ export default function CnxTicker({
         label: fires.provinceCount != null ? t("FIRMS · เชียงใหม่", "FIRMS · Chiang Mai") : t("FIRMS · พื้นที่ติดตาม", "FIRMS · watch area"),
         // The provincial count leads; detections outside the province are
         // named as such, never folded into a bare hotspot total.
-        value: fires.provenance === "live"
+        value: fire?.state === "current"
           ? t(`${count} จุด / 24 ชม.${outside ? ` · นอกจังหวัด ${outside}` : ""}`, `${count} in province / 24 h${outside ? ` · ${outside} outside the province` : ""}`)
           : t("ไม่มีข้อมูลดาวเทียมปัจจุบัน", "No current satellite pass"),
-        level: fires.provenance === "live" && count > 30 ? "alert" : undefined,
+        level: fire?.state === "current" && count > 30 ? "alert" : undefined,
       });
     }
     if (cctv) {
@@ -112,7 +110,7 @@ export default function CnxTicker({
       });
     }
     return out;
-  }, [air, flood, fires, cctv, social, flights, story, t]);
+  }, [metrics, fires, cctv, social, flights, story, lang, t]);
 
   if (segments.length === 0) return null;
 

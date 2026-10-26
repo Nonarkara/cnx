@@ -32,6 +32,14 @@ async function render(lang: Lang, over: Partial<CnxTwinResponse["verdict"]> = {}
 }
 
 describe("verdict band action and evidence presentation", () => {
+  it("does not carry a cached calm verdict forward after its assessment expires", async () => {
+    const container = await render("en", { level: "safe", computedAt: new Date(Date.now() - 3_600_000).toISOString() });
+    const band = container.querySelector('[data-surface="cnx-verdict-band"]')!;
+    expect(band.querySelector(":scope > p")?.textContent).toContain("Assessment expired");
+    expect(band.textContent).toContain("VERIFY CURRENT EVIDENCE");
+    expect(band.textContent).not.toContain("NO ELEVATED SIGNAL");
+    expect(band.textContent).toContain("Previous assessment, not current conditions");
+  });
   it("gives evidence gaps an actionable verification step and shows the actual checklist", async () => {
     const en = (await render("en")).textContent ?? "";
     expect(en).toContain("Evidence gap");

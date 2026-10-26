@@ -65,7 +65,10 @@ let root: Root;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
-  vi.spyOn(Date, "now").mockReturnValue(NOW);
+  // The watch inventory and overview also use the Date constructor to
+  // re-age retained evidence, so fixing Date.now alone is insufficient.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -76,6 +79,7 @@ afterEach(async () => {
   __resetLangForTests(null);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 async function render(lang: Lang, el: ReactElement): Promise<string> {
@@ -108,7 +112,7 @@ const SHELL: [name: string, el: () => ReactElement][] = [
   ["governor brief", () => createElement(CnxGovernorBrief, { ...empty, isOpen: true, onClose: vi.fn(), outlook: OUTLOOK })],
   ["emergency numbers", () => createElement(CnxEmergencyModal, { isOpen: true, onClose: vi.fn() })],
   ["news rail", () => createElement(CnxSocialSidebar, { initialData: NEWS, scenarioId: null })],
-  ["ticker", () => createElement(CnxTicker, { air: null, flood: null, story: null, flights: null, social: NEWS, cctv: { reachableCount: 2, totalCount: 3 } as never, fires: { provenance: "live", totalCount: 3, provinceCount: 0 } as never })],
+  ["ticker", () => createElement(CnxTicker, { metrics: [], story: null, flights: null, social: NEWS, cctv: { reachableCount: 2, totalCount: 3 } as never, fires: { provenance: "live", totalCount: 3, provinceCount: 0 } as never })],
 ];
 
 describe("one language per mode — shell components", () => {

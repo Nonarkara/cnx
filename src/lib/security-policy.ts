@@ -20,10 +20,15 @@ export const FRAME_HOSTS = ["https://webcams.windy.com", "https://www.windy.com"
 // Host sources without a port match only the default port; the broker is on 8883.
 export const SOCKET_HOSTS = ["wss://cmutransit-ws.bda.co.th:8883"];
 
-export function buildCsp(nonce: string): string {
+export function buildCsp(nonce: string, hostname?: string): string {
+  // Next's webpack development runtime uses eval for refresh/debugging.
+  // This exception is owned by the server environment and exact loopback
+  // hostname, never a query parameter or a caller-supplied CSP header.
+  const localDevelopment = process.env.NODE_ENV === "development"
+    && ["localhost", "127.0.0.1", "[::1]", "::1"].includes(hostname ?? "");
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${localDevelopment ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",

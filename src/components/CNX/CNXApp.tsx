@@ -587,7 +587,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           the headline in one or two lines, and it is not on the map: a
           verdict overlay covers the map's own layer control, a defect this
           board already paid for once (docs/SHIP-AUDIT.md). */}
-      {twin && <VerdictBand twin={twin} onOpenEmergency={() => setIsEmergencyOpen(true)} />}
+      {twin && <VerdictBand twin={twin} now={rainClock} onOpenEmergency={() => setIsEmergencyOpen(true)} />}
 
       <section className="relative flex min-h-0 flex-none overflow-hidden border-t border-[var(--line)] lg:h-[60dvh] xl:h-auto xl:flex-1">
         {/* Left rail — social sidebar. Visible from lg onwards on tablets,
@@ -751,8 +751,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
 
       <div className="sticky bottom-0 z-50 shrink-0 border-t border-[var(--line)] xl:static">
         <CnxTicker
-          flood={flood}
-          air={air}
+          metrics={metrics}
           fires={fires}
           cctv={cctv}
           social={social}

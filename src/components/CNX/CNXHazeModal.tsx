@@ -51,9 +51,10 @@ function Observation({ at, label }: { at?: string | null; label?: string }) {
 }
 
 function Stat({ label, value, children }: { label: string; value: string; children: React.ReactNode }) {
+  const { t } = useLang();
   return <div className="min-w-0 border-t border-[var(--line)] pt-3">
     <h3 className="text-[14px] font-semibold text-[var(--ink)]">{label}</h3>
-    <p className="mt-2 text-[26px] font-semibold tabular-nums text-[var(--ink)]">{value}</p>
+    <p className={`mt-2 text-[var(--ink)] ${value === "—" ? "text-[13px]" : "text-[26px] font-semibold tabular-nums"}`}>{value === "—" ? t("ยังไม่มีค่าปัจจุบัน", "No current reading") : value}</p>
     <div className="mt-1 space-y-1 text-[13px] leading-relaxed text-[var(--dim)]">{children}</div>
   </div>;
 }
@@ -143,7 +144,7 @@ export default function CnxHazeModal({ isOpen, onClose, air, aerosol, dustboy, h
 
       <section aria-label={t("หลักฐานภาคพื้นปัจจุบัน", "Current ground evidence")} className="mt-6 grid gap-5 border-y border-[var(--line)] py-5 md:grid-cols-[1.2fr_1fr]">
         <div><p className="text-[14px] font-semibold">{primary === null ? t("ยังยืนยัน PM2.5 ภาคพื้นปัจจุบันไม่ได้", "Current ground PM2.5 cannot be established") : pcdAvg !== null ? t("ค่าเฉลี่ยสถานี คพ. ที่ใช้ได้ในเชียงใหม่", "Mean of usable PCD stations in Chiang Mai") : t("ค่าเฉลี่ยเซนเซอร์ DustBoy ที่ใช้ได้ในเชียงใหม่", "Mean of usable DustBoy sensors in Chiang Mai")}</p>
-          <p className="mt-3 text-[40px] font-semibold leading-none tabular-nums">{primary ?? "—"}<span className="ml-2 text-[16px] font-normal">{primary !== null && "µg/m³"}</span></p>
+          {primary !== null && <p className="mt-3 text-[40px] font-semibold leading-none tabular-nums">{primary}<span className="ml-2 text-[16px] font-normal">µg/m³</span></p>}
           <p className="mt-3 text-[13px] leading-relaxed text-[var(--dim)]">{pcdAvg !== null ? t(`${state.freshPcd.length} สถานีอ้างอิง คพ.`, `${state.freshPcd.length} PCD reference stations`) : dustAvg !== null ? t(`${state.chiangMaiDustboy.length} เซนเซอร์ราคาประหยัด ไม่ใช่สถานีอ้างอิงทางการ`, `${state.chiangMaiDustboy.length} low-cost sensors, not official reference monitors`) : t("ไม่มีสถานีที่มีค่าฝุ่นใช้ได้ภายใน 3 ชม. ข้อมูลขาดไม่ใช่อากาศดี", "No usable ground PM2.5 within 3 h. Missing data is not clean air.")} {t("ค่าเฉลี่ยของจุดที่รายงาน ไม่ใช่ค่าฝุ่นทุกพื้นที่ของจังหวัด", "A mean of reporting points, not conditions everywhere in the province.")}</p>
           {primaryRows.length > 0 && <Observation at={oldest(primaryRows)} label={t("เวลาเก่าสุดที่รวมในค่าเฉลี่ย", "Oldest included observation")} />}
         </div>

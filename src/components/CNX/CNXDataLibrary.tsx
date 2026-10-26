@@ -33,10 +33,10 @@ const CHIPS: { key: LibraryChip; th: string; en: string }[] = [
 
 function Stat({ value, label, sub }: { value: string; label: string; sub: string }) {
   return (
-    <div className="border-b border-r border-[var(--line)] p-4">
-      <div className="text-[30px] font-black leading-none tracking-[-0.02em]">{value}</div>
-      <div className="mt-1.5 text-[13px] font-bold">{label}</div>
-      <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">{sub}</div>
+    <div className="inline-flex max-w-full flex-wrap items-baseline gap-x-1.5 text-[13px] leading-snug">
+      <span className="font-mono text-[18px] font-bold tabular-nums">{value}</span>
+      <span className="font-medium">{label}</span>
+      <span className="text-[11px] text-[var(--dim)]">({sub})</span>
     </div>
   );
 }
@@ -112,44 +112,18 @@ export default function CNXDataLibrary() {
   const cap = index.previewRowCap.toLocaleString();
 
   return (
-    <div className="mx-auto max-w-[1040px] px-5 py-8">
+    <div className="mx-auto max-w-[1040px] px-5 py-4">
       {/* ─── Header ───────────────────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div>
-          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-[var(--cool)]">
-            {t("คลังข้อมูลจังหวัด · เชียงใหม่", "Provincial data workbench · Chiang Mai")}
-          </div>
-          <h1 className="mt-2 text-[34px] font-black leading-[1.15] tracking-[-0.02em]">
-            {t("ข้อมูลเปิดของเชียงใหม่ทุกชุด ค้นได้ ตรวจได้ ใช้ต่อได้", "Every Chiang Mai open dataset — searchable, checkable, reusable")}
-          </h1>
-          <p className="mt-3 max-w-[64ch] text-[14px] leading-[1.75]">
-            {t(
-              "ระบบกวาดแค็ตตาล็อก data.go.th ทั้งหมดที่ค้นด้วยคำว่า “เชียงใหม่” ดาวน์โหลดไฟล์ตารางทุกไฟล์ อ่านเป็นตารางมาตรฐาน ตรวจคอลัมน์เชิงพื้นที่ เวลา และตัวเลข แล้วเก็บไฟล์ต้นทางไว้ทุกชุด ข้อมูลที่อ่านไม่ได้ยังแสดงในบัญชีตรวจสอบ ไม่ถูกซ่อน",
-              "Every dataset on data.go.th that matches a search for Chiang Mai: table files are downloaded, parsed and typed, with location, time and numeric columns detected; PDFs, shapefiles and web links are listed with their source. Anything that cannot be read stays on the audit list — nothing is dropped silently.",
-            )}
-          </p>
-        </div>
-        <aside className="self-start border border-[var(--line)] bg-[var(--bg-raised)] p-4">
-          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--dim)]">
-            {t("หลักการเตรียมข้อมูล", "Preparation rule")}
-          </div>
-          <p className="mt-2 text-[12px] leading-[1.7]">
-            {t(
-              `“พร้อมใช้” คือตารางที่อ่านได้จริง ตารางใหญ่แสดงตัวอย่างสูงสุด ${cap} แถว พร้อมจำนวนแถวทั้งหมดและป้ายตัดตอนชัดเจน — ดาวน์โหลดไฟล์เต็มได้จากต้นทางเสมอ`,
-              `“Ready” means a table that actually parses. Large tables show a preview of at most ${cap} rows, with the full row count and a clear truncation label — the complete file is always downloadable from the source.`,
-            )}
-          </p>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--dim)]">
-            {t(
-              `เตรียมเมื่อ ${index.generatedAt.slice(0, 10)} · ที่มา data.go.th`,
-              `Prepared ${index.generatedAt.slice(0, 10)} · source data.go.th`,
-            )}
-          </p>
-        </aside>
-      </div>
+      <header>
+        <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em]">{t("คลังข้อมูลเชียงใหม่", "Chiang Mai data library")}</h1>
+        <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-[12px] text-[var(--dim)]">
+          <span>{t(`เตรียมเมื่อ ${index.generatedAt.slice(0, 10)}`, `Prepared ${index.generatedAt.slice(0, 10)}`)}</span>
+          <a href="https://data.go.th" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-[var(--cool)] underline">{t("ที่มา data.go.th ↗", "Source data.go.th ↗")}</a>
+        </p>
+      </header>
 
       {/* ─── Stats ────────────────────────────────────────────── */}
-      <div className="mt-8 grid grid-cols-2 border-l border-t border-[var(--line)] lg:grid-cols-4">
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 border-y border-[var(--line)] py-3">
         <Stat value={String(s.datasets)} label={t("ชุดข้อมูลทั้งหมด", "Datasets")} sub={t(`ไฟล์และลิงก์ ${s.resources.toLocaleString()} รายการ`, `${s.resources.toLocaleString()} files & links`)} />
         <Stat value={String(s.readyDatasets)} label={t("ชุดที่เป็นตารางพร้อมใช้", "Ready as tables")} sub={t(`อ่านแล้ว ${s.tables} ตาราง`, `${s.tables} tables parsed`)} />
         <Stat value={compactCount(s.rows)} label={t("แถวข้อมูลรวม", "Total rows")} sub={t("รวมทุกตาราง", "across all tables")} />
@@ -160,6 +134,150 @@ export default function CNXDataLibrary() {
         <Stat value={String(s.linkOnly + s.unreadableResources)} label={t("อ่านไม่ได้ — แสดงไว้ตรวจสอบ", "Unreadable — listed")} sub={t("ลิงก์และไฟล์ที่อ่านไม่ได้", "links & unreadable files")} />
       </div>
 
+      {/* ─── List ─────────────────────────────────────────────── */}
+      <section className="mt-4" aria-label={t("ค้นหาและกรองชุดข้อมูล", "Search and filter datasets")}>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["ready", t(`ตารางที่เตรียมแล้ว · ${s.readyDatasets}`, `Prepared tables · ${s.readyDatasets}`)],
+              ["all", t(`แหล่งข้อมูลทั้งหมด · ${s.datasets}`, `All sources · ${s.datasets}`)],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              aria-pressed={tab === k}
+              className={`min-h-11 border px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] ${tab === k ? "border-[var(--cool)] text-[var(--cool)]" : "border-[var(--line)] text-[var(--dim)]"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <label className="mt-3 flex min-h-11 items-center gap-2 border border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2.5">
+          <Search aria-hidden="true" className="h-4 w-4 text-[var(--dim)]" />
+          <input
+            aria-label={t("ค้นหาชุดข้อมูล หน่วยงาน หรือรูปแบบไฟล์", "Search datasets, publishers or file formats")}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("ค้นหาชุดข้อมูล หน่วยงาน หรือรูปแบบไฟล์…", "Search datasets, publishers or file formats…")}
+            className="w-full bg-transparent text-[14px] outline-none placeholder:text-[var(--dim)]"
+          />
+          <span className="font-mono text-[11px] text-[var(--dim)]">{visible.length}</span>
+        </label>
+
+        <label className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+          <span>{t("หมวดข้อมูล", "Data domain")}</span>
+          <select aria-label={t("หมวดข้อมูล", "Data domain")} value={domain ?? ""} onChange={event => setDomain(event.target.value || null)} className="min-h-11 max-w-full border border-[var(--line)] bg-[var(--bg-raised)] px-2 text-[13px] text-[var(--ink)]">
+            <option value="">{t("ทุกหมวด", "All domains")} ({s.datasets})</option>
+            {index.domains.map(d => <option key={d.key} value={d.key}>{t(d.th, d.en)} ({d.datasets})</option>)}
+          </select>
+        </label>
+
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {CHIPS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => setChip(c.key)}
+              aria-pressed={chip === c.key}
+              className={`min-h-11 border px-2 py-1 text-[11px] ${chip === c.key ? "border-[var(--cool)] bg-[var(--cool-dim)] font-bold" : "border-[var(--line)] text-[var(--dim)]"}`}
+            >
+              {t(c.th, c.en)}
+            </button>
+          ))}
+          {domain && (
+            <button
+              type="button"
+              onClick={() => setDomain(null)}
+              aria-label={t("ล้างตัวกรองหมวด", "Clear domain filter")}
+              className="min-h-11 border border-[var(--cool)] bg-[var(--cool-dim)] px-2 py-1 text-[11px]"
+            >
+              {(() => {
+                const d = domainByKey.get(domain);
+                return d ? t(d.th, d.en) : domain;
+              })()} ✕
+            </button>
+          )}
+        </div>
+
+        <details className="mt-3 text-[13px]">
+          <summary className="min-h-11 cursor-pointer py-3 font-semibold text-[var(--cool)]">{t("ขอบเขตและวิธีเตรียมข้อมูล", "Coverage and preparation")}</summary>
+          <div className="max-w-[65ch] space-y-3 pb-3 text-[14px] leading-relaxed">
+            <p>{t(
+              "ระบบกวาดแค็ตตาล็อก data.go.th ทั้งหมดที่ค้นด้วยคำว่า “เชียงใหม่” ดาวน์โหลดไฟล์ตารางทุกไฟล์ อ่านเป็นตารางมาตรฐาน ตรวจคอลัมน์เชิงพื้นที่ เวลา และตัวเลข แล้วเก็บไฟล์ต้นทางไว้ทุกชุด ข้อมูลที่อ่านไม่ได้ยังแสดงในบัญชีตรวจสอบ ไม่ถูกซ่อน",
+              "Every dataset on data.go.th that matches a search for Chiang Mai: table files are downloaded, parsed and typed, with location, time and numeric columns detected; PDFs, shapefiles and web links are listed with their source. Anything that cannot be read stays on the audit list — nothing is dropped silently.",
+            )}</p>
+            <p>{t(
+              `“พร้อมใช้” คือตารางที่อ่านได้จริง ตารางใหญ่แสดงตัวอย่างสูงสุด ${cap} แถว พร้อมจำนวนแถวทั้งหมดและป้ายตัดตอนชัดเจน — ดาวน์โหลดไฟล์เต็มได้จากต้นทางเสมอ`,
+              `“Ready” means a table that actually parses. Large tables show a preview of at most ${cap} rows, with the full row count and a clear truncation label — the complete file is always downloadable from the source.`,
+            )}</p>
+          </div>
+        </details>
+
+        <ul className="mt-3 border-t border-[var(--line)]">
+          {visible.slice(0, limit).map((d) => {
+            const isOpen = open === d.name;
+            const dom = domainByKey.get(d.domain);
+            return (
+              <li key={d.id} className="border-b border-[var(--line)]">
+                <button
+                  type="button"
+                  onClick={() => setOpen(isOpen ? null : d.name)}
+                  aria-expanded={isOpen}
+                  className={`flex w-full items-start justify-between gap-4 px-1 py-3 text-left hover:bg-[var(--bg-surface)] ${isOpen ? "bg-[var(--bg-surface)]" : ""}`}
+                >
+                  <div className="min-w-0">
+                    <div lang="th" className="text-[15px] font-bold leading-snug">{d.title}</div>
+                    <div lang="th" className="mt-0.5 text-[12px] text-[var(--dim)]">{d.org}</div>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {dom && <span className="border border-[var(--line)] px-1.5 py-0.5 text-[11px] text-[var(--dim)]">{t(dom.th, dom.en)}</span>}
+                      <StatusBadge d={d} t={t} />
+                      {d.hasLocation && <span className="border border-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--cool)]">{t("พิกัด", "location")}</span>}
+                      {d.hasTime && <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">{t("เวลา", "time")}</span>}
+                      {d.numericCount > 0 && (
+                        <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">
+                          {t(`ตัวเลข ${d.numericCount}`, `${d.numericCount} numeric`)}
+                        </span>
+                      )}
+                      {d.formats.slice(0, 5).map((f) => (
+                        <span key={f} className="px-1 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">{f}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--dim)]">
+                    {d.tableCount > 0 ? (
+                      <>
+                        <div>{t(`${d.rows.toLocaleString()} แถว`, `${d.rows.toLocaleString()} rows`)}</div>
+                        <div>{t(`${d.fields} คอลัมน์`, `${d.fields} fields`)}</div>
+                      </>
+                    ) : (
+                      <div>{t(`${d.resourceCount} ไฟล์`, `${d.resourceCount} files`)}</div>
+                    )}
+                  </div>
+                </button>
+                {isOpen && <DataLibraryDetail name={d.name} />}
+              </li>
+            );
+          })}
+        </ul>
+        {visible.length === 0 && (
+          <p className="py-8 text-center text-[13px] text-[var(--dim)]">{t("ไม่พบชุดข้อมูลที่ตรงกับเงื่อนไข", "No datasets match these filters.")}</p>
+        )}
+        {visible.length > limit && (
+          <button
+            type="button"
+            onClick={() => setLimit((n) => n + 60)}
+            className="mt-3 border border-[var(--line)] bg-[var(--bg-raised)] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] hover:border-[var(--cool)]"
+          >
+            {t("แสดงเพิ่ม", "Show more")} ({limit} / {visible.length})
+          </button>
+        )}
+      </section>
+      <details className="mt-6 border-t border-[var(--line)]">
+        <summary className="min-h-11 cursor-pointer py-3 text-[14px] font-semibold text-[var(--cool)]">{t("สำรวจหมวดข้อมูลและชุดข้อมูลท่องเที่ยว", "Browse domains and tourism datasets")}</summary>
       {/* ─── Tourism spotlight ────────────────────────────────── */}
       {tourism.length > 0 && (
         <section className="mt-8 border border-[var(--cool)] bg-[var(--cool-dim)] p-4">
@@ -249,126 +367,7 @@ export default function CNXDataLibrary() {
         </p>
       </section>
 
-      {/* ─── List ─────────────────────────────────────────────── */}
-      <section className="mt-8">
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["ready", t(`ตารางที่เตรียมแล้ว · ${s.readyDatasets}`, `Prepared tables · ${s.readyDatasets}`)],
-              ["all", t(`แหล่งข้อมูลทั้งหมด · ${s.datasets}`, `All sources · ${s.datasets}`)],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setTab(k)}
-              aria-pressed={tab === k}
-              className={`border px-3 py-1.5 font-mono text-[11px] font-bold tracking-[0.08em] ${tab === k ? "border-[var(--cool)] text-[var(--cool)]" : "border-[var(--line)] text-[var(--dim)]"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <label className="mt-3 flex items-center gap-2 border border-[var(--line)] bg-[var(--bg-raised)] px-3 py-2.5">
-          <Search className="h-4 w-4 text-[var(--dim)]" />
-          <input
-            aria-label={t("ค้นหาชุดข้อมูล หน่วยงาน หรือรูปแบบไฟล์", "Search datasets, publishers or file formats")}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("ค้นหาชุดข้อมูล หน่วยงาน หรือรูปแบบไฟล์…", "Search datasets, publishers or file formats…")}
-            className="w-full bg-transparent text-[14px] outline-none placeholder:text-[var(--dim)]"
-          />
-          <span className="font-mono text-[11px] text-[var(--dim)]">{visible.length}</span>
-        </label>
-
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {CHIPS.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setChip(c.key)}
-              aria-pressed={chip === c.key}
-              className={`border px-2 py-1 text-[11px] ${chip === c.key ? "border-[var(--cool)] bg-[var(--cool-dim)] font-bold" : "border-[var(--line)] text-[var(--dim)]"}`}
-            >
-              {t(c.th, c.en)}
-            </button>
-          ))}
-          {domain && (
-            <button
-              type="button"
-              onClick={() => setDomain(null)}
-              aria-label={t("ล้างตัวกรองหมวด", "Clear domain filter")}
-              className="border border-[var(--cool)] bg-[var(--cool-dim)] px-2 py-1 text-[11px]"
-            >
-              {(() => {
-                const d = domainByKey.get(domain);
-                return d ? t(d.th, d.en) : domain;
-              })()} ✕
-            </button>
-          )}
-        </div>
-
-        <ul className="mt-3 border-t border-[var(--line)]">
-          {visible.slice(0, limit).map((d) => {
-            const isOpen = open === d.name;
-            const dom = domainByKey.get(d.domain);
-            return (
-              <li key={d.id} className="border-b border-[var(--line)]">
-                <button
-                  type="button"
-                  onClick={() => setOpen(isOpen ? null : d.name)}
-                  aria-expanded={isOpen}
-                  className={`flex w-full items-start justify-between gap-4 px-1 py-3 text-left hover:bg-[var(--bg-surface)] ${isOpen ? "bg-[var(--bg-surface)]" : ""}`}
-                >
-                  <div className="min-w-0">
-                    <div lang="th" className="text-[15px] font-bold leading-snug">{d.title}</div>
-                    <div lang="th" className="mt-0.5 text-[12px] text-[var(--dim)]">{d.org}</div>
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {dom && <span className="border border-[var(--line)] px-1.5 py-0.5 text-[11px] text-[var(--dim)]">{t(dom.th, dom.en)}</span>}
-                      <StatusBadge d={d} t={t} />
-                      {d.hasLocation && <span className="border border-[var(--cool)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--cool)]">{t("พิกัด", "location")}</span>}
-                      {d.hasTime && <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">{t("เวลา", "time")}</span>}
-                      {d.numericCount > 0 && (
-                        <span className="border border-[var(--line)] px-1.5 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">
-                          {t(`ตัวเลข ${d.numericCount}`, `${d.numericCount} numeric`)}
-                        </span>
-                      )}
-                      {d.formats.slice(0, 5).map((f) => (
-                        <span key={f} className="px-1 py-0.5 font-mono text-[11px] uppercase text-[var(--dim)]">{f}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--dim)]">
-                    {d.tableCount > 0 ? (
-                      <>
-                        <div>{t(`${d.rows.toLocaleString()} แถว`, `${d.rows.toLocaleString()} rows`)}</div>
-                        <div>{t(`${d.fields} คอลัมน์`, `${d.fields} fields`)}</div>
-                      </>
-                    ) : (
-                      <div>{t(`${d.resourceCount} ไฟล์`, `${d.resourceCount} files`)}</div>
-                    )}
-                  </div>
-                </button>
-                {isOpen && <DataLibraryDetail name={d.name} />}
-              </li>
-            );
-          })}
-        </ul>
-        {visible.length === 0 && (
-          <p className="py-8 text-center text-[13px] text-[var(--dim)]">{t("ไม่พบชุดข้อมูลที่ตรงกับเงื่อนไข", "No datasets match these filters.")}</p>
-        )}
-        {visible.length > limit && (
-          <button
-            type="button"
-            onClick={() => setLimit((n) => n + 60)}
-            className="mt-3 border border-[var(--line)] bg-[var(--bg-raised)] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] hover:border-[var(--cool)]"
-          >
-            {t("แสดงเพิ่ม", "Show more")} ({limit} / {visible.length})
-          </button>
-        )}
-      </section>
+      </details>
     </div>
   );
 }
