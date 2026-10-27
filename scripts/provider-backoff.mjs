@@ -17,6 +17,7 @@ export function createBackoff(now = () => Date.now()) {
       return Math.max(0, Math.ceil(((state.get(name)?.until ?? 0) - now()) / 1000));
     },
     /** Record a failure; honours Retry-After (seconds) when the provider sent one. */
+    /** @param {string} name @param {number | null} [retryAfterSec] */
     failure(name, retryAfterSec = null) {
       const failures = (state.get(name)?.failures ?? 0) + 1;
       const exp = Math.min(MAX_MS, BASE_MS * 2 ** (failures - 1));
