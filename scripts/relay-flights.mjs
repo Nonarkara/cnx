@@ -37,6 +37,11 @@ import { runCitizenReports } from "./citizen-reports.mjs";
 import { runSocialRelay } from "./social-relay.mjs";
 import { runRainRelay } from "./rain-relay.mjs";
 import { runDamRelay } from "./dam-relay.mjs";
+import { createBackoff } from "./provider-backoff.mjs";
+
+// A rate-limited or failing provider rests instead of being hit every tick.
+const backoff = createBackoff();
+const retryAfter = (res) => Number(res.headers.get("retry-after"));
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 loadEnvFile(new URL("relay-flights.env", `file://${HERE}`).pathname);
@@ -164,7 +169,10 @@ async function fetchAdsbLol() {
     headers: { "User-Agent": UA },
     signal: AbortSignal.timeout(10_000),
   });
-  if (!res.ok) throw new Error(`adsb.lol ${res.status}`);
+  if (!res.ok) {
+    backoff.failure("adsb", retryAfter(res));
+    throw new Error(`adsb.lol ${res.status}`);
+  }
   const json = await res.json();
   const now = json.now ?? Date.now();
   const states = (json.ac ?? [])
@@ -217,12 +225,14 @@ function mergeStates(adsb, opensky) {
 
 async function buildSnapshot() {
   const fetchedAt = Date.now();
+  const adsbRests = backoff.blocked("adsb");
+  const openRests = backoff.blocked("opensky");
   const [adsbRes, openRes] = await Promise.allSettled([
-    fetchAdsbLol(),
-    Date.now() - lastOpenSky.at >= OPENSKY_STATES_EVERY_MS ? fetchOpenSky() : Promise.resolve(null),
+    adsbRests ? Promise.resolve(null) : fetchAdsbLol().then((v) => (backoff.success("adsb"), v), (e) => { if (!backoff.blocked("adsb")) backoff.failure("adsb"); throw e; }),
+    !openRests && Date.now() - lastOpenSky.at >= OPENSKY_STATES_EVERY_MS ? fetchOpenSky().then((v) => (backoff.success("opensky"), v), (e) => { backoff.failure("opensky"); throw e; }) : Promise.resolve(null),
   ]);
-  if (adsbRes.status === "rejected") console.warn(`[relay] adsb.lol failed: ${adsbRes.reason.message}`);
-  if (openRes.status === "rejected") console.warn(`[relay] opensky failed: ${openRes.reason.message}`);
+  if (adsbRes.status === "rejected") console.warn(`[relay] adsb.lol failed: ${adsbRes.reason.message} — resting ${backoff.remainingSec("adsb")} s`);
+  if (openRes.status === "rejected") console.warn(`[relay] opensky failed: ${openRes.reason.message} — resting ${backoff.remainingSec("opensky")} s`);
   if (openRes.status === "fulfilled" && openRes.value) lastOpenSky = { at: Date.now(), ...openRes.value };
 
   const adsb = adsbRes.status === "fulfilled" ? adsbRes.value : null;
@@ -479,5 +489,16 @@ async function tick() {
 }
 
 console.log(`[relay] starting, polling every ${POLL_MS}ms -> ${INGEST_URL}`);
-await tick();
-setInterval(tick, POLL_MS);
+// A slow tick must not overlap the next one.
+let ticking = false;
+async function guardedTick() {
+  if (ticking) return;
+  ticking = true;
+  try {
+    await tick();
+  } finally {
+    ticking = false;
+  }
+}
+await guardedTick();
+setInterval(guardedTick, POLL_MS);
