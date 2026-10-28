@@ -18,7 +18,7 @@ describe("provider backoff", () => {
   });
 
   it("honours Retry-After and clears on success; providers are independent", () => {
-    let t = 0;
+    const t = 0;
     const b = createBackoff(() => t);
     b.failure("adsb", 300);
     expect(b.remainingSec("adsb")).toBe(300);
