@@ -38,7 +38,7 @@ import type { RiverGauge } from "../../lib/cnx/river-level";
 import type { RainResponse } from "../../lib/cnx/rain";
 import type { ProvinceOutlook } from "../../lib/cnx/outlook";
 import { fetchJsonOrNull } from "../../lib/client-requests";
-import { buildWatchList, type WatchItem, type WatchKind } from "../../lib/cnx/watch-list";
+import { buildWatchList, watchItemStaleAfterMs, type WatchItem, type WatchKind } from "../../lib/cnx/watch-list";
 import { DataAge } from "./CNXDataAge";
 import { useLang } from "../../hooks/useLang";
 import { useOfficialWarnings } from "../../hooks/useOfficialWarnings";
@@ -99,7 +99,7 @@ function OfficialRows({ items }: { items: WatchItem[] }) {
           {item.actionTh && <p className="mt-1 max-w-[65ch] break-words text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
           <p className="mt-1 max-w-[65ch] break-words text-[12px] leading-relaxed text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
           {item.evidenceUrl && <a href={item.evidenceUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 items-center text-[12px] text-[var(--cool)] underline">{t("อ่านประกาศจากหน่วยงาน", "Read official warning")} ↗</a>}
-          <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={45 * 60_000} className="mt-1 block" />
+          <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={watchItemStaleAfterMs(item)} className="mt-1 block" />
         </div>
       ))}
       <p className="text-[12px] leading-relaxed text-[var(--dim)]">{t("ประกาศ CAP ไม่แทนพยากรณ์อากาศประจำวันหรือ 7 วัน", "CAP notices do not replace the daily or seven-day weather forecast.")}</p>
@@ -252,7 +252,7 @@ export default function CnxWatchBoard({
                 <p className="mt-1 max-w-[65ch] break-words text-[13px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
                 {item.actionTh && <p className="mt-1 max-w-[65ch] break-words text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
                 <p className="mt-1 max-w-[65ch] break-words text-[12px] leading-relaxed text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
-                <DataAge observedAt={item.observedAt} source={item.source} className="mt-1 block" />
+                <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={watchItemStaleAfterMs(item)} className="mt-1 block" />
                 <EvidenceButton item={item} onOpenMetric={onOpenMetric} />
               </li>
             ))}
@@ -276,6 +276,7 @@ export default function CnxWatchBoard({
               <DataAge
                 observedAt={item.observedAt}
                 source={item.source}
+                staleAfterMs={watchItemStaleAfterMs(item)}
                 missing={item.kind === "imagery" ? t("ชั้นข้อมูลแผนที่", "map layer") : undefined}
                 className="basis-full sm:basis-auto"
               />

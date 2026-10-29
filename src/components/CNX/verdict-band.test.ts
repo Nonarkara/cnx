@@ -59,13 +59,27 @@ describe("verdict band action and evidence presentation", () => {
   });
   it("does not present the safe model state as an unconditional all-clear", async () => {
     const en = (await render("en", { level: "safe", reasons: [] })).textContent ?? "";
-    expect(en).toContain("NO ELEVATED SIGNAL");
+    expect(en).toContain("COMPOSITE BELOW ESCALATION");
+    expect(en).not.toContain("NO ELEVATED SIGNAL");
     expect(en).toContain("not an all-clear");
     expect(en).toContain("not an event probability");
     const th = (await render("th", { level: "safe", reasons: [] })).textContent ?? "";
-    expect(th).toContain("ไม่มีสัญญาณยกระดับ");
+    expect(th).toContain("คะแนนรวมต่ำกว่าเกณฑ์ยกระดับ");
+    expect(th).not.toContain("ไม่มีสัญญาณยกระดับ");
     expect(th).toContain("ยังไม่ใช่การยืนยันว่าปลอดภัย");
     expect(th).toContain("ไม่ใช่ความน่าจะเป็นของเหตุการณ์");
+  });
+  it("names the composite threshold when zero points coexist with modeled smoke paths", async () => {
+    const verdict = computeVerdict({ ...inputs, pm25_now: 18.5, ping_capacity_ratio: 0.3,
+      flood_provenance: "live", fire_count: 3, wind_kmh: 8,
+      smoke_near_cnx: 6, smoke_hits_cnx: 10, smoke_method: "forecast-field" });
+    expect(verdict.score).toBe(0);
+    expect(verdict.level).toBe("safe");
+    expect(verdict.reasons.some(reason => reason.domain === "haze")).toBe(true);
+    const text = (await render("en", verdict)).textContent ?? "";
+    expect(text).toContain("COMPOSITE BELOW ESCALATION");
+    expect(text).not.toContain("NO ELEVATED SIGNAL");
+    expect(text).toContain("not observed smoke arrival");
   });
   it("shows one language per mode, never both stacked", async () => {
     const en = (await render("en")).textContent ?? "";

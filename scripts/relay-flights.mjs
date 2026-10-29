@@ -37,11 +37,11 @@ import { runCitizenReports } from "./citizen-reports.mjs";
 import { runSocialRelay } from "./social-relay.mjs";
 import { runRainRelay } from "./rain-relay.mjs";
 import { runDamRelay } from "./dam-relay.mjs";
-import { createBackoff } from "./provider-backoff.mjs";
+import { createBackoff, parseRetryAfter } from "./provider-backoff.mjs";
 
 // A rate-limited or failing provider rests instead of being hit every tick.
 const backoff = createBackoff();
-const retryAfter = (res) => Number(res.headers.get("retry-after"));
+const retryAfter = (res) => parseRetryAfter(res.headers.get("retry-after"));
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 loadEnvFile(new URL("relay-flights.env", `file://${HERE}`).pathname);

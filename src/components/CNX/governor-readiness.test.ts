@@ -9,11 +9,16 @@ import CnxFirePanel from "./CNXFirePanel";
 import CnxSocialSidebar from "./CNXSocialSidebar";
 import type { CnxFiresResponse, SocialListeningResponse } from "../../types/cnx";
 import { buildExecutiveBrief } from "../../lib/cnx/executive-brief";
+import type { OfficialWarningsResponse } from "../../lib/cnx/tmd-cap-core";
+
+const officialState = vi.hoisted(() => ({ feed: null as OfficialWarningsResponse | null }));
+vi.mock("../../hooks/useOfficialWarnings", () => ({ useOfficialWarnings: () => officialState.feed }));
 
 const empty = { air: null, dustboy: null, fires: null, twin: null, riverGauges: [], flights: null };
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  officialState.feed = null;
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
   container = document.createElement("div");
@@ -82,6 +87,44 @@ describe("governor evidence paths", () => {
     expect(text).toContain("https://cnx.nonarkara.org/cnx");
     expect(text).not.toMatch(/localhost|127\.0\.0\.1/);
     expect(text).toContain("ตรวจสอบ");
+  });
+
+  it("leads the brief and copied text with current official instructions", async () => {
+    const now = Date.now();
+    officialState.feed = {
+      provenance: "live", fetchedAt: new Date(now).toISOString(), reason: null, reason_th: null,
+      documentsRead: 1, documentsListed: 1, source: "TMD · CAP 1.2",
+      alerts: [{ identifier: "showcase-test", sent: new Date(now - 60_000).toISOString(), effective: new Date(now - 60_000).toISOString(), expires: new Date(now + 3600_000).toISOString(), event: "Heavy rain", headline_th: "ประกาศทดสอบฝนหนัก", headline_en: "Test heavy rain warning", severity: "Severe", urgency: "Expected", certainty: "Likely", instruction_th: "ตรวจพื้นที่ลาดเชิงเขาตามประกาศ", instruction_en: "Check foothill areas as advised", web: "https://www.tmd.go.th/warning", areaDesc: "Chiang Mai", areaDesc_th: "เชียงใหม่", areaDesc_en: "Chiang Mai", geocodeMatch: true, polygons: [] }],
+    };
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    await act(async () => root.render(createElement(CnxGovernorBrief, { ...empty, isOpen: true, onClose: vi.fn() })));
+    const official = container.querySelector('[aria-label="ประกาศทางการ"]')!;
+    expect(official.textContent).toContain("ประกาศทดสอบฝนหนัก");
+    expect(official.textContent).toContain("ตรวจพื้นที่ลาดเชิงเขาตามประกาศ");
+    expect(official.querySelector('a')?.href).toBe("https://www.tmd.go.th/warning");
+    const sections = Array.from(container.querySelectorAll("section"));
+    const evidence = container.querySelector('[aria-label="หลักฐานปัจจุบัน"]')!;
+    const checks = container.querySelector('[aria-labelledby="brief-next-checks"]')!;
+    expect(sections.indexOf(official)).toBeLessThan(sections.indexOf(checks));
+    expect(sections.indexOf(checks)).toBeLessThan(sections.indexOf(evidence));
+    expect(evidence.textContent).not.toContain("การบิน · ข้อมูลย้อนหลัง");
+    const copy = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.includes("คัดลอกส่ง LINE"))!;
+    await act(async () => copy.click());
+    expect(writeText.mock.calls[0][0]).toContain("ประกาศทดสอบฝนหนัก");
+    expect(writeText.mock.calls[0][0]).toContain("ตรวจพื้นที่ลาดเชิงเขาตามประกาศ");
+    expect(writeText.mock.calls[0][0]).toContain("https://www.tmd.go.th/warning");
+  });
+
+  it("does not forward an expired official check as no warnings in force", async () => {
+    officialState.feed = { provenance: "live", fetchedAt: new Date(Date.now() - 2 * 3600_000).toISOString(), alerts: [], reason: null, reason_th: null, documentsRead: 8, documentsListed: 8, source: "TMD · CAP 1.2" };
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    await act(async () => root.render(createElement(CnxGovernorBrief, { ...empty, isOpen: true, onClose: vi.fn() })));
+    expect(container.querySelector('[aria-label="ประกาศทางการ"]')?.textContent).toContain("อ่านประกาศ TMD ไม่ได้");
+    expect(container.textContent).not.toContain("ไม่มีประกาศ TMD ที่มีผล");
+    const copy = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.includes("คัดลอกส่ง LINE"))!;
+    await act(async () => copy.click());
+    expect(writeText.mock.calls[0][0]).toContain("อ่านประกาศ TMD ไม่ได้");
+    expect(writeText.mock.calls[0][0]).not.toContain("ไม่มีประกาศ TMD ที่มีผล");
   });
 
   it("keeps missing evidence and the verification action visible in the desk", async () => {

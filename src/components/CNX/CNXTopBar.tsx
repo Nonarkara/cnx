@@ -102,7 +102,9 @@ const CHIP_LABEL: Record<CnxTwinResponse["verdict"]["level"], Pair> = {
   danger: ["อันตราย", "DANGER"],
   prepare: ["เตรียมพร้อม", "PREPARE"],
   watch: ["เฝ้าระวัง", "WATCH"],
-  safe: ["ไม่มีสัญญาณยกระดับ", "NO ELEVATED SIGNAL"],
+  // The composite can remain below its threshold while individual
+  // districts, detections or model paths still need inspection.
+  safe: ["คะแนนรวมต่ำกว่าเกณฑ์ยกระดับ", "COMPOSITE BELOW ESCALATION"],
 };
 const DOMAIN_LABEL: Record<CnxTwinResponse["verdict"]["reasons"][number]["domain"], Pair> = {
   flood: ["น้ำ", "Flood"],

@@ -31,7 +31,7 @@ import type { RainResponse } from "./rain";
 import { currentRainSummary } from "./rain-core";
 import { outlookWatchItems, type ProvinceOutlook } from "./outlook";
 import type { OfficialWarningsResponse } from "./tmd-cap-core";
-import { officialWatchItems } from "./official-watch";
+import { officialWatchItems, OFFICIAL_WARNING_MAX_AGE_MS } from "./official-watch";
 import { getTwinEntity } from "./twin-manifest";
 import { isCurrentGaugeReading } from "./verdict";
 
@@ -69,6 +69,25 @@ export interface WatchItem {
    *  "no official warning", which must not read as a green "normal". */
   chipTh?: string;
   chipEn?: string;
+}
+
+/** Age the displayed clock, not the feed's collection cadence. FIRMS's
+ * clock is a detection inside a rolling 24 h window; model/reference
+ * rows use their declared issuance or daily-observation budget. */
+export function watchItemStaleAfterMs(item: Pick<WatchItem, "id" | "kind" | "source">): number {
+  const hour = 3_600_000;
+  if (item.kind === "official") return OFFICIAL_WARNING_MAX_AGE_MS;
+  if (item.id === "fire") return 24 * hour;
+  if (item.id === "water") return (item.source === "ThaiWater rain gauges" ? 6 : 3) * hour;
+  if (item.id === "river-gauges") return 3 * hour;
+  if (item.id === "rain-gauges") return 6 * hour;
+  if (item.id === "mobility") return 10 * 60_000;
+  const registryId: Record<string, string> = {
+    "air-gistda": "gistda-pm25", "aerosol-cams": "cams-aod",
+    "smoke": "smoke-trajectory", "fires-rfd": "rfd-fires",
+    "forecast-rain": "forecast-field", "forecast-pm25": "forecast-field",
+  };
+  return (getTwinEntity(registryId[item.id] ?? item.id)?.staleAfterSec ?? 3 * 3600) * 1000;
 }
 
 export interface WatchListInput {
