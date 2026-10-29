@@ -178,24 +178,24 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
         className="relative my-2 w-full max-w-[1040px] border border-[var(--line)] bg-[var(--bg)] p-4 sm:my-4 sm:p-5 print:my-0 print:border-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 lg:pr-[330px]">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <div className="min-w-0">
             <h2 className="text-[22px] font-semibold leading-snug text-[var(--ink)] sm:text-[26px]">{t("เชียงใหม่ · สรุปสถานการณ์", "Chiang Mai situation brief")}</h2>
             <p className="mt-1 text-[12px] text-[var(--dim)]">{brief.now.toLocaleString(lang === "en" ? "en-GB" : "th-TH", { timeZone: "Asia/Bangkok", dateStyle: "long", timeStyle: "short" })}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={t("ปิดสรุปผู้ว่าฯ", "Close governor brief")} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center border border-[var(--line)] print:hidden">
+          <button type="button" onClick={onClose} aria-label={t("ปิดสรุปผู้ว่าฯ", "Close governor brief")} className="col-start-2 row-start-1 flex min-h-11 min-w-11 items-center justify-center border border-[var(--line)] print:hidden md:col-start-3">
             <X className="h-4 w-4" />
           </button>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 print:hidden lg:absolute lg:right-[84px] lg:top-5 lg:mt-0">
+          <div className="col-span-2 flex flex-wrap items-center gap-2 print:hidden md:col-span-1 md:col-start-2 md:row-start-1">
           <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 border px-3 text-[13px] font-semibold">
             <Copy className="h-3.5 w-3.5" />{copyState === "copied" ? t("คัดลอกแล้ว", "Copied") : t("คัดลอกส่ง LINE", "Copy Thai text for LINE")}
           </button>
           <button type="button" onClick={() => window.print()} className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] px-3 text-[12px]">
             <Printer className="h-3.5 w-3.5" />{t("พิมพ์", "Print")}
           </button>
-          {copyState !== "idle" && <p role="status" className="text-[12px] text-[var(--dim)] lg:absolute lg:right-0 lg:top-full lg:mt-1 lg:w-[330px] lg:text-right">{copyState === "failed" ? t("คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง", "Copy failed; open the text below and copy manually.") : t("คัดลอกพร้อมแหล่งที่มาและเวลาแล้ว", "Copied with sources and reference times.")}</p>}
+          </div>
         </div>
+        {copyState !== "idle" && <p role="status" className="mt-2 text-[12px] text-[var(--dim)] print:hidden">{copyState === "failed" ? t("คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง", "Copy failed; open the text below and copy manually.") : t("คัดลอกพร้อมแหล่งที่มาและเวลาแล้ว", "Copied with sources and reference times.")}</p>}
         <section aria-label={t("ประกาศทางการ", "Official warnings")} className="mt-3 space-y-2">
           {brief.official.map(item => <div key={item.id} className={`border-l-2 pl-3 ${item.level === "good" || item.level === "unknown" ? "border-[var(--line)]" : LEVEL_CLS[item.level]}`}>
             <p className="text-[13px] font-semibold text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
