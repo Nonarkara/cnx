@@ -97,12 +97,13 @@ export function buildTiles(i: BriefInputs): BriefTile[] {
       : (() => {
           const band = pm25Band(i.airGround.avg);
           const worst = i.worstDistrict?.pm25 != null ? ` · สูงสุด อ.${i.worstDistrict.th} ${i.worstDistrict.pm25}` : "";
+          const worstEn = i.worstDistrict?.pm25 != null ? `; highest measured district ${i.worstDistrict.en} ${i.worstDistrict.pm25} µg/m³` : "";
           return {
             key: "air",
             titleTh: "คุณภาพอากาศ",
             level: band.level,
             th: `PM2.5 เฉลี่ย ${i.airGround.avg} มคก./ลบ.ม. (${band.th})${worst} · คัดกรองเบื้องต้น ไม่ใช่การประเมินสุขภาพจากค่าเฉลี่ย 24 ชม.`,
-            en: `Ground PM2.5 average ${i.airGround.avg} µg/m³ across ${i.airGround.stations} sensors; screening bands, not a verified 24-hour average`,
+            en: `Ground PM2.5 average ${i.airGround.avg} µg/m³ across ${i.airGround.stations} sensors${worstEn}; screening bands, not a verified 24-hour average`,
             source: i.airGround.source,
             observedAt: i.airGround.observedAt,
           };

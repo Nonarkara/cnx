@@ -127,6 +127,18 @@ describe("governor evidence paths", () => {
     expect(writeText.mock.calls[0][0]).not.toContain("ไม่มีประกาศ TMD ที่มีผล");
   });
 
+  it("keeps a manual handoff available when clipboard permission fails", async () => {
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+    await act(async () => root.render(createElement(CnxGovernorBrief, { ...empty, isOpen: true, onClose: vi.fn() })));
+    const copy = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.includes("คัดลอกส่ง LINE"))!;
+    await act(async () => copy.click());
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("คัดลอกไม่สำเร็จ");
+    expect(container.textContent).not.toContain("คัดลอกแล้ว");
+    const preview = container.querySelector("details pre")!;
+    expect(preview.textContent).toContain("ประกาศทางการ");
+    expect(preview.textContent).toContain("https://cnx.nonarkara.org/cnx");
+  });
+
   it("keeps missing evidence and the verification action visible in the desk", async () => {
     const metric = buildExecutiveBrief(empty).metrics[0];
     await act(async () => root.render(createElement(CnxMetricEvidence, { metric })));

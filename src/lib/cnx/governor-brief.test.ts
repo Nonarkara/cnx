@@ -64,6 +64,22 @@ const inputs = (over: Partial<BriefInputs> = {}): BriefInputs => ({
 });
 
 describe("buildTiles", () => {
+  it("keeps an elevated measured district beside a lower ground average in both languages", () => {
+    const tile = buildTiles(inputs({
+      airGround: { avg: 18.1, stations: 2, observedAt: "2026-10-03T14:00:00Z", source: "PCD ground stations" },
+      worstDistrict: { th: "ฝาง", en: "Fang", pm25: 38, sensors: 2,
+        observedAt: "2026-10-03T14:00:00Z", burnedLastSeasonRai: null, forestShare: null },
+    })).find(tile => tile.key === "air")!;
+    expect(tile.th).toContain("เฉลี่ย 18.1");
+    expect(tile.th).toContain("สูงสุด อ.ฝาง 38");
+    expect(tile.en).toContain("average 18.1 µg/m³ across 2 sensors");
+    expect(tile.en).toContain("highest measured district Fang 38 µg/m³");
+    expect(tile.en).toContain("not a verified 24-hour average");
+    expect(tile.source).toBe("PCD ground stations");
+    expect(tile.observedAt).toBe("2026-10-03T14:00:00Z");
+    const noDistrict = buildTiles(inputs()).find(tile => tile.key === "air")!;
+    expect(noDistrict.en).not.toContain("highest measured district");
+  });
   it("labels historical aviation and passenger estimates explicitly in Thai", () => {
     const tile = buildTiles(inputs()).find(t => t.key === "visitors")!;
     expect(tile.titleTh).toContain("ย้อนหลัง");

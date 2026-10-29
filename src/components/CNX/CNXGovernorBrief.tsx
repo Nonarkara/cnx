@@ -236,10 +236,6 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           ))}
         </section>
 
-        {operationalNotes.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
-          <h3 className="text-lg font-semibold">{t("หลักฐานปฏิบัติการเพิ่มเติม", "Additional operational evidence")}</h3>
-          <ul className="mt-3 grid items-start gap-x-6 gap-y-3 md:grid-cols-2">{operationalNotes.map((note, index) => <li key={index} className="min-w-0 max-w-[65ch] break-words text-sm leading-relaxed">{t(note.th, note.en)}</li>)}</ul>
-        </section>}
         <section className="mt-6 overflow-x-auto">
           <h3 className="text-[13px] font-bold text-[var(--ink)]">{t("อำเภอที่มีหลักฐานสำหรับติดตาม", "Districts with evidence to follow")}</h3>
           <p className="max-w-[65ch] text-[11px] text-[var(--dim)]">
@@ -276,6 +272,10 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           </table>
         </section>
 
+        {operationalNotes.length > 0 && <section className="mt-6 border-t border-[var(--line)] pt-5">
+          <h3 className="text-lg font-semibold">{t("หลักฐานปฏิบัติการเพิ่มเติม", "Additional operational evidence")}</h3>
+          <ul className="mt-3 grid items-start gap-x-6 gap-y-3 md:grid-cols-2">{operationalNotes.map((note, index) => <li key={index} className="min-w-0 max-w-[65ch] break-words text-sm leading-relaxed">{t(note.th, note.en)}</li>)}</ul>
+        </section>}
         <section aria-label={t("การบินย้อนหลัง", "Historical aviation")} className="mt-4 border-t border-[var(--line)] pt-3">
           <h3 className="text-[13px] font-semibold">{t("การบิน · ข้อมูลย้อนหลัง", "Aviation · historical coverage")}</h3>
           {brief.tiles.filter(tile => tile.key === "visitors").map(tile => <div key={tile.key} className="mt-1 max-w-[65ch] text-sm leading-relaxed">
