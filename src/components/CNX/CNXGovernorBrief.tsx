@@ -179,7 +179,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 lg:pr-[330px]">
             <h2 className="text-[22px] font-semibold leading-snug text-[var(--ink)] sm:text-[26px]">{t("เชียงใหม่ · สรุปสถานการณ์", "Chiang Mai situation brief")}</h2>
             <p className="mt-1 text-[12px] text-[var(--dim)]">{brief.now.toLocaleString(lang === "en" ? "en-GB" : "th-TH", { timeZone: "Asia/Bangkok", dateStyle: "long", timeStyle: "short" })}</p>
           </div>
@@ -187,14 +187,14 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+        <div className="mt-2 flex flex-wrap items-center gap-2 print:hidden lg:absolute lg:right-[84px] lg:top-5 lg:mt-0">
           <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 border px-3 text-[13px] font-semibold">
             <Copy className="h-3.5 w-3.5" />{copyState === "copied" ? t("คัดลอกแล้ว", "Copied") : t("คัดลอกส่ง LINE", "Copy Thai text for LINE")}
           </button>
           <button type="button" onClick={() => window.print()} className="flex min-h-11 items-center gap-1.5 border border-[var(--line)] px-3 text-[12px]">
             <Printer className="h-3.5 w-3.5" />{t("พิมพ์", "Print")}
           </button>
-          {copyState !== "idle" && <p role="status" className="text-[12px] text-[var(--dim)]">{copyState === "failed" ? t("คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง", "Copy failed; open the text below and copy manually.") : t("คัดลอกพร้อมแหล่งที่มาและเวลาแล้ว", "Copied with sources and reference times.")}</p>}
+          {copyState !== "idle" && <p role="status" className="text-[12px] text-[var(--dim)] lg:absolute lg:right-0 lg:top-full lg:mt-1 lg:w-[330px] lg:text-right">{copyState === "failed" ? t("คัดลอกไม่สำเร็จ เปิดข้อความด้านล่างแล้วเลือกคัดลอกด้วยตนเอง", "Copy failed; open the text below and copy manually.") : t("คัดลอกพร้อมแหล่งที่มาและเวลาแล้ว", "Copied with sources and reference times.")}</p>}
         </div>
         <section aria-label={t("ประกาศทางการ", "Official warnings")} className="mt-3 space-y-2">
           {brief.official.map(item => <div key={item.id} className={`border-l-2 pl-3 ${item.level === "good" || item.level === "unknown" ? "border-[var(--line)]" : LEVEL_CLS[item.level]}`}>
@@ -214,14 +214,14 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
         {floodStatus !== "loading" && !brief.currentFloodForecast && <p role="status" className="mt-2 text-[12px] text-[var(--dim)]">{floodStatus === "error"
           ? t("Google Flood Hub อ่านไม่ได้ในรอบนี้ ไม่ใช้ค่าที่เก็บจากรอบก่อน ให้ดูระดับน้ำและประกาศทางการ", "Google Flood Hub is unavailable this check. Prior results are excluded; use measured river levels and official notices.")
           : t("ไม่มีพยากรณ์ Google Flood Hub ที่ยังใช้ได้ในขณะนี้ ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม", "No current Google Flood Hub forecast is available; this does not confirm an absence of flooding.")}</p>}
-        <section aria-label={t("หลักฐานปัจจุบัน", "Current evidence")} className="mt-4 grid items-start gap-3 lg:grid-cols-3">
+        <section aria-label={t("หลักฐานปัจจุบัน", "Current evidence")} className="mt-4 grid items-start gap-3 md:grid-cols-2">
           {brief.tiles.filter(tile => tile.key !== "visitors").map((tile) => (
-            <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4`}>
+            <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4 ${tile.key === "water" ? "md:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2" : ""}`}>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[14px] font-bold text-[var(--ink)]">{t(tile.titleTh, TILE_TITLE_EN[tile.key])}</span>
                 <span className="font-mono text-[11px] uppercase text-[var(--dim)]">{tile.key === "visitors" && tile.level === "good" ? t("ข้อมูลย้อนหลัง", "Historical") : t(...LEVEL_LABEL[tile.level])}</span>
               </div>
-              <p className="mt-1 text-[17px] leading-relaxed text-[var(--ink)]">{t(tile.th, tile.en)}</p>
+              <p className="mt-1 max-w-[65ch] text-[17px] leading-relaxed text-[var(--ink)]">{t(tile.th, tile.en)}</p>
               <p className="mt-3 text-[12px] text-[var(--dim)]">
                 {/* DataAge prints the source itself; without a time, print it plainly. */}
                 {tile.observedAt ? <DataAge observedAt={tile.observedAt} source={tile.key === "fire" ? `${tile.source} · ${t("ตรวจพบล่าสุด", "latest detection")}` : tile.source} staleAfterMs={(tile.key === "fire" ? 24 : tile.key === "water" && tile.source.includes("rain gauges") ? 6 : 3) * 3600_000} className="!text-[12px] !tracking-normal" /> : tile.source}
