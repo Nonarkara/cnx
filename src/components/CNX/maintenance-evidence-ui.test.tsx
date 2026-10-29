@@ -29,7 +29,8 @@ const props = { onClose: vi.fn(), air: null, dustboy: null, fires: null, twin: n
 const hub = (issuedTime: string): FloodHubResponse => ({ generatedAt: new Date(NOW).toISOString(), provenance: "live", outlook: "flooding", worst: "SEVERE", note: "", points: [{ gaugeId: "model", latitude: 18.8, longitude: 99, kmFromCity: 1, qualityVerified: false, severity: "SEVERE", trend: "RISE", issuedTime, forecastStart: new Date(NOW).toISOString(), forecastEnd: new Date(NOW + 24 * 3600_000).toISOString() }] });
 it("does not carry successful Flood Hub evidence through a failed reopen", async () => {
   const tiles = vi.spyOn(briefLogic, "buildTiles");
-  vi.mocked(fetchJsonOrNull).mockResolvedValueOnce(null).mockResolvedValueOnce(hub(new Date(NOW - 3600_000).toISOString())).mockResolvedValueOnce(null);
+  let forecastReads = 0;
+  vi.mocked(fetchJsonOrNull<FloodHubResponse>).mockImplementation(async url => String(url).includes("/api/cnx/floodhub") && forecastReads++ === 0 ? hub(new Date(NOW - 3600_000).toISOString()) : null);
   await act(async () => root.render(<CnxGovernorBrief {...props} isOpen />));
   expect(tiles.mock.calls.at(-1)?.[0].floodForecast?.outlook).toBe("flooding");
   await act(async () => root.render(<CnxGovernorBrief {...props} isOpen={false} />));
@@ -40,7 +41,7 @@ it("does not carry successful Flood Hub evidence through a failed reopen", async
 });
 it("does not renew an old forecast with a recent response timestamp", async () => {
   const tiles = vi.spyOn(briefLogic, "buildTiles");
-  vi.mocked(fetchJsonOrNull).mockResolvedValueOnce(null).mockResolvedValueOnce(hub(new Date(NOW - 31 * 3600_000).toISOString())).mockResolvedValueOnce(null);
+  vi.mocked(fetchJsonOrNull<FloodHubResponse>).mockImplementation(async url => String(url).includes("/api/cnx/floodhub") ? hub(new Date(NOW - 31 * 3600_000).toISOString()) : null);
   await act(async () => root.render(<CnxGovernorBrief {...props} isOpen />));
   const water = tiles.mock.results.at(-1)?.value.find((tile: briefLogic.BriefTile) => tile.key === "water");
   expect(water?.th).not.toContain("Google คาดการณ์");

@@ -281,7 +281,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           {brief.tiles.filter(tile => tile.key === "visitors").map(tile => <div key={tile.key} className="mt-1 max-w-[65ch] text-sm leading-relaxed">
             <p>{t(tile.th, tile.en)}</p>
             <p className="mt-1 text-[12px] text-[var(--dim)]">{tile.source} · {t("เฉพาะเที่ยวบินที่เครือข่ายตรวจพบ อาจไม่ครบทั้งสนามบิน", "Receiver observations may not cover every airport arrival")}</p>
-            {onOpenMetric && <button type="button" onClick={() => { onClose(); onOpenMetric("mobility"); }} className="mt-1 inline-flex min-h-11 items-center text-[12px] text-[var(--cool)] underline print:hidden">{t("ตรวจหลักฐานการบิน", "Inspect aviation evidence")}</button>}
+            {onOpenMetric && <button type="button" onClick={() => { onClose(); onOpenMetric("mobility"); }} className="mt-1 inline-flex min-h-11 items-center text-[12px] text-[var(--cool)] underline print:hidden">{t("ตรวจหลักฐาน", "Inspect evidence")}<span className="sr-only"> · {t("การบิน · ข้อมูลย้อนหลัง", "Aviation · historical")}</span></button>}
           </div>)}
         </section>
         <details className="mt-4 print:hidden">
