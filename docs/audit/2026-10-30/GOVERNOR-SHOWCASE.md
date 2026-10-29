@@ -2,7 +2,7 @@
 
 Operator task: locate the current concern, check the official channel and observation time, inspect supporting evidence, and carry a dated brief into an operational discussion without losing the map.
 
-**Release status:** final source `5800a16258fe100cffff1852e51ad10a5088aace` is committed and pushed. CI, the final rendered review and local OpenNext packaging passed. Deployment is underway; live release identity and the post-deployment gate remain pending. This report does not yet declare the candidate shipped. Production was `b39fbf5` at the last completed release check.
+**Release status: shipped.** Production serves `5800a16258fe100cffff1852e51ad10a5088aace`, committed and pushed. Local OpenNext packaging and Cloudflare deployment succeeded (Worker version `ed4a6943-950e-482f-99c3-3723bcf35aa1`). The public release gate passed all **51 routes**, published/clean-tree identity, protected ingest denials and critical no-store checks. HEAD differs from the deployed source only by this engineering audit document. Public Thai desktop and phone map/brief captures confirm the deployed UI; browser error capture was empty for these checks. This is a scoped operational showcase pass, subject to the limits below.
 
 ## Scope and lineage
 
