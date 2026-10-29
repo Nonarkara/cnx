@@ -98,13 +98,13 @@ describe("governor evidence paths", () => {
     };
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     await act(async () => root.render(createElement(CnxGovernorBrief, { ...empty, isOpen: true, onClose: vi.fn() })));
-    const official = container.querySelector('[aria-label="ประกาศทางการ"]')!;
+    const official = container.querySelector<HTMLElement>('[aria-label="ประกาศทางการ"]')!;
     expect(official.textContent).toContain("ประกาศทดสอบฝนหนัก");
     expect(official.textContent).toContain("ตรวจพื้นที่ลาดเชิงเขาตามประกาศ");
     expect(official.querySelector('a')?.href).toBe("https://www.tmd.go.th/warning");
     const sections = Array.from(container.querySelectorAll("section"));
-    const evidence = container.querySelector('[aria-label="หลักฐานปัจจุบัน"]')!;
-    const checks = container.querySelector('[aria-labelledby="brief-next-checks"]')!;
+    const evidence = container.querySelector<HTMLElement>('[aria-label="หลักฐานปัจจุบัน"]')!;
+    const checks = container.querySelector<HTMLElement>('[aria-labelledby="brief-next-checks"]')!;
     expect(sections.indexOf(official)).toBeLessThan(sections.indexOf(checks));
     expect(sections.indexOf(checks)).toBeLessThan(sections.indexOf(evidence));
     expect(evidence.textContent).not.toContain("การบิน · ข้อมูลย้อนหลัง");
