@@ -619,6 +619,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
         >
           <CNXMap
             instructionRequest={instructionRequest}
+            onInstructionStarted={() => setInstructionRequest(0)}
             flights={flightStates}
             heritage={heritage}
             floodCameras={floodCameras}

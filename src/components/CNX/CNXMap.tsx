@@ -470,6 +470,7 @@ function buildGridRing(centre: [number, number], radiusKm: number): [number, num
 
 interface MapProps {
   instructionRequest?: number;
+  onInstructionStarted?: () => void;
   flights: FlightState[];
   heritage?: CnxHeritageSite[];
   airStations?: AirStation[];
@@ -587,6 +588,7 @@ function hexToRgb(hex: string): [number, number, number] {
 
 export default function CNXMap({
   instructionRequest = 0,
+  onInstructionStarted,
   flights,
   heritage = [],
   airStations = [],
@@ -794,7 +796,8 @@ export default function CNXMap({
     setPickingInstruction(true);
     if (layersRef.current) layersRef.current.open = false;
     mapRootRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
-  }, [instructionRequest]);
+    onInstructionStarted?.();
+  }, [instructionRequest, onInstructionStarted]);
   const [mapReady, setMapReady] = useState(false);
 
   // ─── The roofs ────────────────────────────────────────────────────────

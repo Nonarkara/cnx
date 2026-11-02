@@ -37,11 +37,17 @@ it("removes a pending request only on its matching receipt", async () => {
   expect(container.textContent).toContain("does not confirm acknowledgement or completion");
 });
 it("freezes an unconfirmed payload after a mismatched success receipt", async () => {
-  const pending = { requestId: "11111111-1111-4111-8111-111111111111", latitude: 19.1, longitude: 99.1, instruction: "Check this road" };
-  sessionStorage.setItem(KEY, JSON.stringify(pending));
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ receipt: { requestId: "different", id: "outbox-1", status: "sent" } })));
+  const transport = vi.fn().mockResolvedValue(Response.json({ receipt: { requestId: "different", id: "outbox-1", status: "sent" } }));
+  vi.stubGlobal("fetch", transport);
   await render();
+  const textarea = container.querySelector("textarea")!;
+  expect(textarea.disabled).toBe(false);
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea, "Check this road");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
   await act(async () => { container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(JSON.parse(transport.mock.calls[0][1].body).instruction).toBe("Check this road");
   expect(container.querySelector("textarea")!.disabled).toBe(true);
   expect(sessionStorage.getItem(KEY)).not.toBeNull(); expect(container.textContent).toContain("Delivery is unconfirmed");
 });
