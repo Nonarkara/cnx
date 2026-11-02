@@ -661,6 +661,27 @@ describe("fetchRiverLevel — the relay tier", () => {
     relayState.fakeKV = null;
   });
 
+  it("notices a newer relay copy within two minutes without pulling ThaiWater per visitor", async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    let payload = relayPayload([P1]);
+    const get = vi.fn(async () => payload);
+    relayState.fakeKV = { get, put: async () => {} };
+    const network = vi.fn(async () => { throw new Error("upstream must not be requested"); });
+    globalThis.fetch = network as typeof fetch;
+    try {
+      expect((await fetchRiverLevel()).gaugeCount).toBe(1);
+      payload = relayPayload([P1, MAE_TAENG]);
+      clock.mockReturnValue(start + 119_000);
+      expect((await fetchRiverLevel()).gaugeCount).toBe(1);
+      expect(get).toHaveBeenCalledTimes(1);
+      clock.mockReturnValue(start + 121_000);
+      expect((await fetchRiverLevel()).gaugeCount).toBe(2);
+      expect(get).toHaveBeenCalledTimes(2);
+      expect(network).not.toHaveBeenCalled();
+    } finally { clock.mockRestore(); }
+  });
+
   it("serves the relay's fresh copy without a single upstream call", async () => {
     const calls: string[] = [];
     relayState.fakeKV = {
