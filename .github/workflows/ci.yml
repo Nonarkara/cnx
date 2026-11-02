@@ -99,3 +99,16 @@ jobs:
             cat /tmp/worker-smoke.log
             exit 1
           fi
+
+      # Preserve the exact bundle that passed startup, so preview/release does
+      # not depend on repeating a slow local build. Tar retains symlinks.
+      - name: Archive verified Worker
+        run: tar -czf "$RUNNER_TEMP/cnx-worker.tgz" .open-next
+
+      - name: Retain verified Worker for preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: cnx-worker-${{ github.sha }}
+          path: ${{ runner.temp }}/cnx-worker.tgz
+          if-no-files-found: error
+          retention-days: 3
