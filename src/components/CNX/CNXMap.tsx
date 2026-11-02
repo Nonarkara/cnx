@@ -1902,7 +1902,7 @@ export default function CNXMap({
       <details
         ref={layersRef}
         data-cnx-map-ui
-        className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[320px] border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
+        className="absolute left-2 top-2 z-10 max-h-[calc(100%-5.5rem)] w-fit max-w-[calc(100%-1rem)] overflow-y-auto open:w-[264px] border border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
         onToggle={(event) => {
           if (event.currentTarget.open) claimExclusiveOverlay("map-layers");
         }}
