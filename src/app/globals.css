@@ -288,7 +288,8 @@ samp {
     margin-top: 0;
   }
   .cnx-watch-system-age {
-    flex: none;
+    flex: 0 1 auto;
+    max-width: 100%;
   }
 }
 
