@@ -216,7 +216,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           : t("ไม่มีพยากรณ์ Google Flood Hub ที่ยังใช้ได้ในขณะนี้ ไม่ใช่การยืนยันว่าไม่มีน้ำท่วม", "No current Google Flood Hub forecast is available; this does not confirm an absence of flooding.")}</p>}
         <section aria-label={t("หลักฐานปัจจุบัน", "Current evidence")} className="mt-4 grid items-start gap-3 md:grid-cols-2">
           {brief.tiles.filter(tile => tile.key !== "visitors").map((tile) => (
-            <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-4 ${tile.key === "water" ? "md:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2" : ""}`}>
+            <div key={tile.key} className={`border-l-4 ${LEVEL_CLS[tile.level]} border-y border-r border-y-[var(--line)] border-r-[var(--line)] bg-[var(--bg-surface)] p-3 ${tile.key === "water" ? "md:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-2" : ""}`}>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[14px] font-bold text-[var(--ink)]">{t(tile.titleTh, TILE_TITLE_EN[tile.key])}</span>
                 <span className="font-mono text-[11px] uppercase text-[var(--dim)]">{tile.key === "visitors" && tile.level === "good" ? t("ข้อมูลย้อนหลัง", "Historical") : t(...LEVEL_LABEL[tile.level])}</span>

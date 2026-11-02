@@ -291,7 +291,7 @@ function buildingColorExpr(): DataDrivenPropertyValueSpecification<string> {
  *  layer bar (3D City / Transit / Weather & Air / Range Rings). */
 function ToggleGroupLabel({ children, first }: { children: React.ReactNode; first?: boolean }) {
   return (
-    <div className={`px-1 py-2 text-[12px] font-semibold uppercase tracking-[0.08em] bg-[var(--bg-raised)] text-[var(--dim)] ${first ? "" : "mt-1.5"}`}>
+    <div className={`basis-full py-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--dim)] ${first ? "" : "mt-2"}`}>
       {children}
     </div>
   );
@@ -322,7 +322,7 @@ function MapToggleButton({
       disabled={disabled}
       aria-pressed={pressed}
       title={title}
-      className={`min-h-11 border px-3 py-2 text-left text-[13px] font-semibold transition-colors ${
+      className={`min-h-11 w-fit max-w-full border px-2 py-1 text-left text-[13px] font-semibold transition-colors ${
         disabled
           ? "cursor-not-allowed border-[var(--line)] bg-[var(--bg-raised)] text-[var(--dim)]"
           : pressed
@@ -1912,10 +1912,10 @@ export default function CNXMap({
           event.currentTarget.querySelector("summary")?.focus();
         }
       }}>
-        <summary className="min-h-11 cursor-pointer px-3 py-3 text-[14px] font-semibold">{t("ชั้นข้อมูล", "Layers")}</summary>
-        <div className="flex flex-col gap-1 border-t border-[var(--line)] p-3">
-        <label htmlFor="cnx-basemap" className="px-1 py-2 text-[12px] font-semibold text-[var(--dim)]">{t("แผนที่พื้นฐาน", "Base map")}</label>
-        <select id="cnx-basemap" value={basemap} onChange={(event) => handleBasemapChange(event.target.value as BasemapId)} className="min-h-11 w-full border border-[var(--line)] bg-[var(--bg-raised)] px-3 text-[14px] text-[var(--ink)]">
+        <summary className="min-h-11 w-fit cursor-pointer px-2 py-2 text-[14px] font-semibold">{t("ชั้นข้อมูล", "Layers")}</summary>
+        <div className="flex flex-wrap items-start gap-1.5 border-t border-[var(--line)] p-2">
+        <label htmlFor="cnx-basemap" className="inline-flex min-h-11 items-center text-[12px] font-semibold text-[var(--dim)]">{t("แผนที่พื้นฐาน", "Base map")}</label>
+        <select id="cnx-basemap" value={basemap} onChange={(event) => handleBasemapChange(event.target.value as BasemapId)} className="min-h-11 w-fit max-w-full border border-[var(--line)] bg-[var(--bg-raised)] px-2 text-[14px] text-[var(--ink)]">
           {BASEMAP_OPTIONS.map((option) => <option key={option.id} value={option.id} title={t(BASEMAP_TH[option.id]?.hint ?? option.hint, option.hint)}>{t(BASEMAP_TH[option.id]?.label ?? option.label, option.label)}</option>)}
         </select>
         <ToggleGroupLabel>{t("เมือง 3 มิติ", "3D City")}</ToggleGroupLabel>
@@ -2076,7 +2076,7 @@ export default function CNXMap({
                   })
                 }
                 aria-pressed={on}
-                className={`min-h-11 flex-1 border px-2 py-2 text-[13px] font-semibold ${
+                className={`min-h-11 border px-2 py-1 text-[13px] font-semibold ${
                   on ? "border-[#6b6b6b] bg-[#6b6b6b] text-white" : "border-[var(--line)] bg-[var(--bg-raised)] text-[var(--ink)]"
                 }`}
               >

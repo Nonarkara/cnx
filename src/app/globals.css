@@ -266,6 +266,32 @@ samp {
   border: 1px solid var(--line);
 }
 
+/* A narrow desk reads as source → value → clock/action. The same inventory
+   becomes aligned comparison rows when the panel itself has room, including
+   tablet layouts. Viewport breakpoints cannot describe the desktop side rail. */
+.cnx-watch-board {
+  container: cnx-watch / inline-size;
+}
+@container cnx-watch (min-width: 32rem) {
+  .cnx-watch-system {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.2fr) auto;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+  }
+  .cnx-watch-system-footer {
+    display: contents;
+  }
+  .cnx-watch-system-value {
+    min-width: 0;
+    margin-top: 0;
+  }
+  .cnx-watch-system-age {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 /* How far the verdict band's evidence panel must sit below the band's own
  * bottom edge so it can never cover one of the map's controls.
  *
