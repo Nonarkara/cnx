@@ -45,6 +45,8 @@ jobs:
       - name: Test
         env:
           CNX_SKIP_DISK_LOAD: "1"
+          # Node 22.12 gates the real SQLite fixture used by PIN lockout tests.
+          NODE_OPTIONS: "--experimental-sqlite"
         run: npm test
 
       - name: Plain Node relay imports
