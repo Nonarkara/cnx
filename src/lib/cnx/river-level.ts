@@ -173,8 +173,10 @@ const ENDPOINT = "https://api-v3.thaiwater.net/api/v1/thaiwater30/public/waterle
 /** The province this board covers. Thai two-digit geocode. */
 const PROVINCE_CODE = "50";
 
-/** See POLL CADENCE. Source cadence is coarser than this. */
+/** Direct fallback reads retain their original upstream budget. */
 export const RIVER_LEVEL_TTL_MS = 10 * 60_000;
+/** Recheck KV within two minutes so fresh relay pushes reach the board promptly. */
+export const RIVER_LEVEL_RELAY_TTL_MS = 2 * 60_000;
 
 /** Basin code for the Ping, as published in the feed. */
 const PING_BASIN_CODE = 6;
@@ -796,7 +798,7 @@ function buildFromEnvelope(
   };
 }
 
-let cache: { at: number; value: RiverLevelResponse } | null = null;
+let cache: { at: number; value: RiverLevelResponse; ttlMs: number } | null = null;
 
 /**
  * Failures are cached too, and for LONGER than successes.
@@ -826,8 +828,7 @@ export function resetRiverLevelCache(): void {
 export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
   const now = Date.now();
   if (cache) {
-    const ttl = cache.value.provenance === "live" ? RIVER_LEVEL_TTL_MS : FAILURE_TTL_MS;
-    if (now - cache.at < ttl) return cache.value;
+    if (now - cache.at < cache.ttlMs) return cache.value;
   }
 
   // ── Tier 1: the relay's copy ────────────────────────────────────
@@ -851,7 +852,7 @@ export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
       "ThaiWater (the relay's copy)",
     );
     if (value.provenance === "live") {
-      cache = { at: now, value };
+      cache = { at: now, value, ttlMs: RIVER_LEVEL_RELAY_TTL_MS };
       return value;
     }
     // A fresh copy with nothing usable falls through to the direct
@@ -875,12 +876,12 @@ export async function fetchRiverLevel(): Promise<RiverLevelResponse> {
         ? `could not read the gauge feed: ${env.error}`
         : "ThaiWater answered, but the response carried no data array",
     );
-    cache = { at: now, value };
+    cache = { at: now, value, ttlMs: FAILURE_TTL_MS };
     return value;
   }
 
   const value = buildFromEnvelope(rows, await fetchCatalogueCount(), "ThaiWater (direct read)");
-  cache = { at: now, value };
+  cache = { at: now, value, ttlMs: value.provenance === "live" ? RIVER_LEVEL_TTL_MS : FAILURE_TTL_MS };
   return value;
 }
 

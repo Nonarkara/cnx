@@ -517,6 +517,24 @@ describe("fetchRiverLevel", () => {
     expect(RIVER_LEVEL_TTL_MS).toBe(600_000);
   });
 
+  it("keeps successful direct fallback reads on their ten-minute upstream budget", async () => {
+    const start = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(start);
+    const calls = stubFetch({
+      "/public/waterlevel": { data: [P1] },
+      "tele_canal_station": { data: { tele_waterlevel: [] } },
+    });
+    try {
+      await fetchRiverLevel();
+      clock.mockReturnValue(start + 121_000);
+      await fetchRiverLevel();
+      expect(calls.filter(url => url.includes("/public/waterlevel"))).toHaveLength(1);
+      clock.mockReturnValue(start + 601_000);
+      await fetchRiverLevel();
+      expect(calls.filter(url => url.includes("/public/waterlevel"))).toHaveLength(2);
+    } finally { clock.mockRestore(); }
+  });
+
   it("keeps a null catalogue count when the catalogue read fails", async () => {
     // Never 0 — that would read as "this province has no telemetry".
     stubFetch({ "/public/waterlevel": { data: [P1] } });
