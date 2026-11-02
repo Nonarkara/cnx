@@ -142,7 +142,7 @@ function EvidenceButton({ item, onOpenMetric }: { item: WatchItem; onOpenMetric:
     <button
       type="button"
       onClick={() => onOpenMetric(item.openMetric!)}
-      className="mt-1 inline-flex min-h-11 items-center border border-[var(--line)] px-2 text-[12px] font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--cool-dim)]"
+      className="inline-flex min-h-11 shrink-0 items-center border border-[var(--line)] px-2 text-[12px] font-semibold text-[var(--ink)] transition-colors hover:bg-[var(--cool-dim)]"
     >
       {t("ดูหลักฐาน", "View evidence")}
     </button>
@@ -212,7 +212,7 @@ export default function CnxWatchBoard({
   const watchNow = board.watch.filter((item) => item.kind !== "official");
 
   return (
-    <section lang={lang} aria-label={t("รายการเฝ้าระวังของจังหวัด", "Province watch list")} className="flex flex-col gap-4 p-3">
+    <section lang={lang} aria-label={t("รายการเฝ้าระวังของจังหวัด", "Province watch list")} className="cnx-watch-board flex flex-col gap-3 p-2.5">
       <header className="flex flex-wrap items-center gap-2">
         <Satellite aria-hidden="true" className="h-4 w-4 text-[var(--cool)]" />
         <h2 className="text-[14px] font-bold">{t("เฝ้าระวังเชียงใหม่", "What Chiang Mai must watch now")}</h2>
@@ -252,8 +252,10 @@ export default function CnxWatchBoard({
                 <p className="mt-1 max-w-[65ch] break-words text-[13px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
                 {item.actionTh && <p className="mt-1 max-w-[65ch] break-words text-[12px] font-semibold text-[var(--cool)]">▸ {t(item.actionTh, item.actionEn)}</p>}
                 <p className="mt-1 max-w-[65ch] break-words text-[12px] leading-relaxed text-[var(--dim)]">{t(item.evidenceTh, item.evidenceEn)}</p>
-                <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={watchItemStaleAfterMs(item)} className="mt-1 block" />
-                <EvidenceButton item={item} onOpenMetric={onOpenMetric} />
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <DataAge observedAt={item.observedAt} source={item.source} staleAfterMs={watchItemStaleAfterMs(item)} className="min-w-0 flex-1 basis-36" />
+                  <EvidenceButton item={item} onOpenMetric={onOpenMetric} />
+                </div>
               </li>
             ))}
           </ul>
@@ -268,17 +270,20 @@ export default function CnxWatchBoard({
         </h3>
         <ul className="flex flex-col divide-y divide-[var(--line)] border border-[var(--line)] bg-[var(--bg)]">
           {board.systems.map((item) => (
-            <li key={item.id} className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 ${item.kind === "official" ? `border-l-4 ${OFFICIAL_FRAME[item.level] ?? OFFICIAL_FRAME.unknown}` : ""}`}>
+            <li key={item.id} className={`cnx-watch-system min-w-0 p-2 ${item.kind === "official" ? `border-l-4 ${OFFICIAL_FRAME[item.level] ?? OFFICIAL_FRAME.unknown}` : ""}`}>
+              <div className="cnx-watch-system-head flex flex-wrap items-baseline gap-x-2 gap-y-1">
               <LevelChip level={item.level} chipTh={item.chipTh} chipEn={item.chipEn} />
               <span className="text-[12px] font-semibold">{t(item.systemTh, item.systemEn)}</span>
               <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--cool)]">{t(...KIND_LABEL[item.kind])}</span>
-              <span className="min-w-0 flex-1 basis-52 text-[12px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</span>
+              </div>
+              <p className="cnx-watch-system-value mt-1 break-words text-[12px] text-[var(--ink)]">{t(item.valueTh, item.valueEn)}</p>
+              <div className="cnx-watch-system-footer mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               <DataAge
                 observedAt={item.observedAt}
                 source={item.source}
                 staleAfterMs={watchItemStaleAfterMs(item)}
                 missing={item.kind === "imagery" ? t("ชั้นข้อมูลแผนที่", "map layer") : undefined}
-                className="basis-full sm:basis-auto"
+                className="cnx-watch-system-age min-w-0 flex-1 basis-36"
               />
               {item.openMetric && (
                 <button
@@ -290,6 +295,7 @@ export default function CnxWatchBoard({
                   {t("ดู", "View")}<span className="sr-only">{t(`หลักฐาน ${item.systemTh}`, ` evidence for ${item.systemEn}`)}</span>
                 </button>
               )}
+              </div>
             </li>
           ))}
         </ul>
