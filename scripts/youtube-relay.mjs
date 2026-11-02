@@ -34,7 +34,7 @@ async function boundedJson(response) {
 async function apiList(method, params, apiKey) {
   const url = new URL(`https://www.googleapis.com/youtube/v3/${method}`);
   url.search = new URLSearchParams({ ...params, key: apiKey }).toString();
-  return boundedJson(await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(20_000) }));
+  return boundedJson(await fetch(url, { headers: { Accept: "application/json" }, redirect: "error", signal: AbortSignal.timeout(20_000) }));
 }
 function normaliseVideo(raw, windowStart, windowEnd) {
   const snippet = raw?.snippet;
@@ -121,6 +121,7 @@ export async function runYoutubeRelay({ baseUrl, secret, apiKey } = {}) {
   try {
     const response = await fetch(`${baseUrl}/api/cnx/youtube/ingest`, {
       method: "POST", headers: { "Content-Type": "application/json", "X-Relay-Secret": secret },
+      redirect: "error",
       body: JSON.stringify(result.payload), signal: AbortSignal.timeout(20_000),
     });
     await response.body?.cancel().catch(() => {});

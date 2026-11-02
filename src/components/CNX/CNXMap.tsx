@@ -469,6 +469,7 @@ function buildGridRing(centre: [number, number], radiusKm: number): [number, num
 }
 
 interface MapProps {
+  instructionRequest?: number;
   flights: FlightState[];
   heritage?: CnxHeritageSite[];
   airStations?: AirStation[];
@@ -585,6 +586,7 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 export default function CNXMap({
+  instructionRequest = 0,
   flights,
   heritage = [],
   airStations = [],
@@ -787,6 +789,12 @@ export default function CNXMap({
   };
   const mlMapRef = useRef<MaplibreMap | null>(null);
   const layersRef = useRef<HTMLDetailsElement | null>(null);
+  useEffect(() => {
+    if (!instructionRequest) return;
+    setPickingInstruction(true);
+    if (layersRef.current) layersRef.current.open = false;
+    mapRootRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
+  }, [instructionRequest]);
   const [mapReady, setMapReady] = useState(false);
 
   // ─── The roofs ────────────────────────────────────────────────────────
@@ -1936,10 +1944,6 @@ export default function CNXMap({
       }}>
         <summary className="min-h-11 w-fit cursor-pointer px-2 py-2 text-[14px] font-semibold">{t("ชั้นข้อมูล", "Layers")}</summary>
         <div className="flex flex-wrap items-start gap-1.5 border-t border-[var(--line)] p-2">
-        <button type="button" className="min-h-11 w-fit border border-[var(--line)] px-2 text-[13px] font-semibold" onClick={() => {
-          setPickingInstruction(true);
-          if (layersRef.current) layersRef.current.open = false;
-        }}>{t("ปักหมุดส่งคำสั่ง", "Pin an instruction")}</button>
         <label htmlFor="cnx-basemap" className="inline-flex min-h-11 items-center text-[12px] font-semibold text-[var(--dim)]">{t("แผนที่พื้นฐาน", "Base map")}</label>
         <select id="cnx-basemap" value={basemap} onChange={(event) => handleBasemapChange(event.target.value as BasemapId)} className="min-h-11 w-fit max-w-full border border-[var(--line)] bg-[var(--bg-raised)] px-2 text-[14px] text-[var(--ink)]">
           {BASEMAP_OPTIONS.map((option) => <option key={option.id} value={option.id} title={t(BASEMAP_TH[option.id]?.hint ?? option.hint, option.hint)}>{t(BASEMAP_TH[option.id]?.label ?? option.label, option.label)}</option>)}

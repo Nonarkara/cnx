@@ -33,6 +33,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onOpenMetric?: (id: ExecutiveMetric["id"]) => void;
+  onPinInstruction?: () => void;
   air: AirQualityResponse | null;
   dustboy: DustboyResponse | null;
   fires: CnxFiresResponse | null;
@@ -74,7 +75,7 @@ const PM25_BAND_EN: Record<string, string> = {
   "มีผลกระทบต่อสุขภาพ": "Affecting health",
 };
 
-export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null, operationalNotes = [] }: Props) {
+export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, onPinInstruction, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null, operationalNotes = [] }: Props) {
   const [officeMode, setOfficeMode] = useState(false);
   const dialogRef = useModalDialog(isOpen && !officeMode, onClose);
   const { lang, t } = useLang();
@@ -192,6 +193,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           </button>
           <div className="col-span-2 flex flex-wrap items-center gap-2 print:hidden md:col-span-1 md:col-start-2 md:row-start-1">
           <button type="button" onClick={() => setOfficeMode(true)} className="min-h-11 w-fit border border-[var(--line)] px-2 text-[13px] font-semibold">{t("จอสำนักงาน", "Office screen")}</button>
+          {onPinInstruction && <button type="button" onClick={onPinInstruction} className="min-h-11 w-fit border border-[var(--line)] px-2 text-[13px] font-semibold">{t("ปักหมุดส่งคำสั่ง", "Pin an instruction")}</button>}
           <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 border px-3 text-[13px] font-semibold">
             <Copy className="h-3.5 w-3.5" />{copyState === "copied" ? t("คัดลอกแล้ว", "Copied") : t("คัดลอกส่ง LINE", "Copy Thai text for LINE")}
           </button>
