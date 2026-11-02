@@ -51,6 +51,8 @@ interface Props {
 }
 
 const CITY: [number, number] = [98.985, 18.788];
+/** Screen px below the city point where its wind arrow sits, clear of the place label. */
+const CITY_ARROW_DROP = 30;
 const GRID_STEP = 10;
 /** Screen speed = MOTION_K·√(m/s) px per frame: monotonic, so faster is
  *  always faster, but a 1 m/s valley breeze still visibly moves. */
@@ -103,25 +105,28 @@ function drawWindArrow(
   rgb: string,
 ) {
   const toDeg = (fromDeg + 180) % 360;
-  const R = 26;
+  // Smaller than the 52 px stamp it replaces and set just below the city
+  // point: at the point itself it sat on top of the "Chiang Mai เชียงใหม่"
+  // label and hid the one place name every viewer looks for first.
+  const R = 17;
   ctx.save();
-  ctx.translate(at[0], at[1]);
+  ctx.translate(at[0], at[1] + CITY_ARROW_DROP);
   // Screen y grows downward while a bearing is clockwise from north, so a
   // due-east wind (90°) must leave the +x-pointing shape unrotated.
   ctx.rotate(((toDeg - 90) * Math.PI) / 180);
   ctx.beginPath();
-  ctx.moveTo(-R, -3.5);
-  ctx.lineTo(R - 11, -3.5);
-  ctx.lineTo(R - 11, -10);
+  ctx.moveTo(-R, -2.5);
+  ctx.lineTo(R - 8, -2.5);
+  ctx.lineTo(R - 8, -7);
   ctx.lineTo(R, 0);
-  ctx.lineTo(R - 11, 10);
-  ctx.lineTo(R - 11, 3.5);
-  ctx.lineTo(-R, 3.5);
+  ctx.lineTo(R - 8, 7);
+  ctx.lineTo(R - 8, 2.5);
+  ctx.lineTo(-R, 2.5);
   ctx.closePath();
-  ctx.fillStyle = `rgba(${rgb},0.92)`;
+  ctx.fillStyle = `rgba(${rgb},0.85)`;
   ctx.fill();
-  ctx.strokeStyle = `rgba(${rgb},0.92)`;
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = `rgba(${rgb},0.85)`;
+  ctx.lineWidth = 1.2;
   ctx.stroke();
   ctx.restore();
 }
@@ -418,7 +423,7 @@ export default function CNXForecastLayer({ map, mapReady, styleKey, forecast, to
       >
         {!field ? (
           <p className="max-w-[320px] px-2 py-1 text-[12px] text-[var(--dim)]">
-            {tr("พยากรณ์ลม/ฝน/ฝุ่น: ไม่มีข้อมูลขณะนี้", "Wind/rain/PM2.5 forecast: no data right now")} — {forecast ? tr(NOTE_TH_UNAVAILABLE, forecast.note) : tr("กำลังโหลด…", "loading…")}
+            {forecast ? <>{tr("พยากรณ์ลม/ฝน/ฝุ่น: ไม่มีข้อมูลขณะนี้", "Wind/rain/PM2.5 forecast: no data right now")} — {tr(NOTE_TH_UNAVAILABLE, forecast.note)}</> : tr("กำลังโหลดพยากรณ์ลม ฝน ฝุ่น…", "Loading the wind, rain and PM2.5 forecast…")}
           </p>
         ) : (
           <>

@@ -436,6 +436,30 @@ async function pushRiverLevels() {
 const VISITORS_WARM_EVERY_MS = 12 * 60_000;
 let lastVisitorsWarmAt = 0;
 
+// The 48 h forecast field is ~340 Open-Meteo calls and takes ~20 s when its
+// 3-hour KV copy has expired. Whoever asked first used to wait that out with
+// an empty forecast bar — in front of the governor, if unlucky. A 5-minute GET
+// from here makes the relay the one that pays for the refresh.
+const FORECAST_WARM_EVERY_MS = 5 * 60_000;
+let lastForecastWarmAt = 0;
+
+async function warmForecastField() {
+  if (Date.now() - lastForecastWarmAt < FORECAST_WARM_EVERY_MS) return;
+  lastForecastWarmAt = Date.now();
+  try {
+    const res = await fetch(`${WORKER_BASE}/api/cnx/forecast-field`, {
+      headers: { "User-Agent": UA },
+      redirect: "error",
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) throw new Error(`forecast-field ${res.status}`);
+    const j = await res.json();
+    console.log(`[relay] forecast field warm: ${j.provenance}`);
+  } catch (e) {
+    console.warn(`[relay] forecast warm failed: ${e.message}`);
+  }
+}
+
 async function warmVisitorArchive() {
   if (Date.now() - lastVisitorsWarmAt < VISITORS_WARM_EVERY_MS) return;
   lastVisitorsWarmAt = Date.now(); // set first: a failure retries next cycle, not every 30 s
@@ -457,6 +481,7 @@ async function tick() {
   void pushArrivals();
   void pushRiverLevels();
   void warmVisitorArchive();
+  void warmForecastField();
   void runHazeVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runWaterVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
