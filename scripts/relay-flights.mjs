@@ -35,6 +35,7 @@ import { runHazeVision } from "./haze-vision.mjs";
 import { runWaterVision } from "./water-vision.mjs";
 import { runCitizenReports } from "./citizen-reports.mjs";
 import { runSocialRelay } from "./social-relay.mjs";
+import { runYoutubeRelay } from "./youtube-relay.mjs";
 import { runRainRelay } from "./rain-relay.mjs";
 import { runDamRelay } from "./dam-relay.mjs";
 import { createBackoff, parseRetryAfter } from "./provider-backoff.mjs";
@@ -486,6 +487,7 @@ async function tick() {
   void runWaterVision({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runCitizenReports({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runSocialRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
+  void runYoutubeRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runRainRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   void runDamRelay({ baseUrl: WORKER_BASE, secret: RELAY_SECRET });
   const snapshot = await buildSnapshot();

@@ -25,6 +25,8 @@ import { DataAge } from "./CNXDataAge";
 import { useLang } from "../../hooks/useLang";
 import { useOfficialWarnings } from "../../hooks/useOfficialWarnings";
 import { officialWatchItems, OFFICIAL_WARNING_MAX_AGE_MS } from "../../lib/cnx/official-watch";
+import CnxYouTubeCoverage from "./CNXYouTubeCoverage";
+import CnxOfficeScreen from "./CNXOfficeScreen";
 
 interface Props {
   operationalNotes?: { th: string; en: string }[];
@@ -73,7 +75,8 @@ const PM25_BAND_EN: Record<string, string> = {
 };
 
 export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, dustboy, fires, twin, riverGauges, flights, rain = null, outlook = null, operationalNotes = [] }: Props) {
-  const dialogRef = useModalDialog(isOpen, onClose);
+  const [officeMode, setOfficeMode] = useState(false);
+  const dialogRef = useModalDialog(isOpen && !officeMode, onClose);
   const { lang, t } = useLang();
   const officialWarnings = useOfficialWarnings();
   const [clock, setClock] = useState(() => Date.now());
@@ -157,6 +160,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
   }, [air, dustboy, fires, twin, riverGauges, flights, rain, outlook, arrivals, floodhub, burn, clock, isOpen, operationalNotes, officialWarnings]);
 
   if (!isOpen) return null;
+  if (officeMode) return <CnxOfficeScreen tiles={brief.tiles} onClose={() => setOfficeMode(false)} />;
 
   const copy = async () => {
     try {
@@ -187,6 +191,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
             <X className="h-4 w-4" />
           </button>
           <div className="col-span-2 flex flex-wrap items-center gap-2 print:hidden md:col-span-1 md:col-start-2 md:row-start-1">
+          <button type="button" onClick={() => setOfficeMode(true)} className="min-h-11 w-fit border border-[var(--line)] px-2 text-[13px] font-semibold">{t("จอสำนักงาน", "Office screen")}</button>
           <button type="button" onClick={copy} className="cnx-primary-action flex min-h-11 items-center gap-2 border px-3 text-[13px] font-semibold">
             <Copy className="h-3.5 w-3.5" />{copyState === "copied" ? t("คัดลอกแล้ว", "Copied") : t("คัดลอกส่ง LINE", "Copy Thai text for LINE")}
           </button>
@@ -236,6 +241,7 @@ export default function CnxGovernorBrief({ isOpen, onClose, onOpenMetric, air, d
           ))}
         </section>
 
+        <div className="mt-4 print:hidden"><CnxYouTubeCoverage active={isOpen} /></div>
         <section className="mt-6 overflow-x-auto">
           <h3 className="text-[13px] font-bold text-[var(--ink)]">{t("อำเภอที่มีหลักฐานสำหรับติดตาม", "Districts with evidence to follow")}</h3>
           <p className="max-w-[65ch] text-[11px] text-[var(--dim)]">

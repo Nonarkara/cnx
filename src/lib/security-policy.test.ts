@@ -37,8 +37,8 @@ describe("content security policy", () => {
     expect(csp).not.toMatch(/\shttp:/);
   });
 
-  it("allows frames only from the two embedded players", () => {
-    expect(directive("frame-src").split(" ").slice(1)).toEqual(["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com"]);
+  it("allows frames only from the configured camera, Tableau and privacy-enhanced YouTube players", () => {
+    expect(directive("frame-src").split(" ").slice(1)).toEqual(["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com", "https://www.youtube-nocookie.com"]);
   });
 
   it("lets MapLibre fetch the forecast data: URL and reach the shuttle broker on its port", () => {
@@ -66,5 +66,6 @@ describe("rate-limit classes", () => {
     expect(rateLimitClass("/api/cnx/forecast-field", "GET").binding).toBe("CNX_RL_HEAVY");
     expect(rateLimitClass("/api/cnx/rain", "GET").binding).toBe("CNX_RL_API");
     expect(rateLimitClass("/api/cnx/asked", "GET").binding).toBe("CNX_RL_API");
+    expect(rateLimitClass("/api/cnx/governor-dispatch", "POST").binding).toBe("CNX_RL_DISPATCH");
   });
 });

@@ -26,6 +26,7 @@
 import { RAIN_BAND_TH, summariseRain, type RainBand, type RainStation } from "../../lib/cnx/rain-core";
 import { GLYPH_ATLAS, GLYPH_MAPPING } from "../../lib/cnx/map-glyphs";
 import { useLang } from "../../hooks/useLang";
+import CnxGovernorDispatch from "./CNXGovernorDispatch";
 import { clampView } from "../../lib/cnx/map-bounds";
 import { claimExclusiveOverlay, onExclusiveOverlay } from "../../lib/cnx/exclusive-overlay";
 import { BURNSCAR_ATTRIBUTION, BURNSCAR_MAX_ZOOM, BURNSCAR_MIN_ZOOM } from "../../lib/cnx/burnscar";
@@ -612,6 +613,8 @@ export default function CNXMap({
   shelterFocus = null,
 }: MapProps) {
   const { lang, t } = useLang();
+  const [pickingInstruction, setPickingInstruction] = useState(false);
+  const [instructionPin, setInstructionPin] = useState<{ latitude: number; longitude: number } | null>(null);
   // Street labels lead the operational landing view. Terrain, satellite and
   // the heavier 3D city remain explicit choices in Layers.
   const [basemap, setBasemap] = useState<BasemapId>("street");
@@ -1743,10 +1746,23 @@ export default function CNXMap({
   return (
     <div
       ref={mapRootRef}
+      onClickCapture={(event) => {
+        if (!pickingInstruction || !(event.target instanceof Element)
+          || event.target.closest("[data-cnx-map-ui],button,summary,select,input,a,[role=dialog]")) return;
+        const map = mlMapRef.current;
+        if (!map) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const point = map.unproject([event.clientX - rect.left, event.clientY - rect.top]);
+        if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
+        event.preventDefault(); event.stopPropagation();
+        setInstructionPin({ latitude: point.lat, longitude: point.lng });
+        setPickingInstruction(false);
+      }}
       className="relative h-full w-full overflow-hidden [&_.maplibregl-ctrl-attrib]:text-[#111] [&_.maplibregl-ctrl-attrib_a]:text-[#111]"
     >
       <DeckGL
         viewState={viewState}
+        getCursor={() => pickingInstruction ? "crosshair" : "grab"}
         controller={true}
         onViewStateChange={(e) => {
           // deck.gl types `viewState` directly on the params; pull and merge
@@ -1762,6 +1778,12 @@ export default function CNXMap({
           ...(rtcRouteLayer ? [rtcRouteLayer] : []),
           ...(rtcBusLayer ? [rtcBusLayer] : []),
           ...(officialLayer ? [officialLayer] : []),
+          ...(instructionPin ? [new ScatterplotLayer({
+            id: "cnx-instruction-pin", data: [instructionPin],
+            getPosition: (point: { longitude: number; latitude: number }) => [point.longitude, point.latitude],
+            getRadius: 8, radiusUnits: "pixels", filled: true, stroked: true,
+            getFillColor: [29, 78, 216, 255], getLineColor: [255, 255, 255, 255], lineWidthMinPixels: 2,
+          })] : []),
         ]}
         getTooltip={({ object, layer }) => {
           if (!object || !layer) return null;
@@ -1914,6 +1936,10 @@ export default function CNXMap({
       }}>
         <summary className="min-h-11 w-fit cursor-pointer px-2 py-2 text-[14px] font-semibold">{t("ชั้นข้อมูล", "Layers")}</summary>
         <div className="flex flex-wrap items-start gap-1.5 border-t border-[var(--line)] p-2">
+        <button type="button" className="min-h-11 w-fit border border-[var(--line)] px-2 text-[13px] font-semibold" onClick={() => {
+          setPickingInstruction(true);
+          if (layersRef.current) layersRef.current.open = false;
+        }}>{t("ปักหมุดส่งคำสั่ง", "Pin an instruction")}</button>
         <label htmlFor="cnx-basemap" className="inline-flex min-h-11 items-center text-[12px] font-semibold text-[var(--dim)]">{t("แผนที่พื้นฐาน", "Base map")}</label>
         <select id="cnx-basemap" value={basemap} onChange={(event) => handleBasemapChange(event.target.value as BasemapId)} className="min-h-11 w-fit max-w-full border border-[var(--line)] bg-[var(--bg-raised)] px-2 text-[14px] text-[var(--ink)]">
           {BASEMAP_OPTIONS.map((option) => <option key={option.id} value={option.id} title={t(BASEMAP_TH[option.id]?.hint ?? option.hint, option.hint)}>{t(BASEMAP_TH[option.id]?.label ?? option.label, option.label)}</option>)}
@@ -2087,6 +2113,14 @@ export default function CNXMap({
         </div>
         </div>
       </details>
+      {pickingInstruction && <div data-cnx-map-ui className="absolute bottom-2 left-2 z-20 flex max-w-[calc(100%-1rem)] flex-wrap items-center gap-2 border border-[var(--line)] bg-[var(--bg-raised)] p-2 text-sm text-[var(--ink)]">
+        <span>{t("เลือกจุดบนแผนที่", "Choose a point on the map")}</span>
+        <button type="button" className="min-h-11 border border-[var(--line)] px-2" onClick={() => {
+          setInstructionPin({ latitude: viewState.latitude, longitude: viewState.longitude }); setPickingInstruction(false);
+        }}>{t("ใช้กลางแผนที่", "Use map centre")}</button>
+        <button type="button" className="min-h-11 px-2 underline" onClick={() => setPickingInstruction(false)}>{t("ยกเลิก", "Cancel")}</button>
+      </div>}
+      {instructionPin && <CnxGovernorDispatch {...instructionPin} onClose={() => setInstructionPin(null)} />}
 
       {/* Flight count badge, top-right */}
       <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5 bg-[var(--bg-raised)] px-2 py-1">

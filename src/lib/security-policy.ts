@@ -16,7 +16,7 @@
 //     hands it a data: URL — so data: and blob: must be allowed here.
 //   - no plugins, no <base> hijack, forms post only here, nobody may frame us.
 
-export const FRAME_HOSTS = ["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com"];
+export const FRAME_HOSTS = ["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com", "https://www.youtube-nocookie.com"];
 // Host sources without a port match only the default port; the broker is on 8883.
 export const SOCKET_HOSTS = ["wss://cmutransit-ws.bda.co.th:8883"];
 
@@ -72,7 +72,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
  * NAT address, and each board polls ~30 routes. The limits stop floods and
  * quota-burning loops, not a room full of officials.
  */
-export function rateLimitClass(pathname: string, method: string): { binding: "CNX_RL_INGEST" | "CNX_RL_HEAVY" | "CNX_RL_API" } {
+export function rateLimitClass(pathname: string, method: string): { binding: "CNX_RL_INGEST" | "CNX_RL_HEAVY" | "CNX_RL_API" | "CNX_RL_DISPATCH" } {
+  if (pathname === "/api/cnx/governor-dispatch") return { binding: "CNX_RL_DISPATCH" };
   if (pathname.endsWith("/ingest") || method === "POST") return { binding: "CNX_RL_INGEST" };
   if (/^\/api\/cnx\/(ask|forecast-field|social|smoke-trajectory|twin|story|og|visitors|outbound|cap\.xml|cap\.atom|official-warnings|warning-log|manifest\.json)(\/|$)/.test(pathname)) return { binding: "CNX_RL_HEAVY" };
   return { binding: "CNX_RL_API" };
