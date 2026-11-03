@@ -153,6 +153,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
   const [waterVision, setWaterVision] = useState<WaterVisionResponse | null>(null);
   const [isHazeOpen, setIsHazeOpen] = useState(false);
   const [isBriefOpen, setIsBriefOpen] = useState(false);
+  const [instructionRequest, setInstructionRequest] = useState(0);
   const [story, setStory] = useState<CnxStoryResponse | null>(null);
   const [flights, setFlights] = useState<FetchResult | null>(null);
   const [walls, setWalls] = useState<WallFeature[]>([]);
@@ -617,6 +618,8 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
           className="relative h-[55dvh] min-h-[340px] min-w-0 flex-none overflow-hidden border-r-0 sm:h-[60dvh] w-full lg:w-auto xl:h-auto xl:min-h-0 lg:flex-1"
         >
           <CNXMap
+            instructionRequest={instructionRequest}
+            onInstructionStarted={() => setInstructionRequest(0)}
             flights={flightStates}
             heritage={heritage}
             floodCameras={floodCameras}
@@ -766,7 +769,7 @@ function CnxShell({ scenarioId }: { scenarioId: string | null }) {
       <CnxManualModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
       <CnxAboutModal isOpen={isResearchOpen} onClose={() => setIsResearchOpen(false)} />
       <CnxDataLibraryModal isOpen={isDataOpen} onClose={() => setIsDataOpen(false)} />
-      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} onOpenMetric={openMetric} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} outlook={outlook} operationalNotes={operationalNotes} />
+      <CnxGovernorBrief isOpen={isBriefOpen} onClose={() => setIsBriefOpen(false)} onPinInstruction={() => { setIsBriefOpen(false); setView("map"); setInstructionRequest(request => request + 1); }} onOpenMetric={openMetric} air={air} dustboy={dustboy} fires={fires} twin={twin} riverGauges={riverGauges} flights={flights} rain={rain} outlook={outlook} operationalNotes={operationalNotes} />
       <CnxHazeModal
         isOpen={isHazeOpen}
         onClose={() => setIsHazeOpen(false)}

@@ -496,6 +496,8 @@ export const TWIN_ENTITIES: readonly TwinEntity[] = [
  * the reason. `*\/ingest` folders (relay writes) are excluded by rule.
  */
 export const MANIFEST_EXCLUDED_ROUTES: Readonly<Record<string, string>> = {
+  youtube: "Optional daily media context with its own capture clock and 48-hour expiry; excluded from operational hazard/feed health counts. Never used as measured conditions or public-opinion evidence.",
+  "governor-dispatch": "PIN-authorized outbound instruction action, not a data feed. No public report or instruction listing is exposed.",
   "manifest.json": "This manifest.",
   "cap.atom": "Atom index of the cap-export entity's alerts; same content, another envelope.",
   "warning-log": "Verification log of this board's own level changes; an output, not a feed.",
