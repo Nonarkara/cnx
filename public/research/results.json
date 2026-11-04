@@ -1,0 +1,983 @@
+{
+  "estate": {
+    "datasets": 311,
+    "resources": 2869,
+    "unreadable_resources": 1182,
+    "unreadable_share": 0.41199024050191707,
+    "ready": 250,
+    "files_only": 52,
+    "link_only": 9,
+    "tables": 411,
+    "rows": 13090484,
+    "spatial": 6,
+    "spatial_share": 0.01929260450160772,
+    "time_indexed": 201,
+    "orgs": 45,
+    "hhi": 0.2030065859534124,
+    "top1_org": "สำนักงานจังหวัดเชียงใหม่",
+    "top1_share": 0.3890675241157556,
+    "top2_share": 0.594855305466238,
+    "orgs_with_one_dataset": 20,
+    "median_age_y": 1.1498973305954825,
+    "mean_age_y": 1.2910683120181525,
+    "modified_within_1y": 131,
+    "older_than_3y": 37,
+    "licences": [
+      [
+        "Open Data Common",
+        143
+      ],
+      [
+        "Creative Commons Attributions",
+        111
+      ],
+      [
+        "License not specified",
+        52
+      ],
+      [
+        "อื่นๆ",
+        2
+      ],
+      [
+        "Creative Commons Non-Commercial (Any)",
+        2
+      ],
+      [
+        "Creative Commons Attribution Non-Commercial",
+        1
+      ]
+    ],
+    "formats": [
+      [
+        "CSV",
+        176
+      ],
+      [
+        "XLSX",
+        158
+      ],
+      [
+        "PDF",
+        44
+      ],
+      [
+        "JSON",
+        26
+      ],
+      [
+        "URL",
+        19
+      ],
+      [
+        "ZIP",
+        11
+      ],
+      [
+        "XSL",
+        6
+      ],
+      [
+        "JPEG",
+        3
+      ],
+      [
+        "DOC",
+        3
+      ],
+      [
+        "HTML",
+        3
+      ],
+      [
+        "XLS",
+        2
+      ],
+      [
+        "XML",
+        2
+      ],
+      [
+        "API",
+        2
+      ],
+      [
+        "SHP",
+        1
+      ],
+      [
+        "DOCX",
+        1
+      ],
+      [
+        "MP4",
+        1
+      ],
+      [
+        "RDF",
+        1
+      ],
+      [
+        "IMAGE",
+        1
+      ]
+    ],
+    "no_licence_share": 0.16720257234726688,
+    "domains": [
+      {
+        "key": "budget",
+        "th": "งบประมาณและการคลัง",
+        "en": "Budget & finance",
+        "datasets": 76,
+        "spatial": 0
+      },
+      {
+        "key": "environment",
+        "th": "สิ่งแวดล้อมและป่าไม้",
+        "en": "Environment & forest",
+        "datasets": 51,
+        "spatial": 2
+      },
+      {
+        "key": "tourism",
+        "th": "การท่องเที่ยว",
+        "en": "Tourism",
+        "datasets": 32,
+        "spatial": 0
+      },
+      {
+        "key": "society",
+        "th": "ประชากรและสังคม",
+        "en": "Population & society",
+        "datasets": 26,
+        "spatial": 0
+      },
+      {
+        "key": "agriculture",
+        "th": "เกษตรกรรม",
+        "en": "Agriculture",
+        "datasets": 20,
+        "spatial": 1
+      },
+      {
+        "key": "other",
+        "th": "อื่น ๆ",
+        "en": "Other",
+        "datasets": 18,
+        "spatial": 0
+      },
+      {
+        "key": "urban",
+        "th": "เมืองและที่อยู่อาศัย",
+        "en": "Urban & housing",
+        "datasets": 17,
+        "spatial": 1
+      },
+      {
+        "key": "health",
+        "th": "สาธารณสุข",
+        "en": "Health",
+        "datasets": 15,
+        "spatial": 0
+      },
+      {
+        "key": "disaster",
+        "th": "ภัยพิบัติและน้ำ",
+        "en": "Disaster & water",
+        "datasets": 11,
+        "spatial": 1
+      },
+      {
+        "key": "admin",
+        "th": "การปกครองและความมั่นคง",
+        "en": "Governance & security",
+        "datasets": 11,
+        "spatial": 0
+      },
+      {
+        "key": "economy",
+        "th": "เศรษฐกิจและการค้า",
+        "en": "Economy & trade",
+        "datasets": 10,
+        "spatial": 1
+      },
+      {
+        "key": "education",
+        "th": "การศึกษา",
+        "en": "Education",
+        "datasets": 9,
+        "spatial": 0
+      },
+      {
+        "key": "culture",
+        "th": "ศิลปวัฒนธรรม",
+        "en": "Culture & heritage",
+        "datasets": 8,
+        "spatial": 0
+      },
+      {
+        "key": "transport",
+        "th": "ขนส่งและจราจร",
+        "en": "Transport",
+        "datasets": 7,
+        "spatial": 0
+      }
+    ],
+    "realtime_formats": 2
+  },
+  "links": {
+    "drainage": {
+      "library": 0,
+      "catalogue_resources": 0,
+      "examples": []
+    },
+    "evacuation": {
+      "library": 0,
+      "catalogue_resources": 0,
+      "examples": []
+    },
+    "shelter": {
+      "library": 1,
+      "catalogue_resources": 2,
+      "examples": [
+        "ศูนย์พักพิงชั่วคราวจังหวัดเชียงใหม่"
+      ]
+    },
+    "warning_tower": {
+      "library": 1,
+      "catalogue_resources": 1,
+      "examples": [
+        "จุดติดตั้งหอเตือนภัย"
+      ]
+    },
+    "rainfall": {
+      "library": 0,
+      "catalogue_resources": 1,
+      "examples": []
+    },
+    "flood_event": {
+      "library": 2,
+      "catalogue_resources": 9,
+      "examples": [
+        "ความเสียหายของสะพานจากอุทกภัย",
+        "แผนเผชิญเหตุอุทกภัยจังหวัด"
+      ]
+    },
+    "pm25": {
+      "library": 6,
+      "catalogue_resources": 17,
+      "examples": [
+        "ชุดข้อมูลแบบบูรณาการเพื่อแก้ไขปัญหาวิกฤตฝุ่นขนาดเล็ก PM 2.5 อย่างมีส่วนร่วม",
+        "เครื่องจักรกล อุปกรณ์ และวัสดุในการป้องกันและแก้ไขปัญหาไฟป่า หมอกควัน และฝุ่นละอองขนาดเล็ก",
+        "ผู้ป่วยโรคระบบทางเดินหายใจและโรคจากฝุ่น PM2.5"
+      ]
+    },
+    "fire_haze": {
+      "library": 16,
+      "catalogue_resources": 33,
+      "examples": [
+        "เครื่องจักรกล อุปกรณ์ และวัสดุในการป้องกันและแก้ไขปัญหาไฟป่า หมอกควัน และฝุ่นละอองขนาดเล็ก",
+        "โครงการ กิจกรรม และงบประมาณ แก้ไขปัญหาหมอกควันและไฟป่า ตามแผนปฏิบัติราชการประจำปี",
+        "Hotspot2569"
+      ]
+    },
+    "clean_air_room": {
+      "library": 0,
+      "catalogue_resources": 0,
+      "examples": []
+    },
+    "procurement": {
+      "library": 0,
+      "catalogue_resources": 0,
+      "examples": []
+    },
+    "api_or_stream": {
+      "library": 0,
+      "catalogue_resources": 0,
+      "examples": []
+    }
+  },
+  "disaster_domain": [
+    {
+      "title": "ผู้ที่ได้รับบาดเจ็บจากสาธารณภัย",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "CSV",
+        "XLSX"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 15
+    },
+    {
+      "title": "กำลังพลด้านสาธารณภัย",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "XLSX",
+        "CSV"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 422
+    },
+    {
+      "title": "จุดติดตั้งหอเตือนภัย",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "CSV"
+      ],
+      "has_location": true,
+      "has_time": true,
+      "status": "ready",
+      "rows": 12
+    },
+    {
+      "title": "ศูนย์พักพิงชั่วคราวจังหวัดเชียงใหม่",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "CSV",
+        "XLSX"
+      ],
+      "has_location": false,
+      "has_time": false,
+      "status": "ready",
+      "rows": 177
+    },
+    {
+      "title": "บัญชีเครื่องจักรกลสาธารณภัย",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "XLSX",
+        "CSV"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 1899
+    },
+    {
+      "title": "ผู้ที่เสียชีวิตจากสาธารณภัย",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "CSV",
+        "XLSX"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 14
+    },
+    {
+      "title": "ความเสียหายของสะพานจากอุทกภัย",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "CSV",
+        "XLSX"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 124
+    },
+    {
+      "title": "ครัวเรือนที่ได้รับผลกระทบจากสาธารณภัยรายหมู่บ้าน",
+      "org": "สำนักงานจังหวัดเชียงใหม่",
+      "modified": "2026-07-25",
+      "formats": [
+        "CSV",
+        "XLSX"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 4500
+    },
+    {
+      "title": "พื้นที่เสี่ยงเผาไหม้ซ้ำซาก",
+      "org": "สำนักงานจังหวัดลำพูน",
+      "modified": "2026-07-24",
+      "formats": [
+        "XLSX",
+        "CSV"
+      ],
+      "has_location": false,
+      "has_time": true,
+      "status": "ready",
+      "rows": 86
+    },
+    {
+      "title": "ข้อมูลพื้นที่เสี่ยงสาธารณภัย 76 จังหวัด",
+      "org": "กรมการปกครอง",
+      "modified": "2026-03-24",
+      "formats": [
+        "JSON"
+      ],
+      "has_location": false,
+      "has_time": false,
+      "status": "files",
+      "rows": 0
+    },
+    {
+      "title": "แผนเผชิญเหตุอุทกภัยจังหวัด",
+      "org": "กรมป้องกันและบรรเทาสาธารณภัย",
+      "modified": "2025-09-01",
+      "formats": [
+        "PDF"
+      ],
+      "has_location": false,
+      "has_time": false,
+      "status": "files",
+      "rows": 0
+    }
+  ],
+  "disaster_summary": {
+    "n": 11,
+    "with_location": 1,
+    "provincial_office": 8,
+    "file_or_pdf_only": 2,
+    "latest_update": "2026-07-25"
+  },
+  "shelters": {
+    "rows": 177,
+    "capacity_total": 98775,
+    "capacity_median": 200,
+    "capacity_max": 20000,
+    "coordinates_in_source": 0,
+    "geocode_counts": {
+      "total": 177,
+      "official": 0,
+      "place": 45,
+      "tambon": 77,
+      "amphoe": 55,
+      "none": 0
+    },
+    "toilets_zero": 31,
+    "toilets_zero_share": 0.1751412429378531,
+    "with_toilets": 146,
+    "people_per_toilet_median": 22.5,
+    "over_sphere_20": 73,
+    "over_sphere_share_of_reporting": 0.5,
+    "districts": 25,
+    "duplicates": 3,
+    "capacity_without_toilet_reported": 5900,
+    "capacity_without_toilet_share": 0.059731713490255633,
+    "capacity_at_sphere_toilets": 40739,
+    "capacity_at_sphere_toilets_share": 0.4124424196405973,
+    "by_district": {
+      "แม่อาย": [
+        69,
+        21516
+      ],
+      "ไชยปราการ": [
+        19,
+        3200
+      ],
+      "เวียงแหง": [
+        12,
+        3900
+      ],
+      "เมืองเชียงใหม่": [
+        11,
+        30445
+      ],
+      "แม่ริม": [
+        7,
+        20860
+      ],
+      "แม่แตง": [
+        5,
+        890
+      ],
+      "สารภี": [
+        5,
+        958
+      ],
+      "แม่ออน": [
+        4,
+        1300
+      ],
+      "สันทราย": [
+        4,
+        1106
+      ],
+      "เชียงดาว": [
+        3,
+        1100
+      ],
+      "ดอยเต่า": [
+        3,
+        900
+      ],
+      "ดอยหล่อ": [
+        3,
+        900
+      ],
+      "พร้าว": [
+        3,
+        1000
+      ],
+      "สะเมิง": [
+        3,
+        1300
+      ],
+      "สันป่าตอง": [
+        3,
+        700
+      ],
+      "หางดง": [
+        3,
+        950
+      ],
+      "อมก๋อย": [
+        3,
+        1050
+      ],
+      "ฮอด": [
+        3,
+        850
+      ],
+      "กัลยาณิวัฒนา": [
+        2,
+        500
+      ],
+      "จอมทอง": [
+        2,
+        800
+      ],
+      "ดอยสะเก็ด": [
+        2,
+        1000
+      ],
+      "ฝาง": [
+        2,
+        1000
+      ],
+      "แม่แจ่ม": [
+        2,
+        800
+      ],
+      "แม่วาง": [
+        2,
+        750
+      ],
+      "สันกำแพง": [
+        2,
+        1000
+      ]
+    }
+  },
+  "towers": {
+    "rows": 12,
+    "unique_sites": 6,
+    "years": [
+      2567,
+      2568
+    ],
+    "sites": [
+      {
+        "tambon": "ช้างคลาน",
+        "place": "ข้างสำนักงานแขวงแม็งราย",
+        "lat": 18.775,
+        "lon": 98.99521
+      },
+      {
+        "tambon": "ช้างคลาน",
+        "place": "โรงแรมอิมพิเรียลแม่ปิง",
+        "lat": 18.78223,
+        "lon": 98.99683
+      },
+      {
+        "tambon": "ท่าผา",
+        "place": "บ้านยางหลวง",
+        "lat": 18.47365,
+        "lon": 98.37432
+      },
+      {
+        "tambon": "หนองหอย",
+        "place": "สุสานบ้านเด่น",
+        "lat": 18.76953,
+        "lon": 99.00738
+      },
+      {
+        "tambon": "แม่งอน",
+        "place": "โรงพยาบาลส่งเสริมสุขภาพตำบล บ้านยาง",
+        "lat": 19.8036,
+        "lon": 99.09952
+      },
+      {
+        "tambon": "แม่ตื่น",
+        "place": "บริเวณวัดจอมแจ้ง",
+        "lat": 17.40592,
+        "lon": 98.46243
+      }
+    ],
+    "km2_per_tower": 3708.165953008925,
+    "shelter_distance_by_precision": {
+      "place": {
+        "n": 45,
+        "median_km": 25.350882405947665,
+        "within_2km": 0,
+        "within_5km": 3
+      },
+      "amphoe": {
+        "n": 52,
+        "median_km": 32.041299535749545,
+        "within_2km": 0,
+        "within_5km": 2
+      },
+      "tambon": {
+        "n": 77,
+        "median_km": 31.743959525943524,
+        "within_2km": 1,
+        "within_5km": 4
+      }
+    },
+    "building_level_shelters": 45,
+    "building_level_within_2km": 0,
+    "building_level_within_5km": 3
+  },
+  "province": {
+    "ring_points": 430,
+    "area_km2": 22248.99571805355
+  },
+  "registry": {
+    "entities": 32,
+    "with_slo": 25,
+    "on_time": 24,
+    "slo_total": 25,
+    "transport": {
+      "direct": 18,
+      "relay": 9,
+      "baked": 5
+    },
+    "kind": {
+      "measured": 7,
+      "model": 3,
+      "satellite": 7,
+      "derived": 6,
+      "static": 5,
+      "vision": 4
+    },
+    "validation": {
+      "cross-checked": 5,
+      "none": 26,
+      "ground-truthed": 1
+    },
+    "agencies": 29,
+    "agency_names": [
+      "ASEAN Specialised Meteorological Centre",
+      "CMU Climate Change Data Center",
+      "Chiang Mai Provincial Office (สำนักงานจังหวัดเชียงใหม่)",
+      "Copernicus CAMS via Open-Meteo",
+      "Curated in code",
+      "Department of Water Resources snapshots via FloodDash",
+      "Digital Government Development Agency (data.go.th)",
+      "GISTDA via Longdo Map",
+      "Google Flood Forecasting",
+      "Google News RSS and GDELT",
+      "HII ThaiWater (สสน.)",
+      "HII burn-scar TMS",
+      "JAXA G-Portal (static STAC)",
+      "Longdo, ITIC, Windy, municipal",
+      "Maholan flood CCTV wall",
+      "NASA GSFC AERONET",
+      "NASA LANCE FIRMS",
+      "Open-Meteo forecast and CAMS grids",
+      "Open-Meteo wind + NASA FIRMS",
+      "OpenSky Network arrivals",
+      "OpenSky Network, adsb.lol",
+      "OpenStreetMap contributors",
+      "Pollution Control Department (กรมควบคุมมลพิษ)",
+      "RainViewer, NASA GIBS (Himawari-9, MODIS)",
+      "Reddit and local news, geocoded with OSM",
+      "Royal Forest Department (กรมป่าไม้)",
+      "Thai Meteorological Department (WMO alerting authority)",
+      "This board (CNX)",
+      "Windy webcams, scored on the relay"
+    ],
+    "relay_share": 0.28125,
+    "unvalidated_share": 0.8125,
+    "cadence_median_s": 750.0,
+    "named_failure_modes": 32
+  },
+  "water_cameras": {
+    "dwr-TA060503": {
+      "frames": 1017,
+      "span_days": 14.65625,
+      "expected_15min_slots": 1408,
+      "coverage": 0.7223011363636364,
+      "max_gap_h": 31.75,
+      "gaps_over_1h": 9,
+      "gaps_over_6h": 3,
+      "median_lag_min": 20.919000001748405,
+      "p90_lag_min": 30.719866665204368,
+      "first": "2026-10-20",
+      "last": "2026-11-04"
+    },
+    "dwr-TA061016": {
+      "frames": 985,
+      "span_days": 14.65625,
+      "expected_15min_slots": 1408,
+      "coverage": 0.6995738636363636,
+      "max_gap_h": 31.75,
+      "gaps_over_1h": 11,
+      "gaps_over_6h": 3,
+      "median_lag_min": 19.452466666698456,
+      "p90_lag_min": 29.24038333495458,
+      "first": "2026-10-20",
+      "last": "2026-11-04"
+    },
+    "dwr-TA061802": {
+      "frames": 574,
+      "span_days": 14.65625,
+      "expected_15min_slots": 1408,
+      "coverage": 0.40767045454545453,
+      "max_gap_h": 36.25,
+      "gaps_over_1h": 17,
+      "gaps_over_6h": 7,
+      "median_lag_min": 17.79501666824023,
+      "p90_lag_min": 28.513100000222526,
+      "first": "2026-10-20",
+      "last": "2026-11-04"
+    }
+  },
+  "haze_vision": {
+    "frames": 934,
+    "pairs_with_ground_pm25": 917,
+    "pm25_min": 1,
+    "pm25_median": 6,
+    "pm25_max": 21,
+    "pairs_pm25_over_37_5": 0,
+    "pairs_pm25_over_15": 20,
+    "span": [
+      1791184536000,
+      1793775078000
+    ],
+    "cameras": 1
+  },
+  "burn": {
+    "seasons": [
+      {
+        "label_be": 2569,
+        "months": [
+          {
+            "month": "202511",
+            "farm_rai": 3437,
+            "forest_rai": 1942,
+            "hotspots": null,
+            "pm25_avg": 13,
+            "pm25_days_over": 0
+          },
+          {
+            "month": "202512",
+            "farm_rai": 10415,
+            "forest_rai": 2277,
+            "hotspots": null,
+            "pm25_avg": 23.6,
+            "pm25_days_over": 0
+          },
+          {
+            "month": "202601",
+            "farm_rai": 44630,
+            "forest_rai": 17457,
+            "hotspots": 17,
+            "pm25_avg": 22.5,
+            "pm25_days_over": 1
+          },
+          {
+            "month": "202602",
+            "farm_rai": 51087,
+            "forest_rai": 46237,
+            "hotspots": 49,
+            "pm25_avg": 24.6,
+            "pm25_days_over": 1
+          },
+          {
+            "month": "202603",
+            "farm_rai": 48372,
+            "forest_rai": 116906,
+            "hotspots": 910,
+            "pm25_avg": 40.1,
+            "pm25_days_over": 15
+          },
+          {
+            "month": "202604",
+            "farm_rai": 10387,
+            "forest_rai": 59763,
+            "hotspots": 1096,
+            "pm25_avg": 76.5,
+            "pm25_days_over": 30
+          }
+        ],
+        "totals": {
+          "farmRai": 168328,
+          "forestRai": 244582,
+          "totalRai": 412910,
+          "hotspots": 2072,
+          "monthsWithData": 6
+        }
+      },
+      {
+        "label_be": 2568,
+        "months": [
+          {
+            "month": "202411",
+            "farm_rai": 10091,
+            "forest_rai": 1420,
+            "hotspots": null,
+            "pm25_avg": null,
+            "pm25_days_over": null
+          },
+          {
+            "month": "202412",
+            "farm_rai": 20996,
+            "forest_rai": 3085,
+            "hotspots": null,
+            "pm25_avg": null,
+            "pm25_days_over": null
+          },
+          {
+            "month": "202501",
+            "farm_rai": 26102,
+            "forest_rai": 10888,
+            "hotspots": 5,
+            "pm25_avg": 29.6,
+            "pm25_days_over": 4
+          },
+          {
+            "month": "202502",
+            "farm_rai": 25964,
+            "forest_rai": 46533,
+            "hotspots": 54,
+            "pm25_avg": 29,
+            "pm25_days_over": 8
+          },
+          {
+            "month": "202503",
+            "farm_rai": 36799,
+            "forest_rai": 271471,
+            "hotspots": 459,
+            "pm25_avg": 47.2,
+            "pm25_days_over": 23
+          },
+          {
+            "month": "202504",
+            "farm_rai": 4404,
+            "forest_rai": 69720,
+            "hotspots": 155,
+            "pm25_avg": 28.7,
+            "pm25_days_over": 14
+          }
+        ],
+        "totals": {
+          "farmRai": 124356,
+          "forestRai": 403117,
+          "totalRai": 527473,
+          "hotspots": 673,
+          "monthsWithData": 6
+        }
+      }
+    ],
+    "top_districts_latest": [
+      {
+        "code": "TH5003",
+        "th": "แม่แจ่ม",
+        "en": "Mae Chaem",
+        "farmRai": 59041,
+        "forestRai": 60395,
+        "totalRai": 119436
+      },
+      {
+        "code": "TH5004",
+        "th": "เชียงดาว",
+        "en": "Chiang Dao",
+        "farmRai": 47485,
+        "forestRai": 10772,
+        "totalRai": 58257
+      },
+      {
+        "code": "TH5017",
+        "th": "ดอยเต่า",
+        "en": "Doi Tao",
+        "farmRai": 2934,
+        "forestRai": 51403,
+        "totalRai": 54337
+      },
+      {
+        "code": "TH5018",
+        "th": "อมก๋อย",
+        "en": "Omkoi",
+        "farmRai": 5177,
+        "forestRai": 36879,
+        "totalRai": 42056
+      },
+      {
+        "code": "TH5016",
+        "th": "ฮอด",
+        "en": "Hot",
+        "farmRai": 5734,
+        "forestRai": 32627,
+        "totalRai": 38361
+      },
+      {
+        "code": "TH5020",
+        "th": "เวียงแหง",
+        "en": "Wiang Haeng",
+        "farmRai": 16429,
+        "forestRai": 6670,
+        "totalRai": 23099
+      }
+    ],
+    "caveat": "Monthly burned area summed over the season: a field burned in two different months is counted in both, so season totals overstate unique area. Hotspots are MODIS counts from HII; PM2.5 is HII's provincial monthly average and days above the Thai 24-h standard."
+  },
+  "build": {
+    "commits": 271,
+    "first": "2026-09-15",
+    "last": "2026-11-03",
+    "active_days": 36,
+    "milestones": {
+      "first commit": {
+        "date": "2026-09-15",
+        "day": 0
+      },
+      "rain gauges on the board": {
+        "date": "2026-09-19",
+        "day": 4
+      },
+      "official TMD warnings": {
+        "date": "2026-10-11",
+        "day": 26
+      },
+      "shelters geocoded": {
+        "date": "2026-10-11",
+        "day": 26
+      },
+      "48 h forecast field": {
+        "date": "2026-10-01",
+        "day": 16
+      },
+      "CAP 1.2 export": {
+        "date": "2026-10-11",
+        "day": 26
+      }
+    }
+  },
+  "warning_log": {
+    "rows": 104,
+    "by_domain": {
+      "verdict": 21,
+      "pm25": 83
+    },
+    "first": "2026-10-11",
+    "last": "2026-11-03"
+  }
+}

@@ -8,15 +8,15 @@
 //   - images/tiles/video: base maps, NASA GIBS, RainViewer, camera stills
 //     and HLS come from many public hosts and from data, so https: — never
 //     plain http.
-//   - frames: only the Windy webcam day-player and the CMU SCMC Tableau
-//     dashboard on the About page.
+//   - frames: this origin (the research tab embeds its own preprint PDF),
+//     the Windy webcam day-player and the CMU SCMC Tableau dashboard on the About page.
 //   - styles: 'unsafe-inline' is required by React style attributes and
 //     MapLibre's inline styles; style injection cannot execute script.
 //   - connect: MapLibre v6 fetch()es image sources, and the forecast layer
 //     hands it a data: URL — so data: and blob: must be allowed here.
 //   - no plugins, no <base> hijack, forms post only here, nobody may frame us.
 
-export const FRAME_HOSTS = ["https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com"];
+export const FRAME_HOSTS = ["'self'", "https://webcams.windy.com", "https://www.windy.com", "https://public.tableau.com"];
 // Host sources without a port match only the default port; the broker is on 8883.
 export const SOCKET_HOSTS = ["wss://cmutransit-ws.bda.co.th:8883"];
 

@@ -1,0 +1,298 @@
+\begin{thebibliography}{49}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Ansell and Gash(2008)]{ansell2008}
+C.~Ansell and A.~Gash.
+\newblock {Collaborative governance in theory and practice}.
+\newblock \emph{Journal of Public Administration Research and Theory}, 18\penalty0 (4):\penalty0 543--571, 2008.
+\newblock \doi{10.1093/jopart/mum032}.
+
+\bibitem[Anthopoulos et~al.(2016)Anthopoulos, Reddick, Giannakidou, and Mavridis]{anthopoulos2016}
+L.~Anthopoulos, C.~G. Reddick, I.~Giannakidou, and N.~Mavridis.
+\newblock {Why e-government projects fail? An analysis of the Healthcare.gov website}.
+\newblock \emph{Government Information Quarterly}, 33\penalty0 (1):\penalty0 161--173, 2016.
+\newblock \doi{10.1016/j.giq.2015.07.003}.
+
+\bibitem[{ASEAN}(2002)]{asean2002haze}
+{ASEAN}.
+\newblock {ASEAN Agreement on Transboundary Haze Pollution}.
+\newblock Adopted 10 June 2002, Kuala Lumpur, 2002.
+\newblock URL \url{https://jus.uio.no/english/services/library/treaties/06/6-03/asean_transboundary_pollution.html}.
+
+\bibitem[Bardach(1998)]{bardach1998}
+E.~Bardach.
+\newblock \emph{{Getting Agencies to Work Together: The Practice and Theory of Managerial Craftsmanship}}.
+\newblock Brookings Institution Press, 1998.
+\newblock ISBN 0815707975.
+
+\bibitem[Basher(2006)]{basher2006}
+R.~Basher.
+\newblock {Global early warning systems for natural hazards: systematic and people-centred}.
+\newblock \emph{Philosophical Transactions of the Royal Society A}, 364\penalty0 (1845):\penalty0 2167--2182, 2006.
+\newblock \doi{10.1098/rsta.2006.1819}.
+
+\bibitem[Batty(2018)]{batty2018}
+M.~Batty.
+\newblock {Digital twins}.
+\newblock \emph{Environment and Planning B: Urban Analytics and City Science}, 45\penalty0 (5):\penalty0 817--820, 2018.
+\newblock \doi{10.1177/2399808318796416}.
+
+\bibitem[Bolton et~al.(2018)Bolton, Butler, Dabson, Enzer, Evans, Fenemore, Harradence, Keaney, Kemp, Luck, Pawsey, Saville, Schooling, Sharp, Smith, Tennison, Whyte, Wilson, and Makri]{bolton2018gemini}
+A.~Bolton, L.~Butler, I.~Dabson, M.~Enzer, M.~Evans, T.~Fenemore, F.~Harradence, E.~Keaney, A.~Kemp, A.~Luck, N.~Pawsey, S.~Saville, J.~Schooling, M.~Sharp, T.~Smith, J.~Tennison, J.~Whyte, A.~Wilson, and C.~Makri.
+\newblock {Gemini Principles}.
+\newblock Technical report, Centre for Digital Built Britain, 2018.
+
+\bibitem[Bryson et~al.(2006)Bryson, Crosby, and Stone]{bryson2006}
+J.~M. Bryson, B.~C. Crosby, and M.~M. Stone.
+\newblock {The design and implementation of cross-sector collaborations: Propositions from the literature}.
+\newblock \emph{Public Administration Review}, 66\penalty0 (s1):\penalty0 44--55, 2006.
+\newblock \doi{10.1111/j.1540-6210.2006.00665.x}.
+
+\bibitem[Cardullo and Kitchin(2019)]{cardullo2019}
+P.~Cardullo and R.~Kitchin.
+\newblock {Being a 'citizen' in the smart city: up and down the scaffold of smart citizen participation in Dublin, Ireland}.
+\newblock \emph{GeoJournal}, 84\penalty0 (1):\penalty0 1--13, 2019.
+\newblock \doi{10.1007/s10708-018-9845-8}.
+
+\bibitem[Chantara et~al.(2012)Chantara, Sillapapiromsuk, and Wiriya]{chantara2012}
+S.~Chantara, S.~Sillapapiromsuk, and W.~Wiriya.
+\newblock {Atmospheric pollutants in Chiang Mai (Thailand) over a five-year period (2005--2009), their possible sources and relation to air mass movement}.
+\newblock \emph{Atmospheric Environment}, 60:\penalty0 88--98, 2012.
+\newblock \doi{10.1016/j.atmosenv.2012.06.044}.
+
+\bibitem[Christensen and Lægreid(2007)]{christensen2007}
+T.~Christensen and P.~Lægreid.
+\newblock {The whole-of-government approach to public sector reform}.
+\newblock \emph{Public Administration Review}, 67\penalty0 (6):\penalty0 1059--1066, 2007.
+\newblock \doi{10.1111/j.1540-6210.2007.00797.x}.
+
+\bibitem[Datta(2015)]{datta2015}
+A.~Datta.
+\newblock {A 100 smart cities, a 100 utopias}.
+\newblock \emph{Dialogues in Human Geography}, 5\penalty0 (1):\penalty0 49--53, 2015.
+\newblock \doi{10.1177/2043820614565750}.
+
+\bibitem[Edler and Georghiou(2007)]{edler2007}
+J.~Edler and L.~Georghiou.
+\newblock {Public procurement and innovation---Resurrecting the demand side}.
+\newblock \emph{Research Policy}, 36\penalty0 (7):\penalty0 949--963, 2007.
+\newblock \doi{10.1016/j.respol.2007.03.003}.
+
+\bibitem[Flyvbjerg and Budzier(2013)]{flyvbjerg2013}
+B.~Flyvbjerg and A.~Budzier.
+\newblock {Why your IT project may be riskier than you think}.
+\newblock SSRN Working Paper, 2013.
+
+\bibitem[Goldfinch(2007)]{goldfinch2007}
+S.~Goldfinch.
+\newblock {Pessimism, computer failure, and information systems development in the public sector}.
+\newblock \emph{Public Administration Review}, 67\penalty0 (5):\penalty0 917--929, 2007.
+\newblock \doi{10.1111/j.1540-6210.2007.00778.x}.
+
+\bibitem[Greenfield(2013)]{greenfield2013against}
+A.~Greenfield.
+\newblock \emph{{Against the Smart City}}.
+\newblock Verso, 2013.
+
+\bibitem[Heeks(2006)]{heeks2006}
+R.~Heeks.
+\newblock {Health information systems: Failure, success and improvisation}.
+\newblock \emph{International Journal of Medical Informatics}, 75\penalty0 (2):\penalty0 125--137, 2006.
+\newblock \doi{10.1016/j.ijmedinf.2005.07.024}.
+
+\bibitem[Hollands(2008)]{hollands2008}
+R.~G. Hollands.
+\newblock {Will the real smart city please stand up? Intelligent, progressive or entrepreneurial?}
+\newblock \emph{City}, 12\penalty0 (3):\penalty0 303--320, 2008.
+\newblock \doi{10.1080/13604810802479126}.
+
+\bibitem[Inlaung et~al.(2022)Inlaung, Chotamonsak, and Surapipith]{inlaung2022}
+K.~Inlaung, C.~Chotamonsak, and V.~Surapipith.
+\newblock {Relationship of fire hotspot, PM2.5 concentrations, and surrounding areas in upper northern Thailand: A case study of haze season in 2019}.
+\newblock \emph{Journal of King Mongkut's University of Technology North Bangkok}, 33\penalty0 (2), 2022.
+\newblock \doi{10.14416/j.kmutnb.2022.07.002}.
+
+\bibitem[Janssen et~al.(2012)Janssen, Charalabidis, and Zuiderwijk]{janssen2012open}
+M.~Janssen, Y.~Charalabidis, and A.~Zuiderwijk.
+\newblock {Benefits, adoption barriers and myths of open data and open government}.
+\newblock \emph{Information Systems Management}, 29\penalty0 (4):\penalty0 258--268, 2012.
+\newblock \doi{10.1080/10580530.2012.716740}.
+
+\bibitem[Joss et~al.(2019)Joss, Sengers, Schraven, Caprotti, and Dayot]{joss2019}
+S.~Joss, F.~Sengers, D.~Schraven, F.~Caprotti, and Y.~Dayot.
+\newblock {The smart city as global discourse: Storylines and critical junctures across 27 cities}.
+\newblock \emph{Journal of Urban Technology}, 26\penalty0 (1):\penalty0 3--34, 2019.
+\newblock \doi{10.1080/10630732.2018.1558387}.
+
+\bibitem[Jumnong and Lowatcharin(2022)]{jamnong2022phuket}
+P.~Jumnong and G.~Lowatcharin.
+\newblock {The Implementation of the Smart City Policy of Phuket Province (in Thai)}.
+\newblock \emph{Political Science and Public Administration Journal}, 13\penalty0 (2):\penalty0 215--242, 2022.
+\newblock URL \url{https://so05.tci-thaijo.org/index.php/polscicmujournal/article/view/256069}.
+
+\bibitem[{Kingdom of Thailand}(2007)]{thailand2007dpmact}
+{Kingdom of Thailand}.
+\newblock {Disaster Prevention and Mitigation Act, B.E. 2550 (2007)}.
+\newblock Unofficial translation, 2007.
+\newblock URL \url{https://disasterlaw.ifrc.org/sites/default/files/media/disaster_law/2020-08/Thailand_DMAct_2007.pdf}.
+
+\bibitem[{Kingdom of Thailand}(2017)]{thailand2017procurementact}
+{Kingdom of Thailand}.
+\newblock {Public Procurement and Supplies Administration Act, B.E. 2560 (2017)}.
+\newblock Tentative (unofficial) English translation, 2017.
+\newblock URL \url{https://corporate.airportthai.co.th/storage/2021/03/Public-Procurement-and-Supplies-Administration-Act-B.E.-2560-2017.pdf}.
+
+\bibitem[{Kingdom of Thailand}(2019{\natexlab{a}})]{thailand2019digitalact}
+{Kingdom of Thailand}.
+\newblock {Digitalization of Public Administration and Services Delivery Act, B.E. 2562 (2019)}.
+\newblock Unofficial translation, Office of the Council of State; Royal Gazette Vol. 136, Part 67 Kor, 22 May 2019, 2019{\natexlab{a}}.
+\newblock URL \url{https://dga.or.th/wp-content/uploads/2024/10/Digitalization-of-Public-Administration-and-Services-Delivery.-Act-B.E.-2562-2019.pdf}.
+
+\bibitem[{Kingdom of Thailand}(2019{\natexlab{b}})]{thailand2019pdpa}
+{Kingdom of Thailand}.
+\newblock {Personal Data Protection Act, B.E. 2562 (2019)}.
+\newblock Unofficial translation; Royal Gazette No. 136 Chapter 69 Kor, 27 May 2019, 2019{\natexlab{b}}.
+\newblock URL \url{https://cc.kmutt.ac.th/Files/Act%20Eng/personal-data-protection-act-2019-en.pdf}.
+
+\bibitem[Mergel(2019)]{mergel2019}
+I.~Mergel.
+\newblock {Digital service teams in government}.
+\newblock \emph{Government Information Quarterly}, 36\penalty0 (4):\penalty0 101389, 2019.
+\newblock \doi{10.1016/j.giq.2019.07.001}.
+
+\bibitem[Naprathansuk(2017)]{naprathansuk2017}
+N.~Naprathansuk.
+\newblock {A national pilot project on smart city policy in Thailand: a case study on Phuket, Khon Kaen, Chiangmai province}.
+\newblock \emph{European Journal of Multidisciplinary Studies}, 6\penalty0 (1):\penalty0 337--346, 2017.
+\newblock \doi{10.26417/ejms.v6i1.p337-346}.
+
+\bibitem[{OASIS}(2010)]{oasis2010cap}
+{OASIS}.
+\newblock {Common Alerting Protocol Version 1.2}.
+\newblock OASIS Standard, 01 July 2010, 2010.
+\newblock URL \url{http://docs.oasis-open.org/emergency/cap/v1.2/CAP-v1.2-os.html}.
+
+\bibitem[Pahlka(2023)]{pahlka2023}
+J.~Pahlka.
+\newblock \emph{{Recoding America: Why Government Is Failing in the Digital Age and How We Can Do Better}}.
+\newblock Metropolitan Books, 2023.
+\newblock ISBN 9781250266767.
+
+\bibitem[Pollitt(2003)]{pollitt2003}
+C.~Pollitt.
+\newblock {Joined-up government: a survey}.
+\newblock \emph{Political Studies Review}, 1\penalty0 (1):\penalty0 34--49, 2003.
+\newblock \doi{10.1111/1478-9299.00004}.
+
+\bibitem[Provan and Kenis(2008)]{provan2008}
+K.~G. Provan and P.~Kenis.
+\newblock {Modes of network governance: Structure, management, and effectiveness}.
+\newblock \emph{Journal of Public Administration Research and Theory}, 18\penalty0 (2):\penalty0 229--252, 2008.
+\newblock \doi{10.1093/jopart/mum015}.
+
+\bibitem[Ruangwicha and Tuamsuk(2026)]{ruangwicha2026}
+P.~Ruangwicha and K.~Tuamsuk.
+\newblock {Prioritizing core data sets for smart city governance: Evidence from thirty-six cities in Thailand}.
+\newblock \emph{Smart Cities}, 9\penalty0 (1):\penalty0 15, 2026.
+\newblock \doi{10.3390/smartcities9010015}.
+
+\bibitem[Schroeder et~al.(2014)Schroeder, Oliva, Giglio, and Csiszar]{schroeder2014}
+W.~Schroeder, P.~Oliva, L.~Giglio, and I.~A. Csiszar.
+\newblock {The New VIIRS 375 m active fire detection data product: Algorithm description and initial assessment}.
+\newblock \emph{Remote Sensing of Environment}, 143:\penalty0 85--96, 2014.
+\newblock \doi{10.1016/j.rse.2013.12.008}.
+
+\bibitem[Shelton et~al.(2015)Shelton, Zook, and Wiig]{shelton2015}
+T.~Shelton, M.~Zook, and A.~Wiig.
+\newblock {The 'actually existing smart city'}.
+\newblock \emph{Cambridge Journal of Regions, Economy and Society}, 8\penalty0 (1):\penalty0 13--25, 2015.
+\newblock \doi{10.1093/cjres/rsu026}.
+
+\bibitem[Sorensen(2000)]{sorensen2000}
+J.~H. Sorensen.
+\newblock {Hazard warning systems: Review of 20 years of progress}.
+\newblock \emph{Natural Hazards Review}, 1\penalty0 (2):\penalty0 119--125, 2000.
+\newblock \doi{10.1061/(ASCE)1527-6988(2000)1:2(119)}.
+
+\bibitem[Söderström et~al.(2014)Söderström, Paasche, and Klauser]{soderstrom2014}
+O.~Söderström, T.~Paasche, and F.~Klauser.
+\newblock {Smart cities as corporate storytelling}.
+\newblock \emph{City}, 18\penalty0 (3):\penalty0 307--320, 2014.
+\newblock \doi{10.1080/13604813.2014.906716}.
+
+\bibitem[{Thai Meteorological Department}(2026)]{tmd2026cap}
+{Thai Meteorological Department}.
+\newblock {Common Alerting Protocol ({CAP}) alert feed}.
+\newblock RSS index of CAP 1.2 messages; accessed 4 November 2026, 2026.
+\newblock URL \url{https://www.tmd.go.th/api/xml/CAP}.
+
+\bibitem[Townsend(2013)]{townsend2013smart}
+A.~M. Townsend.
+\newblock \emph{{Smart Cities: Big Data, Civic Hackers, and the Quest for a New Utopia}}.
+\newblock W. W. Norton, New York, 2013.
+\newblock ISBN 9780393082876.
+
+\bibitem[{United Nations Department of Economic and Social Affairs}(2024)]{undesa2024egov}
+{United Nations Department of Economic and Social Affairs}.
+\newblock {E-Government Survey 2024: Thailand country data (E-Government Development Index)}.
+\newblock Technical report, United Nations, 2024.
+\newblock URL \url{https://publicadministration.un.org/egovkb/en-us/Data/Country-Information/id/169-Thailand/dataYear/2024}.
+
+\bibitem[{United Nations General Assembly}(2015)]{unga2015sendai}
+{United Nations General Assembly}.
+\newblock {Sendai Framework for Disaster Risk Reduction 2015--2030 (Annex II to Resolution 69/283)}.
+\newblock A/RES/69/283, adopted 3 June 2015, distributed 23 June 2015, 2015.
+\newblock URL \url{https://documents.un.org/api/symbol/access?s=A/RES/69/283&l=en&t=pdf}.
+
+\bibitem[Vetrò et~al.(2016)Vetrò, Canova, Torchiano, Minotas, Iemma, and Morando]{vetro2016}
+A.~Vetrò, L.~Canova, M.~Torchiano, C.~O. Minotas, R.~Iemma, and F.~Morando.
+\newblock {Open data quality measurement framework: Definition and application to open government data}.
+\newblock \emph{Government Information Quarterly}, 33\penalty0 (2):\penalty0 325--337, 2016.
+\newblock \doi{10.1016/j.giq.2016.02.001}.
+
+\bibitem[Wiig(2015)]{wiig2015}
+A.~Wiig.
+\newblock {IBM's smart city as techno-utopian policy mobility}.
+\newblock \emph{City}, 19\penalty0 (2--3):\penalty0 258--273, 2015.
+\newblock \doi{10.1080/13604813.2015.1016275}.
+
+\bibitem[Wilkinson et~al.(2016)Wilkinson, Dumontier, Aalbersberg, et~al.]{wilkinson2016}
+M.~D. Wilkinson, M.~Dumontier, I.~J. Aalbersberg, et~al.
+\newblock {The FAIR Guiding Principles for scientific data management and stewardship}.
+\newblock \emph{Scientific Data}, 3:\penalty0 160018, 2016.
+\newblock \doi{10.1038/sdata.2016.18}.
+
+\bibitem[{World Bank}(2012)]{worldbank2012thaiflood}
+{World Bank}.
+\newblock {Thai Flood 2011: Rapid Assessment for Resilient Recovery and Reconstruction Planning (Overview)}.
+\newblock Technical report, The World Bank, Bangkok, 2012.
+\newblock URL \url{https://documents.worldbank.org/en/publication/documents-reports/documentdetail/677991468335408959}.
+
+\bibitem[{World Health Organization}(2021)]{who2021aqg}
+{World Health Organization}.
+\newblock {WHO global air quality guidelines: Particulate matter (PM2.5 and PM10), ozone, nitrogen dioxide, sulfur dioxide and carbon monoxide}.
+\newblock Technical report, World Health Organization, Geneva, 2021.
+
+\bibitem[{World Meteorological Organization}(2018)]{wmo2018mhews}
+{World Meteorological Organization}.
+\newblock {Multi-hazard Early Warning Systems: A Checklist}.
+\newblock Technical report, WMO, 2018.
+\newblock URL \url{https://globalplatform.undrr.org/2022/sites/default/files/2022-02/Multi-hazard%20Early%20Warning%20Systems-%20A%20Checklist.pdf}.
+
+\bibitem[{World Meteorological Organization}(2023)]{wmo2023ew4all}
+{World Meteorological Organization}.
+\newblock {Overview of the Early Warnings for All: Executive Action Plan 2023--2027}.
+\newblock \emph{WMO Bulletin}, 72\penalty0 (1), 2023.
+\newblock URL \url{https://wmo.int/resources/wmo-bulletin/wmo-bulletin-vol-72-1-2023/overview-of-early-warnings-all-executive-action-plan-2023-2027}.
+
+\bibitem[Zaveri et~al.(2016)Zaveri, Rula, Maurino, Pietrobon, Lehmann, and Auer]{zaveri2016}
+A.~Zaveri, A.~Rula, A.~Maurino, R.~Pietrobon, J.~Lehmann, and S.~Auer.
+\newblock {Quality assessment for linked data: A survey}.
+\newblock \emph{Semantic Web}, 7\penalty0 (1):\penalty0 63--93, 2016.
+\newblock \doi{10.3233/SW-150175}.
+
+\end{thebibliography}

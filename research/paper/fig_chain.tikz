@@ -1,0 +1,14 @@
+\begin{tikzpicture}[x=1cm,y=1cm,
+  link/.style={draw=ink,line width=0.5pt,minimum width=2.15cm,minimum height=0.95cm,align=center,font=\small\bfseries,fill=white,inner sep=3pt},
+  gap/.style={link,draw=sigred,line width=1.1pt,text=sigred},
+  own/.style={font=\scriptsize,text=mid,align=center,text width=2.3cm},
+  arr/.style={-{Stealth[length=2mm]},draw=ink,line width=0.5pt}]
+\node[link] (n0) at (0,0) {Sense};\node[own,below=2pt of n0] {ThaiWater (HII), PCD, NASA: machine-readable};
+\node[link] (n1) at (2.6,0) {Forecast};\node[own,below=2pt of n1] {Meteorological service, open models: partly};
+\node[gap] (n2) at (5.2,0) {Assets\\[-1pt]{\scriptsize drains, routes}};\node[own,below=2pt of n2] {Not found in the estate};
+\node[link] (n3) at (7.8,0) {Decide};\node[own,below=2pt of n3] {Meteorological service: CAP alerts};
+\node[link] (n4) at (10.4,0) {Push};\node[own,below=2pt of n4] {Outside open data};
+\node[link] (n5) at (13.0,0) {Shelter};\node[own,below=2pt of n5] {Provincial Office: list, no coordinates};
+\node[gap] (n6) at (15.6,0) {Verify};\node[own,below=2pt of n6] {None found};
+\foreach \i/\j in {0/1,1/2,2/3,3/4,4/5,5/6} {\draw[arr] (n\i) -- (n\j);}
+\end{tikzpicture}

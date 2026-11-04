@@ -468,6 +468,7 @@ export default function CnxTopBar(props: TopBarProps) {
             {isDark ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
             {t("สลับโหมดสว่าง/มืด", "Toggle theme")}
           </button>
+          <a href="/cnx/research" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">{t("งานวิจัย", "Research")}</a>
           <a href="/cnx/about#web-app" className="flex min-h-11 items-center border border-[var(--line)] px-3 text-[13px] font-semibold">{t("เว็บแอป Android และ iPhone", "Web app · Android & iPhone")}</a>
       {!compact && <details className="border-t border-[var(--line)]">
         <summary className="min-h-11 cursor-pointer border border-[var(--line)] px-3 py-3 text-[12px] font-semibold">{t("สถานะแหล่งข้อมูล", "Feed status")}</summary>

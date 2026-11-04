@@ -8,6 +8,11 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-site
   X-Permitted-Cross-Domain-Policies: none
+/research/*
+  ! X-Frame-Options
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+  Cache-Control: public, max-age=300
 /data/*
   Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
 /_next/static/*
