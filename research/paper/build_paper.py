@@ -11,9 +11,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 R = json.load(open(ROOT / "research/data/results.json"))
-VERSION = "v1.0 (4 Nov 2026)"
+VERSION = "v1.1 (4 Nov 2026)"
 DATE = "4 November 2026"
-TITLE = "From Gauge to Shelter: Why Thai Smart-City Programmes Stall Between Measurement and Action"
+TITLE = "From Gauge to Shelter: A Public-Data Audit of Flood and Haze Decision Support in Chiang Mai"
 
 e, sh, tw, reg, wc, hz, b, bl = R["estate"], R["shelters"], R["towers"], R["registry"], R["water_cameras"], R["haze_vision"], R["build"], R["burn"]
 n = lambda x: f"{int(x):,}".replace(",", "{,}")          # 2{,}869
@@ -86,19 +86,16 @@ T = {
  "hot_68": n(seasons[2568]["totals"]["hotspots"]), "hot_69": n(seasons[2569]["totals"]["hotspots"]),
 }
 ABSTRACT = (
- "Thailand has promoted smart cities and digital government for a decade, yet the chain that matters---a measurement becoming a message that moves a person---stays open. "
+ "Public measurements can support disaster decisions only when warnings, local assets and accountable response are connected. "
  "We examine four explanations: weak inter-agency coordination, procurement that buys files rather than services, data that records rather than responds, and no end-to-end monitoring-to-push chain. "
  "In one province we describe what the open-data estate publishes (@@estate_datasets@@ datasets, @@estate_resources@@ resources, @@estate_orgs@@ publishers), audit two hazard chains link by link, and report the operating record of CNX, a public-data operations room adapted to close the chain without inter-agency agreements. "
- "@@unreadable_pct@@\\% of resources could not be parsed and @@spatial@@ datasets carry a location; we found none about drainage, evacuation routes or procurement. "
- "None of the @@shelters@@ official shelter rows carries a coordinate, and @@over20_pct@@\\% of those reporting toilets exceed a reference of 20 people per toilet. "
- "CNX drew on @@agencies@@ providers within seven calendar weeks; @@ontime@@ of @@slo_total@@ feeds with a declared limit were inside it; official meteorological warnings lead its board. "
- "Coordination, procurement and responsiveness gaps could be bypassed with public data and open standards; authority, asset registers and validation could not. "
+ "@@unreadable_pct@@\\% of resources could not be parsed and @@spatial@@ datasets carry a location; title-and-tag searches found none about drainage, evacuation routes or procurement in the two archived catalogues. "
+ "None of the @@shelters@@ official shelter rows carries a coordinate, and @@over20_pct@@\\% of rows reporting toilets exceed the medium-term reference of 20 people per toilet at listed capacity. "
+ "CNX drew on @@agencies@@ provider labels (including composite and internally derived sources) within seven calendar weeks; in one archived snapshot, @@ontime@@ of @@slo_total@@ feeds with a declared freshness limit were inside it; official meteorological warnings lead its board. "
+ "The prototype demonstrates integration feasibility, not warning delivery, acknowledged action, safe evacuation or institutional reform. "
  "The audit is descriptive and the system is evaluated for feasibility only: we show that the gaps are present and measurable, not that they cause the stalled programmes."
 )
 T["abstract"] = ABSTRACT
-for _ in range(2):
-    for k, v in T.items():
-        pass
 s = (HERE / "paper.tex.tpl").read_text()
 for _ in range(3):
     s = re.sub(r"@@(\w+)@@", lambda m: T[m.group(1)] if m.group(1) in T else m.group(0), s)
@@ -117,6 +114,8 @@ for f in (ROOT / "research/figures").glob("*.pdf"):
 TL = Path.home() / "Library/TinyTeX/bin/universal-darwin"
 def run(cmd):
     r = subprocess.run(cmd, cwd=build, capture_output=True, text=True, errors="replace")
+    if r.returncode:
+        sys.exit(f"Build failed: {cmd[0]}\n{r.stdout[-3000:]}\n{r.stderr[-1000:]}")
     return r
 run([str(TL / "pdflatex"), "-interaction=nonstopmode", "paper.tex"])
 bb = run([str(TL / "bibtex"), "paper"])
@@ -127,7 +126,11 @@ errs = [l for l in log.splitlines() if l.startswith("!")]
 undef = sorted(set(re.findall(r"Citation `([^']+)' .*undefined", log)))
 print("bibtex:", [l for l in bb.stdout.splitlines() if "Warning" in l or "error" in l.lower()][:6])
 print("errors:", errs[:6]); print("undefined citations:", undef)
+if errs or undef or "undefined references" in log:
+    sys.exit("Refusing to publish a paper with TeX errors or unresolved references")
 pdf = build / "paper.pdf"
+if not pdf.exists():
+    sys.exit("No PDF produced")
 if pdf.exists():
     out = ROOT / "public/research"; out.mkdir(parents=True, exist_ok=True)
     shutil.copy(pdf, out / "gauge-to-shelter-preprint.pdf")

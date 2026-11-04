@@ -137,7 +137,7 @@ ax[2].set_title(f"(c) {OUT['estate']['unreadable_share']*100:.0f}% unreadable", 
 fig.tight_layout(w_pad=1.0); save(fig, "fig_estate")
 
 # ═══ 2 · shelters: the list, its coordinates, its sanitation ═════════════════
-rows = list(csv.reader(open(D / "open-data/4a375627-d76f-44d7-ac3f-d95651f0baee.csv", encoding="utf-8-sig")))[1:]
+rows = list(csv.reader(open(R / "data/shelters-source.csv", encoding="utf-8-sig")))[1:]
 rows = [r for r in rows if len(r) >= 8 and r[1] != "อำเภอ"]
 cap = [int(r[4]) for r in rows if r[4].strip().isdigit()]
 toil = [int(r[7]) if r[7].strip().isdigit() else None for r in rows]
@@ -155,7 +155,7 @@ OUT["shelters"] = {
 cap_zero = sum(int(r[4]) for r, t in zip(rows, toil) if t == 0 and r[4].strip().isdigit())
 OUT["shelters"]["capacity_without_toilet_reported"] = cap_zero
 OUT["shelters"]["capacity_without_toilet_share"] = cap_zero / sum(cap)
-# Sphere 2018: at most 20 people per toilet. Capacity a shelter can host to that standard:
+# Scenario at the Sphere medium-term reference; not verified usable capacity:
 cap_ok = sum(min(int(r[4]), 20 * t) for r, t in zip(rows, toil) if t is not None and r[4].strip().isdigit())
 OUT["shelters"]["capacity_at_sphere_toilets"] = cap_ok
 OUT["shelters"]["capacity_at_sphere_toilets_share"] = cap_ok / sum(cap)
@@ -315,7 +315,7 @@ ax.set_ylabel("Burned area (10³ rai)"); ax.legend(frameon=False, loc="upper lef
 save(fig, "fig_burn")
 
 # ═══ 5 · build history ═══════════════════════════════════════════════════════
-log = subprocess.run(["git", "-C", str(ROOT), "log", "--reverse", "--format=%ad|%s", "--date=short"], capture_output=True, text=True).stdout.strip().splitlines()
+log = json.load(open(R / "data/build-history.json"))["rows"]
 days = Counter(l.split("|")[0] for l in log)
 first, last = min(days), max(days)
 def first_commit(pattern):
