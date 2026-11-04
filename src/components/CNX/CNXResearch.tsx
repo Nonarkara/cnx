@@ -61,7 +61,7 @@ export default function CNXResearch({ stats: s }: { stats: ResearchStats }) {
           </p>
           <h1 lang="en" className="mt-1 text-[19px] font-bold leading-snug sm:text-[22px]">{TITLE}</h1>
           <p className="mt-1 text-[13px] text-[var(--dim)]">
-            Non Arkaraprasertkul (depa) · Pun Thiengburanathum (RCAD)
+            {t("ปุ่น เที่ยงบูรณธรรม (วิศวกรรมศาสตร์ มช. · รวพ.) · นน อัครประเสริฐกุล (depa)", "Poon Thiengburanathum (CMU Engineering · RCAD) · Non Arkaraprasertkul (depa)")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -130,12 +130,12 @@ export default function CNXResearch({ stats: s }: { stats: ResearchStats }) {
         <section aria-labelledby="cite">
           <h2 id="cite" className="text-[16px] font-bold">{t("วิธีอ้างอิง", "How to cite")}</h2>
           <p lang="en" className="mt-1 max-w-[68ch] text-[13px] leading-relaxed">
-            Arkaraprasertkul, N., &amp; Thiengburanathum, P. (2026). {TITLE}. Preprint, 4 November 2026. https://cnx.nonarkara.org/cnx/research
+            Thiengburanathum, P., &amp; Arkaraprasertkul, N. (2026). {TITLE}. Preprint, 4 November 2026. https://cnx.nonarkara.org/cnx/research
           </p>
           <p className="mt-2 max-w-[68ch] text-[12px] leading-relaxed text-[var(--dim)]">
             {t(
-              "ผลประโยชน์ทับซ้อน: ผู้เขียนคนแรกทำงานที่ depa ซึ่งขับเคลื่อนโครงการ Smart City Thailand และออกแบบระบบ CNX ผู้เขียนคนที่สองสังกัด รวพ. ผู้สนับสนุนกรณีศึกษา ความเห็นเป็นของผู้เขียน ไม่ใช่ของหน่วยงาน การวิเคราะห์โค้ดและการร่างบทความใช้ผู้ช่วย AI (Claude) ผู้เขียนรับผิดชอบเนื้อหา การระบุบทบาทผู้เขียนรอผู้เขียนยืนยันก่อนส่งตีพิมพ์",
-              "Competing interests: the first author works at depa, which promotes the Smart City Thailand programme discussed, and designed the CNX system; the second author is affiliated with RCAD, which sponsors the case study. Views are the authors' own, not their organisations'. Analysis code and drafting were assisted by an AI model (Claude); the authors are responsible for the content. Author contributions are to be confirmed by the authors before submission.",
+              "ผลประโยชน์ทับซ้อน: ผู้เขียนคนแรกสังกัดคณะวิศวกรรมศาสตร์ มหาวิทยาลัยเชียงใหม่ และ รวพ. ผู้สนับสนุนกรณีศึกษา ผู้เขียนคนที่สองทำงานที่ depa ซึ่งขับเคลื่อนโครงการ Smart City Thailand และออกแบบระบบ CNX ความเห็นเป็นของผู้เขียน ไม่ใช่ของหน่วยงาน การวิเคราะห์โค้ดและการร่างบทความใช้ผู้ช่วย AI (Claude) ผู้เขียนรับผิดชอบเนื้อหา การระบุบทบาทผู้เขียน แหล่งทุน และการตรวจทานโดยหน่วยงาน รอผู้เขียนยืนยันก่อนส่งตีพิมพ์",
+              "Competing interests: the first author is affiliated with the Faculty of Engineering, Chiang Mai University, and with RCAD, which sponsors the case study; the second author works at depa, which promotes the Smart City Thailand programme discussed, and designed the CNX system. Views are the authors' own, not their organisations'. Analysis code and drafting were assisted by an AI model (Claude); the authors are responsible for the content. Author contributions, funding and any organisational review are to be confirmed by the authors before submission.",
             )}
           </p>
         </section>

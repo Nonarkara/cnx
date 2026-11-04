@@ -10,7 +10,7 @@
 \usepackage[hyphens]{url}\Urlmuskip=0mu plus 2mu
 \usepackage[authoryear,round,sort&compress]{natbib}
 \usepackage[colorlinks=true,linkcolor=sigred,citecolor=coolblue,urlcolor=coolblue,pdfborder={0 0 0},
-  pdftitle={From Gauge to Shelter: Why Thai Smart-City Programmes Stall Between Measurement and Action},pdfauthor={Non Arkaraprasertkul; Pun Thiengburanathum},
+  pdftitle={From Gauge to Shelter: Why Thai Smart-City Programmes Stall Between Measurement and Action},pdfauthor={Poon Thiengburanathum; Non Arkaraprasertkul},
   pdfkeywords={smart city; digital government; Thailand; early warning; open data; digital twin; inter-agency coordination}]{hyperref}
 
 \definecolor{ink}{HTML}{1B1F23}\definecolor{sigred}{HTML}{B4231A}\definecolor{coolblue}{HTML}{1E4E79}
@@ -23,7 +23,7 @@
 \titleformat{\subsection}{\normalsize\bfseries\color{ink}}{\thesubsection}{0.6em}{}
 \titlespacing*{\section}{0pt}{11pt}{4pt}\titlespacing*{\subsection}{0pt}{7pt}{2pt}
 \pagestyle{fancy}\fancyhf{}\renewcommand{\headrulewidth}{0.3pt}\renewcommand{\headrule}{\hbox to\headwidth{\color{rule}\leaders\hrule height \headrulewidth\hfill}}
-\fancyhead[L]{\small\color{mid}Preprint --- not peer reviewed}\fancyhead[R]{\small\color{mid}Arkaraprasertkul \& Thiengburanathum}
+\fancyhead[L]{\small\color{mid}Preprint --- not peer reviewed}\fancyhead[R]{\small\color{mid}Thiengburanathum \& Arkaraprasertkul}
 \setlength{\headheight}{14pt}
 \fancyfoot[C]{\small\color{mid}\thepage\,/\,\pageref{LastPage}}
 \fancypagestyle{first}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}\fancyhead[L]{\small\color{mid}Preprint --- not peer reviewed \quad|\quad v1.0 (4 Nov 2026)}\fancyfoot[C]{\small\color{mid}\thepage\,/\,\pageref{LastPage}}}
@@ -38,9 +38,10 @@
 {\color{mid}\small\textsc{Preprint \,·\, Public-policy and urban-systems research}}\\[7pt]
 {\LARGE\bfseries\color{ink} From Gauge to Shelter: Why Thai Smart-City Programmes Stall Between Measurement and Action\par}
 \vspace{7pt}
-{\large Non Arkaraprasertkul$^{1}$ \quad and \quad Pun Thiengburanathum$^{2}$}\\[3pt]
-{\small $^{1}$Digital Economy Promotion Agency (depa), Ministry of Digital Economy and Society, Thailand\\
-$^{2}$Office for Accelerating Research and Innovation for Competitiveness and Area Development (RCAD), Thailand}\\[2pt]
+{\large Poon Thiengburanathum$^{1,2}$ \quad and \quad Non Arkaraprasertkul$^{3}$}\\[3pt]
+{\small $^{1}$Faculty of Engineering, Chiang Mai University, Thailand\\
+$^{2}$Research and Innovation Acceleration Agency for Competitiveness and Area Development (RCAD), Thailand\\
+$^{3}$Digital Economy Promotion Agency of Thailand (depa)}\\[2pt]
 {\small\color{mid}Correspondence: \href{https://cnx.nonarkara.org/cnx/research}{cnx.nonarkara.org/cnx/research} \,·\, Preprint of 4 November 2026 \,·\, Version v1.0 (4 Nov 2026)}
 \end{center}
 \vspace{2pt}
@@ -52,7 +53,7 @@ $^{2}$Office for Accelerating Research and Innovation for Competitiveness and Ar
 }]
 
 \section{A gauge, a river, and a calm screen}
-On 5 October 2026 a rain gauge in Chom Thong recorded 94.5\,mm in twenty-four hours: ``very heavy'' rain on the Thai Meteorological Department's scale, on a hill catchment. The screen that day, the first author's own operations room (CNX, version 1.7), read river gauges only and showed no sign of high water. Both measurements were true. Both were public, and both came through the same national water-data portal. Nothing on our screen connected them until we added rain gauges that day (repository commit \texttt{c2a44ff}; the Chom Thong reading is the fixture in \texttt{rain-core.test.ts}). We start with our own failure because it is the failure this paper is about.
+On 5 October 2026 a rain gauge in Chom Thong recorded 94.5\,mm in twenty-four hours: ``very heavy'' rain on the Thai Meteorological Department's scale, on a hill catchment. The screen that day, the second author's own operations room (CNX, version 1.7), read river gauges only and showed no sign of high water. Both measurements were true. Both were public, and both came through the same national water-data portal. Nothing on our screen connected them until we added rain gauges that day (repository commit \texttt{c2a44ff}; the Chom Thong reading is the fixture in \texttt{rain-core.test.ts}). We start with our own failure because it is the failure this paper is about.
 
 It is not a failure of sensors. Thailand has rain gauges, satellites, a national meteorological service that publishes its warnings as machine-readable CAP messages \citep{tmd2026cap}, and a provincial office that has written down 177 places where flood evacuees may sleep. It is a failure of \emph{the chain}: the steps between a measurement and a person who moves. Each link is published, if at all, by a different body, in a different form.
 
@@ -120,7 +121,7 @@ In Chiang Mai the other seasonal hazard is smoke \citep{chantara2012,inlaung2022
 \resizebox{\textwidth}{!}{\input{fig_chain.tikz}}
 \caption{The chain from measurement to action. Boxes show the link; the grey line beneath names who publishes it, as far as we found, and whether a machine can read it. The red outline marks links we did not find in the estate.}\label{fig:chain}
 \end{figure*}
-We built \emph{CNX}, a public operations room for Chiang Mai (\url{https://cnx.nonarkara.org}), on five rules. CNX was not built from nothing: it began as a port of the first author\textquoteright s earlier provincial operations room for Lopburi (the first commit of this repository is titled a ``Lopburi-pattern port''), so the build times below measure an adaptation, not a first build.
+We built \emph{CNX}, a public operations room for Chiang Mai (\url{https://cnx.nonarkara.org}), on five rules. CNX was not built from nothing: it began as a port of the second author\textquoteright s earlier provincial operations room for Lopburi (the first commit of this repository is titled a ``Lopburi-pattern port''), so the build times below measure an adaptation, not a first build.
 \begin{enumerate}
 \item \kw{Public sources only.} Read what agencies already publish. No memorandum with any agency. Some feeds need a free key or are subject to a provider\textquoteright s terms of use, which we did not negotiate and have not reviewed with counsel.
 \item \kw{Say what you know and when.} Every number carries its source, its observation time and its failure mode. ``Unknown'' is never shown as ``calm''.
@@ -256,15 +257,15 @@ We hold two seasons, each covering November to April; hotspot counts are missing
 
 \paragraph{Policy implications.} Four cheap acts follow. Publish three records the chain needs: shelter coordinates, drainage geometry, and tower locations with audible range. Require, in each technology purchase, a documented machine interface and a licence \citep{edler2007,mergel2019}. Publish a freshness limit for every public feed, so that silence is visible. Carry every official warning in CAP \citep{oasis2010cap}, as the meteorological service\textquoteright s feed already does \citep{tmd2026cap}.
 
-\paragraph{Threats to validity.}\label{sec:limits} (1) \emph{Design.} Single case, single province, one adapted system built by one of the authors. The audit is descriptive; H1--H3 are not tested, and H1\textquoteright s cross-agency joins and H2\textquoteright s procurement are not measured at all. A test would need interviews and procurement records. (2) \emph{Sampling.} The estate is the result of one search; absence means absence from that search, and provincial publishers dominate it by construction. (3) \emph{Evaluation.} The system is evaluated for feasibility and uptime only. We have no user study, no lead-time or accuracy test of its warnings, one webcam, and no haze event; 26 of 32 feeds have no validation. (4) \emph{Data.} Geocoded shelter points rest on OpenStreetMap coverage; the tower list may be partial; camera figures count distinct frames, so a frozen image counts as silence; the portal data may have changed since 19 September. (5) \emph{Interests.} The first author works for the agency that promotes the programme discussed and built the system; the second is affiliated with the case study\textquoteright s sponsor (Declarations). We report gaps in the first author\textquoteright s own sector for that reason. We show the gaps are present, measurable and partly bridgeable; we do not show that they \emph{cause} the stalled programmes.
+\paragraph{Threats to validity.}\label{sec:limits} (1) \emph{Design.} Single case, single province, one adapted system built by the second author. The audit is descriptive; H1--H3 are not tested, and H1\textquoteright s cross-agency joins and H2\textquoteright s procurement are not measured at all. A test would need interviews and procurement records. (2) \emph{Sampling.} The estate is the result of one search; absence means absence from that search, and provincial publishers dominate it by construction. (3) \emph{Evaluation.} The system is evaluated for feasibility and uptime only. We have no user study, no lead-time or accuracy test of its warnings, one webcam, and no haze event; 26 of 32 feeds have no validation. (4) \emph{Data.} Geocoded shelter points rest on OpenStreetMap coverage; the tower list may be partial; camera figures count distinct frames, so a frozen image counts as silence; the portal data may have changed since 19 September. (5) \emph{Interests.} The second author works for the agency that promotes the programme discussed and built the system; the first is affiliated with the case study\textquoteright s sponsor (Declarations). We report gaps in the second author\textquoteright s own sector for that reason. We show the gaps are present, measurable and partly bridgeable; we do not show that they \emph{cause} the stalled programmes.
 
 \section{Conclusion}
 The failure is not in the sensors. It is in the joints. In one province, with public data and no agreements, an adapted system could assemble a working chain from gauge to shelter in seven calendar weeks --- up to the points where an asset register is missing or an authority is required. Those two points are where policy, not software, would have to act: map the drain, publish the shelter\textquoteright s coordinates, and name who answers at two in the morning. Whether the four gaps explain Thailand\textquoteright s stalled programmes remains to be tested.
 
 \section*{Declarations}
 \small
-\textbf{Competing interests.} N.A.\ is employed by the Digital Economy Promotion Agency (depa), which promotes the Smart City Thailand programme discussed here, and designed and built the CNX system. P.T.\ is affiliated with RCAD, which sponsors the case study. Whether either organisation reviewed this manuscript, and any funding for the work, are \textbf{to be stated by the authors before submission}. The views are the authors\textquoteright\ own and not those of either organisation.\\
-\textbf{Data and code availability.} Data, analysis script and paper source: \path{research/} in the CNX repository at commit \texttt{6075ee7}, and \url{https://cnx.nonarkara.org/cnx/research}. An archived copy with a DOI is \textbf{to be deposited} before submission. The portal data were baked on 19 September and 2 October 2026 and may have changed.\\
+\textbf{Competing interests.} P.T.\ is affiliated with RCAD, which sponsors the case study, and with the Faculty of Engineering, Chiang Mai University. N.A.\ is employed by the Digital Economy Promotion Agency (depa), which promotes the Smart City Thailand programme discussed here, and designed and built the CNX system. Whether either organisation reviewed this manuscript, and any funding for the work, are \textbf{to be stated by the authors before submission}. The views are the authors\textquoteright\ own and not those of any organisation.\\
+\textbf{Data and code availability.} Data, analysis script and paper source: \path{research/} in the CNX repository at commit \texttt{fb9e9c6}, and \url{https://cnx.nonarkara.org/cnx/research}. An archived copy with a DOI is \textbf{to be deposited} before submission. The portal data were baked on 19 September and 2 October 2026 and may have changed.\\
 \textbf{AI assistance.} Analysis code, figures and drafting were assisted by Claude models (Anthropic; Opus 5.5 and Sonnet 5.5); the authors are responsible for the content. An independent AI review checked the numbers and claims, and its findings are reflected here. References were checked against Crossref, publisher or official pages; about a fifth were read in full and the rest were verified at record level only, so claims attached to them are limited to what their titles and scope state (see \path{references-verified.bib}).\\
 \textbf{Author contributions.} \textbf{To be confirmed by the authors before submission.}\\
 \textbf{Ethics and terms of use.} No personal data were collected. Citizen mentions are public posts held as title, link, time and named place, without author identity; camera video is not stored, and haze scoring keeps image statistics only. The Personal Data Protection Act applies to any expansion \citep{thailand2019pdpa}. The relay fetches public endpoints at a modest rate and does not bypass authentication; a formal terms-of-use review of each provider has not been done.

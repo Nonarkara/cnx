@@ -50,7 +50,7 @@ describe("research tab", () => {
     const strip = el.cloneNode(true) as HTMLElement;
     strip.querySelectorAll('[lang="en"], a[download], .font-mono').forEach((n) => n.remove());
     const latin = (strip.textContent ?? "").match(/\b[A-Za-z]{4,}\b/g) ?? [];
-    const allowed = new Set(["Arkaraprasertkul", "Thiengburanathum", "depa", "RCAD", "Smart", "City", "Thailand", "Claude", "CNX", "BibTeX", "Nov", "PDF", "Preprint", "LaTeX", "Non", "Pun", "Data", "AI"]);
+    const allowed = new Set(["Arkaraprasertkul", "Thiengburanathum", "Chiang", "Engineering", "CMU", "depa", "RCAD", "Smart", "City", "Thailand", "Claude", "CNX", "BibTeX", "Nov", "PDF", "Preprint", "LaTeX", "Non", "Poon", "Data", "AI"]);
     expect(latin.filter((w) => !allowed.has(w))).toEqual([]);
   });
 
