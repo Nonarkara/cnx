@@ -1,4 +1,4 @@
-\begin{thebibliography}{49}
+\begin{thebibliography}{50}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -217,6 +217,12 @@ J.~H. Sorensen.
 \newblock {Hazard warning systems: Review of 20 years of progress}.
 \newblock \emph{Natural Hazards Review}, 1\penalty0 (2):\penalty0 119--125, 2000.
 \newblock \doi{10.1061/(ASCE)1527-6988(2000)1:2(119)}.
+
+\bibitem[{Sphere Association}(2018)]{sphere2018}
+{Sphere Association}.
+\newblock \emph{{The Sphere Handbook: Humanitarian Charter and Minimum Standards in Humanitarian Response}}.
+\newblock Sphere Association, Geneva, fourth edition, 2018.
+\newblock URL \url{https://spherestandards.org/wp-content/uploads/Sphere-Handbook-2018-EN.pdf}.
 
 \bibitem[Söderström et~al.(2014)Söderström, Paasche, and Klauser]{soderstrom2014}
 O.~Söderström, T.~Paasche, and F.~Klauser.
